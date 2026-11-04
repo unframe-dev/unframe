@@ -53,6 +53,91 @@ public sealed class PresentationTextureResidencyEditModeTests
     }
 
     [Test]
+    public void ReleasingUnusedTexturesPreservesOtherOwnersAndAllowsReload()
+    {
+        using (var first = new PresentationTextureResidency())
+        using (var second = new PresentationTextureResidency())
+        {
+            var binding = Binding("asset:a");
+            Assert.That(first.TryLoad(binding, Access("asset:a"), Png, out string error), Is.True, error);
+            Assert.That(second.TryRetain(binding, out error), Is.True, error);
+            Assert.That(first.TryGet(binding.Checksum, out var shared), Is.True);
+            first.RetainOnly(Array.Empty<string>());
+            Assert.That(first.ResidentGpuBytes, Is.Zero);
+            Assert.That(first.TryGet(binding.Checksum, out _), Is.False);
+            Assert.That(second.TryGet(binding.Checksum, out var remaining), Is.True);
+            Assert.That(remaining, Is.SameAs(shared));
+            second.RetainOnly(Array.Empty<string>());
+            Assert.That(shared == null, Is.True);
+            Assert.That(first.TryLoad(binding, Access("asset:a"), Png, out error), Is.True, error);
+            Assert.That(first.ResidentGpuBytes, Is.EqualTo(4));
+        }
+    }
+
+    [Test]
+    public void WindowSelectionPinsAllStatesAndDirectSuccessorsByDeclaredAssetId()
+    {
+        var first = Binding("asset:first");
+        var second = Binding("asset:second");
+        second.Checksum = "sha256:" + new string('b', 64);
+        var plan = new TextureResidencyPlan
+        {
+            InitialGroupId = "group:first",
+            Textures = { first, second },
+            GroupWindows = {
+                new TextureResidencyWindow { GroupId = "group:first", AssetIds = { "asset:first", "asset:second" } },
+                new TextureResidencyWindow { GroupId = "group:last", AssetIds = { "asset:second" } },
+            },
+        };
+        CollectionAssert.AreEquivalent(new[] { first, second }, PresentationTextureWindow.Select(plan, null));
+        CollectionAssert.AreEqual(new[] { second }, PresentationTextureWindow.Select(plan, "group:last"));
+        Assert.Throws<InvalidOperationException>(() => PresentationTextureWindow.Select(plan, "group:unknown"));
+    }
+
+    [Test]
+    public void WindowPreparationPreservesResidentTextureWhenLoadingFailsWithinBudget()
+    {
+        using (var textures = new PresentationTextureResidency())
+        {
+            var first = Binding("asset:first");
+            var second = Binding("asset:second");
+            second.Checksum = "sha256:" + new string('b', 64);
+            Assert.That(textures.TryLoad(first, Access("asset:first"), Png, out _), Is.True);
+            Assert.That(textures.TryGet(first.Checksum, out var original), Is.True);
+            var limits = new TextureLimits { MaxGpuBytes = 8, MaxTextureBindings = 2 };
+            Assert.Throws<InvalidOperationException>(() => PresentationTextureWindow.Prepare(textures,
+                new[] { second }, limits, 0, 0, () => Assert.Fail("No eviction is required"), _ => false));
+            Assert.That(textures.TryGet(first.Checksum, out var remaining), Is.True);
+            Assert.That(remaining, Is.SameAs(original));
+        }
+    }
+
+    [Test]
+    public void WindowPreparationDetachesBeforeEvictionAndAccountsForModelTextures()
+    {
+        using (var textures = new PresentationTextureResidency())
+        {
+            var first = Binding("asset:first");
+            var second = Binding("asset:second");
+            second.Checksum = "sha256:" + new string('b', 64);
+            Assert.That(textures.TryLoad(first, Access("asset:first"), Png, out _), Is.True);
+            var limits = new TextureLimits { MaxGpuBytes = 8, MaxTextureBindings = 2 };
+            bool detached = false;
+            Assert.Throws<InvalidOperationException>(() => PresentationTextureWindow.Prepare(textures,
+                new[] { second }, limits, 4, 1, () => {
+                    Assert.That(textures.TryGet(first.Checksum, out _), Is.True);
+                    detached = true;
+                }, binding => {
+                    Assert.That(detached, Is.True);
+                    Assert.That(textures.ResidentGpuBytes, Is.Zero);
+                    return false;
+                }));
+            Assert.That(detached, Is.True);
+            Assert.That(textures.ResidentGpuBytes, Is.Zero);
+        }
+    }
+
+    [Test]
     public void AllSelectedTexturesAreUploadedWithoutCpuCopiesAndSharedByChecksum()
     {
         using (PresentationTextureResidency textures = new PresentationTextureResidency())
@@ -146,7 +231,7 @@ public sealed class PresentationTextureResidencyEditModeTests
             asset.MediaType = "model/gltf-binary";
         }
         manifest.AssetAccess.Add(Access("asset:texture"));
-        manifest.Residency.Textures = new TextureResidencyPlan { BudgetTierId = "test", TotalDecodedGpuBytes = 4, MaximumPeakLoadCpuBytes = 94 };
+        manifest.Residency.Textures = new TextureResidencyPlan { BudgetTierId = "test", TotalDecodedGpuBytes = 4, MaximumPeakLoadCpuBytes = 94, InitialGroupId = "group:local", MaximumResidentGpuBytes = 4, MaximumResidentTextureBindings = 1, GroupWindows = { new TextureResidencyWindow { GroupId = "group:local", AssetIds = { "asset:texture" } } } };
         manifest.Residency.Textures.Textures.Add(Binding("asset:texture"));
         manifest.Residency.TotalSelectedEncodedBytes += 86;
         return manifest;

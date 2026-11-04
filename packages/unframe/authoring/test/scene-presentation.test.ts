@@ -118,3 +118,16 @@ describe("scene presentations", () => {
     ).toThrow();
   });
 });
+
+it("accepts group ownership for flat scene instances and scene Timelines", () => {
+  const grouped = definePresentation({
+    ...presentation,
+    scene: [{ ...presentation.scene[0], owner: { kind: "group", groupId: "main" } }],
+    flow: {
+      ...presentation.flow,
+      timelines: [{ ...presentation.flow.timelines[0], owner: { kind: "group", groupId: "main" } }],
+    },
+  });
+  expect(grouped.scene[0]?.owner).toEqual({ kind: "group", groupId: "main" });
+  expect(grouped.flow.timelines?.[0]?.owner).toEqual({ kind: "group", groupId: "main" });
+});

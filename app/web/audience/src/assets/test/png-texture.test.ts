@@ -372,3 +372,27 @@ it("records response body failures with their HTTP status", async () => {
   });
   expect(String(error)).not.toContain("secret");
 });
+
+it("decodes cached encoded bytes without requesting the asset again", async () => {
+  const options = setup();
+  const onEncodedBytes = vi.fn();
+  const loaded = await loadPngTexture(asset, { ...options, encodedBytes: bytes, onEncodedBytes });
+  expect(options.fetcher).not.toHaveBeenCalled();
+  expect(onEncodedBytes).toHaveBeenCalledWith(bytes);
+  expect(loaded.texture.image).toBe(options.bitmap);
+  loaded.dispose();
+});
+
+it("validates cached byte length before decoding", async () => {
+  const options = setup();
+  await expect(
+    loadPngTexture(
+      { ...asset, encodedSizeBytes: bytes.length + 1 },
+      {
+        ...options,
+        encodedBytes: bytes,
+      },
+    ),
+  ).rejects.toThrow("size");
+  expect(options.decode).not.toHaveBeenCalled();
+});

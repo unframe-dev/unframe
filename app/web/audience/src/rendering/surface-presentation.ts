@@ -375,6 +375,22 @@ export async function createSurfacePresentation(options: {
     );
     return true;
   }
+  function updatePreloadedTextures(
+    entries: readonly { asset: SurfaceTextureAsset; loaded: LoadedTexture }[],
+  ) {
+    const next = new Map(entries.map((entry) => [textureKey(entry.asset), entry]));
+    for (const key of preloaded.keys()) {
+      if (next.has(key)) continue;
+      textures.delete(key);
+      loadedAssets.delete(key);
+    }
+    preloaded.clear();
+    for (const [key, entry] of next) {
+      preloaded.set(key, entry);
+      textures.set(key, entry.loaded);
+      loadedAssets.set(key, entry.asset);
+    }
+  }
   function canApplyPlan(nextPlan: SurfacePlan): boolean {
     for (const asset of nextPlan.assets) {
       const loaded = loadedAssets.get(textureKey(asset));
@@ -453,6 +469,7 @@ export async function createSurfacePresentation(options: {
       },
       applyView,
       canApplyView,
+      updatePreloadedTextures,
       applyAnimationFrame,
     };
   } catch (error) {

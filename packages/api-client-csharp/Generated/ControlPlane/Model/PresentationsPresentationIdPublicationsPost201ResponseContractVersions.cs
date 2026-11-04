@@ -235,9 +235,9 @@ namespace Unframe.ControlPlane.Model
         public enum DeliveryEnum
         {
             /// <summary>
-            /// Enum _3 for value: 3
+            /// Enum _4 for value: 4
             /// </summary>
-            _3 = 1
+            _4 = 1
         }
 
         /// <summary>
@@ -248,8 +248,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static DeliveryEnum DeliveryEnumFromString(string value)
         {
-            if (value.Equals("3"))
-                return DeliveryEnum._3;
+            if (value.Equals("4"))
+                return DeliveryEnum._4;
 
             throw new NotImplementedException($"Could not convert value to type DeliveryEnum: '{value}'");
         }
@@ -261,8 +261,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static DeliveryEnum? DeliveryEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("3"))
-                return DeliveryEnum._3;
+            if (value.Equals("4"))
+                return DeliveryEnum._4;
 
             return null;
         }
@@ -275,8 +275,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int DeliveryEnumToJsonValue(DeliveryEnum value)
         {
-            if (value == DeliveryEnum._3)
-                return 3;
+            if (value == DeliveryEnum._4)
+                return 4;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }
@@ -409,9 +409,9 @@ namespace Unframe.ControlPlane.Model
         public enum ProjectionEnum
         {
             /// <summary>
-            /// Enum _2 for value: 2
+            /// Enum _3 for value: 3
             /// </summary>
-            _2 = 1
+            _3 = 1
         }
 
         /// <summary>
@@ -422,8 +422,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static ProjectionEnum ProjectionEnumFromString(string value)
         {
-            if (value.Equals("2"))
-                return ProjectionEnum._2;
+            if (value.Equals("3"))
+                return ProjectionEnum._3;
 
             throw new NotImplementedException($"Could not convert value to type ProjectionEnum: '{value}'");
         }
@@ -435,8 +435,8 @@ namespace Unframe.ControlPlane.Model
         /// <returns></returns>
         public static ProjectionEnum? ProjectionEnumFromStringOrDefault(string value)
         {
-            if (value.Equals("2"))
-                return ProjectionEnum._2;
+            if (value.Equals("3"))
+                return ProjectionEnum._3;
 
             return null;
         }
@@ -449,8 +449,8 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public static int ProjectionEnumToJsonValue(ProjectionEnum value)
         {
-            if (value == ProjectionEnum._2)
-                return 2;
+            if (value == ProjectionEnum._3)
+                return 3;
 
             throw new NotImplementedException($"Value could not be handled: '{value}'");
         }

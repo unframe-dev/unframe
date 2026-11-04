@@ -21,7 +21,7 @@ public sealed class PresentationScenePlaybackEditModeTests
         manifest.AssetAccess.Clear();
         manifest.CapabilityProfile.Limits = new CapabilityLimits();
         manifest.Residency.Models = new ModelResidencyPlan();
-        manifest.Residency.Textures = new TextureResidencyPlan();
+        manifest.Residency.Textures = new TextureResidencyPlan { InitialGroupId = "group:local", GroupWindows = { new TextureResidencyWindow { GroupId = "group:local" } } };
         manifest.ProjectionProfile.RenderSurfaces.Clear();
         manifest.ProjectionProfile.SemanticSurfaces.Clear();
         manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Clear();

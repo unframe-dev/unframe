@@ -520,10 +520,10 @@ describe("reference Authoring Project", () => {
         definition: 1,
         renderBundle: 1,
         assetSet: 1,
-        delivery: 3,
+        delivery: 4,
         runtime: 3,
         progression: 2,
-        projection: 2,
+        projection: 3,
       },
     });
     const firstPngs = await Promise.all(

@@ -624,7 +624,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void RequireResidency()
         {
-            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(store.Delivery.Residency.Textures.Textures)
+            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(textures.Bindings)
                 || additionalResidency != null && !additionalResidency())
             {
                 ControlReady = false;

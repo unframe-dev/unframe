@@ -10,11 +10,11 @@
     "definition": 1,
     "renderBundle": 1,
     "assetSet": 1,
-    "delivery": 3,
+    "delivery": 4,
     "runtime": 3,
     "progression": 2,
-    "projection": 2
+    "projection": 3
   },
   "publicationEpoch": 1,
-  "publicationManifestHash": "sha256:976556554e0f7699e5bd8391d4e587f8bf67ba4dff31e6634fcbe91fb9785b95"
+  "publicationManifestHash": "sha256:c3b63d8248ad1a469a0cb30fec4cea6322e312d7b3bd7ebf72fcdf5083e9f885"
 }

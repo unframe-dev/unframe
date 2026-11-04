@@ -78,7 +78,7 @@ export const lowerSceneTimelines = (
     }
     timelines[id] = {
       id,
-      owner: { kind: "presentation" },
+      owner: timeline.owner ? { ...timeline.owner } : { kind: "presentation" },
       durationMilliseconds: timeline.durationMilliseconds,
       tracks,
     };

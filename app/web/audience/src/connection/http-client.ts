@@ -6,7 +6,11 @@ import {
 } from "@unframe-dev/contracts/control-plane-http";
 import { createControlPlaneClient } from "@unframe-dev/api-client-typescript";
 import type { paths } from "@unframe-dev/contracts/control-plane";
-import { decodeWireMessage, type DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
+import {
+  decodeWireMessage,
+  runtimeAuthorityVersions,
+  type DeliveryManifestWire,
+} from "@unframe-dev/contracts/presentation";
 import { z } from "zod";
 
 export type Session =
@@ -198,7 +202,7 @@ export function createAudienceHttpClient(
         if (signal?.aborted) throw new AudienceConnectionError("aborted");
         if (
           value.schemaVersion !== 1 ||
-          value.deliveryContractVersion !== 3 ||
+          value.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||
           value.sessionId !== id ||
           !value.publication ||
           !value.projectionProfile ||

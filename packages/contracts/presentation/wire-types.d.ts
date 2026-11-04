@@ -392,6 +392,15 @@ export interface TextureResidencyPlanWire {
   textures?: TextureResidencyBindingWire[];
   totalDecodedGpuBytes?: string;
   maximumPeakLoadCpuBytes?: string;
+  initialGroupId?: string;
+  groupWindows?: TextureResidencyWindowWire[];
+  maximumResidentGpuBytes?: string;
+  maximumResidentTextureBindings?: string;
+}
+
+export interface TextureResidencyWindowWire {
+  groupId?: string;
+  assetIds?: string[];
 }
 
 export interface VideoArtifactWire {

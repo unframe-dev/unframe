@@ -47,6 +47,8 @@ namespace Unframe.Unity.PresentationRuntime
         public ProjectedRuntimeCatalog Catalog { get { return envelope.Projection.RuntimeCatalog; } }
         public IEnumerable<DeliveredRenderSurface> RenderSurfaces { get { return envelope.Projection.RenderSurfaces; } }
         public IEnumerable<ProjectedSemanticSurface> SemanticSurfaces { get { return envelope.Projection.SemanticSurfaces; } }
+        public string CurrentGroupId { get; internal set; }
+        public TextureResidencyPlan TexturePlan => envelope.Projection.TextureResidency;
         public IEnumerable<TextureResidencyBinding> TextureBindings { get { return envelope.Projection.TextureResidency.Textures; } }
         public IEnumerable<ModelResidencyBinding> ModelBindings { get { return envelope.Projection.ModelResidency?.Models ?? (IEnumerable<ModelResidencyBinding>)System.Array.Empty<ModelResidencyBinding>(); } }
         public Pose StageOrigin { get { return new Pose { Position = new Vector3(), Rotation = new Quaternion { W = 1 } }; } }
@@ -113,7 +115,7 @@ namespace Unframe.Unity.PresentationRuntime
             error = "preview.envelope-invalid";
             try
             {
-                if (source == null || source.SchemaVersion != 1 || !RequestIdValid(source.RequestId)
+                if (source == null || source.SchemaVersion != 2 || !RequestIdValid(source.RequestId)
                     || source.HasSourceRevision && !PresentationDeliveryCatalog.IsContentHash(source.SourceRevision)
                     || source.Projection?.RuntimeCatalog == null || source.InitialState == null
                     || source.Projection.TextureResidency == null
@@ -218,7 +220,8 @@ namespace Unframe.Unity.PresentationRuntime
                         }
                     }, surfaces, assets, out error)
                     || !PresentationBakedDeliveryValidation.TryValidate(projection.RenderSurfaces, projection.TextureResidency,
-                        textureCapability, PreviewTextureLimits(projection.TextureResidency.BudgetTierId), assets.Values, out error)) return false;
+                        textureCapability, PreviewTextureLimits(projection.TextureResidency.BudgetTierId), assets.Values, out error)
+                    || !PresentationBakedDeliveryValidation.TryValidateOwnership(projection.RuntimeCatalog, projection.RenderSurfaces, projection.TextureResidency, out error)) return false;
                 var variableDefinitions = new Dictionary<string, ProjectedVariableDefinition>();
                 foreach (var variable in projection.RuntimeCatalog.Variables) variableDefinitions.Add(variable.VariableId, variable);
                 foreach (var render in projection.RenderSurfaces)
@@ -262,6 +265,14 @@ namespace Unframe.Unity.PresentationRuntime
                         selectedAssets.Add(node.Model.ModelAssetId);
                     }
                 if (!selectedAssets.SetEquals(assets.Keys)) return false;
+                ulong encodedBytes = 0;
+                var encodedChecksums = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var asset in assets.Values)
+                    if (encodedChecksums.Add(asset.Checksum))
+                    {
+                        if (asset.EncodedSizeBytes > PresentationPreviewAdmission.EncodedCacheLimitBytes - encodedBytes) return false;
+                        encodedBytes += asset.EncodedSizeBytes;
+                    }
                 var modelIds = new HashSet<string>(); foreach (var node in nodes.Values) if (node.Model != null) modelIds.Add(node.Model.ModelAssetId);
                 var boundModels = new HashSet<string>();
                 if (projection.ModelResidency != null)

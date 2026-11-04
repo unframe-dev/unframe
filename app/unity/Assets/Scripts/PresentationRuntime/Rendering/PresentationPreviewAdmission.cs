@@ -10,18 +10,19 @@ namespace Unframe.Unity.PresentationRuntime
     /// </summary>
     public static class PresentationPreviewAdmission
     {
-        public const ulong SceneGpuLimitBytes = 64UL * 1024 * 1024;
-        public const ulong OverlapGpuLimitBytes = 96UL * 1024 * 1024;
+        public const ulong SceneGpuLimitBytes = 192UL * 1024 * 1024;
+        public const ulong OverlapGpuLimitBytes = 288UL * 1024 * 1024;
+        public const ulong EncodedCacheLimitBytes = 192UL * 1024 * 1024;
         public const ulong LoadCpuLimitBytes = 64UL * 1024 * 1024;
 
-        public static bool TryAdmit(IEnumerable<TextureResidencyBinding> current, IEnumerable<TextureResidencyBinding> next, out string error)
+        public static bool TryAdmit(IEnumerable<TextureResidencyBinding> current, IEnumerable<TextureResidencyBinding> next, out string error, ulong currentModelGpuBytes = 0, ulong nextModelGpuBytes = 0)
         {
             error = "preview.texture-metadata-invalid";
             if (!TryIndex(current, out Dictionary<string, TextureResidencyBinding> oldTextures)
                 || !TryIndex(next, out Dictionary<string, TextureResidencyBinding> newTextures)) return false;
 
-            ulong oldGpu = 0;
-            ulong newGpu = 0;
+            ulong oldGpu = currentModelGpuBytes;
+            ulong newGpu = nextModelGpuBytes;
             foreach (TextureResidencyBinding texture in oldTextures.Values)
                 if (!TryAdd(ref oldGpu, texture.DecodedGpuBytes, SceneGpuLimitBytes))
                 { error = "preview.scene-gpu-budget-exceeded"; return false; }
@@ -30,6 +31,8 @@ namespace Unframe.Unity.PresentationRuntime
                 { error = "preview.scene-gpu-budget-exceeded"; return false; }
 
             ulong overlapGpu = oldGpu;
+            if (!TryAdd(ref overlapGpu, nextModelGpuBytes, OverlapGpuLimitBytes))
+            { error = "preview.overlap-gpu-budget-exceeded"; return false; }
             foreach (TextureResidencyBinding texture in newTextures.Values)
             {
                 if (oldTextures.TryGetValue(texture.Checksum, out TextureResidencyBinding resident))
@@ -42,6 +45,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!TryAdd(ref overlapGpu, texture.DecodedGpuBytes, OverlapGpuLimitBytes))
                 { error = "preview.overlap-gpu-budget-exceeded"; return false; }
             }
+            if (oldGpu > SceneGpuLimitBytes || newGpu > SceneGpuLimitBytes)
+            { error = "preview.scene-gpu-budget-exceeded"; return false; }
             error = null;
             return true;
         }

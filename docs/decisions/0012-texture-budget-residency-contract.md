@@ -5,6 +5,8 @@
 - **Deciders**: Unframe 開発チーム
 - **関連**: [ADR-0006（アーカイブ）](archived/0006-presentation-rendering-strategy.md), [ADR-0010](0010-spatial-surface-coordinate-contract.md), [ADR-0011](0011-surface-partition-contract.md), [Presentation Architecture](../packages/ARCHITECTURE.md)
 
+全画像の事前 GPU 常駐とセッション終了までの pin 方針は [ADR-0030](0030-group-texture-residency.md) により置き換えた。以下の v1 方針はその判断時点の記録であり、解像度・byte式・Compiler予算は引き続き有効である。
+
 ## Context
 
 現行`unframe-assets`は一回のPNG encodeに4,096 x 4,096、16,777,216 pixels、64 MiB input、65 MiB outputのtrust-boundary hard capを持つ。しかしCompilerはcapture前に全体budgetを検査せず、State数、Render Surface数、capture RGBA、保持するencoded output、Delivery選択、Unity residencyを制限していない。このper-encode capは未trusted inputによる単一allocation防止であり、Presentationの品質・build・device budgetではない。

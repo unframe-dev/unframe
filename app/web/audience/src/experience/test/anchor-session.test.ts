@@ -3,13 +3,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { Camera, Group, Scene } from "three";
 import { createAnchorSession } from "../anchor-session";
 import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
-import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
+import {
+  participantRuntimeViewSchema,
+  type DeliveryManifestWire,
+} from "@unframe-dev/contracts/presentation";
 import { createTrackingAdapter } from "../../tracking/adapter";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { createLiveTagAnchor } from "../../rendering/live-tag-anchor";
 import type { TrackingCallbacks } from "../../tracking/types";
 import type { BoardConfig } from "../../fiducials/config";
 
+import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
+const view = participantRuntimeViewSchema.parse(runtimeFixture);
+vi.mock("../../assets/png-texture-pool", () => ({
+  createPngTexturePool: vi.fn(async () => ({
+    assets: [],
+    residentAssets: [],
+    gpuBytes: 0,
+    retainedCpuBytes: 0,
+    getTexture: vi.fn(),
+    dispose: vi.fn(),
+    canAcquire: () => true,
+    acquire: async () => ({ assets: [], release() {} }),
+  })),
+}));
 vi.mock("../../tracking/adapter", () => ({ createTrackingAdapter: vi.fn() }));
 vi.mock("../../rendering/png-presentation", () => ({ createPngPresentation: vi.fn() }));
 vi.mock("../../rendering/live-tag-anchor", () => ({ createLiveTagAnchor: vi.fn() }));
@@ -164,13 +181,14 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 100,
+      updatePreloadedTextures: vi.fn(),
       canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     });
     const session = setup();
-    await expect(session.presentPresentation({} as never, {})).rejects.toThrow("scene");
+    await expect(session.presentPresentation({} as never, view)).rejects.toThrow("scene");
     await session.start();
-    await session.presentPresentation({} as never, {});
+    await session.presentPresentation({} as never, view);
     const request = vi.mocked(createPngPresentation).mock.calls[0]![0];
     expect(request.host).toBe(anchor);
     session.stop();
@@ -188,13 +206,14 @@ describe("anchor session ownership", () => {
         prepareRender,
         applyAnimationFrame: vi.fn(() => true),
         retainedCpuBytes: 4096,
+        updatePreloadedTextures: vi.fn(),
         canApplyView: vi.fn(() => true),
         applyView: vi.fn(() => false),
       })
       .mockRejectedValueOnce(new Error("CPU budget exceeded"));
     const session = setup();
     await session.start();
-    await session.presentPresentation({} as never, {});
+    await session.presentPresentation({} as never, view);
     const camera = new Camera();
     renderScene.onBeforeRender(
       {} as never,
@@ -206,7 +225,7 @@ describe("anchor session ownership", () => {
     );
     expect(prepareRender).toHaveBeenCalledWith(camera);
     expect(sdkBeforeRender).toHaveBeenCalledTimes(1);
-    await expect(session.presentPresentation({} as never, {})).rejects.toThrow("CPU");
+    await expect(session.presentPresentation({} as never, view)).rejects.toThrow("CPU");
     expect(vi.mocked(createPngPresentation).mock.calls[1]![0].residentCpuBytes).toBe(4096);
     expect(oldDispose).not.toHaveBeenCalled();
     session.stop();
@@ -222,6 +241,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 4096,
+      updatePreloadedTextures: vi.fn(),
       canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     };
@@ -231,6 +251,7 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 4096,
+      updatePreloadedTextures: vi.fn(),
       canApplyView: vi.fn(() => true),
       applyView: vi.fn(() => false),
     };
@@ -244,9 +265,9 @@ describe("anchor session ownership", () => {
       .mockResolvedValueOnce(next);
     const session = setup();
     await session.start();
-    const first = session.presentPresentation({} as never, {});
+    const first = session.presentPresentation({} as never, view);
     await vi.waitFor(() => expect(createPngPresentation).toHaveBeenCalledTimes(1));
-    const second = session.presentPresentation({} as never, {});
+    const second = session.presentPresentation({} as never, view);
     await Promise.resolve();
     expect(createPngPresentation).toHaveBeenCalledTimes(1);
     expect(vi.mocked(createPngPresentation).mock.calls[0]![0].signal!.aborted).toBe(true);
@@ -264,14 +285,15 @@ describe("anchor session ownership", () => {
       prepareRender: vi.fn(),
       applyAnimationFrame: vi.fn(() => true),
       retainedCpuBytes: 100,
+      updatePreloadedTextures: vi.fn(),
       canApplyView: vi.fn(() => true),
       applyView,
     });
     const session = setup();
     await session.start();
     const delivery = {} as never;
-    await session.presentPresentation(delivery, {});
-    const next = { nodeStates: {} };
+    await session.presentPresentation(delivery, view);
+    const next = structuredClone(view);
     await session.presentPresentation(delivery, next);
     expect(applyView).toHaveBeenCalledWith(next);
     expect(createPngPresentation).toHaveBeenCalledTimes(1);
@@ -319,6 +341,7 @@ it("unsets the SDK renderer program before replacing and disposing presentation 
     dispose,
     prepareRender: vi.fn(),
     retainedCpuBytes: 0,
+    updatePreloadedTextures: vi.fn(),
     canApplyView: vi.fn(() => true),
     applyView,
     applyAnimationFrame: vi.fn(() => true),
@@ -326,9 +349,9 @@ it("unsets the SDK renderer program before replacing and disposing presentation 
   const session = setup();
   await session.start();
   const delivery = {} as never;
-  await session.presentPresentation(delivery, {});
+  await session.presentPresentation(delivery, view);
   order.length = 0;
-  await session.presentPresentation(delivery, {});
+  await session.presentPresentation(delivery, view);
   expect(order).toEqual(["reset", "replace"]);
   order.length = 0;
   session.stop();
@@ -346,6 +369,7 @@ it("discards GPU residency on context loss and allows a fresh camera session", a
     dispose,
     prepareRender: vi.fn(),
     retainedCpuBytes: 0,
+    updatePreloadedTextures: vi.fn(),
     canApplyView: vi.fn(() => true),
     applyView: vi.fn(() => true),
     applyAnimationFrame: vi.fn(() => true),
@@ -357,7 +381,7 @@ it("discards GPU residency on context loss and allows a fresh camera session", a
     requestPermissions: async () => {},
   });
   await session.start();
-  await session.presentPresentation({} as never, {});
+  await session.presentPresentation({} as never, view);
   canvas.dispatchEvent(new Event("webglcontextlost"));
   expect(dispose).toHaveBeenCalledOnce();
   expect(session.getSnapshot().stage).toBe("error");

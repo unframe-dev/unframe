@@ -125,6 +125,7 @@ it("uses resident slides for crossfades without reloading models or videos", asy
     delivery: scenario.delivery,
     uploadTexture: (texture) => texture.onUpdate?.(texture),
   });
+  await pool.acquire("intro");
   const textures = vi.mocked(loadPngTexture).mock.calls.length;
   expect(textures).toBe(2);
   const presentation = await createPresentation({
