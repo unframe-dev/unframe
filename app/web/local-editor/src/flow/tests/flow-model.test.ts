@@ -197,3 +197,17 @@ it("lays out progression from the initial Step, retaining cycles, branches and d
   ]);
   expect(view).toEqual(before);
 });
+
+it("shares a definition view and progression order across consumers and refreshes a replacement definition", () => {
+  const definition = structuredClone(fixture) as unknown as Definition;
+  const view = createTimelineView(definition);
+  expect(createTimelineView(definition)).toBe(view);
+  const group = view.groups[0]!;
+  expect(progressionSteps(group)).toBe(progressionSteps(group));
+  const replacement = structuredClone(definition);
+  replacement.flow.groups.intro!.steps.start!.cues[0]!.id = "replacement";
+  const updated = createTimelineView(replacement);
+  expect(updated).not.toBe(view);
+  expect(updated.groups[0]?.steps[0]?.cues[0]?.id).toBe("replacement");
+  expect(view.groups[0]?.steps[0]?.cues[0]?.id).not.toBe("replacement");
+});

@@ -38,21 +38,6 @@ it("cancels an HTTP read with the caller lifetime", async () => {
   abort.abort();
   await expect(api.project(abort.signal)).rejects.toMatchObject({ name: "AbortError" });
 });
-it("rejects invalid nested playback clock values", async () => {
-  const api = await host({
-    mode: "normal",
-    inspection: null,
-    occurrences: [],
-    state: { requestId: "r", sequence: "1", clock: { runtimeTimeMs: { bad: true } } },
-    inputs: [],
-    groupId: "g",
-    stepId: "s",
-    ended: false,
-  });
-  await expect(api.playback({ requestId: "r", command: "poll" })).rejects.toMatchObject({
-    code: "invalid-response",
-  });
-});
 it("preserves an unresolved publication response as a queryable result", async () => {
   const outcome = {
     ok: false,

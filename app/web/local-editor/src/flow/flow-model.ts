@@ -73,7 +73,7 @@ function reachableSteps(definition: TimelineDefinition, group: FlowGroup) {
   return visited.get(group.id) ?? new Set<string>();
 }
 
-export function createTimelineView(definition: TimelineDefinition) {
+function buildTimelineView(definition: TimelineDefinition) {
   return {
     initialGroupId: definition.flow.initialGroupId,
     groups: Object.values(definition.flow.groups)
@@ -109,7 +109,19 @@ export function createTimelineView(definition: TimelineDefinition) {
   };
 }
 
-export type TimelineGroupView = ReturnType<typeof createTimelineView>["groups"][number];
+const timelineViews = new WeakMap<TimelineDefinition, ReturnType<typeof buildTimelineView>>();
+
+// Project definitions are immutable snapshots; replacement snapshots get their own view.
+export function createTimelineView(definition: TimelineDefinition) {
+  let view = timelineViews.get(definition);
+  if (!view) {
+    view = buildTimelineView(definition);
+    timelineViews.set(definition, view);
+  }
+  return view;
+}
+
+export type TimelineGroupView = ReturnType<typeof buildTimelineView>["groups"][number];
 
 export function cueTimelines(definition: TimelineDefinition, cue: FlowCue) {
   return cue.actions.flatMap((action, actionIndex) =>
@@ -140,7 +152,11 @@ export function triggerTiming(cue: FlowCue): string {
   }
 }
 
+const progressionOrders = new WeakMap<TimelineGroupView, TimelineGroupView["steps"]>();
+
 export function progressionSteps(group: TimelineGroupView) {
+  const cached = progressionOrders.get(group);
+  if (cached) return cached;
   const steps = new Map(group.steps.map((step) => [step.id, step]));
   const visited = new Set<string>();
   const ordered: TimelineGroupView["steps"] = [];
@@ -155,5 +171,6 @@ export function progressionSteps(group: TimelineGroupView) {
   };
   visit(group.initialStepId);
   for (const step of group.steps) visit(step.id);
+  progressionOrders.set(group, ordered);
   return ordered;
 }

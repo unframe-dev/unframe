@@ -28,6 +28,9 @@ public sealed class QuestPresentationUiVisualTests
         UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
         GameObject host = null;
         GameObject cameraHost = null;
+        GameObject backdrop = null;
+        Material backdropMaterial = null;
+        Texture2D backdropTexture = null;
         RenderTexture target = null;
         Texture2D pixels = null;
         try
@@ -117,6 +120,7 @@ public sealed class QuestPresentationUiVisualTests
             view.Refresh();
             Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "settings.png"));
             view.enabled = false;
+            camera.fieldOfView = 80;
             var guide = host.AddComponent<QuestMotionGuideView>();
             guide.enabled = false;
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -129,16 +133,81 @@ public sealed class QuestPresentationUiVisualTests
             var instruction = visuals.GetComponentInChildren<Text>(true);
             Assert.That(instruction, Is.Not.Null);
             var instructionPanel = instruction.transform.parent;
-            instructionPanel.SetPositionAndRotation(new Vector3(0, 0, 1.05f), Quaternion.identity);
             var animators = visuals.GetComponentsInChildren<Animator>(true);
             Assert.That(animators.Length, Is.EqualTo(2));
             for (int side = 0; side < animators.Length; side++)
             {
                 animators[side].gameObject.SetActive(true);
                 animators[side].enabled = false;
-                animators[side].transform.SetPositionAndRotation(new Vector3(0, -.3f, 1.05f), Quaternion.identity);
                 Assert.That(animators[side].runtimeAnimatorController.animationClips.Length, Is.EqualTo(8));
             }
+            var hud = host.AddComponent<QuestPresenterHudView>();
+            hud.enabled = false;
+            typeof(QuestPresenterHudView).GetMethod("EnsureVisuals", flags).Invoke(hud, null);
+            var hudVisuals = (GameObject)typeof(QuestPresenterHudView).GetField("visuals", flags).GetValue(hud);
+            hudVisuals.SetActive(true);
+            Vector3 instructionScale = instructionPanel.localScale;
+            Vector3 hudScale = hudVisuals.transform.localScale;
+            Vector3[] armScales = animators.Select(animator => animator.transform.localScale).ToArray();
+            void PlaceAssistance()
+            {
+                float scale = QuestMotionGuideGeometry.GetViewportScale(camera.fieldOfView, camera.aspect);
+                Vector3 guideAnchor = QuestMotionGuideGeometry.GetAnchorPosition(camera.transform.position, camera.transform.rotation,
+                    camera.fieldOfView, camera.aspect);
+                Vector3 instructionPosition = QuestMotionGuideGeometry.GetInstructionPosition(guideAnchor, camera.transform.rotation);
+                instructionPanel.localScale = instructionScale * scale;
+                instructionPanel.SetPositionAndRotation(instructionPosition,
+                    QuestMotionGuideGeometry.GetFacingRotation(instructionPosition, camera.transform.position, camera.transform.rotation));
+                Vector3 hudPosition = QuestPresenterHudView.GetPosition(camera.transform.position, camera.transform.rotation,
+                    camera.fieldOfView, camera.aspect);
+                hudVisuals.transform.localScale = hudScale * scale;
+                hudVisuals.transform.SetPositionAndRotation(hudPosition,
+                    QuestMotionGuideGeometry.GetFacingRotation(hudPosition, camera.transform.position, camera.transform.rotation));
+                for (int side = 0; side < animators.Length; side++)
+                {
+                    animators[side].transform.localScale = armScales[side] * scale;
+                    animators[side].transform.SetPositionAndRotation(guideAnchor,
+                        QuestMotionGuideGeometry.GetYawRotation(camera.transform.rotation));
+                }
+            }
+            PlaceAssistance();
+            var hudText = hudVisuals.GetComponentInChildren<Text>();
+            hudText.text = "現在ページ: 1ページ目";
+            var elapsedText = (Text)typeof(QuestPresenterHudView).GetField("elapsedLabel", flags).GetValue(hud);
+            elapsedText.text = "経過時間: 01:23";
+            Canvas.ForceUpdateCanvases();
+            Assert.That(hudText.preferredHeight, Is.LessThanOrEqualTo(hudText.rectTransform.rect.height));
+            Assert.That(elapsedText.preferredHeight, Is.LessThanOrEqualTo(elapsedText.rectTransform.rect.height));
+            foreach (float fieldOfView in new[] { 48f, 80f, 95f })
+            {
+                camera.fieldOfView = fieldOfView;
+                PlaceAssistance();
+                AssertPanelVisible(camera, hudVisuals.GetComponent<RectTransform>(), "Presenter HUD");
+                AssertPanelVisible(camera, (RectTransform)instructionPanel, "Motion instruction");
+                Assert.That(Vector3.Distance(hudVisuals.transform.position, camera.transform.position), Is.EqualTo(.5f).Within(.0001f));
+            }
+            foreach (float fieldOfView in new[] { 48f, 80f, 95f })
+            {
+                camera.fieldOfView = fieldOfView;
+                foreach (Unframe.Presentation.GestureKind gesture in Enum.GetValues(typeof(Unframe.Presentation.GestureKind)))
+                {
+                    if (gesture < Unframe.Presentation.GestureKind.SwipeLeft || gesture > Unframe.Presentation.GestureKind.CloseHands) continue;
+                    foreach (float phase in new[] { 0f, .1f, .2f, .3f, .4f, .5f, .6f, .7f, .8f, .9f, 1f })
+                    {
+                        PlaceAssistance();
+                        for (int side = 0; side < animators.Length; side++)
+                        {
+                            string clipName = (side == 0 ? "Left" : "Right") + gesture;
+                            var clip = animators[side].runtimeAnimatorController.animationClips.Single(item => item.name == clipName);
+                            clip.SampleAnimation(animators[side].gameObject, clip.length * phase);
+                        }
+                        foreach (SkinnedMeshRenderer skin in skins)
+                            AssertArmMeshVisible(camera, skin, gesture, phase);
+                    }
+                }
+            }
+            camera.fieldOfView = 80;
+            PlaceAssistance();
             foreach (Unframe.Presentation.GestureKind gesture in Enum.GetValues(typeof(Unframe.Presentation.GestureKind)))
             {
                 if (gesture < Unframe.Presentation.GestureKind.SwipeLeft || gesture > Unframe.Presentation.GestureKind.CloseHands) continue;
@@ -158,8 +227,6 @@ public sealed class QuestPresentationUiVisualTests
                 {
                     Assert.That(skin.sharedMesh, Is.Not.Null);
                     Assert.That(skin.bones.All(bone => bone != null), Is.True);
-                    Assert.That(GeometryUtility.TestPlanesAABB(GeometryUtility.CalculateFrustumPlanes(camera), skin.bounds), Is.True,
-                        gesture + " " + skin.name + " is outside the camera view.");
                 }
                 Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "guide-" + gesture + ".png"));
                 if (gesture == Unframe.Presentation.GestureKind.SpreadHands)
@@ -182,12 +249,46 @@ public sealed class QuestPresentationUiVisualTests
                 }
             }
 
+            camera.backgroundColor = new Color(.95f, .97f, 1);
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "presenter-bright.png"));
+            camera.backgroundColor = new Color(.045f, .055f, .07f);
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "presenter-dark.png"));
+            backdrop = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            backdrop.name = "Presenter UI contrast backdrop";
+            backdrop.layer = 31;
+            backdrop.transform.SetPositionAndRotation(camera.transform.position + camera.transform.forward * 2, camera.transform.rotation);
+            backdrop.transform.localScale = new Vector3(7, 5, 1);
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            Assert.That(shader, Is.Not.Null);
+            backdropMaterial = new Material(shader);
+            backdropTexture = new Texture2D(128, 128, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var backdropPixels = new Color[128 * 128];
+            for (int y = 0; y < 128; y++)
+                for (int x = 0; x < 128; x++)
+                    backdropPixels[y * 128 + x] = ((x / 8 + y / 8) % 2) == 0
+                        ? new Color(.96f, .95f, .9f) : new Color(.12f, .17f, .23f);
+            backdropTexture.SetPixels(backdropPixels);
+            backdropTexture.Apply();
+            backdropMaterial.SetTexture("_BaseMap", backdropTexture);
+            backdrop.GetComponent<MeshRenderer>().sharedMaterial = backdropMaterial;
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "presenter-busy.png"));
+
+            backdrop.SetActive(false);
+            camera.transform.SetPositionAndRotation(new Vector3(1, 1.6f, -2), Quaternion.Euler(-10, 35, 8));
+            PlaceAssistance();
+            foreach (Transform panel in new[] { hudVisuals.transform, instructionPanel })
+                Assert.That(Vector3.Dot(panel.forward, (panel.position - camera.transform.position).normalized), Is.GreaterThan(.999f));
+            Capture(camera, target, pixels, Path.Combine(assistanceDirectory, "presenter-turned.png"));
+
         }
         finally
         {
             RenderTexture.active = originalActive;
             if (target != null) { target.Release(); Object.DestroyImmediate(target); }
             if (pixels != null) Object.DestroyImmediate(pixels);
+            if (backdrop != null) Object.DestroyImmediate(backdrop);
+            if (backdropMaterial != null) Object.DestroyImmediate(backdropMaterial);
+            if (backdropTexture != null) Object.DestroyImmediate(backdropTexture);
             if (host != null) Object.DestroyImmediate(host);
             if (cameraHost != null) Object.DestroyImmediate(cameraHost);
             GraphicsSettings.defaultRenderPipeline = originalDefault;
@@ -196,6 +297,46 @@ public sealed class QuestPresentationUiVisualTests
                 UnityEngine.SceneManagement.SceneManager.SetActiveScene(originalScene);
             if (scene.IsValid() && scene.isLoaded) UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(scene);
         }
+    }
+
+    private static void AssertArmMeshVisible(Camera camera, SkinnedMeshRenderer skin, Unframe.Presentation.GestureKind gesture, float phase)
+    {
+        var mesh = new Mesh();
+        try
+        {
+            skin.BakeMesh(mesh);
+            Assert.That(mesh.vertexCount, Is.GreaterThan(0));
+            Vector3 minimum = Vector3.one * float.PositiveInfinity;
+            Vector3 maximum = Vector3.one * float.NegativeInfinity;
+            foreach (Vector3 vertex in mesh.vertices)
+            {
+                Vector3 viewport = camera.WorldToViewportPoint(skin.transform.TransformPoint(vertex));
+                minimum = Vector3.Min(minimum, viewport);
+                maximum = Vector3.Max(maximum, viewport);
+            }
+            string context = gesture + " " + skin.name + " phase " + phase + " FOV " + camera.fieldOfView;
+            Assert.That(minimum.z, Is.GreaterThan(camera.nearClipPlane), context + " intersects the near clip plane.");
+            Assert.That(minimum.x, Is.GreaterThanOrEqualTo(.02f), context + " is clipped at the left edge.");
+            Assert.That(maximum.x, Is.LessThanOrEqualTo(.98f), context + " is clipped at the right edge.");
+            Assert.That(minimum.y, Is.GreaterThanOrEqualTo(.02f), context + " is clipped at the lower edge.");
+            Assert.That(maximum.y, Is.LessThanOrEqualTo(.98f), context + " is clipped at the upper edge.");
+        }
+        finally { Object.DestroyImmediate(mesh); }
+    }
+
+    private static void AssertPanelVisible(Camera camera, RectTransform panel, string name)
+    {
+        var corners = new Vector3[4];
+        panel.GetWorldCorners(corners);
+        foreach (Vector3 corner in corners)
+        {
+            Vector3 viewport = camera.WorldToViewportPoint(corner);
+            Assert.That(viewport.z, Is.GreaterThan(camera.nearClipPlane), name);
+            Assert.That(viewport.x, Is.InRange(.02f, .98f), name + " is horizontally clipped at FOV " + camera.fieldOfView);
+            Assert.That(viewport.y, Is.InRange(.02f, .98f), name + " is vertically clipped at FOV " + camera.fieldOfView);
+        }
+        Vector3 center = camera.WorldToViewportPoint(panel.position);
+        Assert.That(center.y, Is.LessThan(.4f), name + " occupies the central sightline.");
     }
 
     private static void Capture(Camera camera, RenderTexture target, Texture2D pixels, string path)
