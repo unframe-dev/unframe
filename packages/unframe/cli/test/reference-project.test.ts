@@ -16,17 +16,17 @@ import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vite-plus/test";
 import type { FixedBrowserSession } from "@unframe-dev/render-browser";
 
-import { canonicalizeJsonPayload, verifyBuildIntegrity } from "@unframe-dev/artifacts";
-import { hashComponentManifestDeclaration } from "@unframe-dev/compiler";
-import { checkAuthoringProjectAssembly, computeFrozenComponentInputs } from "@unframe-dev/build";
+import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
+import {
+  checkAuthoringProjectAssembly,
+  computeFrozenComponentInputs,
+  prepareProjectInputs,
+} from "@unframe-dev/build";
 
 import { runPresentationCli } from "../src/index.js";
-import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
-import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
+import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe-dev/workspace-node";
 import { acquireBuildLock } from "@unframe-dev/workspace-node";
-import { lockSourceAssets } from "@unframe-dev/workspace";
-import { sourceAssetBytesFor } from "./source-asset-fixtures.js";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -36,28 +36,30 @@ const projectCopy = async () => {
   await cp(new URL("./fixtures/reference-project/", import.meta.url), directory, {
     recursive: true,
   });
+  await installFixtureGraph(
+    directory,
+    await readFixtureGraph(new URL("./fixtures/reference-project-graph.json.gz", import.meta.url)),
+  );
   return directory;
 };
 
 const checkedProject = async (directory: string) => {
   const discovered = await discoverPresentationProjectFiles(directory);
   if (!discovered.ok) throw new Error(discovered.code);
-  const loaded = loadUnframeLock(discovered.lockBytes);
-  if (!loaded.ok) throw new Error(loaded.diagnostic.code);
-  const source = {
-    projectRoot: discovered.projectDirectory,
-    entryFile: discovered.entryFile,
-    files: discovered.files,
-    ...loaded.value.virtualSource,
-  };
+  const prepared = await prepareProjectInputs(
+    { found: discovered, graph: discovered.dependencyGraph },
+    { ...sourceAssetPorts, readTypeLibraries },
+  );
+  assert(prepared.ok, JSON.stringify(prepared));
+  const source = prepared.value.source;
   const checked = checkAuthoringProject(source);
-  if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
-  return { discovered, checked, source, loaded };
+  assert(checked.valid);
+  return { discovered, checked, source, prepared: prepared.value };
 };
 
 const defaultPropsProject = async (explicit = false) => {
   const directory = await projectCopy();
-  const { discovered, checked } = await checkedProject(directory);
+  const { checked } = await checkedProject(directory);
   const component = checked.value.components.find(
     ({ manifest }) => manifest.value.componentId === "surface-component",
   )!;
@@ -70,7 +72,6 @@ const defaultPropsProject = async (explicit = false) => {
       defaultVisible: { kind: "boolean" as const, default: false },
     },
   };
-  const manifestHash = hashComponentManifestDeclaration(manifest);
   const original = checked.value.presentation.value;
   assert("components" in original.scene);
   const presentation = {
@@ -90,9 +91,6 @@ const defaultPropsProject = async (explicit = false) => {
       ),
     },
   };
-  const lock = JSON.parse(new TextDecoder().decode(discovered.lockBytes));
-  for (const entry of lock.componentLocks)
-    if (entry.componentId === "surface-component") entry.manifestHash = manifestHash;
   await Promise.all([
     writeFile(
       join(directory, component.manifest.fileName),
@@ -102,11 +100,7 @@ const defaultPropsProject = async (explicit = false) => {
       join(directory, checked.value.presentation.fileName),
       `import { definePresentation } from "@unframe-dev/authoring";\nexport default definePresentation(${JSON.stringify(presentation)});\n`,
     ),
-    writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n"),
   ]);
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.stderr).toBe("");
-  expect(refreshed.exitCode).toBe(0);
   return directory;
 };
 
@@ -199,53 +193,30 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
-  it("keeps the lock unchanged while another build owns the project", async () => {
+  it("rejects a competing build while another build owns the project", async () => {
     const directory = await projectCopy();
-    const bytes = await readFile(join(directory, "unframe.lock"));
     const acquired = await acquireBuildLock(directory);
     assert(acquired.ok);
     try {
-      expect(await refreshLocalProjectLock(sourceAssetPorts, directory)).toMatchObject({
-        ok: false,
-        code: "cli-build-lock-unavailable",
-      });
-      expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
+      const result = await runPresentationCli({ args: ["build", directory] });
+      expect(result.exitCode).toBe(3);
+      expect(result.stderr).toContain("cli-build-lock-unavailable");
     } finally {
       await acquired.value.release();
     }
   });
-  it("refreshes only local closures while preserving package snapshots and embedded assets", async () => {
+  it("regenerates changed local closures while retaining installed dependency snapshots", async () => {
     const directory = await projectCopy();
-    const before = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
-    expect(before.assets.length).toBeGreaterThan(0);
+    const before = await checkedProject(directory);
     const path = join(directory, "surface.structure.tsx");
-    await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
-    const initial = await discoverPresentationProjectFiles(directory);
-    assert(initial.ok);
-    const refreshed = await refreshLocalProjectLock(sourceAssetPorts, directory, {
-      expectedRevision: initial.revision,
-    });
-    assert(refreshed.ok);
-    const after = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
-    expect(after.packages).toEqual(before.packages);
-    expect(after.rootDependencies).toEqual(before.rootDependencies);
-    expect(after.packageManagerLockHash).toBe(before.packageManagerLockHash);
-    expect(after.assets).toEqual(before.assets);
-    expect(after.componentLocks).not.toEqual(before.componentLocks);
-    expect(refreshed.revision).not.toBe(initial.revision);
-    const bytes = await readFile(join(directory, "unframe.lock"));
-    expect(
-      await refreshLocalProjectLock(sourceAssetPorts, directory, {
-        expectedRevision: refreshed.revision,
-      }),
-    ).toEqual(refreshed);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
-    expect(
-      await refreshLocalProjectLock(sourceAssetPorts, directory, {
-        expectedRevision: initial.revision,
-      }),
-    ).toMatchObject({ ok: false, code: "cli-output-stale" });
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(bytes);
+    await writeFile(path, (await readFile(path, "utf8")) + "\n");
+    const after = await checkedProject(directory);
+    expect(after.discovered.dependencyHash).toBe(before.discovered.dependencyHash);
+    expect(after.discovered.revision).not.toBe(before.discovered.revision);
+    expect(after.prepared.assemblyCarrier.componentLocks).not.toEqual(
+      before.prepared.assemblyCarrier.componentLocks,
+    );
+    await expect(readFile(join(directory, "unframe.lock"))).rejects.toThrow();
   }, 30000);
 
   it("builds changed saved inputs into Dev without changing the frozen Dist generation", async () => {
@@ -261,7 +232,7 @@ describe("reference Authoring Project", () => {
     await writeFile(path, (await readFile(path, "utf8")) + "\n// saved change\n");
     const before = await discoverPresentationProjectFiles(directory);
     assert(before.ok);
-    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(1);
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
     const dev = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
       host: {
@@ -275,7 +246,7 @@ describe("reference Authoring Project", () => {
     const refreshed = await discoverPresentationProjectFiles(directory);
     assert(refreshed.ok);
     expect(dev.sourceRevision).toBe(refreshed.revision);
-    expect(dev.sourceRevision).not.toBe(before.revision);
+    expect(dev.sourceRevision).toBe(before.revision);
     expect(JSON.parse(dev.stdout)).toMatchObject({
       sourceRevision: refreshed.revision,
       generationId: dev.generationId,
@@ -286,7 +257,7 @@ describe("reference Authoring Project", () => {
       /^generations\/[0-9a-f]{32}$/,
     );
   }, 30000);
-  it("builds the latest local asset bytes into Dev while retaining frozen lock and Dist", async () => {
+  it("builds the latest local asset bytes into Dev while retaining the published Dist", async () => {
     const directory = await projectCopy();
     const dist = await runPresentationCli({
       args: ["build", directory],
@@ -296,7 +267,6 @@ describe("reference Authoring Project", () => {
     const distInode = (await lstat(join(directory, "dist"))).ino;
     const distManifest = await readFile(join(directory, "dist/build-manifest.json"));
     const distFont = await readFile(join(directory, "dist/assets/reference-font.ttf"));
-    const lockBefore = await readFile(join(directory, "unframe.lock"));
     const fontPath = join(directory, "assets/reference-font.ttf");
     const changed = Buffer.from(distFont);
     changed[changed.length - 1]! ^= 1;
@@ -310,13 +280,11 @@ describe("reference Authoring Project", () => {
     expect(
       await readFile(join(directory, ".unframe/preview/current/assets/reference-font.ttf")),
     ).toEqual(changed);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
     expect((await lstat(join(directory, "dist"))).ino).toBe(distInode);
     expect(await readFile(join(directory, "dist/build-manifest.json"))).toEqual(distManifest);
     expect(await readFile(join(directory, "dist/assets/reference-font.ttf"))).toEqual(distFont);
     const check = await runPresentationCli({ args: ["check", directory] });
-    expect(check.exitCode).toBe(1);
-    expect(check.stderr).toContain("cli-source-asset-hash-mismatch");
+    expect(check.exitCode, check.stderr).toBe(0);
 
     const devLink = await readlink(join(directory, ".unframe/preview/current"));
     const stale = await runPresentationCli({
@@ -338,11 +306,10 @@ describe("reference Authoring Project", () => {
     expect(
       await readFile(join(directory, ".unframe/preview/current/assets/reference-font.ttf")),
     ).toEqual(changed);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(lockBefore);
   }, 60_000);
   it("keeps canonical definitions identical while recording distinct source inputs", async () => {
     const directory = await projectCopy();
-    const { checked, source, loaded, discovered } = await checkedProject(directory);
+    const { checked, source, prepared } = await checkedProject(directory);
     const declarations = [
       { ...checked.value.presentation, builder: "definePresentation" },
       ...checked.value.themes.map((theme) => ({ ...theme, builder: "defineTheme" })),
@@ -361,10 +328,10 @@ describe("reference Authoring Project", () => {
         sourceText: `import { ${builder} } from "@unframe-dev/authoring";\nexport default ${builder}(${JSON.stringify(value)});\n`,
       })),
     };
-    const sourceAssetBytes = sourceAssetBytesFor(discovered, loaded.value.lock.assets);
+    const sourceAssetBytes = prepared.sourceAssetBytes;
     const composed = checkAuthoringProjectAssembly(
       source,
-      loaded.value.assemblyCarrier,
+      prepared.assemblyCarrier,
       sourceAssetBytes,
     );
     const literalCatalog = checkAuthoringProject(literal);
@@ -374,7 +341,7 @@ describe("reference Authoring Project", () => {
     const direct = checkAuthoringProjectAssembly(
       literal,
       {
-        ...loaded.value.assemblyCarrier,
+        ...prepared.assemblyCarrier,
         ...inputs.value,
       },
       sourceAssetBytes,
@@ -424,7 +391,7 @@ describe("reference Authoring Project", () => {
       });
       expect(browser.observed.capture).toBe(command === "build" ? 6 : 0);
     },
-    15_000,
+    60_000,
   );
 
   it("does not warn for explicit empty, zero, false, or values equal to defaults", async () => {
@@ -487,20 +454,6 @@ describe("reference Authoring Project", () => {
       join(directory, "assets/reference-font.ttf"),
       Buffer.from("AAEAAAAAAAAAAAAA", "base64"),
     );
-    const discovered = await discoverPresentationProjectFiles(directory);
-    assert(discovered.ok);
-    const loaded = loadUnframeLock(discovered.lockBytes);
-    assert(loaded.ok);
-    const updatedAssets = lockSourceAssets(
-      sourceAssetPorts,
-      discovered.assetSources,
-      discovered.localFiles,
-    );
-    assert(updatedAssets.ok);
-    await writeFile(
-      join(directory, "unframe.lock"),
-      canonicalizeJsonPayload({ ...loaded.value.lock, assets: updatedAssets.value.assets }) + "\n",
-    );
     const browser = fakeBrowser();
     const result = await runPresentationCli({
       args: ["build", directory, "--format", "json"],
@@ -512,27 +465,6 @@ describe("reference Authoring Project", () => {
     );
     expect(diagnostics(result).every((item) => item.family === "renderer")).toBe(true);
     expect(browser.observed).toMatchObject({ capture: 0, close: 1 });
-  });
-  it("rejects corrupted font source bytes before opening a Browser", async () => {
-    const directory = await projectCopy();
-    await writeFile(
-      join(directory, "assets/reference-font.ttf"),
-      Buffer.from("AAEAAAAAAAAAAAAA", "base64"),
-    );
-    let calls = 0;
-    const result = await runPresentationCli({
-      args: ["build", directory, "--format", "json"],
-      host: {
-        openFixedBrowser: async () => {
-          calls += 1;
-          return fakeBrowser().session;
-        },
-      },
-    });
-    expect(result.exitCode).toBe(1);
-    expect(calls).toBe(0);
-    expect(diagnostics(result).some((item) => item.family === "semantic")).toBe(true);
-    await expect(lstat(join(directory, "dist"))).rejects.toThrow();
   });
   it("checks without reading or launching a Browser", async () => {
     const directory = await projectCopy();
@@ -687,17 +619,9 @@ describe("reference Authoring Project", () => {
     expect(activeBounds.height).toBeCloseTo(1);
     expect(bundleSurface.interactionsByState["surface-instance:inactive"]).toEqual([]);
     expect(verifyBuildIntegrity(buildArtifacts).valid).toBe(true);
-    const sourceLock = JSON.parse(await readFile(join(directory, "unframe.lock"), "utf8"));
-    expect(
-      (await readFile(join(directory, "dist/assets/reference-font.ttf"))).equals(
-        await readFile(
-          join(
-            directory,
-            sourceLock.assets.find((asset: { id: string }) => asset.id === "reference-font").path,
-          ),
-        ),
-      ),
-    ).toBe(true);
+    expect(await readFile(join(directory, "dist/assets/reference-font.ttf"))).toEqual(
+      await readFile(join(directory, "assets/reference-font.ttf")),
+    );
     expect(first.observed).toMatchObject({ capture: 6, close: 1 });
     expect(first.observed.signals).toEqual(Array(6).fill(controller.signal));
 
@@ -742,22 +666,6 @@ describe("reference Authoring Project", () => {
         family: "type",
         code: "compiler-module-package-unsupported",
         path: ["presentation.unframe.tsx"],
-      },
-    ],
-    [
-      "semantic",
-      async (directory: string) => {
-        const lockPath = join(directory, "unframe.lock");
-        const lock = JSON.parse(await readFile(lockPath, "utf8")) as {
-          themeHashes: { hash: string }[];
-        };
-        lock.themeHashes[0]!.hash = `sha256:${"0".repeat(64)}`;
-        await writeFile(lockPath, canonicalizeJsonPayload(lock) + "\n");
-      },
-      {
-        family: "semantic",
-        code: "compiler-theme-hash-mismatch",
-        path: ["themeHashes", 0],
       },
     ],
   ] as const)("reports stable %s diagnostics", async (_name, mutate, expected) => {
@@ -812,7 +720,7 @@ describe("reference Authoring Project", () => {
     ]);
     expect(browser.observed).toMatchObject({ capture: 1, close: 1, signals: [controller.signal] });
     await expect(lstat(join(directory, "dist"))).rejects.toThrow();
-    await expect(lstat(join(directory, ".unframe"))).rejects.toThrow();
+    await expect(lstat(join(directory, ".unframe/preview/current"))).rejects.toThrow();
   });
 
   it("does not start a Browser when cancellation arrives during project I/O", async () => {
@@ -859,7 +767,11 @@ describe("reference Authoring Project", () => {
     expect(browser.observed.close).toBe(1);
   });
 
-  it.each(["presentation.unframe.tsx", "unframe.lock", "unframe.config.ts"])(
+  it.each([
+    "presentation.unframe.tsx",
+    "node_modules/@unframe-dev/authoring/index.ts",
+    "unframe.config.ts",
+  ])(
     "preserves dist when %s changes during capture",
     async (name) => {
       const directory = await projectCopy();

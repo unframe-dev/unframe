@@ -10,10 +10,6 @@ const adapterRoot = fileURLToPath(new URL("../", import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), "unframe-style-pack-"));
 try {
   await writeFile(join(directory, "package.json"), "{}");
-  await writeFile(
-    join(directory, "pnpm-lock.yaml"),
-    "lockfileVersion: '9.0'\nimporters:\n  .: {}\n",
-  );
   const snapshot = await snapshotNodeTransformInputs(directory, {
     adapterRoot,
     adapterSubpath: "./compiler",

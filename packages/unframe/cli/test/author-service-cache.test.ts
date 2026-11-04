@@ -5,11 +5,9 @@ import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import { afterAll, afterEach, assert, beforeAll, expect, it, vi } from "vite-plus/test";
 import type { AuthorService } from "@unframe-dev/author-service";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { encodeRgbaToPng } from "@unframe-dev/media-node";
 import { createAuthorService } from "../src/author/service.js";
 import { acquireSourceLock } from "@unframe-dev/workspace-node";
-import { runPresentationCli } from "../src/index.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
@@ -88,15 +86,16 @@ it.each(["presentation.unframe.tsx", "unframe.config.ts", "theme.css"])(
   30_000,
 );
 
-it("reanalyzes a changed canonical lock before reusing the new revision", async () => {
+it("reanalyzes changed installed dependency contents before reusing the new revision", async () => {
   const { service, directory } = await project();
   const libraryReads = observeTypeLibraryReads();
   const before = await service.project();
   expect(before.irHash, JSON.stringify(before.diagnostics)).not.toBeNull();
-  const path = join(directory, "unframe.lock");
-  const lock = JSON.parse(await readFile(path, "utf8"));
-  lock.packageManagerLockHash = `sha256:${"f".repeat(64)}`;
-  await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
+  const path = join(directory, "node_modules/@unframe-dev/authoring/index.ts");
+  await writeFile(
+    path,
+    (await readFile(path, "utf8")) + "\nexport const changedDependency = true;\n",
+  );
   const changed = await service.project();
   expect(changed.revision).not.toBe(before.revision);
   expect(changed.irHash, JSON.stringify(changed.diagnostics)).not.toBeNull();
@@ -141,8 +140,6 @@ const registeredImageProject = async () => {
       'assetId: "image"',
     ),
   );
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   return { service, directory, image };
 };
 
@@ -164,7 +161,14 @@ it("does not reuse a failed analysis for the same revision", async () => {
   const libraryReads = observeTypeLibraryReads();
   const first = await service.project();
   expect(first.irHash).toBeNull();
-  expect(first.diagnostics.length).toBeGreaterThan(0);
+  expect(first.diagnostics).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        family: "syntax",
+        location: expect.objectContaining({ fileName: "presentation.unframe.tsx", line: 1 }),
+      }),
+    ]),
+  );
   const second = await service.project();
   expect(second.revision).toBe(first.revision);
   expect(second.irHash).toBeNull();
@@ -246,7 +250,7 @@ it("releases the source lease before analysis and uses captured project inputs",
     try {
       await writeFile(join(directory, "presentation.unframe.tsx"), "export default ;\n");
       await writeFile(join(directory, "unframe.config.ts"), "export default {};\n");
-      await writeFile(join(directory, "unframe.lock"), "invalid lock\n");
+      await writeFile(join(directory, "package.json"), "invalid manifest\n");
       await writeFile(join(directory, "theme.css"), "invalid current style bytes\n");
     } finally {
       await lease.value.release();

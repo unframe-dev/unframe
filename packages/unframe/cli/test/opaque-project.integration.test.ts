@@ -9,7 +9,6 @@ import { checkAuthoringProject } from "@unframe-dev/source";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { prepareProjectSource } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
 import { lockedFile } from "@unframe-dev/workspace-node";
 import { prepareRealReactProjectFixture } from "./real-react-project-fixture.js";
 
@@ -22,13 +21,12 @@ afterEach(async () => {
 const fromReference = async (directory: string) => {
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
-  const loaded = loadUnframeLock(discovered.lockBytes);
-  assert(loaded.ok);
   const checked = checkAuthoringProject(
-    (await prepareProjectSource(sourceAssetPorts.styles, discovered, loaded.value.lock)).source,
+    (await prepareProjectSource(sourceAssetPorts.styles, discovered, discovered.dependencyGraph))
+      .source,
   );
   assert(checked.valid, JSON.stringify(checked.diagnostics));
-  return { loaded: loaded.value.lock, presentation: checked.value.presentation.value };
+  return { presentation: checked.value.presentation.value };
 };
 
 const createProject = async (mixed = false) => {
@@ -103,10 +101,9 @@ html, body { margin: 0; }
   await cp(join(repository, "assets/icon.png"), join(directory, "fixture.png"));
   const discovered = await discoverPresentationProjectFiles(directory);
   assert(discovered.ok);
-  const frozen = loadUnframeLock(discovered.lockBytes);
-  assert(frozen.ok);
   const checked = checkAuthoringProject({
-    ...(await prepareProjectSource(sourceAssetPorts.styles, discovered, frozen.value.lock)).source,
+    ...(await prepareProjectSource(sourceAssetPorts.styles, discovered, discovered.dependencyGraph))
+      .source,
     rawFiles: discovered.localFiles
       .filter(({ path }) => /\.(css|png|jpe?g|webp|ttf|otf)$/i.test(path))
       .map(({ path, bytes }) => lockedFile(path, bytes)),
@@ -144,8 +141,6 @@ const renderBundleHash = async (directory: string) => {
 
 it("builds Base UI Button with locked React, CSS, font, and image twice to identical bytes", async () => {
   const directory = await createProject();
-  const refresh = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refresh.exitCode, refresh.stderr).toBe(0);
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
   const firstStarted = performance.now();
@@ -173,8 +168,6 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
   const cssPath = join(directory, "hero.css");
   const css = await readFile(cssPath, "utf8");
   await writeFile(cssPath, css.replace("color: #102a43;", "color: #a00000;"));
-  const refreshedCssLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshedCssLock.exitCode, refreshedCssLock.stderr).toBe(0);
   const cssChangedBuild = await runPresentationCli({ args: ["build", directory] });
   expect(cssChangedBuild.exitCode, cssChangedBuild.stderr).toBe(0);
   const cssChangedBytes = await distBytes(directory);
@@ -194,8 +187,6 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
       'url("fixture.otf") format("opentype")',
     ),
   );
-  const refreshedFontLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshedFontLock.exitCode, refreshedFontLock.stderr).toBe(0);
   const fontBuild = await runPresentationCli({ args: ["build", directory] });
   expect(fontBuild.exitCode, fontBuild.stderr).toBe(0);
   const fontBytes = await distBytes(directory);
@@ -211,8 +202,6 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
       "<h1 {...bindings.title} style={{fontSize: 32}}>",
     ),
   );
-  const refreshedRenderLock = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshedRenderLock.exitCode, refreshedRenderLock.stderr).toBe(0);
   const renderBuild = await runPresentationCli({ args: ["build", directory] });
   expect(renderBuild.exitCode, renderBuild.stderr).toBe(0);
   const renderBytes = await distBytes(directory);
@@ -227,8 +216,6 @@ it("builds Base UI Button with locked React, CSS, font, and image twice to ident
       )
       .replace("</main>,", "</main>),"),
   );
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   const blocked = await runPresentationCli({ args: ["build", directory] });
   expect(blocked.exitCode).not.toBe(0);
   expect(blocked.stderr).toContain("opaque-capability-denied");
@@ -252,8 +239,6 @@ export const Hero = defineComponent({
  render:({texts,bindings,state}:{texts:{title:string;button:string};bindings:{title:{"data-unframe-binding":string};button:{"data-unframe-binding":string}};state:"hidden"|"revealed"})=><main className="hero"><h1 {...bindings.title} style={{color:state==="hidden"?"red":"blue"}}>{texts.title}</h1><button {...bindings.button} disabled={state!=="hidden"} style={{background:"transparent",width:240,height:60}}>{texts.button}</button></main>
 });`,
   );
-  const refresh = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refresh.exitCode, refresh.stderr).toBe(0);
   const checked = await runPresentationCli({ args: ["check", directory] });
   expect(checked.exitCode, checked.stderr).toBe(0);
   const started = performance.now();

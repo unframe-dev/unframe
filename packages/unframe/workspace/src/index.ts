@@ -1,5 +1,4 @@
-export * from "./lock.js";
-export * from "./load-lock.js";
+export * from "./project-inputs.js";
 export * from "./load-config.js";
 export * from "./frozen-local-files.js";
 export * from "./snapshot-schema.js";
@@ -8,4 +7,6 @@ export * from "./package-files.js";
 export * from "./revision.js";
 export * from "./save.js";
 export * from "./source-assets.js";
-export * from "./construct-lock.js";
+export * from "./dependency-graph.js";
+export * from "./validate-dependency-graph.js";
+export type { DeclarationProjectAssemblyCarrier } from "./assembly-carrier.js";

@@ -6,11 +6,8 @@ import { buildManifestBytesHash, buildReceiptSchema } from "./build-receipt.js";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import type { LocalFileSnapshot } from "@unframe-dev/workspace";
 import { acquireSourceLock } from "./source-lock.js";
-import {
-  readLinkedWorkspaceInputs,
-  readPnpmProjectLock,
-  PnpmProjectLockError,
-} from "./package-snapshot.js";
+import { authoringPackageRoots } from "@unframe-dev/build";
+import { readInstalledDependencyInputs, snapshotInstalledPackages } from "./package-snapshot.js";
 import { loadProjectConfig, type ProjectConfig } from "@unframe-dev/workspace";
 import {
   projectDirectory,
@@ -42,14 +39,9 @@ export type DiscoveredProjectFiles =
       readonly entryFile: string;
       readonly assetSources: ProjectConfig["assets"];
       readonly revision: string;
-      readonly lockBytes: Uint8Array;
       readonly configBytes: Uint8Array;
-      readonly packageManagerLock?: {
-        path: string;
-        bytes: Uint8Array;
-        workspaceBytes?: Uint8Array;
-        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
-      };
+      readonly dependencyGraph: Awaited<ReturnType<typeof snapshotInstalledPackages>>;
+      readonly dependencyHash: string;
       readonly files: readonly ProjectSourceFile[];
       readonly localFiles: readonly LocalFileSnapshot[];
     }
@@ -97,7 +89,8 @@ const scanAuthoringSources = async (
       if (!relativeName || relativeName.startsWith("../")) return false;
       if (
         ignoredDirectoryNames.has(name) ||
-        (directory === root && [".unframe-build.lock", ".unframe-source.lock"].includes(name))
+        (directory === root &&
+          ["unframe.lock", ".unframe-build.lock", ".unframe-source.lock"].includes(name))
       )
         continue;
       if (directory === root && /^\.dist-[0-9a-f]{32}$/.test(name)) {
@@ -134,8 +127,7 @@ const scanAuthoringSources = async (
         : await readRegularFile(path);
       if (!bytes) return false;
       if (assetPaths.has(relativeName)) assetBytes += bytes.byteLength;
-      if (relativeName !== "unframe.lock" && relativeName !== "unframe.config.ts")
-        localFiles.push({ path: relativeName, bytes });
+      if (relativeName !== "unframe.config.ts") localFiles.push({ path: relativeName, bytes });
       if (!sourceFileName(name) || relativeName === "unframe.config.ts") continue;
       try {
         files.push({ fileName: relativeName, sourceText: sourceDecoder.decode(bytes) });
@@ -154,7 +146,7 @@ const scanAuthoringSources = async (
     : undefined;
 };
 
-/** Config parsing and raw file discovery only; lock validation belongs to the next boundary. */
+/** Captures source and installed dependencies without running project code. */
 const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjectFiles> => {
   const root = await projectDirectory(directory);
   if (!root)
@@ -163,11 +155,10 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "Project directory must be an absolute non-symbolic-link directory.",
     );
   const config = await readRegularFile(join(root, "unframe.config.ts"));
-  const lock = await readRegularFile(join(root, "unframe.lock"));
-  if (!config || !lock)
+  if (!config)
     return failure(
       "cli-project-discovery-missing-files",
-      "Project root must contain regular unframe.config.ts and unframe.lock files.",
+      "Project root must contain a regular unframe.config.ts file.",
     );
   const projectConfig = loadProjectConfig(config);
   if (!projectConfig)
@@ -195,41 +186,27 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  let packageManagerLock:
-    | {
-        path: string;
-        bytes: Uint8Array;
-        workspaceBytes?: Uint8Array;
-        linkedWorkspaceInputs?: Awaited<ReturnType<typeof readLinkedWorkspaceInputs>>;
-      }
-    | undefined;
+  let dependencyGraph: Awaited<ReturnType<typeof snapshotInstalledPackages>>;
+  let dependencyHash: string;
   try {
-    const dependency = await readPnpmProjectLock(root);
-    const linkedWorkspaceInputs = await readLinkedWorkspaceInputs(root);
-    packageManagerLock = {
-      path: join(dependency.directory, "pnpm-lock.yaml"),
-      ...(linkedWorkspaceInputs.length ? { linkedWorkspaceInputs } : {}),
-      bytes: dependency.bytes.slice(),
-      ...(dependency.workspaceBytes ? { workspaceBytes: dependency.workspaceBytes.slice() } : {}),
-    };
+    const before = await readInstalledDependencyInputs(root);
+    dependencyGraph = await snapshotInstalledPackages(root, {
+      rootSpecifiers: authoringPackageRoots({ entryFile, ...snapshot }),
+    });
+    const after = await readInstalledDependencyInputs(root);
+    if (before.dependencyHash !== after.dependencyHash)
+      throw new Error("Installed dependencies changed while capturing project inputs.");
+    dependencyHash = after.dependencyHash;
   } catch (error) {
-    if (!(error instanceof PnpmProjectLockError) || error.code !== "missing")
-      return failure(
-        "cli-project-dependency-input-invalid",
-        error instanceof Error ? error.message : "Project dependency inputs are invalid.",
-      );
+    return failure(
+      "cli-project-dependency-input-invalid",
+      error instanceof Error ? error.message : "Installed dependency inputs are invalid.",
+    );
   }
   const revision = createProjectRevision({
     configBytes: config,
-    lockBytes: lock,
+    dependencyHash,
     localFiles: snapshot.localFiles,
-    ...(packageManagerLock ? { packageManagerLockBytes: packageManagerLock.bytes } : {}),
-    ...(packageManagerLock?.linkedWorkspaceInputs
-      ? { packageManagerLinkedInputs: packageManagerLock.linkedWorkspaceInputs }
-      : {}),
-    ...(packageManagerLock?.workspaceBytes
-      ? { packageManagerWorkspaceBytes: packageManagerLock.workspaceBytes }
-      : {}),
   });
   return {
     ok: true,
@@ -237,9 +214,9 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     entryFile,
     assetSources,
     revision,
-    lockBytes: lock.slice(),
+    dependencyGraph,
+    dependencyHash,
     configBytes: config.slice(),
-    ...(packageManagerLock ? { packageManagerLock } : {}),
     ...snapshot,
   };
 };

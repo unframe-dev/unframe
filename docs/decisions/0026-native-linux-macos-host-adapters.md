@@ -1,5 +1,7 @@
 # ADR-0026: Linux / macOS の native host を共通契約で扱う
 
+> 現行の依存入力契約は [CLI Architecture](../../packages/unframe/cli/ARCHITECTURE.md) を参照。以下の永続 `unframe.lock`・lock 更新・保存時の lock 更新に関する記述は過去の設計であり、廃止済みです。
+
 ## Status
 
 Accepted

@@ -121,7 +121,7 @@ export default defineTheme({
 
 React 形式では通常の CSS を component ファイルから import します。フォントはローカル素材を CSS の `@font-face` から参照してください。Unframe のテーマは DOM の CSS に自動適用されません。
 
-Tailwind を使う場合は `postcss`・`tailwindcss`・`@tailwindcss/postcss` をプロジェクトへ追加し、`postcss.config.mjs` に `export default { plugins: { "@tailwindcss/postcss": {} } };`、import する CSS に `@import "tailwindcss";` を記述します。PostCSS 8 / Tailwind 4 が対象です。依存と設定を追加後、下記の `lock update` を実行してください。
+Tailwind を使う場合は `postcss`・`tailwindcss`・`@tailwindcss/postcss` をプロジェクトへ追加し、`postcss.config.mjs` に `export default { plugins: { "@tailwindcss/postcss": {} } };`、import する CSS に `@import "tailwindcss";` を記述します。PostCSS 8 / Tailwind 4 が対象です。依存を導入し、下記の check / build を実行してください。
 
 ### 操作と進行
 
@@ -164,12 +164,11 @@ pnpm install --frozen-lockfile
 ソース・素材・設定を変更した後は、次を実行してください。
 
 ```bash
-unframe lock refresh .
 unframe check .
 unframe build .
 ```
 
-依存を追加・変更するときは pnpm を使い、`pnpm-lock.yaml` を更新してから `unframe lock update .` を実行してください。OS / CPU や実行環境を切り替え、固定した環境との不一致が報告された場合も `lock update` で更新します。
+依存の導入・更新はプロジェクトが選ぶパッケージマネージャーで行ってください。Unframe は導入済み `node_modules` を使用します。PnP は未対応です。`unframe.lock` と lock 更新操作は不要です。
 
 ブラウザと Unity Preview Player を利用できる環境では、次を実行して表示を確認してください。
 
@@ -179,6 +178,6 @@ unframe author .
 
 `author` は Local Editor と変更時の Preview build を起動し、`Ctrl+C` で終了します。表示確認では、文字や図の欠け・重なり、空間配置、操作領域、Step 遷移を確認してください。表示環境がない場合は未確認として報告してください。
 
-- `unframe.lock`、`pnpm-lock.yaml`、`vendor/`、`.unframe/`、生成された `dist/` を手作業で書き換えないでください。修正はソースへ行い、対応するコマンドで再生成してください。
+- `pnpm-lock.yaml`、`vendor/`、`.unframe/`、生成された `dist/` を手作業で書き換えないでください。修正はソースへ行い、対応するコマンドで再生成してください。
 - 型検査や build の成功と、実際の表示・操作確認は分けて報告してください。実行できなかった確認は、その理由を明記してください。
 - 公開・アップロードはユーザーから依頼された場合に行ってください。

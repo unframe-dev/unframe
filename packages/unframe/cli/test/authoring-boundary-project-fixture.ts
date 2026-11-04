@@ -1,12 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { installFixtureGraph } from "./installed-project-fixture.js";
 import {
-  hashDependencyGraph,
   hashLockedPackageContent,
   hashPackageLocator,
   type PackageSnapshot,
-  type UnframeLock,
 } from "@unframe-dev/workspace";
 import { lockedFile } from "@unframe-dev/workspace-node";
 import { writeStyleBoundaryProjectFixture } from "./style-boundary-project-fixture.js";
@@ -32,27 +30,10 @@ export const writeAuthoringBoundaryProjectFixture = async (directory: string) =>
     dependencies: [],
   };
   pkg.contentIntegrity = hashLockedPackageContent(pkg);
-  const lock: UnframeLock = {
-    schemaVersion: 1,
-    packageSnapshotProfile: "pnpm-lock9-locator-v1",
-    resolutionProfile: "browser-import-production-types-v1",
-    extractionProfile: "react-component-v1",
-    packageManagerLockHash: `sha256:${"0".repeat(64)}`,
-    rootDependencies: [
-      { specifier: "@unframe-dev/authoring", usage: "runtime", packageKey: pkg.key },
-    ],
+  await installFixtureGraph(directory, {
     packages: [pkg],
-    dependencyGraphHash: `sha256:${"0".repeat(64)}`,
-    themeHashes: [],
-    componentLocks: [],
-    assets: [],
-    rendererPlugins: [
-      { id: "baked-web", version: "3", contractVersion: "2" },
-      { id: "baked-web", version: "4", contractVersion: "2" },
-    ],
-  };
-  lock.dependencyGraphHash = hashDependencyGraph(lock);
-  await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(lock) + "\n");
+    rootDependencies: [{ specifier: pkg.name, usage: "runtime", packageKey: pkg.key }],
+  });
   await writeFile(
     join(directory, "presentation.unframe.tsx"),
     `

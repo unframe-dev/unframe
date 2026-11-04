@@ -16,7 +16,7 @@ it("copies project inputs without inheriting another project's leases or output"
   const source = await mkdtemp(join(temporaryDirectory(), "unframe-fixture-source-"));
   const target = await mkdtemp(join(temporaryDirectory(), "unframe-fixture-target-"));
   directories.push(source, target);
-  await writeFile(join(source, "unframe.lock"), "frozen source lock");
+  await writeFile(join(source, "package.json"), "project manifest");
   await writeFile(join(source, ".unframe-build.lock"), "active build lease");
   await mkdir(join(source, ".unframe"));
   await mkdir(join(source, "dist"));
@@ -26,8 +26,8 @@ it("copies project inputs without inheriting another project's leases or output"
   assert(lease.ok);
   try {
     await copyProjectFixture(source, target);
-    expect(await readdir(target)).toEqual(["assets", "unframe.lock"]);
-    expect(await readFile(join(target, "unframe.lock"), "utf8")).toBe("frozen source lock");
+    expect(await readdir(target)).toEqual(["assets", "package.json"]);
+    expect(await readFile(join(target, "package.json"), "utf8")).toBe("project manifest");
     expect(await readFile(join(target, "assets/dist/model.glb"), "utf8")).toBe("nested asset");
     const ownLease = await acquireSourceLock(target);
     assert(ownLease.ok);

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ProjectConfig } from "./load-config.js";
 import type { LocalFileSnapshot } from "./frozen-local-files.js";
-import type { LockedSourceAsset } from "./lock.js";
+import type { LockedSourceAsset } from "./project-inputs.js";
 
 export type SourceAssetIdentities = { modelTransformIdentity: `sha256:${string}` };
 
@@ -18,7 +18,7 @@ const failure = (code: string, path: string): SourceAssetsResult => ({
   ok: false,
   code,
   path,
-  message: "Source Assets differ from the frozen lock. Refresh the lock explicitly.",
+  message: "Source Asset bytes or transform identity are unavailable.",
 });
 
 export const lockSourceAssets = (
@@ -53,31 +53,4 @@ export const lockSourceAssets = (
     entries.push([id, bytes]);
   }
   return { ok: true, value: { assets, sourceAssetBytes: Object.fromEntries(entries) } };
-};
-
-export const resolveLockedSourceAssets = (
-  identities: SourceAssetIdentities,
-  locked: readonly LockedSourceAsset[],
-  sources: ProjectConfig["assets"],
-  files: readonly LocalFileSnapshot[],
-  videoTransformIdentity?: `sha256:${string}`,
-): SourceAssetsResult => {
-  if (locked.length !== Object.keys(sources).length)
-    return failure("cli-source-asset-lock-mismatch", "unframe.config.ts");
-  for (const asset of locked) {
-    const source = Object.hasOwn(sources, asset.id) ? sources[asset.id] : undefined;
-    if (!source || source.path !== asset.path || source.mediaType !== asset.mediaType)
-      return failure("cli-source-asset-lock-mismatch", "unframe.config.ts");
-  }
-  const resolved = lockSourceAssets(identities, sources, files, videoTransformIdentity);
-  if (!resolved.ok) return resolved;
-  const expected = new Map(locked.map((asset) => [asset.id, asset]));
-  for (const actual of resolved.value.assets) {
-    const previous = expected.get(actual.id);
-    if (actual.hash !== previous?.hash || actual.size !== previous?.size)
-      return failure("cli-source-asset-hash-mismatch", actual.path);
-    if (actual.transformIdentity !== previous.transformIdentity)
-      return failure("cli-source-asset-transform-mismatch", actual.path);
-  }
-  return resolved;
 };

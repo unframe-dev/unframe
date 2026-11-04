@@ -20,7 +20,7 @@ CLI command parsing、concrete renderer implementation、publish は所有しな
 ## 2. Pipeline
 
 ```text
-Authoring Source / lock / config
+Authoring Source / captured dependencies / config
         ↓ parse
 Lossless Syntax Tree + Source Map
         ↓ import / symbol resolution / typecheck
@@ -70,7 +70,7 @@ Component ActionをSurface State cut / crossfade、Variable / Nodeの即時Actio
 
 `compileDeclarationProject(project, options, sourceAssetBytes = {}, cache?)` は同じ subset を canonical paint order と compositing closure から自動 partition し、全 State の完成 Semantic Tree を Core で materialize する。Core の `resolveStructuredLayout` を paint bounds と Hit Region が共用し、後者は visibility / opacity・ancestor clip を適用してから正規化する（[ADR-0021](../../../docs/decisions/0021-surface-interaction-geometry.md)）。注入された `baked-web` Renderer には検証済み font / image bytes と、partition bounds から ADR-0012 の長辺 2048 policy で導出した pixel target を渡す。raw RGBA capture は `unframe-assets` で決定論的な PNG に encode し、v2 Definition / RenderBundle / AssetSet / BuildManifest と source / PNG bytes を返す。Compiler は capture 前に固定 count / raster budget を検査し、capture / output / accounted peak budget と Core の artifact・build integrity を最終境界で検証する。Renderer / encoder / malformed input の失敗は diagnostics として返す。
 
-静的 Model Component は `model({ id, asset: assetRef(...) })` または JSX `Model` を root に持つ。props / slots / parts / variants / states / Timelines と renderer declarations は空の subset に限定し、非対応の宣言は診断する。既存 Spatial が owner / audience / TRS / opacity / active / visible を所有し、instance と Spatial の namespaced ID を持つ ModelNode へ一度だけ lower する。root ID の node target は同じ host を指し、Model を Surface や PNG に変換しない。Model-only は Theme と baked-web Renderer を必要としない。Model root を対象にした固定 clip の play / pause / resume / stop、clip completion と timer Output を canonical `modelClip.*` / `modelClipCompleted` へ lower する。未使用を含む全宣言の clip ID を変換後 metadata の正の実測 duration と照合し、loop と blocking の組合せは拒否する。
+静的 Model Component は `model({ id, asset: assetRef(...) })` または JSX `Model` を root に持つ。props / slots / parts / variants / states と renderer declarations は空の subset に限定し、非対応の宣言は診断する。host Timeline は instance ごとの Spatial Node と resource ID に lower する。既存 Spatial が owner / audience / TRS / opacity / active / visible を所有し、instance と Spatial の namespaced ID を持つ ModelNode へ一度だけ lower する。root ID の node target は同じ host を指し、Model を Surface や PNG に変換しない。Model-only は Theme と baked-web Renderer を必要としない。Model root を対象にした固定 clip の play / pause / resume / stop、clip completion と timer Output を canonical `modelClip.*` / `modelClipCompleted` へ lower する。未使用を含む全宣言の clip ID を変換後 metadata の正の実測 duration と照合し、loop と blocking の組合せは拒否する。
 
 GLB の sync check は header / size / checksum と参照 closure を検証し、compile は `unframe-assets.transformGlb` で深い仕様検証・root channel 除去・metadata 計測を行う。logical source Asset ID は Definition / Bundle.models の key と assetId / AssetSet / bytes の key で維持し、checksum・size・features・clip は変換後 GLB に固定する。raw checksum は sourceHash / cache key にだけ入力し、公開 AssetSet へ流用しない。transform identity と固定 ModelLimits は compiler environment / cache key に含める。Model の encoded output と保持 source bytes を既存 output / accounted-peak budget に算入するが、これらはプロセス RSS 上限の実測保証ではない。
 
@@ -100,7 +100,7 @@ project-owned declaration file は、entry、`*.unframe.ts`、`*.manifest.ts`、
 
 `checkAuthoringProject(unknown)` は virtual Source frontend の公開 pure boundary として parse、typecheck、lower、normalize、collect、pair を接続し、成功時は TypeScript の `Program` / `TypeChecker` を含まない plain declaration catalog、失敗時は source range 付き diagnostic を返す。builder implementation、filesystem、Browser は実行しない。
 
-`assembleDeclarationProject(input, sourceAssetBytes = {})` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの origin / mode を持つ Component lock carrier（host の `unframe.lock` は schema 3）、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。Theme、Manifest、Structure はそれぞれの declaration semantic payload を Core の canonical JSON SHA-256 で再計算し、lock hash mismatch を stable diagnostic として拒否する。declaration node、Slot placeholder、Surface-root と Frame-root の Semantic Tree node の `source` metadata は hash から除き、Theme token / NamedStyle と Prop reference を含む意味値は保持する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。package integrity は host の固定 carrier を利用し、source Asset checksum は独立した bytes から再計算して照合する。
+`assembleDeclarationProject(input, sourceAssetBytes = {})` は paired catalog と、Theme ID ごとの hash、Component `(componentId, version)` ごとの origin / mode を持つ Component 入力 carrier、Asset carrier を明示的に受け取る pure boundary である。catalog の source-map wrapper を出力に持ち込まず、carrier の欠落・余分・重複・identity mismatch を fail closed で拒否する。Theme、Manifest、Structure はそれぞれの declaration semantic payload を Core の canonical JSON SHA-256 で再計算し、入力 hash mismatch を stable diagnostic として拒否する。declaration node、Slot placeholder、Surface-root と Frame-root の Semantic Tree node の `source` metadata は hash から除き、Theme token / NamedStyle と Prop reference を含む意味値は保持する。入力順に依存せず canonical envelope を組み立て、`checkDeclarationProject` で再検証する。package integrity は host が取得済み入力から生成した carrier を利用し、source Asset checksum は独立した bytes から再計算して照合する。
 
 post-lowering declaration の検査は Authoring package の pure type guard を利用し、definition builder を呼び出さない。Compiler の plain-data clone は `Object.prototype` と null-prototype の record を受理し、descriptor だけから null-prototype clone を作る。custom prototype、accessor、cycle、sparse array、symbol key、非 JSON 値は Zod や semantic validation に渡す前に拒否し、caller-owned getter や Proxy の `get` trap を実行しない。
 
@@ -173,4 +173,4 @@ Compiler は CLI、Web Editor、Control Plane、Realtime、Unity に依存しな
 ## 11. Direct source editing
 
 `readEditableReactScene` は検証済み catalog と最新 Source から公開 scalar Props と host Transform の編集可否を返す。
-`patchEditableReactScene` は直接 literal を置換し、共有値や spread に由来する field は対象 Instance の局所 override として保存する。継承へ戻す操作と式の復元を扱い、共有元・対象外 Source・コメントを保持する。保存前の再検証、lock 更新、filesystem transaction は CLI が所有する。
+`patchEditableReactScene` は直接 literal を置換し、共有値や spread に由来する field は対象 Instance の局所 override として保存する。継承へ戻す操作と式の復元を扱い、共有元・対象外 Source・コメントを保持する。保存前の再検証と filesystem transaction は CLI が所有する。

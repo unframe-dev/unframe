@@ -266,7 +266,7 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 - Bun / OpenTUI Solid による interactive command selection と terminal lifecycle
 - native TUI に依存しない headless `check` / `build` API
 - `init`、`dev`、`check`、`build`、`test`、`preview`、`publish` command
-- project config、lockfile、cache、output directoryの解決
+- project config、導入済み依存、cache、output directoryの解決
 - Compilerとrenderer pluginのcomposition
 - diagnostics表示とexit code
 - local watch、dev server、preview host
@@ -281,7 +281,7 @@ Authoring Projectを操作する利用者向け executable と、automation 向�
 
 CLI は Compiler、既定 Web Renderer、Core、Contracts、Tailwind、worker-host の公開 API に依存する。CLI は project の固定 Node graph と Style 変換の準備、Tailwind は PostCSS 処理、worker-host は Style / capture 共通の隔離・資源制限・終了確認を所有する。Browser の配置と起動は Web Renderer に残す。TUI adapter は Bun と OpenTUI stack に閉じ、headless root export から Zig native core を読み込まない。CLIからpackage内部の非公開moduleをimportしない。
 
-Current implementation は headless `init` / `check` / `build` / `test` / `lock` と process `author` / `dev` / `preview` / `publish` を持ち、TUI から process command に接続する。lock の schemaVersion 1、Source patch、固定 Browser の Opaque 隔離 capture、build cache と atomic output、Local Editor と Unity Preview の Dev / Dist 経路を実装済みである。
+Current implementation は headless `init` / `check` / `build` / `test` と process `author` / `dev` / `preview` / `publish` を持ち、TUI から process command に接続する。導入済み依存の snapshot、Source patch、固定 Browser の Opaque 隔離 capture、build cache と atomic output、Local Editor と Unity Preview の Dev / Dist 経路を実装済みである。
 
 ## 5. Contract and generated artifact ownership
 
@@ -424,7 +424,6 @@ presentation/
 ├─ components/
 ├─ assets/
 ├─ unframe.config.ts
-├─ unframe.lock
 ├─ .unframe/          # build cache / generations / Author state
 └─ dist/
 ```
@@ -433,7 +432,7 @@ presentation/
 
 - `.unframe/cache/` は再生成可能な build cache である。`.unframe/authoring/` の receipt / journal は保存・回復状態であり、cache と同じ規則で削除しない。
 - `dist/` は Build の成果物であり Authoring Source ではない。
-- `unframe.lock` の schemaVersion は 1 であり、読込と検証は `@unframe-dev/workspace` が所有し、CLI が利用する。
+- 依存はプロジェクトのパッケージマネージャーで導入する。CLI は導入済み `node_modules` から解析・描画入力を生成し、永続 lock を持たない。
 - reference projectはproduction用の隠れたdefault contractにせず、公開fixtureとして検証する。
 
 ## 10. Documentation hierarchy

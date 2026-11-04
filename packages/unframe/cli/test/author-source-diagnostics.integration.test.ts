@@ -2,7 +2,6 @@ import { cp, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, assert, expect, it } from "vite-plus/test";
-import { runPresentationCli } from "../src/index.js";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe-dev/author-service";
 import { createWebglCaptureProject } from "./local-editor-webgl-fixture.js";
@@ -40,8 +39,6 @@ ${extended ? 'import {Button} from "@base-ui/react/button";\nimport "./hero.css"
       const helperSource =
         'export const explode = (_value: string): never => {\n  throw new Error("private helper content");\n};';
       if (kind === "helper") await writeFile(join(directory, "helper.ts"), helperSource);
-      const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-      expect(refreshed.exitCode, refreshed.stderr).toBe(0);
       const service = await createAuthorService(directory);
       services.push(service);
       const snapshot = await service.project();

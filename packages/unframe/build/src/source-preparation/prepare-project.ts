@@ -3,7 +3,7 @@ import {
   mediaTypeFor,
   type NodeTransformSnapshot,
   type NodeSnapshotFile,
-  type UnframeLock,
+  type InstalledDependencyGraph,
 } from "@unframe-dev/workspace";
 import { hasPostcssConfig } from "./project-roots.js";
 
@@ -50,10 +50,6 @@ type Project = {
   files: readonly { fileName: string; sourceText: string }[];
   localFiles: readonly { path: string; bytes: Uint8Array }[];
 };
-type Graph = Pick<
-  UnframeLock,
-  "rootDependencies" | "packages" | "styleTransform" | "styleSourceIdentity"
->;
 const digest = (bytes: Uint8Array): `sha256:${string}` =>
   `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const lockedFile = (path: string, bytes: Uint8Array) => {
@@ -77,8 +73,8 @@ const lockedFile = (path: string, bytes: Uint8Array) => {
 };
 export const prepareProjectSource = async (
   found: Project,
-  graph: Graph,
-  options: { update?: boolean; refresh?: boolean; signal?: AbortSignal; replacement?: string },
+  graph: InstalledDependencyGraph,
+  options: { signal?: AbortSignal; replacement?: string },
   ports: {
     typeLibraries: readonly { fileName: string; sourceText: string }[];
     styles: StylePreparationPort;
@@ -104,7 +100,7 @@ export const prepareProjectSource = async (
     rootDependencies: graph.rootDependencies,
     packages: graph.packages,
   };
-  if (!hasPostcssConfig({ localFiles }) && !graph.styleTransform)
+  if (!hasPostcssConfig({ localFiles }))
     return {
       source,
       diagnostics: [] as StyleDiagnostic[],
@@ -115,21 +111,7 @@ export const prepareProjectSource = async (
     path,
     bytes: Buffer.from(bytes).toString("base64"),
   }));
-  let snapshot: NodeTransformSnapshot;
-  if (options.update) snapshot = await ports.styles.snapshot(found.projectDirectory, files);
-  else {
-    if (!graph.styleTransform)
-      throw new StylePreparationError(
-        "cli-style-lock-update-required",
-        "PostCSS configuration requires lock update to freeze its Node dependencies.",
-      );
-    snapshot = ports.styles.withSources(graph.styleTransform, files);
-    if (!options.refresh && snapshot.sourceIdentity !== graph.styleSourceIdentity)
-      throw new StylePreparationError(
-        "cli-style-source-changed",
-        "Style inputs changed. Refresh the lock explicitly.",
-      );
-  }
+  const snapshot = await ports.styles.snapshot(found.projectDirectory, files);
   try {
     const result = await ports.styles.compile(
       snapshot,

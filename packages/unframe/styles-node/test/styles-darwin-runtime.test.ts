@@ -1,7 +1,6 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
-import { stringify } from "yaml";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { snapshotNodeTransformInputs } from "../src/node-snapshot.js";
 
@@ -20,26 +19,15 @@ it("records Darwin without NIX_LD and excludes Linux musl optional packages", as
   vi.stubEnv("NIX_LD_LIBRARY_PATH", "/linux-only-libraries");
   const root = await mkdtemp(join(temporaryDirectory(), "unframe-darwin-runtime-"));
   try {
-    await writeFile(join(root, "package.json"), "{}");
-    const linux = { os: ["linux"], cpu: ["x64"], libc: ["musl"] };
-    const darwin = { os: ["darwin"], cpu: ["arm64"] };
     await writeFile(
-      join(root, "pnpm-lock.yaml"),
-      stringify({
-        lockfileVersion: "9.0",
-        importers: {
-          ".": {
-            dependencies: { native: { version: "1.0.0" } },
-            optionalDependencies: { linux: { version: "1.0.0" } },
-          },
-        },
-        packages: {
-          "native@1.0.0": { ...darwin, resolution: { integrity: "sha512-YWJj" } },
-          "linux@1.0.0": { ...linux, resolution: { integrity: "sha512-YWJj" } },
-        },
-        snapshots: { "native@1.0.0": {}, "linux@1.0.0": {} },
+      join(root, "package.json"),
+      JSON.stringify({
+        dependencies: { native: "1.0.0" },
+        optionalDependencies: { linux: "1.0.0" },
       }),
     );
+    const linux = { os: ["linux"], cpu: ["x64"], libc: ["musl"] };
+    const darwin = { os: ["darwin"], cpu: ["arm64"] };
     for (const [name, metadata] of [
       ["native", darwin],
       ["linux", linux],
@@ -58,7 +46,9 @@ it("records Darwin without NIX_LD and excludes Linux musl optional packages", as
       libc: "not-applicable",
       environment: {},
     });
-    expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual(["native@1.0.0"]);
+    expect(snapshot.packages.map((pkg) => pkg.locator)).toEqual([
+      expect.stringMatching(/^native@1\.0\.0#/u),
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

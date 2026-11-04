@@ -2,7 +2,6 @@ import {
   copyFile,
   lstat,
   mkdir,
-  open,
   readdir,
   readFile,
   rmdir,
@@ -11,7 +10,6 @@ import {
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { dirname, join } from "node:path";
-import { gunzipSync } from "node:zlib";
 import { randomUUID } from "node:crypto";
 import { projectDirectory } from "./path-policy.js";
 
@@ -33,7 +31,6 @@ export const initPresentationProject = async (
   try {
     const copy = async (from: string, to: string) => {
       for (const entry of await readdir(from, { withFileTypes: true })) {
-        if (entry.name === "unframe.lock.gz") continue;
         if (
           from === template &&
           [".unframe-source.lock", ".unframe-build.lock"].includes(entry.name)
@@ -52,15 +49,6 @@ export const initPresentationProject = async (
       }
     };
     await copy(template, directory);
-    const lockPath = join(directory, "unframe.lock");
-    const lockBytes = gunzipSync(await readFile(join(template, "unframe.lock.gz")));
-    const lockFile = await open(lockPath, "wx", 0o600);
-    files.push(lockPath);
-    try {
-      await lockFile.writeFile(lockBytes);
-    } finally {
-      await lockFile.close();
-    }
     const entry = join(directory, "presentation.unframe.tsx");
     const source = await readFile(entry, "utf8");
     const identity = 'id: "packed-project"';

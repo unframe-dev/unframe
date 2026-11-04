@@ -1,30 +1,21 @@
-import { gunzipSync } from "node:zlib";
-import { OpaquePreparationFailure } from "@unframe-dev/build";
+import {
+  OpaquePreparationFailure,
+  checkAuthoringProjectAssembly,
+  prepareProjectInputs,
+} from "@unframe-dev/build";
 import { sourceAssetPorts } from "../src/application/media-ports.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
-import { checkAuthoringProjectAssembly } from "@unframe-dev/build";
 import { runPresentationCli } from "../src/index.js";
 import * as opaquePreparation from "../src/application/opaque-renderer.js";
 import * as generationReader from "@unframe-dev/workspace-node";
-import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
-import { prepareProjectSource } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
-import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
-import {
-  hashDependencyGraph,
-  hashLockedPackageContent,
-  hashPackageLocator,
-} from "@unframe-dev/workspace";
-import { lockedFile } from "@unframe-dev/workspace-node";
-import { clearSourceAssetRegistration, sourceAssetBytesFor } from "./source-asset-fixtures.js";
+import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe-dev/workspace-node";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
+import { clearSourceAssetRegistration } from "./source-asset-fixtures.js";
 
 const temporary: string[] = [];
 let reference: string;
@@ -58,8 +49,6 @@ const createProject = async () => {
   await copyProjectFixture(reference, directory);
   const discovery = await discoverPresentationProjectFiles(directory);
   assert(discovery.ok);
-  const loaded = loadUnframeLock(discovery.lockBytes);
-  assert(loaded.ok);
   const presentation = {
     ...basePresentation,
     scene: [],
@@ -73,10 +62,6 @@ const createProject = async () => {
     },
   };
   await clearSourceAssetRegistration(directory, discovery.entryFile);
-  await writeFile(
-    join(directory, "unframe.lock"),
-    canonicalizeJsonPayload({ ...loaded.value.lock, assets: [] }) + "\n",
-  );
   for (const name of await readdir(directory))
     if (
       name.endsWith(".manifest.ts") ||
@@ -98,8 +83,18 @@ export default definePresentation({...base, scene: [{
   return directory;
 };
 
-describe("React frozen CLI path", () => {
-  it("refreshes and checks a Component imported from a locked package export", async () => {
+const inputs = async (directory: string) => {
+  const found = await discoverPresentationProjectFiles(directory);
+  assert(found.ok);
+  const result = await prepareProjectInputs(
+    { found, graph: found.dependencyGraph },
+    { ...sourceAssetPorts, readTypeLibraries },
+  );
+  assert(result.ok, JSON.stringify(result));
+  return result.value;
+};
+describe("React installed CLI path", () => {
+  it("checks a Component from an installed package export and detects changed runtime dependencies", async () => {
     const directory = await createProject();
     const entry = join(directory, "presentation.unframe.tsx");
     await writeFile(
@@ -107,156 +102,43 @@ describe("React frozen CLI path", () => {
       (await readFile(entry, "utf8")).replace('"./Hero.component"', '"ui-kit"'),
     );
     await rm(join(directory, "Hero.component.tsx"));
-    const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(loaded.ok);
-    const sdk = loaded.value.lock.rootDependencies.find(
-      (edge) => edge.specifier === "@unframe-dev/authoring",
-    );
-    assert(sdk);
-    const file = lockedFile(
-      "Hero.component.tsx",
-      new TextEncoder().encode('import "./helper.js";\n' + component),
-    );
-    const packageKey = hashPackageLocator("ui-kit@1.0.0");
-    const packageSnapshot = {
-      key: packageKey,
-      locator: "ui-kit@1.0.0",
-      name: "ui-kit",
-      version: "1.0.0",
-      files: [
-        file,
-        lockedFile("helper.js", new TextEncoder().encode('import "./style.css";')),
-        lockedFile(
-          "index.d.ts",
-          new TextEncoder().encode('export { Hero } from "./Hero.component";'),
-        ),
-        lockedFile(
-          "style.css",
-          new TextEncoder().encode('.hero { background: url("./texture.png"); }'),
-        ),
-        lockedFile("texture.png", new Uint8Array([137, 80, 78, 71])),
-      ],
-      exports: [
-        {
-          subpath: ".",
-          runtimeImport: "Hero.component.tsx",
-          runtimeRequire: null,
-          types: "index.d.ts",
-        },
-      ],
-      dependencies: [sdk],
-    };
-    const next = {
-      ...loaded.value.lock,
-      rootDependencies: [
-        ...loaded.value.lock.rootDependencies,
-        {
-          specifier: "ui-kit",
-          usage: "runtime" as const,
-          packageKey,
-        },
-      ].sort((a, b) => a.specifier.localeCompare(b.specifier)),
-      packages: [
-        ...loaded.value.lock.packages,
-        {
-          ...packageSnapshot,
-          contentIntegrity: hashLockedPackageContent(packageSnapshot),
-        },
-      ].sort((a, b) => a.key.localeCompare(b.key)),
-    };
+    const root = join(directory, "node_modules/ui-kit");
+    await mkdir(root, { recursive: true });
     await writeFile(
-      join(directory, "unframe.lock"),
-      canonicalizeJsonPayload({
-        ...next,
-        dependencyGraphHash: hashDependencyGraph(next),
-      }) + "\n",
-    );
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode, refreshed.stderr).toBe(0);
-    const frozen = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(frozen.ok);
-    expect(
-      frozen.value.lock.componentLocks.find((item) => item.componentId === "hero")?.origin,
-    ).toEqual({ kind: "package", packageKey, subpath: "." });
-    const checked = await runPresentationCli({ args: ["check", directory] });
-    expect(checked.exitCode).toBe(0);
-    for (const helper of [
-      'require("./style.css");',
-      'import("ui-unlocked");',
-      'import "ui-unlocked";',
-    ]) {
-      const current = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-      assert(current.ok);
-      const packages = current.value.lock.packages.map((pkg) => {
-        if (pkg.key !== packageKey) return pkg;
-        const files = pkg.files.map((item) =>
-          item.path === "helper.js"
-            ? lockedFile("helper.js", new TextEncoder().encode(helper))
-            : item,
-        );
-        const changed = { ...pkg, files };
-        return { ...changed, contentIntegrity: hashLockedPackageContent(changed) };
-      });
-      const changed = { ...current.value.lock, packages };
-      const lockBytes = new TextEncoder().encode(
-        canonicalizeJsonPayload({
-          ...changed,
-          dependencyGraphHash: hashDependencyGraph(changed),
-        }) + "\n",
-      );
-      await writeFile(join(directory, "unframe.lock"), lockBytes);
-      const rejected = await runPresentationCli({ args: ["lock", "refresh", directory] });
-      expect(rejected.exitCode).toBe(1);
-      expect(rejected.stderr).toContain("compiler-frozen-input-invalid");
-      expect(await readFile(join(directory, "unframe.lock"))).toEqual(Buffer.from(lockBytes));
-    }
-  }, 30000);
-  it("refreshes a Component lock and checks without evaluating render or opening a Browser", async () => {
-    const directory = await createProject();
-    const loaded = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(loaded.ok);
-    const runtimeGraph = loadUnframeLock(
-      gunzipSync(await readFile(new URL("./fixtures/react-graph.lock.gz", import.meta.url))),
-    );
-    assert(runtimeGraph.ok);
-    const roots = runtimeGraph.value.lock.rootDependencies.filter((edge) =>
-      ["react", "react-dom"].includes(edge.specifier),
-    );
-    const packages = new Map(runtimeGraph.value.lock.packages.map((pkg) => [pkg.key, pkg]));
-    const reachable = new Set<string>();
-    const visit = (key: `sha256:${string}`) => {
-      if (reachable.has(key)) return;
-      const pkg = packages.get(key);
-      assert(pkg);
-      reachable.add(key);
-      for (const edge of pkg.dependencies) visit(edge.packageKey);
-    };
-    for (const edge of roots) visit(edge.packageKey);
-    const graph = {
-      ...loaded.value.lock,
-      rootDependencies: [...loaded.value.lock.rootDependencies, ...roots].sort((a, b) => {
-        const left = `${a.specifier}\0${a.usage}`;
-        const right = `${b.specifier}\0${b.usage}`;
-        return left < right ? -1 : left > right ? 1 : 0;
+      join(root, "package.json"),
+      JSON.stringify({
+        name: "ui-kit",
+        version: "1.0.0",
+        exports: { ".": { types: "./index.d.ts", import: "./Hero.component.tsx" } },
+        dependencies: { "@unframe-dev/authoring": "*" },
       }),
-      packages: [
-        ...loaded.value.lock.packages,
-        ...runtimeGraph.value.lock.packages.filter((pkg) => reachable.has(pkg.key)),
-      ].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
-    };
-    await writeFile(
-      join(directory, "unframe.lock"),
-      canonicalizeJsonPayload({ ...graph, dependencyGraphHash: hashDependencyGraph(graph) }) + "\n",
     );
-    const refreshed = await runPresentationCli({
-      args: ["lock", "refresh", directory, "--format", "json"],
-    });
-    expect(refreshed.stderr).toBe("");
-    expect(refreshed.exitCode).toBe(0);
-    const frozenLock = await readFile(join(directory, "unframe.lock"));
+    await writeFile(join(root, "Hero.component.tsx"), 'import "./helper.js";\n' + component);
+    await writeFile(join(root, "helper.js"), 'import "./style.css";');
+    await writeFile(join(root, "index.d.ts"), 'export {Hero} from "./Hero.component";');
+    await writeFile(join(root, "style.css"), ".hero {color:red}");
+    const manifest = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+    manifest.dependencies["ui-kit"] = "*";
+    await writeFile(join(directory, "package.json"), JSON.stringify(manifest));
+    const prepared = await inputs(directory);
+    expect(
+      prepared.assemblyCarrier.componentLocks.find((item) => item.componentId === "hero")?.origin,
+    ).toMatchObject({ kind: "package", subpath: "." });
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
+    await writeFile(join(root, "helper.js"), 'import "missing-package";');
+    const rejected = await runPresentationCli({ args: ["check", directory] });
+    expect(rejected.exitCode).toBe(1);
+    expect(rejected.stderr).toContain("compiler-frozen-input-invalid");
+  }, 30000);
+  it("checks without evaluating render or opening a Browser and preserves isolation requirements", async () => {
+    const directory = await createProject();
+    const runtime = await readFixtureGraph(
+      new URL("./fixtures/react-graph.json.gz", import.meta.url),
+    );
+    await rm(join(directory, "node_modules"), { recursive: true });
+    await installFixtureGraph(directory, runtime);
     const checked = await runPresentationCli({ args: ["check", directory] });
-    expect(checked.stderr).toBe("");
-    expect(checked.stdout).toBe("check: ok\n");
+    expect(checked.exitCode, checked.stderr).toBe(0);
     vi.stubEnv("UNFRAME_BWRAP_PATH", "");
     vi.stubEnv("UNFRAME_OPAQUE_NODE", "");
     let opened = false;
@@ -272,19 +154,18 @@ describe("React frozen CLI path", () => {
     expect(built.exitCode).toBe(1);
     expect(built.stderr).toContain("opaque-isolation-unavailable");
     expect(opened).toBe(false);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(frozenLock);
-  }, 60000);
-  it("retains the bundle preparation diagnostic and existing dist", async () => {
+    await expect(readFile(join(directory, "unframe.lock"))).rejects.toThrow();
+  }, 60_000);
+  it("retains bundle preparation diagnostics and existing dist", async () => {
     const directory = await createProject();
-    expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);
     await mkdir(join(directory, "dist"));
-    await writeFile(join(directory, "dist", "previous.txt"), "previous");
+    await writeFile(join(directory, "dist/previous.txt"), "previous");
     vi.spyOn(generationReader, "readExpectedBuildGeneration").mockResolvedValueOnce("a".repeat(32));
     vi.spyOn(opaquePreparation, "prepareOpaqueRenderer").mockRejectedValueOnce(
       new OpaquePreparationFailure([
         {
           code: "compiler-opaque-bundle-input-invalid",
-          message: "Runtime dependency is not locked: missing",
+          message: "Runtime dependency is missing",
           path: ["Hero.component.tsx"],
         },
       ]),
@@ -292,124 +173,37 @@ describe("React frozen CLI path", () => {
     const result = await runPresentationCli({ args: ["build", directory] });
     expect(result.exitCode, result.stderr).toBe(1);
     expect(result.stderr).toContain("compiler-opaque-bundle-input-invalid");
-    expect(result.stderr).toContain("Runtime dependency is not locked: missing");
-    expect(await readFile(join(directory, "dist", "previous.txt"), "utf8")).toBe("previous");
+    expect(await readFile(join(directory, "dist/previous.txt"), "utf8")).toBe("previous");
   }, 30000);
-  it("rejects source drift and preserves the previous lock when refresh fails", async () => {
+  it("rejects invalid edited source without requiring a refresh", async () => {
     const directory = await createProject();
-    const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(refreshed.exitCode).toBe(0);
-    const before = await readFile(join(directory, "unframe.lock"));
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
     await writeFile(
       join(directory, "Hero.component.tsx"),
       component.replace('id: "hero"', "id: mutate()"),
     );
-    const checked = await runPresentationCli({ args: ["check", directory] });
-    expect(checked.exitCode).toBe(1);
-    expect(checked.stderr).toContain("cli-local-file-hash-mismatch");
-    const failed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(failed.exitCode).toBe(1);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(1);
+    await writeFile(join(directory, "Hero.component.tsx"), component);
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
   }, 30000);
-  it("recreates v1 from a frozen pnpm archive without running package scripts", async () => {
-    const directory = await createProject();
-    const lockPath = join(directory, "unframe.lock");
-    const old = loadUnframeLock(await readFile(lockPath));
-    assert(old.ok);
-    const sdk = old.value.lock.packages.find((pkg) => pkg.name === "@unframe-dev/authoring");
-    assert(sdk);
-    const staging = await mkdtemp(join(temporaryDirectory(), "unframe-sdk-"));
-    temporary.push(staging);
-    await mkdir(join(staging, "package"));
-    for (const file of sdk.files) {
-      await mkdir(dirname(join(staging, "package", file.path)), { recursive: true });
-      await writeFile(
-        join(staging, "package", file.path),
-        file.encoding === "utf8" ? file.data : Buffer.from(file.data, "base64"),
-      );
-    }
-    await writeFile(
-      join(staging, "package/package.json"),
-      JSON.stringify({
-        name: sdk.name,
-        version: "1.0.0",
-        type: "module",
-        exports: Object.fromEntries(
-          sdk.exports.map((entry) => [
-            entry.subpath,
-            { types: `./${entry.types}`, default: `./${entry.runtimeImport}` },
-          ]),
-        ),
-        scripts: {
-          postinstall: "node -e \"require('fs').writeFileSync('script-executed', 'bad')\"",
-        },
-      }),
-    );
-    await mkdir(join(directory, "vendor"));
-    await promisify(execFile)(
-      "tar",
-      ["-czf", join(directory, "vendor/authoring.tgz"), "-C", staging, "package"],
-      { env: { ...process.env, COPYFILE_DISABLE: "1" } },
-    );
-    await writeFile(
-      join(directory, "package.json"),
-      JSON.stringify({ private: true, dependencies: { [sdk.name]: "file:vendor/authoring.tgz" } }),
-    );
-    await promisify(execFile)(
-      "pnpm",
-      ["install", "--lockfile-only", "--ignore-scripts", "--ignore-pnpmfile"],
-      { cwd: directory, timeout: 30000 },
-    );
-    await writeFile(lockPath, '{"schemaVersion":1}');
-    const recreated = await runPresentationCli({
-      args: ["lock", "update", directory, "--recreate"],
-    });
-    expect(recreated.stderr).toBe("");
-    expect(recreated.exitCode).toBe(0);
-    expect(loadUnframeLock(await readFile(lockPath))).toMatchObject({ ok: true });
-    const checked = await runPresentationCli({ args: ["check", directory] });
-    expect(checked.stderr).toBe("");
-    expect(checked.exitCode).toBe(0);
-    await expect(
-      readFile(join(directory, "node_modules/@unframe-dev/authoring/script-executed")),
-    ).rejects.toThrow();
-  }, 30000);
-  it("keeps v1 bytes when explicit recreation lacks package inputs", async () => {
-    const directory = await createProject();
-    const before = '{"schemaVersion":1}';
-    await writeFile(join(directory, "unframe.lock"), before);
-    const result = await runPresentationCli({ args: ["lock", "update", directory, "--recreate"] });
-    expect(result.exitCode).toBe(1);
-    expect(await readFile(join(directory, "unframe.lock"), "utf8")).toBe(before);
-  });
   it("keeps semantic Instance IDs across Component relocation and Props changes", async () => {
     const directory = await createProject();
     const ids = async () => {
-      const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-      expect(refreshed.exitCode).toBe(0);
-      const discovered = await discoverPresentationProjectFiles(directory);
-      assert(discovered.ok);
-      const lock = loadUnframeLock(discovered.lockBytes);
-      assert(lock.ok);
-      const { source } = await prepareProjectSource(
-        sourceAssetPorts.styles,
-        discovered,
-        lock.value.lock,
-      );
+      const prepared = await inputs(directory);
       const checked = checkAuthoringProjectAssembly(
-        source,
-        lock.value.assemblyCarrier,
-        sourceAssetBytesFor(discovered, lock.value.lock.assets),
+        prepared.source,
+        prepared.assemblyCarrier,
+        prepared.sourceAssetBytes,
       );
-      if (!checked.valid) throw new Error(JSON.stringify(checked.diagnostics));
-      const componentLock = lock.value.lock.componentLocks.find(
+      assert(checked.valid);
+      const component = prepared.assemblyCarrier.componentLocks.find(
         (item) => item.componentId === "hero",
       );
-      assert(componentLock?.mode === "opaque");
+      assert(component?.mode === "opaque");
       return {
         nodes: Object.keys(checked.value.definition.scene.nodes).sort(),
         surfaces: Object.keys(checked.value.definition.scene.surfaces).sort(),
-        rendererInputHash: componentLock.rendererInputHash,
+        rendererInputHash: component.rendererInputHash,
       };
     };
     const before = await ids();
@@ -427,70 +221,39 @@ describe("React frozen CLI path", () => {
     );
     expect(await ids()).toEqual(before);
   }, 30000);
-  it("freezes CSS image and font dependencies and rejects remote CSS references", async () => {
+  it("invalidates CSS, font and image inputs on edit and rejects external CSS references", async () => {
     const directory = await createProject();
     await writeFile(join(directory, "Hero.component.tsx"), 'import "./helper.js";\n' + component);
     await writeFile(join(directory, "helper.js"), 'import "./hero.css";');
-    await writeFile(
-      join(directory, "hero.css"),
-      '@font-face { font-family: Hero; src: url("./hero.ttf"); } .hero { background: url("./hero.png"); }',
-    );
+    const css =
+      '@font-face {font-family:Hero;src:url("./hero.ttf")} .hero{background:url("./hero.png")}';
+    await writeFile(join(directory, "hero.css"), css);
     await writeFile(join(directory, "hero.ttf"), new Uint8Array([0, 1, 2, 3]));
     await writeFile(join(directory, "hero.png"), new Uint8Array([137, 80, 78, 71]));
-    expect((await runPresentationCli({ args: ["lock", "refresh", directory] })).exitCode).toBe(0);
-    const lock = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(lock.ok);
-    const origin = lock.value.lock.componentLocks.find(
-      (item) => item.componentId === "hero",
-    )?.origin;
-    assert(origin?.kind === "local");
-    expect(origin.files.map((file) => file.path)).toEqual([
-      "Hero.component.tsx",
-      "helper.js",
-      "hero.css",
-      "hero.png",
-      "hero.ttf",
-    ]);
-    const rendererLock = lock.value.lock.componentLocks.find((item) => item.componentId === "hero");
-    assert(rendererLock?.mode === "opaque");
-    let rendererHash = rendererLock.rendererInputHash;
+    const hash = async () => {
+      const prepared = await inputs(directory);
+      const component = prepared.assemblyCarrier.componentLocks.find(
+        (item) => item.componentId === "hero",
+      );
+      assert(component?.mode === "opaque");
+      return component.rendererInputHash;
+    };
+    let previous = await hash();
     for (const [path, bytes] of [
       ["helper.js", 'import "./hero.css";\n'],
-      [
-        "hero.css",
-        '@font-face { font-family: Hero; src: url("./hero.ttf"); } .hero { background: url("./hero.png"); }\n',
-      ],
+      ["hero.css", css + "\n"],
       ["hero.png", new Uint8Array([137, 80, 78, 72])],
       ["hero.ttf", new Uint8Array([0, 1, 2, 4])],
     ] as const) {
       await writeFile(join(directory, path), bytes);
-      expect(await refreshLocalProjectLock(sourceAssetPorts, directory)).toMatchObject({
-        ok: true,
-      });
-      const changed = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-      assert(changed.ok);
-      const changedLock = changed.value.lock.componentLocks.find(
-        (item) => item.componentId === "hero",
-      );
-      assert(changedLock?.mode === "opaque");
-      expect(changedLock.rendererInputHash, path).not.toBe(rendererHash);
-      rendererHash = changedLock.rendererInputHash;
+      const next = await hash();
+      expect(next, path).not.toBe(previous);
+      previous = next;
     }
-    const before = await readFile(join(directory, "unframe.lock"));
     await writeFile(
       join(directory, "hero.css"),
-      '.hero { background: url("https://example.com/hero.png"); }',
+      '.hero{background:url("https://example.com/image.png")}',
     );
-    const failed = await refreshLocalProjectLock(sourceAssetPorts, directory);
-    expect(failed.ok).toBe(false);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
-    await writeFile(
-      join(directory, "hero.css"),
-      '@font-face { font-family: Hero; src: url("./hero.ttf"); } .hero { background: url("./hero.png"); }',
-    );
-    await writeFile(join(directory, "helper.js"), 'require("./hero.css");');
-    const dynamic = await runPresentationCli({ args: ["lock", "refresh", directory] });
-    expect(dynamic.exitCode).toBe(1);
-    expect(await readFile(join(directory, "unframe.lock"))).toEqual(before);
+    expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(1);
   }, 30000);
 });

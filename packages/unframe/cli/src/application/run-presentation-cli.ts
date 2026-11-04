@@ -1,6 +1,6 @@
 import type { AnalysisOperations } from "../author/analysis-protocol.js";
-import { runAnalysisOperation, prepareLockRefreshInWorker } from "../author/analysis-client.js";
-import { createSourceAssetAssemblyCarrier } from "@unframe-dev/build";
+import { runAnalysisOperation } from "../author/analysis-client.js";
+import { AuthorError } from "@unframe-dev/author-service";
 import { buildMediaPorts, sourceAssetPorts } from "./media-ports.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,8 +13,7 @@ import {
 } from "@unframe-dev/build";
 import type { CompiledDeclarationProject } from "@unframe-dev/build";
 import type { AuthoringProjectDiagnostic } from "@unframe-dev/source";
-import { prepareProjectSource } from "@unframe-dev/workspace-node";
-import { StylePreparationError } from "@unframe-dev/build";
+import { readTypeLibraries } from "@unframe-dev/workspace-node";
 import { styleDiagnostics } from "./style-diagnostics.js";
 import { type CompilerWarning } from "@unframe-dev/compiler";
 import { type AuthoringProjectPipelineResult } from "@unframe-dev/build";
@@ -33,15 +32,7 @@ import { OpaquePreparationFailure } from "@unframe-dev/build";
 import { createFilesystemBuildCache } from "@unframe-dev/workspace-node";
 import { acquireBuildLock, type BuildLock } from "@unframe-dev/workspace-node";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
-import { updateProjectLock } from "@unframe-dev/workspace-node";
-import {
-  resolveDevProjectSourceAssets,
-  resolveProjectSourceAssets,
-} from "@unframe-dev/workspace-node";
 import { createVideoValidator } from "@unframe-dev/media-node";
-import { refreshLocalProjectLock } from "@unframe-dev/workspace-node";
-import { verifyFrozenLocalFiles } from "@unframe-dev/workspace";
-import { loadUnframeLock } from "@unframe-dev/workspace";
 import { initPresentationProject } from "@unframe-dev/workspace-node";
 import type {
   PresentationCliDiagnostic,
@@ -52,11 +43,9 @@ import type {
 import { sourceDiagnosticFamily } from "./source-diagnostic-family.js";
 
 type Command = Readonly<{
-  command: "check" | "build" | "test" | "init" | "lock";
+  command: "check" | "build" | "test" | "init";
   directory: string;
   format: "text" | "json";
-  operation?: "refresh" | "update";
-  recreate?: boolean;
 }>;
 class BrowserProvisionFailure extends Error {}
 class BrowserCleanupFailure extends Error {}
@@ -86,7 +75,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe init|check|build|test <project-directory> [--format text|json]\n       unframe dev|author <project-directory>\n       unframe preview <dist-directory>\n       unframe publish <dist-directory> <presentation-id> <control-plane-origin>\n       unframe lock refresh|update <project-directory> [--recreate] [--format text|json]";
+  "Usage: unframe init|check|build|test <project-directory> [--format text|json]\n       unframe dev|author <project-directory>\n       unframe preview <dist-directory>\n       unframe publish <dist-directory> <presentation-id> <control-plane-origin>";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",
@@ -228,44 +217,12 @@ const parse = (
       ],
     };
   const command =
-    args[0] === "check" ||
-    args[0] === "build" ||
-    args[0] === "test" ||
-    args[0] === "init" ||
-    args[0] === "lock"
+    args[0] === "check" || args[0] === "build" || args[0] === "test" || args[0] === "init"
       ? args[0]
       : undefined;
   const at = args.indexOf("--format");
   const format = at >= 0 && args[at + 1] === "json" ? "json" : "text";
   const positional = at < 0 ? args : args.filter((_, i) => i !== at && i !== at + 1);
-  if (command === "lock") {
-    const operation = positional[1];
-    const recreate = positional[3] === "--recreate";
-    if (
-      (operation === "refresh" || operation === "update") &&
-      positional[2] &&
-      !positional[2].startsWith("-") &&
-      (positional.length === 3 ||
-        (positional.length === 4 && recreate && operation === "update")) &&
-      (at < 0 || (at === args.length - 2 && ["text", "json"].includes(args[at + 1] ?? "")))
-    )
-      return {
-        ok: true,
-        value: { command, operation, directory: resolve(positional[2]), format, recreate },
-      };
-    return {
-      ok: false,
-      command,
-      format,
-      diagnostics: [
-        diagnostic(
-          "usage",
-          "cli-invalid-usage",
-          "Usage: unframe lock refresh|update <project-directory> [--recreate] [--format text|json]",
-        ),
-      ],
-    };
-  }
   if (
     !command ||
     (at >= 0 && (at !== args.length - 2 || !["text", "json"].includes(args[at + 1] ?? ""))) ||
@@ -400,63 +357,12 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           diagnostic("io", result.code, "Project could not be initialized at this path."),
         ]);
   }
-  if (command === "lock") {
-    const result = await updateProjectLock(
-      sourceAssetPorts,
-      directory,
-      parsed.value.operation!,
-      parsed.value.recreate ?? false,
-      host.signal,
-    );
-    return result.ok
-      ? output(0, command, format)
-      : output(
-          result.code === "cli-cancelled" ? 130 : 1,
-          command,
-          format,
-          result.diagnostics?.length
-            ? styleDiagnostics(result.diagnostics, result.code)
-            : [
-                diagnostic(
-                  result.code === "cli-cancelled" ? "cancel" : "semantic",
-                  result.code,
-                  result.message,
-                ),
-              ],
-        );
-  }
   const sourceWait = {
     // Editor inspections can outlive a fixed lease timeout; the job signal owns cancellation.
     waitTimeoutMs: host.channel ? (host.signal ? Number.POSITIVE_INFINITY : 5000) : 0,
     ...(host.signal ? { signal: host.signal } : {}),
   };
-  let expectedRevision = host.expectedRevision;
-  if (command !== "check" && host.channel === "dev") {
-    const refreshed = await refreshLocalProjectLock(sourceAssetPorts, directory, {
-      ...sourceWait,
-      prepare: prepareLockRefreshInWorker,
-      ...(expectedRevision !== undefined ? { expectedRevision } : {}),
-      ...(host.signal ? { signal: host.signal } : {}),
-    });
-    if (!refreshed.ok)
-      return output(
-        refreshed.code === "cli-cancelled" ? 130 : refreshed.code === "cli-output-stale" ? 3 : 1,
-        command,
-        format,
-        [
-          diagnostic(
-            refreshed.code === "cli-cancelled"
-              ? "cancel"
-              : refreshed.code === "cli-output-stale"
-                ? "io"
-                : "semantic",
-            refreshed.code,
-            refreshed.message,
-          ),
-        ],
-      );
-    expectedRevision = refreshed.revision;
-  }
+  const expectedRevision = host.expectedRevision;
   const discovered = await discoverPresentationProjectFiles(directory, sourceWait);
   if (!discovered.ok)
     return output(
@@ -480,92 +386,49 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     return output(3, command, format, [
       diagnostic("io", "cli-output-stale", "Project inputs changed after the build was requested."),
     ]);
-  const lock = loadUnframeLock(discovered.lockBytes);
-  if (!lock.ok)
-    return output(1, command, format, [
-      diagnostic(lock.diagnostic.family, lock.diagnostic.code, lock.diagnostic.message, [
-        "unframe.lock",
-      ]),
-    ]);
-  const sourceAssets = await (host.channel === "dev"
-    ? resolveDevProjectSourceAssets(
-        sourceAssetPorts,
-        discovered.assetSources,
-        discovered.localFiles,
-      )
-    : resolveProjectSourceAssets(
-        sourceAssetPorts,
-        lock.value.lock.assets,
-        discovered.assetSources,
-        discovered.localFiles,
-      ));
-  if (!sourceAssets.ok)
-    return output(1, command, format, [
-      diagnostic("semantic", sourceAssets.code, sourceAssets.message, [sourceAssets.path]),
-    ]);
-  const assemblyCarrier =
-    host.channel === "dev"
-      ? createSourceAssetAssemblyCarrier(lock.value.assemblyCarrier, sourceAssets.value.assets)
-      : lock.value.assemblyCarrier;
-  const pinnedRenderers = lock.value.lock.rendererPlugins;
-  if (
-    pinnedRenderers.some(
-      (item) =>
-        item.id !== "baked-web" ||
-        item.contractVersion !== "2" ||
-        !["3", "4"].includes(item.version),
-    )
-  )
-    return output(1, command, format, [
-      diagnostic(
-        "renderer",
-        "cli-renderer-plugin-unsupported",
-        "Locked renderer plugin is not available in this CLI.",
-      ),
-    ]);
-  const frozenFailures = verifyFrozenLocalFiles(
-    discovered.localFiles,
-    lock.value.assemblyCarrier.componentLocks,
-  );
-  if (frozenFailures.length)
-    return output(
-      1,
-      command,
-      format,
-      frozenFailures.map(({ path, code }) =>
-        diagnostic(
-          "semantic",
-          code,
-          "Local Component inputs differ from the frozen lock. Refresh the lock explicitly.",
-          [path],
-        ),
-      ),
-    );
-  let prepared: Awaited<ReturnType<typeof prepareProjectSource>>;
+  let preparedInputs: AnalysisOperations["prepare"]["output"];
   try {
-    prepared = await prepareProjectSource(
-      sourceAssetPorts.styles,
-      discovered,
-      lock.value.lock,
-      host.signal ? { signal: host.signal } : {},
+    preparedInputs = await runAnalysisOperation(
+      "prepare",
+      {
+        found: discovered,
+        typeLibraries: await readTypeLibraries(),
+        modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+      },
+      host.signal,
     );
   } catch (error) {
-    const code = error instanceof StylePreparationError ? error.code : "cli-style-prepare-failed";
+    const stale = error instanceof AuthorError && error.code === "cli-output-stale";
+    return output(host.signal?.aborted ? 130 : 3, command, format, [
+      diagnostic(
+        host.signal?.aborted ? "cancel" : "io",
+        host.signal?.aborted
+          ? "cli-cancelled"
+          : stale
+            ? "cli-output-stale"
+            : "cli-analysis-worker-failed",
+        host.signal?.aborted
+          ? "Build was cancelled."
+          : stale
+            ? error.message
+            : "Project analysis worker failed.",
+      ),
+    ]);
+  }
+  if (!preparedInputs.ok)
     return output(
-      code === "cli-cancelled" ? 130 : 1,
+      preparedInputs.code === "cli-cancelled" ? 130 : 1,
       command,
       format,
-      error instanceof StylePreparationError && error.diagnostics.length
-        ? styleDiagnostics(error.diagnostics, code)
-        : [
-            diagnostic(
-              code === "cli-cancelled" ? "cancel" : "semantic",
-              code,
-              error instanceof Error ? error.message : "Style preparation failed.",
-            ),
-          ],
+      "analysisFailure" in preparedInputs && preparedInputs.analysisFailure
+        ? compilerDiagnostics(preparedInputs.analysisFailure)
+        : "diagnostics" in preparedInputs && preparedInputs.diagnostics?.length
+          ? styleDiagnostics(preparedInputs.diagnostics, preparedInputs.code)
+          : [diagnostic("semantic", preparedInputs.code, preparedInputs.message)],
     );
-  }
+  const prepared = preparedInputs.value;
+  const assemblyCarrier = prepared.assemblyCarrier;
+  const sourceAssets = { value: { sourceAssetBytes: prepared.sourceAssetBytes } };
   const source = prepared.source;
   let assembled: AnalysisOperations["assemble"]["output"];
   try {
@@ -727,22 +590,6 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         const structured = createBakedWebRenderer({ adapter, config: context.webRendererConfig });
         renderer = renderer ? combineBakedWebRenderers(structured, renderer) : structured;
       }
-      if (
-        renderer &&
-        !pinnedRenderers.some(
-          (item) =>
-            item.id === renderer.identity.id &&
-            item.version === renderer.identity.version &&
-            item.contractVersion === renderer.identity.contractVersion,
-        )
-      )
-        return output(1, command, format, [
-          diagnostic(
-            "renderer",
-            "cli-renderer-plugin-unlocked",
-            "Resolved renderer plugin is absent from unframe.lock.",
-          ),
-        ]);
       class BuildStageFailure extends Error {
         constructor(readonly result: PresentationCliResult) {
           super("Build stage failed");

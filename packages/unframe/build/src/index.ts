@@ -82,4 +82,5 @@ export * from "./source-preparation/opaque-programs.js";
 export * from "./source-preparation/project-roots.js";
 export * from "./source-preparation/source-assets.js";
 export * from "./source-preparation/prepare-project.js";
-export * from "./source-preparation/prepare-lock.js";
+
+export * from "./source-preparation/prepare-inputs.js";

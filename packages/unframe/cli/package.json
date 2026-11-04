@@ -13,7 +13,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./template": "./template/unframe.lock.gz"
+    "./template": "./template/package.json"
   },
   "publishConfig": {
     "exports": {
@@ -21,7 +21,7 @@
         "types": "./dist/index.d.mts",
         "import": "./dist/index.mjs"
       },
-      "./template": "./template/unframe.lock.gz"
+      "./template": "./template/package.json"
     }
   },
   "scripts": {

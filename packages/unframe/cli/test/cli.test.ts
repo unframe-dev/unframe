@@ -2,47 +2,45 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import filesystem from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 
 import { runPresentationCli } from "../src/index.js";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
+import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 
 describe("runPresentationCli", () => {
-  it("initializes and checks relative project paths including spaces, dot, and parent", async () => {
-    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-cli-"));
-    const directory = join(parent, "project with spaces");
-    const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
-    try {
-      const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
-      expect(initialized.exitCode, initialized.stderr).toBe(0);
-      cwd.mockReturnValue(directory);
-      const checked = await runPresentationCli({ args: ["check", "."] });
-      expect(checked.exitCode, checked.stderr).toBe(0);
-      await mkdir(join(directory, "nested"));
-      cwd.mockReturnValue(join(directory, "nested"));
-      const parentChecked = await runPresentationCli({ args: ["check", ".."] });
-      expect(parentChecked.exitCode, parentChecked.stderr).toBe(0);
-    } finally {
-      cwd.mockRestore();
-      await rm(parent, { recursive: true, force: true });
-    }
-  });
-  it.each(["refresh", "update"])("accepts a relative project for lock %s", async (operation) => {
-    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-lock-"));
-    const directory = join(parent, "project with spaces");
-    const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
-    try {
-      const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
-      expect(initialized.exitCode, initialized.stderr).toBe(0);
-      cwd.mockReturnValue(directory);
-      const locked = await runPresentationCli({ args: ["lock", operation, "."] });
-      expect(locked.exitCode, locked.stderr).toBe(0);
-    } finally {
-      cwd.mockRestore();
-      await rm(parent, { recursive: true, force: true });
-    }
+  it.each([
+    [".", ""],
+    ["..", "nested"],
+  ])(
+    "initializes and checks the relative path %s including spaces",
+    async (path, workingDirectory) => {
+      const parent = await mkdtemp(join(temporaryDirectory(), "unframe-relative-cli-"));
+      const directory = join(parent, "project with spaces");
+      const cwd = vi.spyOn(process, "cwd").mockReturnValue(parent);
+      try {
+        const initialized = await runPresentationCli({ args: ["init", "project with spaces"] });
+        expect(initialized.exitCode, initialized.stderr).toBe(0);
+        await installFixtureGraph(
+          directory,
+          await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+        );
+        const currentDirectory = join(directory, workingDirectory);
+        await mkdir(currentDirectory, { recursive: true });
+        cwd.mockReturnValue(currentDirectory);
+        const checked = await runPresentationCli({ args: ["check", path] });
+        expect(checked.exitCode, checked.stderr).toBe(0);
+      } finally {
+        cwd.mockRestore();
+        await rm(parent, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+  it.each(["refresh", "update"])("rejects the removed lock %s command", async (operation) => {
+    const result = await runPresentationCli({ args: ["lock", operation, "."] });
+    expect(result.exitCode).toBe(2);
   });
   it.each(["build", "test"])(
     "resolves a relative %s path before filesystem discovery",
@@ -96,6 +94,10 @@ describe("runPresentationCli", () => {
     try {
       const initialized = await runPresentationCli({ args: ["init", directory] });
       expect(initialized.exitCode, initialized.stderr).toBe(0);
+      await installFixtureGraph(
+        directory,
+        await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+      );
       const checked = await runPresentationCli({ args: ["check", directory] });
       expect(checked.exitCode, checked.stderr).toBe(0);
     } finally {
@@ -117,6 +119,10 @@ describe("runPresentationCli", () => {
     const directory = join(parent, "project");
     try {
       expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
+      await installFixtureGraph(
+        directory,
+        await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+      );
       expect((await runPresentationCli({ args: ["check", directory] })).exitCode).toBe(0);
       const repeated = await runPresentationCli({ args: ["init", directory] });
       expect(repeated.exitCode).toBe(3);
@@ -137,6 +143,10 @@ describe("runPresentationCli", () => {
       const id = source.match(/id: "(presentation-[0-9a-f-]{36})"/u)?.[1];
       expect(id).toBeTruthy();
       expect(other).not.toContain(id!);
+      await installFixtureGraph(
+        first,
+        await readFixtureGraph(new URL("./fixtures/pack-project-graph.json.gz", import.meta.url)),
+      );
       expect((await runPresentationCli({ args: ["check", first] })).exitCode).toBe(0);
       expect(await readFile(join(first, "presentation.unframe.tsx"), "utf8")).toBe(source);
     } finally {
@@ -144,22 +154,6 @@ describe("runPresentationCli", () => {
     }
   });
 
-  it("rejects renderer plugins that the explicit bundled registry does not provide", async () => {
-    const parent = await mkdtemp(join(temporaryDirectory(), "unframe-plugin-"));
-    const directory = join(parent, "project");
-    try {
-      expect((await runPresentationCli({ args: ["init", directory] })).exitCode).toBe(0);
-      const path = join(directory, "unframe.lock");
-      const lock = JSON.parse(await readFile(path, "utf8"));
-      lock.rendererPlugins = [{ id: "untrusted", version: "1", contractVersion: "2" }];
-      await writeFile(path, canonicalizeJsonPayload(lock) + "\n");
-      const result = await runPresentationCli({ args: ["check", directory] });
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain("cli-renderer-plugin-unsupported");
-    } finally {
-      await rm(parent, { recursive: true, force: true });
-    }
-  });
   it("runs project tests through the same checked build and reports the test command", async () => {
     const result = await runPresentationCli({
       args: ["test", "/missing-project", "--format", "json"],

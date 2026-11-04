@@ -34,11 +34,14 @@ it("includes a regular file named like a temporary publication link in the revis
 
 it("rejects a temporary-link name pointing outside its matching generation", async () => {
   const directory = await copyProject();
-  await symlink("unframe.lock", join(directory, ".dist-00000000000000000000000000000000"));
+  await symlink(
+    "presentation.unframe.tsx",
+    join(directory, ".dist-00000000000000000000000000000000"),
+  );
   expect(await discoverPresentationProjectFiles(directory)).toMatchObject({ ok: false });
 });
 
-it.each(["unframe.config.ts", "unframe.lock", "presentation.unframe.tsx"])(
+it.each(["unframe.config.ts", "presentation.unframe.tsx"])(
   "changes the revision when %s bytes change",
   async (name) => {
     const directory = await copyProject();

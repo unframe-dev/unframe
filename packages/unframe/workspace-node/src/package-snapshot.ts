@@ -1,9 +1,8 @@
 import { mediaTypeFor } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
-import { lstat, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
-import { parseAllDocuments } from "yaml";
+import { lstat, readlink, realpath } from "node:fs/promises";
+import { dirname, join, posix, relative, sep } from "node:path";
 import { parseStrictJson } from "@unframe-dev/artifacts";
 import { readDirectoryNames, readRegularFile } from "./path-policy.js";
 import {
@@ -368,321 +367,113 @@ const packageFiles = async (root: string, workspace = false): Promise<LockedFile
   return files.sort((a, b) => compare(a.path, b.path));
 };
 
-const contained = (root: string, path: string) => {
-  const value = relative(root, path);
-  return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value);
-};
-const yamlRecords = (bytes: Uint8Array) => {
-  const documents = parseAllDocuments(new TextDecoder("utf-8", { fatal: true }).decode(bytes), {
-    uniqueKeys: true,
-  });
-  if (!documents.length || documents.some((document) => document.errors.length))
-    throw new Error("Invalid pnpm YAML.");
-  return documents.map((document) => record(document.toJS({ maxAliasCount: 100 })));
-};
-const yamlRecord = (bytes: Uint8Array) => {
-  const records = yamlRecords(bytes);
-  if (records.length !== 1) throw new Error("Invalid pnpm YAML.");
-  return records[0]!;
-};
-const workspaceMember = (patterns: readonly string[], key: string) =>
-  key === "." ||
-  (patterns.some(
-    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
-  ) &&
-    !patterns.some(
-      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
-    ));
-
-export class PnpmProjectLockError extends Error {
-  constructor(
-    readonly code: "missing" | "invalid",
-    message: string,
-    readonly directory?: string,
-  ) {
-    super(message);
-    this.name = "PnpmProjectLockError";
-  }
-}
-const pnpmInput = async (path: string) => {
-  const bytes = await readRegularFile(path);
-  if (bytes) return bytes;
-  const stat = await lstat(path).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
-    throw error;
-  });
-  if (stat) throw new Error("Project pnpm inputs must be regular files.");
-  return undefined;
-};
-const findPnpmProjectLock = async (directory: string) => {
-  const project = await realpath(directory);
-  for (let root = project; ; root = dirname(root)) {
-    try {
-      const bytes = await pnpmInput(join(root, "pnpm-lock.yaml"));
-      const workspaceBytes = await pnpmInput(join(root, "pnpm-workspace.yaml"));
-      const importerKey = relative(root, project).split(sep).join("/") || ".";
-      const patterns = workspaceBytes ? yamlRecord(workspaceBytes).packages : undefined;
-      if (
-        patterns !== undefined &&
-        (!Array.isArray(patterns) || !patterns.every((value) => typeof value === "string"))
-      )
-        throw new Error("Workspace packages must be an array of patterns.");
-      if (!bytes && workspaceBytes && workspaceMember((patterns as string[]) ?? [], importerKey))
-        throw new PnpmProjectLockError(
-          "missing",
-          "The project workspace pnpm-lock.yaml is missing.",
-          root,
-        );
-      if (
-        bytes &&
-        (root === project ||
-          (workspaceBytes && workspaceMember((patterns as string[]) ?? [], importerKey)))
-      ) {
-        const matches = yamlRecords(bytes).flatMap((lock) => {
-          if (String(lock.lockfileVersion) !== "9.0")
-            throw new Error("Only pnpm lockfileVersion 9.0 is supported.");
-          const value = record(lock.importers)[importerKey];
-          if (value === undefined) return [];
-          const importer = record(value);
-          return Object.hasOwn(importer, "packageManagerDependencies") ||
-            Object.hasOwn(importer, "configDependencies")
-            ? []
-            : [{ lock, importer }];
-        });
-        if (matches.length !== 1)
-          throw new Error("pnpm lock must contain one matching dependency importer.");
-        const { lock, importer } = matches[0]!;
-        return {
-          directory: root,
-          bytes,
-          importer,
-          importerKey,
-          lock,
-          workspacePatterns: patterns as string[] | undefined,
-          ...(workspaceBytes ? { workspaceBytes } : {}),
-        };
-      }
-      if (dirname(root) === root)
-        throw new PnpmProjectLockError(
-          "missing",
-          "A regular project pnpm-lock.yaml or matching workspace importer is required for lock update.",
-        );
-    } catch (error) {
-      if (error instanceof PnpmProjectLockError) throw error;
-      throw new PnpmProjectLockError(
-        "invalid",
-        error instanceof Error ? error.message : "Project pnpm lock is invalid.",
-        root,
-      );
-    }
-  }
-};
-const readPnpmProjectLockWithinScope = async (directory: string) => {
-  try {
-    return await findPnpmProjectLock(directory);
-  } catch (error) {
-    if (error instanceof PnpmProjectLockError) throw error;
-    throw new PnpmProjectLockError(
-      "invalid",
-      error instanceof Error ? error.message : "Project pnpm lock is invalid.",
-    );
-  }
-};
-export const readPnpmProjectLock: typeof readPnpmProjectLockWithinScope = (...args) =>
-  withNativeFilesystem(() => readPnpmProjectLockWithinScope(...args));
-
-const readLinkedWorkspaceDirectoriesWithinScope = async (
-  directory: string,
-): Promise<{ directory: string; workspaceKey: string }[]> => {
-  const projectRoot = await realpath(directory);
-  const context = await readPnpmProjectLockWithinScope(projectRoot);
-  const importers = record(context.lock.importers);
-  const visited = new Set([context.importerKey]);
-  const inputs: { directory: string; workspaceKey: string }[] = [];
-  const visit = async (key: string): Promise<void> => {
-    const importer = record(importers[key]);
-    const from = resolve(context.directory, key);
-    const dependencies = {
-      ...record(importer.dependencies ?? {}),
-      ...record(importer.devDependencies ?? {}),
-      ...record(importer.optionalDependencies ?? {}),
-    };
-    for (const value of Object.values(dependencies)) {
-      const version = text(record(value).version);
-      if (!version.startsWith("link:")) continue;
-      const linked = resolve(from, version.slice(5));
-      const workspaceKey = relative(context.directory, linked).split(sep).join("/") || ".";
-      if (
-        !context.workspacePatterns ||
-        !contained(context.directory, linked) ||
-        !workspaceMember(context.workspacePatterns, workspaceKey) ||
-        !Object.hasOwn(importers, workspaceKey)
-      )
-        throw new Error("Linked package must be a declared workspace importer.");
-      const actual = await realpath(linked).catch((error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
-        throw error;
-      });
-      if (actual !== undefined && actual !== linked)
-        throw new Error("Linked workspace package must not redirect through a symlink.");
-      if (visited.has(workspaceKey)) continue;
-      visited.add(workspaceKey);
-      inputs.push({ directory: linked, workspaceKey });
-      await visit(workspaceKey);
-    }
+type InstalledDependency = { specifier: string; optional: boolean };
+const dependencyEntries = (
+  manifest: Record<string, unknown>,
+  development: boolean,
+): InstalledDependency[] => {
+  const dependencies = {
+    ...record(manifest.peerDependencies ?? {}),
+    ...record(manifest.dependencies ?? {}),
+    ...(development ? record(manifest.devDependencies ?? {}) : {}),
+    ...record(manifest.optionalDependencies ?? {}),
   };
-  await visit(context.importerKey);
-  return inputs.sort((a, b) => compare(a.workspaceKey, b.workspaceKey));
+  const optional = record(manifest.optionalDependencies ?? {});
+  const peerMetadata = record(manifest.peerDependenciesMeta ?? {});
+  return Object.entries(dependencies)
+    .map(([specifier, range]) => {
+      if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/u.test(specifier))
+        throw new Error(`Invalid dependency specifier: ${specifier}`);
+      text(range);
+      return {
+        specifier,
+        optional:
+          Object.hasOwn(optional, specifier) ||
+          (Object.hasOwn(peerMetadata, specifier) &&
+            record(peerMetadata[specifier]).optional === true),
+      };
+    })
+    .sort((a, b) => compare(a.specifier, b.specifier));
 };
-
-export const readLinkedWorkspaceDirectories: typeof readLinkedWorkspaceDirectoriesWithinScope = (
-  ...args
-) => withNativeFilesystem(() => readLinkedWorkspaceDirectoriesWithinScope(...args));
-
-const readLinkedWorkspaceInputsWithinScope = async (directory: string) => {
-  const directories = await readLinkedWorkspaceDirectoriesWithinScope(directory);
-  const inputs: { directory: string; workspaceKey: string; contentIntegrity: ContentHash }[] = [];
-  for (const input of directories) {
-    if ((await realpath(input.directory)) !== input.directory)
-      throw new Error("Linked workspace package must not redirect through a symlink.");
-    const files = await packageFiles(input.directory, true);
-    inputs.push({
-      ...input,
-      contentIntegrity: digestBytes(new TextEncoder().encode(JSON.stringify(files))),
-    });
+const manifestAt = async (directory: string) => {
+  const bytes = await readRegularFile(join(directory, "package.json"));
+  const parsed = bytes && parseStrictJson(bytes);
+  if (!parsed || !parsed.ok)
+    throw new Error(`Package manifest is missing or invalid: ${directory}`);
+  return record(parsed.value);
+};
+const rejectPnp = async (directory: string) => {
+  for (let current = directory; ; current = dirname(current)) {
+    for (const name of [".pnp.cjs", ".pnp.js", ".pnp.loader.mjs"])
+      if (
+        await lstat(join(current, name)).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT" || error.code === "ENOTDIR") return undefined;
+          throw error;
+        })
+      )
+        throw new Error("Yarn PnP is not supported; install dependencies using node_modules.");
+    if (dirname(current) === current) return;
   }
-  return inputs;
 };
+const resolveInstalled = async (specifier: string, from: string): Promise<string | undefined> => {
+  for (let current = from; ; current = dirname(current)) {
+    // Node skips node_modules/node_modules while searching ancestor package directories.
+    if (current.split(sep).at(-1) !== "node_modules") {
+      const candidate = join(current, "node_modules", specifier);
+      try {
+        return await realpath(candidate);
+      } catch (error) {
+        if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
+          throw error;
+        // A dangling installed link is a broken installation, not an absent optional dependency.
+        if (
+          await lstat(candidate).catch((e: NodeJS.ErrnoException) => {
+            if (e.code === "ENOENT" || e.code === "ENOTDIR") return undefined;
+            throw e;
+          })
+        )
+          throw new Error(`Broken installed package link: ${specifier}`);
+      }
+    }
+    if (dirname(current) === current) return undefined;
+  }
+};
+const linkedPackage = (directory: string) => !directory.split(sep).includes("node_modules");
+const installedIdentity = (root: string, directory: string, manifest: Record<string, unknown>) =>
+  `${text(manifest.name)}@${text(manifest.version)}#${digestBytes(new TextEncoder().encode(relative(root, directory).split(sep).join("/"))).slice(7)}`;
 
-export const readLinkedWorkspaceInputs: typeof readLinkedWorkspaceInputsWithinScope = (...args) =>
-  withNativeFilesystem(() => readLinkedWorkspaceInputsWithinScope(...args));
-
-/** Reads only an explicitly installed pnpm graph; never evaluates package or lifecycle code. */
+/** Captures installed bytes and resolution edges without evaluating package code. */
 const snapshotInstalledPackagesWithinScope = async (
   root: string,
   options: { rootSpecifiers?: readonly string[] } = {},
 ): Promise<{
-  packageManagerLockHash: ContentHash;
+  dependencyHash: ContentHash;
   rootDependencies: LockedDependency[];
   packages: PackageSnapshot[];
 }> => {
   const projectRoot = await realpath(root);
-  const context = await readPnpmProjectLockWithinScope(projectRoot);
-  const { bytes, lock, importer } = context;
-  const snapshots = record(lock.snapshots ?? {});
+  await rejectPnp(projectRoot);
+  const projectManifest = await lstat(join(projectRoot, "package.json")).then(
+    () => manifestAt(projectRoot),
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return {};
+      throw error;
+    },
+  );
   const packages = new Map<string, PackageSnapshot>();
-  const dependencyEntries = (input: Record<string, unknown>) =>
-    Object.entries({
-      ...record(input.dependencies ?? {}),
-      ...record(input.optionalDependencies ?? {}),
-    });
-  type DependencyInput = { version: string; from: string; linkBase: string };
-  const importerDependencies = (input: Record<string, unknown>, directory: string) =>
-    new Map(
-      Object.entries({
-        ...record(input.dependencies ?? {}),
-        ...record(input.devDependencies ?? {}),
-        ...record(input.optionalDependencies ?? {}),
-      }).map(([name, value]) => [
-        name,
-        { version: text(record(value).version), from: directory, linkBase: directory },
-      ]),
-    );
-  const roots = importerDependencies(importer, projectRoot);
-  const visit = async (
-    specifier: string,
-    version: string,
-    from: string,
-    linkBase = from,
-    consumer: ReadonlyMap<string, DependencyInput> = roots,
-  ): Promise<ContentHash> => {
-    if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/.test(specifier))
-      throw new Error("Invalid dependency specifier.");
-    const workspace = version.startsWith("link:");
-    const workspaceRoot = workspace ? resolve(linkBase, version.slice(5)) : undefined;
-    const workspaceKey = workspaceRoot
-      ? relative(context.directory, workspaceRoot).split(sep).join("/") || "."
-      : undefined;
-    if (
-      workspace &&
-      (!context.workspacePatterns ||
-        !workspaceRoot ||
-        !contained(context.directory, workspaceRoot) ||
-        !workspaceMember(context.workspacePatterns, workspaceKey!) ||
-        !Object.hasOwn(record(lock.importers), workspaceKey!))
-    )
-      throw new Error("Linked package must be a declared workspace importer.");
-    let locator = workspace
-      ? `${specifier}@workspace:${workspaceKey}`
-      : Object.hasOwn(snapshots, `${specifier}@${version}`)
-        ? `${specifier}@${version}`
-        : version;
-    if (
-      !workspace &&
-      (!Object.hasOwn(snapshots, locator) ||
-        /file:(?:\/|[A-Za-z]:|.*(?:^|\/)\.\.(?:\/|$))/.test(locator) ||
-        locator.includes("link:") ||
-        locator.startsWith("/"))
-    )
-      throw new Error("Dependency must resolve to a fixed pnpm snapshot locator.");
-    if (!workspace && packages.has(locator)) return hashPackageLocator(locator);
-    let packageRoot: string | undefined;
-    for (let current = from; ; current = dirname(current)) {
-      try {
-        packageRoot = await realpath(join(current, "node_modules", specifier));
-        break;
-      } catch (error) {
-        if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
-          throw error;
-      }
-      if (current === context.directory || !contained(context.directory, dirname(current))) break;
-    }
-    if (!packageRoot) throw new Error(`Missing installed package: ${specifier}`);
-    if (
-      workspace
-        ? packageRoot !== workspaceRoot || (await realpath(workspaceRoot!)) !== workspaceRoot
-        : !contained(join(context.directory, "node_modules"), packageRoot)
-    )
-      throw new Error(
-        "Installed package must remain inside its pnpm snapshot or declared workspace.",
-      );
-    const files = await packageFiles(packageRoot, workspace);
-    const manifestFile = files.find((f) => f.path === "package.json");
-    if (!manifestFile || manifestFile.encoding !== "utf8")
-      throw new Error("Package manifest is missing.");
-    const parsedManifest = parseStrictJson(new TextEncoder().encode(manifestFile.data));
-    if (!parsedManifest.ok) throw new Error("Invalid package manifest JSON.");
-    const manifest = record(parsedManifest.value);
+  const visit = async (directory: string, consumer: string): Promise<ContentHash> => {
+    const workspace = linkedPackage(directory);
+    const files = await packageFiles(directory, workspace);
+    const manifestFile = files.find((file) => file.path === "package.json");
+    const parsed =
+      manifestFile?.encoding === "utf8" &&
+      parseStrictJson(new TextEncoder().encode(manifestFile.data));
+    if (!parsed || !parsed.ok)
+      throw new Error(`Package manifest is missing or invalid: ${directory}`);
+    const manifest = record(parsed.value);
     const name = text(manifest.name);
-    const actualVersion = text(manifest.version);
-    const archive = locator.includes("@file:") && locator.endsWith(".tgz");
-    const packageRecord = archive ? record(record(lock.packages)[locator]) : undefined;
-    if (
-      workspace
-        ? name !== specifier
-        : archive
-          ? !locator.startsWith(`${name}@file:`) || packageRecord?.version !== actualVersion
-          : locator !== `${name}@${actualVersion}` &&
-            !locator.startsWith(`${name}@${actualVersion}(`)
-    )
-      throw new Error(
-        `Installed package ${name}@${actualVersion} does not match pnpm locator ${locator}.`,
-      );
-    const snapshot = workspace
-      ? record(record(lock.importers)[workspaceKey!])
-      : record(snapshots[locator]);
-    const ownDependencies = workspace
-      ? importerDependencies(snapshot, packageRoot)
-      : new Map(
-          dependencyEntries(snapshot).map(([name, value]) => [
-            name,
-            {
-              version: text(value),
-              from: packageRoot,
-              linkBase: context.directory,
-            },
-          ]),
-        );
+    const version = text(manifest.version);
+    const peers = record(manifest.peerDependencies ?? {});
     const references = workspace
       ? workspaceSourcePackageSpecifiers(
           files.flatMap((file) =>
@@ -690,83 +481,67 @@ const snapshotInstalledPackagesWithinScope = async (
           ),
         )
       : [];
-    const edges = new Map(
-      workspace
-        ? [...ownDependencies].filter(
-            ([name]) =>
-              dependencyEntries(snapshot).some(([dependency]) => dependency === name) ||
-              references.includes(typeSpecifier(name)),
-          )
-        : ownDependencies,
+    const entries = dependencyEntries(manifest, workspace).filter(
+      ({ specifier }) =>
+        !workspace ||
+        Object.hasOwn(record(manifest.dependencies ?? {}), specifier) ||
+        Object.hasOwn(record(manifest.optionalDependencies ?? {}), specifier) ||
+        Object.hasOwn(peers, specifier) ||
+        references.includes(typeSpecifier(specifier)),
     );
-    if (workspace) {
-      const peers = Object.keys(record(manifest.peerDependencies ?? {})).sort(compare);
-      for (const peer of peers) {
-        const input = consumer.get(peer) ?? ownDependencies.get(peer);
-        if (input) edges.set(peer, input);
+    const edges: { specifier: string; directory: string; consumer: string }[] = [];
+    for (const entry of entries) {
+      const peer = Object.hasOwn(peers, entry.specifier);
+      const resolved =
+        (await resolveInstalled(entry.specifier, directory)) ??
+        (peer ? await resolveInstalled(entry.specifier, consumer) : undefined);
+      if (!resolved) {
+        if (entry.optional) continue;
+        throw new Error(`Missing installed package: ${entry.specifier} (from ${name})`);
       }
-      locator += peers
-        .filter((peer) => edges.has(peer))
-        .map((peer) => {
-          const input = edges.get(peer)!;
-          const identity = input.version.startsWith("link:")
-            ? `workspace:${
-                relative(context.directory, resolve(input.linkBase, input.version.slice(5)))
-                  .split(sep)
-                  .join("/") || "."
-              }`
-            : input.version;
-          return `(${peer}@${identity})`;
-        })
-        .join("");
+      edges.push({
+        specifier: entry.specifier,
+        directory: resolved,
+        consumer: peer ? consumer : directory,
+      });
     }
+    let locator = installedIdentity(projectRoot, directory, manifest);
+    if (Object.keys(peers).length)
+      locator += `(consumer#${digestBytes(new TextEncoder().encode(relative(projectRoot, consumer).split(sep).join("/"))).slice(7)})`;
+    // Peer context is part of identity even when a workspace symlink shares the same source bytes.
+    for (const edge of edges.filter((edge) => Object.hasOwn(peers, edge.specifier)))
+      locator += `(${edge.specifier}@${installedIdentity(projectRoot, edge.directory, await manifestAt(edge.directory))})`;
     const key = hashPackageLocator(locator);
     if (packages.has(locator)) return key;
-    let exports: PackageSnapshot["exports"];
-    try {
-      const nestedManifests: Record<string, Record<string, unknown>> = {};
-      if (manifest.exports === undefined)
-        for (const file of files) {
-          if (!file.path.endsWith("/package.json") || file.encoding !== "utf8") continue;
-          const nested = parseStrictJson(new TextEncoder().encode(file.data));
-          if (!nested.ok) throw new Error(`Invalid nested package manifest JSON: ${file.path}`);
-          nestedManifests[file.path.slice(0, -"/package.json".length)] = record(nested.value);
-        }
-      exports = resolvePackageExportTargets(
-        manifest,
-        files.map((f) => f.path),
-        nestedManifests,
-      );
-    } catch (error) {
-      throw new Error(
-        `Package ${name}@${actualVersion}: ${error instanceof Error ? error.message : "export resolution failed"}`,
-      );
-    }
+    const nestedManifests: Record<string, Record<string, unknown>> = {};
+    if (manifest.exports === undefined)
+      for (const file of files) {
+        if (!file.path.endsWith("/package.json") || file.encoding !== "utf8") continue;
+        const nested = parseStrictJson(new TextEncoder().encode(file.data));
+        if (!nested.ok) throw new Error(`Invalid nested package manifest JSON: ${file.path}`);
+        nestedManifests[file.path.slice(0, -"/package.json".length)] = record(nested.value);
+      }
     const item: PackageSnapshot = {
       key,
       locator,
       name,
-      version: actualVersion,
+      version,
       files,
-      exports,
+      exports: resolvePackageExportTargets(
+        manifest,
+        files.map((file) => file.path),
+        nestedManifests,
+      ),
       dependencies: [],
       contentIntegrity: "sha256:",
     };
     packages.set(locator, item);
-    for (const [dependency, value] of edges) {
-      const usage = dependency.startsWith("@types/") ? "types" : "runtime";
+    for (const edge of edges)
       item.dependencies.push({
-        specifier: typeSpecifier(dependency),
-        usage,
-        packageKey: await visit(
-          dependency,
-          value.version,
-          value.from,
-          value.linkBase,
-          new Map([...ownDependencies, ...edges]),
-        ),
+        specifier: typeSpecifier(edge.specifier),
+        usage: edge.specifier.startsWith("@types/") ? "types" : "runtime",
+        packageKey: await visit(edge.directory, edge.consumer),
       });
-    }
     item.dependencies.sort((a, b) =>
       compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
     );
@@ -774,23 +549,173 @@ const snapshotInstalledPackagesWithinScope = async (
     return key;
   };
   const rootDependencies: LockedDependency[] = [];
-  for (const [specifier, input] of roots) {
-    if (options.rootSpecifiers && !options.rootSpecifiers.includes(specifier)) continue;
+  for (const entry of dependencyEntries(projectManifest, true)) {
+    if (options.rootSpecifiers && !options.rootSpecifiers.includes(entry.specifier)) continue;
+    const directory = await resolveInstalled(entry.specifier, projectRoot);
+    if (!directory) {
+      if (entry.optional) continue;
+      throw new Error(`Missing installed package: ${entry.specifier}`);
+    }
     rootDependencies.push({
-      specifier: typeSpecifier(specifier),
-      usage: specifier.startsWith("@types/") ? "types" : "runtime",
-      packageKey: await visit(specifier, input.version, projectRoot, projectRoot),
+      specifier: typeSpecifier(entry.specifier),
+      usage: entry.specifier.startsWith("@types/") ? "types" : "runtime",
+      packageKey: await visit(directory, projectRoot),
     });
   }
   rootDependencies.sort((a, b) =>
     compare(`${a.specifier}\0${a.usage}`, `${b.specifier}\0${b.usage}`),
   );
+  const sortedPackages = [...packages.values()].sort((a, b) => compare(a.key, b.key));
   return {
-    packageManagerLockHash: digestBytes(bytes),
+    dependencyHash: digestBytes(
+      new TextEncoder().encode(
+        JSON.stringify({
+          projectManifest,
+          rootDependencies,
+          packages: sortedPackages,
+        }),
+      ),
+    ),
     rootDependencies,
-    packages: [...packages.values()].sort((a, b) => compare(a.key, b.key)),
+    packages: sortedPackages,
   };
 };
-
 export const snapshotInstalledPackages: typeof snapshotInstalledPackagesWithinScope = (...args) =>
   withNativeFilesystem(() => snapshotInstalledPackagesWithinScope(...args));
+
+const readLinkedWorkspaceDirectoriesWithinScope = async (root: string) => {
+  const projectRoot = await realpath(root);
+  await rejectPnp(projectRoot);
+  const visited = new Set<string>([projectRoot]);
+  const directories: { directory: string; workspaceKey: string }[] = [];
+  const visit = async (directory: string, development: boolean): Promise<void> => {
+    const manifest =
+      directory === projectRoot && !(await readRegularFile(join(directory, "package.json")))
+        ? {}
+        : await manifestAt(directory);
+    for (const entry of dependencyEntries(manifest, development)) {
+      const resolved = await resolveInstalled(entry.specifier, directory);
+      if (!resolved || visited.has(resolved)) continue;
+      visited.add(resolved);
+      if (linkedPackage(resolved))
+        directories.push({
+          directory: resolved,
+          workspaceKey: relative(projectRoot, resolved).split(sep).join("/"),
+        });
+      await visit(resolved, linkedPackage(resolved));
+    }
+  };
+  await visit(projectRoot, true);
+  return directories.sort((a, b) => compare(a.workspaceKey, b.workspaceKey));
+};
+export const readLinkedWorkspaceDirectories: typeof readLinkedWorkspaceDirectoriesWithinScope = (
+  ...args
+) => withNativeFilesystem(() => readLinkedWorkspaceDirectoriesWithinScope(...args));
+const readLinkedWorkspaceInputsWithinScope = async (root: string) => {
+  const directories = await readLinkedWorkspaceDirectoriesWithinScope(root);
+  return Promise.all(
+    directories.map(async (input) => ({
+      ...input,
+      contentIntegrity: digestBytes(
+        new TextEncoder().encode(JSON.stringify(await packageFiles(input.directory, true))),
+      ),
+    })),
+  );
+};
+export const readLinkedWorkspaceInputs: typeof readLinkedWorkspaceInputsWithinScope = (...args) =>
+  withNativeFilesystem(() => readLinkedWorkspaceInputsWithinScope(...args));
+
+const packageFileIdentities = async (root: string, workspace: boolean) => {
+  const files: (
+    | { path: string; hash: ContentHash; executable: boolean }
+    | { path: string; link: string }
+  )[] = [];
+  const roots = workspace ? workspacePackageFileRoots(await manifestAt(root)) : undefined;
+  const visit = async (path: string): Promise<void> => {
+    const names = await readDirectoryNames(path ? join(root, path) : root);
+    if (!names) throw new Error("Package directory is unsafe.");
+    for (const name of names) {
+      if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) continue;
+      const relative = path ? `${path}/${name}` : name;
+      if (roots && !isWorkspacePackageSnapshotPath(relative, roots)) continue;
+      const full = join(root, relative);
+      const stat = await lstat(full);
+      if (stat.isSymbolicLink()) files.push({ path: relative, link: await readlink(full) });
+      else if (stat.isDirectory()) await visit(relative);
+      else {
+        const bytes = await readRegularFile(full);
+        if (!bytes) throw new Error("Package contains an unsafe file.");
+        files.push({
+          path: relative,
+          hash: digestBytes(bytes),
+          executable: (stat.mode & 0o111) !== 0,
+        });
+      }
+    }
+  };
+  await visit("");
+  return files.sort((a, b) => compare(a.path, b.path));
+};
+
+/** Tracks installed inputs independently of their browser or Node entry point semantics. */
+const readInstalledDependencyInputsWithinScope = async (root: string) => {
+  const projectRoot = await realpath(root);
+  await rejectPnp(projectRoot);
+  const visited = new Set<string>();
+  const directories = new Set<string>();
+  const inputs: unknown[] = [];
+  const identity = (directory: string) =>
+    relative(projectRoot, directory).split(sep).join("/") || ".";
+  const visit = async (directory: string, consumer: string, project = false): Promise<void> => {
+    const context = `${directory}\0${consumer}`;
+    if (visited.has(context)) return;
+    visited.add(context);
+    const manifestBytes = await readRegularFile(join(directory, "package.json"));
+    if (!manifestBytes) {
+      if (
+        !project ||
+        (await lstat(join(directory, "package.json")).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return undefined;
+          throw error;
+        }))
+      )
+        throw new Error(`Package manifest is missing or invalid: ${directory}`);
+      inputs.push({ directory: identity(directory), manifest: null });
+      return;
+    }
+    const parsed = parseStrictJson(manifestBytes);
+    if (!parsed.ok) throw new Error(`Invalid package manifest JSON: ${directory}`);
+    const manifest = record(parsed.value);
+    const files = project
+      ? undefined
+      : await packageFileIdentities(directory, linkedPackage(directory));
+    inputs.push({
+      directory: identity(directory),
+      consumer: identity(consumer),
+      manifest: digestBytes(manifestBytes),
+      files,
+    });
+    if (!project) directories.add(directory);
+    for (const entry of dependencyEntries(manifest, project || linkedPackage(directory))) {
+      const peer = Object.hasOwn(record(manifest.peerDependencies ?? {}), entry.specifier);
+      const resolved =
+        (await resolveInstalled(entry.specifier, directory)) ??
+        (peer ? await resolveInstalled(entry.specifier, consumer) : undefined);
+      inputs.push({
+        from: identity(directory),
+        consumer: identity(consumer),
+        specifier: entry.specifier,
+        to: resolved ? identity(resolved) : null,
+      });
+      if (resolved) await visit(resolved, peer ? consumer : directory);
+    }
+  };
+  await visit(projectRoot, projectRoot, true);
+  return {
+    dependencyHash: digestBytes(new TextEncoder().encode(JSON.stringify(inputs))),
+    directories: [...directories].sort(compare),
+  };
+};
+export const readInstalledDependencyInputs: typeof readInstalledDependencyInputsWithinScope = (
+  ...args
+) => withNativeFilesystem(() => readInstalledDependencyInputsWithinScope(...args));

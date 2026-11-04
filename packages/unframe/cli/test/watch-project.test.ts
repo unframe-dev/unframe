@@ -2,7 +2,6 @@ import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import type { PresentationCliResult } from "../src/application/types.js";
 
@@ -35,9 +34,6 @@ describe("watchPresentationProject", () => {
       join(directory, "unframe.config.ts"),
       'export default { entryFile: "presentation.unframe.tsx", assets: {} };',
     );
-    const lockPath = join(directory, "unframe.lock");
-    const lock = JSON.parse(await readFile(lockPath, "utf8"));
-    await writeFile(lockPath, canonicalizeJsonPayload({ ...lock, assets: [] }) + "\n");
     await writeFile(join(directory, "dist"), "existing Dist content");
     const controller = new AbortController();
     const results: PresentationCliResult[] = [];
@@ -73,7 +69,7 @@ describe("watchPresentationProject", () => {
     });
     expect(built).toEqual([]);
   });
-  it("defaults to Dev and tracks refreshes without rebuilding its own lock change", async () => {
+  it("defaults to Dev and follows the revision returned by a completed build", async () => {
     const controller = new AbortController();
     const revisions = ["saved", "refreshed", "external"];
     const built: (string | undefined)[] = [];

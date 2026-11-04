@@ -5,14 +5,10 @@ import { z } from "zod";
 import { AuthorError } from "@unframe-dev/author-service";
 import { projectSnapshotSchema, savedCommandSchema } from "@unframe-dev/contracts/author-http";
 import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
+import { readInstalledDependencyInputs } from "@unframe-dev/workspace-node";
 import { sourceAssetPorts } from "../application/media-ports.js";
-import type {
-  prepareLockRefresh,
-  prepareLockUpdate,
-  LockPreparationPorts,
-  StylePreparationPort,
-} from "@unframe-dev/build";
-import type { AnalysisOperations } from "./analysis-protocol.js";
+import type { StylePreparationPort } from "@unframe-dev/build";
+import type { AnalysisOperations, CapturedProject } from "./analysis-protocol.js";
 
 const diagnostic = z.strictObject({
   code: z.string(),
@@ -30,36 +26,16 @@ const sourceDiagnostic = z.strictObject({
   column: z.number().int(),
   typescriptCode: z.number().int().optional(),
 });
-const lockResult = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(true), bytes: z.instanceof(Uint8Array) }),
-  z.strictObject({
-    ok: z.literal(false),
-    code: z.string(),
-    message: z.string(),
-    diagnostics: z
-      .array(
-        z.object({
-          phase: z.enum(["config", "resolve", "transform"]),
-          severity: z.enum(["warning", "error"]),
-          message: z.string(),
-          file: z.string().optional(),
-          line: z.number().optional(),
-          column: z.number().optional(),
-          plugin: z.string().optional(),
-        }),
-      )
-      .optional(),
-  }),
-]);
 const results = {
+  prepare: z.union([
+    z.strictObject({ ok: z.literal(true), value: z.unknown() }),
+    z.object({ ok: z.literal(false), code: z.string(), message: z.string() }).passthrough(),
+  ]),
   project: projectSnapshotSchema,
   save: z.strictObject({
     afterSource: z.instanceof(Uint8Array),
-    lockBytes: z.instanceof(Uint8Array),
     saved: savedCommandSchema,
   }),
-  refresh: lockResult,
-  update: lockResult,
   opaque: z.array(
     z.strictObject({
       entryId: z.string(),
@@ -136,16 +112,26 @@ const messageSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("call"),
     id: z.number().int().positive(),
-    method: z.enum(["styles", "video", "bundle", "install", "packages", "styleSnapshot"]),
+    method: z.enum(["styles", "video", "bundle", "styleSnapshot"]),
     args: z.array(z.unknown()),
   }),
 ]);
 
 type Ports = Pick<typeof sourceAssetPorts, "videoTransformIdentity"> & {
   styles: StylePreparationPort;
-  update?: Pick<LockPreparationPorts, "install" | "snapshotInstalledPackages"> & {
-    projectDirectory: string;
-  };
+};
+const requireCapturedDependencies = async (found: CapturedProject) => {
+  try {
+    const current = await readInstalledDependencyInputs(found.projectDirectory);
+    if (current.dependencyHash === found.dependencyHash) return;
+  } catch {
+    // A partial installation cannot be combined with the previously captured graph.
+  }
+  throw new AuthorError(
+    409,
+    "cli-output-stale",
+    "Installed dependencies changed while capturing style inputs. Retry the operation.",
+  );
 };
 export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   operation: K,
@@ -204,17 +190,9 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
           );
         } else {
           const task = (async () => {
-            if (["install", "packages", "styleSnapshot"].includes(message.method)) {
-              if (operation !== "update" || !ports.update)
-                throw new Error("Dependency update callbacks require an update operation.");
-              if (message.method === "install") {
-                z.tuple([]).parse(message.args);
-                return ports.update.install();
-              }
-              if (message.method === "packages") {
-                const [roots] = z.tuple([z.array(z.string()).optional()]).parse(message.args);
-                return ports.update.snapshotInstalledPackages(roots);
-              }
+            if (message.method === "styleSnapshot") {
+              if (operation !== "prepare" && operation !== "project" && operation !== "save")
+                throw new Error("Style snapshots require a project analysis operation.");
               const [files] = z
                 .tuple([
                   z.array(
@@ -226,7 +204,11 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
                   ),
                 ])
                 .parse(message.args);
-              return ports.styles.snapshot(ports.update.projectDirectory, files);
+              const { found } = input as AnalysisOperations["project"]["input"];
+              await requireCapturedDependencies(found);
+              const snapshot = await ports.styles.snapshot(found.projectDirectory, files);
+              await requireCapturedDependencies(found);
+              return snapshot;
             }
             if (message.method === "video") {
               z.tuple([]).parse(message.args);
@@ -252,6 +234,10 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
                 if (!settled) worker.postMessage({ kind: "reply", id: message.id, value });
               },
               (error: unknown) => {
+                if (error instanceof AuthorError && error.code === "cli-output-stale") {
+                  finish(error);
+                  return;
+                }
                 if (!settled)
                   worker.postMessage({
                     kind: "reply",
@@ -270,40 +256,3 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
     if (signal?.aborted) abort();
   });
 };
-
-export const prepareLockRefreshInWorker: typeof prepareLockRefresh = async (input, ports) =>
-  runAnalysisOperation(
-    "refresh",
-    {
-      found: input.found,
-      typeLibraries: [...(await ports.readTypeLibraries())],
-      modelTransformIdentity: ports.modelTransformIdentity,
-    },
-    input.signal,
-    { styles: ports.styles, videoTransformIdentity: ports.videoTransformIdentity },
-  );
-
-export const prepareLockUpdateInWorker: typeof prepareLockUpdate = async (input, ports) =>
-  runAnalysisOperation(
-    "update",
-    {
-      found: input.found,
-      operation: input.operation,
-      ...(input.recreate !== undefined ? { recreate: input.recreate } : {}),
-      ...(input.preserveAssetPins !== undefined
-        ? { preserveAssetPins: input.preserveAssetPins }
-        : {}),
-      typeLibraries: [...(await ports.readTypeLibraries())],
-      modelTransformIdentity: ports.modelTransformIdentity,
-    },
-    input.signal,
-    {
-      styles: ports.styles,
-      videoTransformIdentity: ports.videoTransformIdentity,
-      update: {
-        projectDirectory: input.found.projectDirectory,
-        install: ports.install,
-        snapshotInstalledPackages: ports.snapshotInstalledPackages,
-      },
-    },
-  );

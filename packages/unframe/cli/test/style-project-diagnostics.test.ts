@@ -1,20 +1,15 @@
 import { sourceAssetPorts } from "../src/application/media-ports.js";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { writeAuthoringBoundaryProjectFixture } from "./authoring-boundary-project-fixture.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import { afterAll, afterEach, assert, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-import { canonicalizeJsonPayload } from "@unframe-dev/artifacts";
 import { createAuthorService } from "../src/author/service.js";
 import type { AuthorService } from "@unframe-dev/author-service";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
-import { loadUnframeLock } from "@unframe-dev/workspace";
-import { hashDependencyGraph } from "@unframe-dev/workspace";
 import { prepareProjectSource } from "@unframe-dev/workspace-node";
-import { snapshotNodeTransformInputs, withNodeTransformSources } from "@unframe-dev/styles-node";
 import { runIsolatedWorker } from "@unframe-dev/worker-host";
 import type { FixedBrowserSession } from "@unframe-dev/render-browser";
 
@@ -50,61 +45,11 @@ const successful = (diagnostics: unknown[] = []) => ({
 });
 const prepareFixture = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-style-diagnostics-"));
-  const adapter = await mkdtemp(join(temporaryDirectory(), "unframe-style-adapter-"));
-  preparedDirectories.push(directory, adapter);
+  preparedDirectories.push(directory);
   await writeAuthoringBoundaryProjectFixture(directory);
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
-  const manifest = JSON.stringify({ name: "fixture-adapter", version: "1.0.0", main: "index.mjs" });
-  const lock = "lockfileVersion: '9.0'\nimporters:\n  .: {}\npackages: {}\nsnapshots: {}\n";
-  await writeFile(join(adapter, "package.json"), manifest);
-  await writeFile(join(adapter, "pnpm-lock.yaml"), lock);
-  await writeFile(
-    join(directory, "package.json"),
-    JSON.stringify({ name: "style-project", dependencies: { "@unframe-dev/authoring": "1.0.0" } }),
-  );
-  const projectLock =
-    "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      '@unframe-dev/authoring':\n        specifier: 1.0.0\n        version: 1.0.0\npackages:\n  '@unframe-dev/authoring@1.0.0':\n    resolution: {integrity: sha512-Zml4dHVyZQ==}\nsnapshots:\n  '@unframe-dev/authoring@1.0.0': {}\n";
-  await writeFile(join(directory, "pnpm-lock.yaml"), projectLock);
-  await writeFile(join(adapter, "index.mjs"), "export {}; ");
   await writeFile(join(directory, "postcss.config.mjs"), "export default {plugins:[]};");
   await writeFile(join(directory, "theme.CSS"), "@tailwind utilities;");
-  const found = await discoverPresentationProjectFiles(directory);
-  assert(found.ok, JSON.stringify(found));
-  const loaded = loadUnframeLock(found.lockBytes);
-  assert(loaded.ok);
-  const sdk = loaded.value.lock.packages.find((pkg) => pkg.name === "@unframe-dev/authoring");
-  assert(sdk);
-  const installed = join(directory, "node_modules/@unframe-dev/authoring");
-  await mkdir(installed, { recursive: true });
-  await writeFile(
-    join(installed, "package.json"),
-    JSON.stringify({ name: sdk.name, version: sdk.version, main: "index.ts", types: "index.ts" }),
-  );
-  for (const file of sdk.files)
-    await writeFile(
-      join(installed, file.path),
-      Buffer.from(file.data, file.encoding === "utf8" ? "utf8" : "base64"),
-    );
-  const snapshot = await snapshotNodeTransformInputs(directory, {
-    adapterRoot: adapter,
-    adapterDependencies: [],
-    sourceFiles: found.localFiles.map(({ path, bytes }) => ({
-      path,
-      bytes: Buffer.from(bytes).toString("base64"),
-    })),
-  });
-  const next = {
-    ...loaded.value.lock,
-    packageManagerLockHash: `sha256:${createHash("sha256").update(projectLock).digest("hex")}`,
-    styleTransform: withNodeTransformSources(snapshot, []),
-    styleSourceIdentity: snapshot.sourceIdentity,
-  };
-  next.dependencyGraphHash = hashDependencyGraph(next);
-  await writeFile(join(directory, "unframe.lock"), canonicalizeJsonPayload(next) + "\n");
   vi.mocked(runIsolatedWorker).mockResolvedValue(successful());
-  const styled = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(styled.exitCode, styled.stderr).toBe(0);
   return directory;
 };
 const fixture = async () => {
@@ -128,19 +73,20 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     });
     services.push(service);
     const before = await service.project();
-    const lock = await readFile(join(directory, "unframe.lock"));
+    await expect(readFile(join(directory, "unframe.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     await writeFile(join(directory, "theme.CSS"), "main { color: blue; }");
     const changed = await service.project();
     expect(changed.revision).not.toBe(before.revision);
-    expect((await readFile(join(directory, "unframe.lock"))).equals(lock)).toBe(true);
+    await expect(readFile(join(directory, "unframe.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     const queued = await service.build(changed.revision, "a".repeat(32));
     await expect.poll(async () => (await service.job(queued.buildId)).status).toBe("succeeded");
-    const beforeBuild = loadUnframeLock(lock);
-    const afterBuild = loadUnframeLock(await readFile(join(directory, "unframe.lock")));
-    assert(beforeBuild.ok && afterBuild.ok);
-    expect(afterBuild.value.lock.styleSourceIdentity).not.toBe(
-      beforeBuild.value.lock.styleSourceIdentity,
-    );
+    await expect(readFile(join(directory, "unframe.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 
   it("reports style worker failures without fabricated source locations", async () => {
@@ -162,7 +108,9 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
       const service = await createAuthorService(directory);
       services.push(service);
       const before = await service.project();
-      const lock = await readFile(join(directory, "unframe.lock"));
+      await expect(readFile(join(directory, "unframe.lock"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
       await writeFile(join(directory, "postcss.config.mjs"), "throw new Error('invalid config');");
       vi.mocked(runIsolatedWorker).mockResolvedValue({
         ok: false,
@@ -194,7 +142,9 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
           message: "Invalid stylesheet",
         }),
       ]);
-      expect((await readFile(join(directory, "unframe.lock"))).equals(lock)).toBe(true);
+      await expect(readFile(join(directory, "unframe.lock"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
     },
   );
 
@@ -233,9 +183,11 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     vi.mocked(runIsolatedWorker).mockResolvedValue(successful([warning]));
     const found = await discoverPresentationProjectFiles(directory);
     assert(found.ok, JSON.stringify(found));
-    const loaded = loadUnframeLock(found.lockBytes);
-    assert(loaded.ok);
-    const prepared = await prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock);
+    const prepared = await prepareProjectSource(
+      sourceAssetPorts.styles,
+      found,
+      found.dependencyGraph,
+    );
     expect(prepared).toHaveProperty("diagnostics", [warning]);
   });
 
@@ -296,11 +248,11 @@ describe("project style diagnostics", { timeout: 30_000 }, () => {
     });
     const found = await discoverPresentationProjectFiles(directory);
     assert(found.ok, JSON.stringify(found));
-    const loaded = loadUnframeLock(found.lockBytes);
-    assert(loaded.ok);
-    const prepared = await prepareProjectSource(sourceAssetPorts.styles, found, loaded.value.lock, {
-      refresh: true,
-    });
+    const prepared = await prepareProjectSource(
+      sourceAssetPorts.styles,
+      found,
+      found.dependencyGraph,
+    );
     expect(prepared.source).toHaveProperty("preparedStyles.stylesheets", [
       { entry: "theme.CSS", css: "main { color: red; }" },
     ]);

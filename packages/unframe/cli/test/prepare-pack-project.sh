@@ -8,6 +8,5 @@ if [[ ! -d "${project}" || -n "$(ls -A "${project}")" ]]; then
   exit 1
 fi
 cp -R "${root}/packages/unframe/cli/test/fixtures/pack-project/." "${project}/"
-gzip -dc "${root}/packages/unframe/cli/test/fixtures/pack-project.lock.gz" > "${project}/unframe.lock"
 mkdir -p "${project}/node_modules/@unframe-dev"
 ln -s "${root}/packages/unframe/authoring" "${project}/node_modules/@unframe-dev/authoring"

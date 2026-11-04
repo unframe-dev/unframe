@@ -147,8 +147,6 @@ const createModelProject = async () => {
       `import {defineComponentStructure} from "@unframe-dev/authoring";\nexport default defineComponentStructure(${JSON.stringify(structure)});`,
     ),
   ]);
-  const refreshed = await runPresentationCli({ args: ["lock", "refresh", directory] });
-  expect(refreshed.exitCode, refreshed.stderr).toBe(0);
   return directory;
 };
 

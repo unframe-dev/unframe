@@ -9,12 +9,9 @@ import {
   workspaceSourcePackageSpecifiers,
 } from "@unframe-dev/workspace";
 import { lstat, mkdir, readdir, readFile, realpath, symlink, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, matchesGlob, posix, relative, resolve, sep } from "node:path";
-import { parseAllDocuments } from "yaml";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import {
-  pnpmLockSchema,
-  pnpmLocatorSchema,
   packageManifestSchema,
   adapterManifestSchema,
   importerEntrySchema,
@@ -120,74 +117,106 @@ const collectEntryFiles = async (root: string, entry: string): Promise<NodeSnaps
   }
   return [...files.values()].sort((a, b) => a.path.localeCompare(b.path, "en"));
 };
-const workspaceMember = (patterns: readonly string[], key: string) =>
-  key === "." ||
-  (patterns.some(
-    (pattern) => !pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern)),
-  ) &&
-    !patterns.some(
-      (pattern) => pattern.startsWith("!") && matchesGlob(key, posix.normalize(pattern.slice(1))),
-    ));
-const yamlFile = async (path: string, lockStream = false) => {
-  const stat = await lstat(path).catch((error: NodeJS.ErrnoException) => {
-    if (error.code === "ENOENT") return undefined;
-    throw error;
-  });
-  if (!stat) return undefined;
-  if (!stat.isFile() || stat.isSymbolicLink())
-    throw new Error("Node pnpm inputs must be regular files");
-  const documents = parseAllDocuments(await readFile(path, "utf8"), { uniqueKeys: true });
-  if (
-    !documents.length ||
-    (!lockStream && documents.length !== 1) ||
-    documents.some((item) => item.errors.length)
-  )
-    throw new Error("Invalid pnpm YAML");
-  return documents.at(-1)!.toJS({ maxAliasCount: 100 }) as Record<string, unknown>;
+type NodeManifest = ReturnType<typeof packageManifestSchema.parse> & {
+  dependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
+  optionalDependencies: Record<string, string>;
+  peerDependencies: Record<string, string>;
+  peerDependenciesMeta: Record<string, { optional?: boolean }>;
 };
-const readLock = async (directory: string, workspace: boolean) => {
-  const project = await realpath(directory);
-  for (let root = project; ; root = dirname(root)) {
-    const raw = await yamlFile(join(root, "pnpm-lock.yaml"), true);
-    const key = relative(root, project).split(sep).join("/") || ".";
-    const workspaceConfig = workspace
-      ? await yamlFile(join(root, "pnpm-workspace.yaml"))
-      : undefined;
-    const patterns = workspaceConfig?.packages;
-    if (
-      patterns !== undefined &&
-      (!Array.isArray(patterns) || !patterns.every((value) => typeof value === "string"))
-    )
-      throw new Error("Workspace packages must be an array of patterns");
-    if (
-      raw &&
-      (root === project || (workspaceConfig && workspaceMember((patterns as string[]) ?? [], key)))
-    ) {
-      const lock = pnpmLockSchema.parse(raw);
-      const importer = lock.importers[key];
-      if (!importer) throw new Error("Node adapter pnpm importer is missing");
-      return { root, lock, importer, workspacePatterns: patterns as string[] | undefined };
-    }
-    if (!workspace || dirname(root) === root) throw new Error("Node adapter pnpm lock is missing");
-  }
-};
-const readAdapterLock = async (directory: string) => {
-  const lock = pnpmLockSchema.parse(
-    JSON.parse(await readFile(join(directory, "dist", "adapter-lock.json"), "utf8")),
+const parseManifest = (raw: unknown, project = false): NodeManifest => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new Error("Node package manifest must be an object");
+  const parsed = packageManifestSchema.parse(
+    project ? { name: "unframe-project", version: "0.0.0", ...raw } : raw,
   );
-  const importer = lock.importers["."];
-  if (!importer) throw new Error("Distributed Node adapter lock is missing its importer");
-  let current = await realpath(directory);
-  let installedRoot: string | undefined;
-  for (;;) {
-    if (current.endsWith(`${sep}node_modules`)) installedRoot = dirname(current);
-    const parent = dirname(current);
-    if (parent === current) break;
-    current = parent;
+  const dependencies: Record<string, Record<string, string>> = {};
+  for (const field of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const value = parsed[field] ?? {};
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      !Object.entries(value).every(
+        ([name, range]) =>
+          /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/u.test(name) &&
+          typeof range === "string" &&
+          range.length > 0,
+      )
+    )
+      throw new Error(`Invalid Node package ${field}`);
+    dependencies[field] = value as Record<string, string>;
   }
-  const root = installedRoot ?? (await readLock(directory, true)).root;
-  return { root, lock, importer, workspacePatterns: undefined };
+  const meta = parsed.peerDependenciesMeta ?? {};
+  if (
+    !meta ||
+    typeof meta !== "object" ||
+    Array.isArray(meta) ||
+    !Object.values(meta).every(
+      (value) =>
+        value &&
+        typeof value === "object" &&
+        (!Object.hasOwn(value, "optional") ||
+          typeof (value as { optional: unknown }).optional === "boolean"),
+    )
+  )
+    throw new Error("Invalid Node peer dependency metadata");
+  return { ...parsed, ...dependencies, peerDependenciesMeta: meta } as NodeManifest;
 };
+const readManifest = async (directory: string, project = false): Promise<NodeManifest> =>
+  parseManifest(JSON.parse(await readFile(join(directory, "package.json"), "utf8")), project);
+const findInstalled = async (name: string, from: string): Promise<string | undefined> => {
+  if (!/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/u.test(name))
+    throw new Error(`Invalid Node dependency: ${name}`);
+  for (let current = from; ; current = dirname(current)) {
+    if (current.split(sep).at(-1) !== "node_modules") {
+      const candidate = join(current, "node_modules", name);
+      try {
+        return await realpath(candidate);
+      } catch (error) {
+        if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
+          throw error;
+        if (
+          await lstat(candidate).catch((e: NodeJS.ErrnoException) => {
+            if (e.code === "ENOENT" || e.code === "ENOTDIR") return undefined;
+            throw e;
+          })
+        )
+          throw new Error(`Broken installed Node dependency link: ${name}`);
+      }
+    }
+    if (dirname(current) === current) return undefined;
+  }
+};
+const checkPnp = async (directory: string) => {
+  for (let current = directory; ; current = dirname(current)) {
+    for (const name of [".pnp.cjs", ".pnp.js", ".pnp.loader.mjs"])
+      if (
+        await lstat(join(current, name)).catch((e: NodeJS.ErrnoException) => {
+          if (e.code === "ENOENT" || e.code === "ENOTDIR") return undefined;
+          throw e;
+        })
+      )
+        throw new Error("Yarn PnP is not supported; install dependencies using node_modules.");
+    if (dirname(current) === current) return;
+  }
+};
+const dependencyNames = (
+  manifest: Awaited<ReturnType<typeof readManifest>>,
+  development: boolean,
+) =>
+  Object.keys({
+    ...manifest.peerDependencies,
+    ...manifest.dependencies,
+    ...(development ? manifest.devDependencies : {}),
+    ...manifest.optionalDependencies,
+  }).sort();
+const isLinked = (directory: string) => !directory.split(sep).includes("node_modules");
 export const snapshotNodeRuntime = async (
   requestedNodePath?: string,
 ): Promise<NodeTransformSnapshot["runtime"]> => {
@@ -235,121 +264,38 @@ export const snapshotNodeTransformInputs = async (
     dependencies: Record<string, string>;
   }[] = [];
   const seen = new Map<string, string>();
-  type DependencyInput = { version: string; from: string; linkBase: string; optional: boolean };
-  const importerDependencies = (
-    importer: Awaited<ReturnType<typeof readLock>>["importer"],
-    directory: string,
-  ) =>
-    new Map(
-      Object.entries({
-        ...importer.dependencies,
-        ...importer.devDependencies,
-        ...importer.optionalDependencies,
-      }).map(([name, entry]) => [
-        name,
-        {
-          version: entry.version,
-          from: directory,
-          linkBase: directory,
-          optional: Object.hasOwn(importer.optionalDependencies, name),
-        },
-      ]),
-    );
+  await checkPnp(root);
+  const identity = async (directory: string) => {
+    const manifest = await readManifest(directory);
+    return `${manifest.name}@${manifest.version}#${digest(relative(root, directory).split(sep).join("/"))}`;
+  };
   const visit = async (
     name: string,
-    version: string,
     from: string,
-    context: Awaited<ReturnType<typeof readLock>>,
     optional = false,
-    consumer: ReadonlyMap<string, DependencyInput> = importerDependencies(context.importer, from),
-    linkBase = from,
+    consumer = from,
   ): Promise<string | undefined> => {
-    const snapshots = context.lock.snapshots;
-    const workspace = version.startsWith("link:");
-    const workspaceRoot = workspace ? resolve(linkBase, version.slice(5)) : undefined;
-    const workspaceKey = workspaceRoot
-      ? relative(context.root, workspaceRoot).split(sep).join("/") || "."
-      : undefined;
-    if (
-      workspace &&
-      (!workspaceRoot ||
-        !context.workspacePatterns ||
-        !contained(context.root, workspaceRoot) ||
-        !workspaceMember(context.workspacePatterns, workspaceKey!) ||
-        !context.lock.importers[workspaceKey!])
-    )
-      throw new Error("Node linked dependency must be a declared workspace importer");
-    let locator = workspace
-      ? `${name}@workspace:${workspaceKey}`
-      : Object.hasOwn(snapshots, `${name}@${version}`)
-        ? `${name}@${version}`
-        : version;
-    pnpmLocatorSchema.parse(locator);
-    if (!workspace && !Object.hasOwn(snapshots, locator))
-      throw new Error("Node dependency must have a fixed pnpm snapshot locator");
-    let current = from;
-    let packageRoot: string | undefined;
-    for (;;) {
-      try {
-        packageRoot = await realpath(join(current, "node_modules", name));
-        break;
-      } catch (error) {
-        if (!["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? ""))
-          throw error;
-      }
-      if (current === context.root) break;
-      const parent = dirname(current);
-      if (!contained(context.root, parent)) break;
-      current = parent;
-    }
+    const packageRoot = (await findInstalled(name, from)) ?? (await findInstalled(name, consumer));
     if (!packageRoot) {
       if (optional) return undefined;
       throw new Error(`Missing Node dependency: ${name}`);
     }
-    if (
-      workspace
-        ? packageRoot !== workspaceRoot || (await realpath(workspaceRoot!)) !== workspaceRoot
-        : !contained(join(context.root, "node_modules"), packageRoot)
-    )
-      throw new Error("Node dependency escapes installed graph");
-    const manifest = packageManifestSchema.parse(
-      JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8")),
+    const workspace = isLinked(packageRoot);
+    const files = await collectFiles(packageRoot, workspace);
+    const manifestFile = files.find((file) => file.path === "package.json");
+    if (!manifestFile) throw new Error(`Node package manifest is missing: ${packageRoot}`);
+    const manifest = parseManifest(
+      JSON.parse(Buffer.from(manifestFile.bytes, "base64").toString("utf8")),
     );
-    const nameVersion = `${manifest.name}@${manifest.version}`;
-    const baseLocator = locator.split("(")[0]!;
-    const packageRecord = context.lock.packages[baseLocator];
-    if (!workspace && !packageRecord) throw new Error("Node package is missing from pnpm lock");
-    if (
-      workspace
-        ? manifest.name !== name
-        : baseLocator !== nameVersion &&
-          !(
-            baseLocator.startsWith(`${manifest.name}@file:`) &&
-            packageRecord?.version === manifest.version
-          )
-    )
-      throw new Error(`Installed package does not match pnpm locator: ${locator}`);
-    const compatible = [manifest, ...(packageRecord ? [packageRecord] : [])].every(
-      (metadata) =>
-        supportsPlatform(metadata.os, runtime.platform) &&
-        supportsPlatform(metadata.cpu, runtime.arch) &&
-        (runtime.platform !== "linux" ||
-          supportsPlatform(metadata.libc, runtime.libc === "non-glibc" ? "musl" : "glibc")),
-    );
+    const compatible =
+      supportsPlatform(manifest.os, runtime.platform) &&
+      supportsPlatform(manifest.cpu, runtime.arch) &&
+      (runtime.platform !== "linux" ||
+        supportsPlatform(manifest.libc, runtime.libc === "non-glibc" ? "musl" : "glibc"));
     if (!compatible) {
       if (optional) return undefined;
-      throw new Error(`Node dependency does not support the locked platform: ${locator}`);
+      throw new Error(`Node dependency does not support the captured platform: ${name}`);
     }
-    const files = await collectFiles(packageRoot, workspace);
-    const integrity = workspace
-      ? `workspace-content:${digest(JSON.stringify(files))}`
-      : packageRecord?.resolution.integrity;
-    if (!integrity) throw new Error("Node package archive integrity is missing");
-    const linked = workspace ? context.lock.importers[workspaceKey!] : undefined;
-    const locked = snapshots[locator];
-    const own = workspace
-      ? importerDependencies(linked!, packageRoot)
-      : new Map<string, DependencyInput>();
     const references = workspace
       ? workspaceSourcePackageSpecifiers(
           files.map((file) => ({
@@ -358,102 +304,68 @@ export const snapshotNodeTransformInputs = async (
           })),
         )
       : [];
-    const edges = workspace
-      ? new Map(
-          [...own].filter(
-            ([dependency]) =>
-              Object.hasOwn(linked!.dependencies, dependency) ||
-              Object.hasOwn(linked!.optionalDependencies, dependency) ||
-              references.includes(dependency),
-          ),
-        )
-      : new Map(
-          Object.entries({ ...locked!.dependencies, ...locked!.optionalDependencies }).map(
-            ([dependency, version]) => [
-              dependency,
-              {
-                version,
-                from: packageRoot,
-                linkBase: context.root,
-                optional: Object.hasOwn(locked!.optionalDependencies, dependency),
-              },
-            ],
-          ),
-        );
-    if (workspace) {
-      const peers = Object.keys(manifest.peerDependencies ?? {}).sort();
-      for (const peer of peers) {
-        const input = consumer.get(peer) ?? own.get(peer);
-        if (input) edges.set(peer, input);
-      }
-      locator += peers
-        .filter((peer) => edges.has(peer))
-        .map((peer) => {
-          const input = edges.get(peer)!;
-          const identity = input.version.startsWith("link:")
-            ? `workspace:${
-                relative(context.root, resolve(input.linkBase, input.version.slice(5)))
-                  .split(sep)
-                  .join("/") || "."
-              }`
-            : input.version;
-          return `(${peer}@${identity})`;
-        })
-        .join("");
-      pnpmLocatorSchema.parse(locator);
+    const names = dependencyNames(manifest, workspace).filter(
+      (name) =>
+        !workspace ||
+        Object.hasOwn(manifest.dependencies ?? {}, name) ||
+        Object.hasOwn(manifest.optionalDependencies ?? {}, name) ||
+        Object.hasOwn(manifest.peerDependencies ?? {}, name) ||
+        references.includes(name),
+    );
+    let locator = `${manifest.name}@${manifest.version}#${digest(relative(root, packageRoot).split(sep).join("/"))}`;
+    if (Object.keys(manifest.peerDependencies ?? {}).length)
+      locator += `(consumer#${digest(relative(root, consumer).split(sep).join("/"))})`;
+    for (const peer of Object.keys(manifest.peerDependencies ?? {}).sort()) {
+      const resolved =
+        (await findInstalled(peer, packageRoot)) ?? (await findInstalled(peer, consumer));
+      if (resolved) locator += `(${peer}@${await identity(resolved)})`;
     }
-    const key = `${context.root}\0${locator}\0${packageRoot}`;
-    const previous = seen.get(key);
+    const previous = seen.get(locator);
     if (previous) return previous;
     const id = `p${packages.length}`;
-    seen.set(key, id);
+    seen.set(locator, id);
     const item = {
       id,
       locator,
-      integrity,
+      integrity: `sha256:${digest(JSON.stringify(files))}`,
       files,
       dependencies: Object.create(null) as Record<string, string>,
     };
     packages.push(item);
-    for (const [dependency, input] of [...edges].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    for (const dependency of names) {
+      const peer = Object.hasOwn(manifest.peerDependencies ?? {}, dependency);
+      const peerMeta = manifest.peerDependenciesMeta?.[dependency];
       const child = await visit(
         dependency,
-        input.version,
-        input.from,
-        context,
-        input.optional,
-        edges,
-        input.linkBase,
+        packageRoot,
+        Object.hasOwn(manifest.optionalDependencies ?? {}, dependency) ||
+          peerMeta?.optional === true,
+        peer ? consumer : packageRoot,
       );
       if (child) item.dependencies[dependency] = child;
     }
     return id;
   };
-  const context = await readLock(root, true);
+  const projectManifest = await readManifest(root, true).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") return parseManifest({}, true);
+    throw error;
+  });
   const rootDependencies: Record<string, string> = Object.create(null) as Record<string, string>;
-  const rootEdges = {
-    ...context.importer.dependencies,
-    ...context.importer.devDependencies,
-    ...context.importer.optionalDependencies,
-  };
-  for (const name of Object.keys(rootEdges).sort()) {
+  for (const name of dependencyNames(projectManifest, true)) {
     if (options.rootSpecifiers && !options.rootSpecifiers.includes(name)) continue;
     const id = await visit(
       name,
-      rootEdges[name]!.version,
       root,
-      context,
-      Object.hasOwn(context.importer.optionalDependencies, name),
+      Object.hasOwn(projectManifest.optionalDependencies ?? {}, name) ||
+        projectManifest.peerDependenciesMeta?.[name]?.optional === true,
     );
     if (id) rootDependencies[name] = id;
   }
   let adapter: NodeTransformSnapshot["adapter"];
   if (options.adapterRoot) {
     const adapterRoot = await realpath(options.adapterRoot);
-    const toolContext =
-      options.adapterDependencySnapshot || options.adapterDependencies?.length === 0
-        ? undefined
-        : await readAdapterLock(adapterRoot);
+    await checkPnp(adapterRoot);
+    const toolManifest = await readManifest(adapterRoot);
     const adapterManifest = adapterManifestSchema.parse(
       JSON.parse(await readFile(join(adapterRoot, "package.json"), "utf8")),
     );
@@ -521,11 +433,11 @@ export const snapshotNodeTransformInputs = async (
       Object.assign(item.dependencies, remap(packedAdapter.dependencies));
     } else {
       for (const name of (
-        options.adapterDependencies ?? Object.keys(toolContext!.importer.dependencies)
+        options.adapterDependencies ?? Object.keys(toolManifest.dependencies ?? {})
       ).toSorted()) {
-        const value = toolContext!.importer.dependencies[name];
-        if (!value) throw new Error(`Node adapter dependency is missing: ${name}`);
-        const dependency = await visit(name, value.version, adapterRoot, toolContext!);
+        if (!Object.hasOwn(toolManifest.dependencies ?? {}, name))
+          throw new Error(`Node adapter dependency is missing: ${name}`);
+        const dependency = await visit(name, adapterRoot);
         if (dependency) item.dependencies[name] = dependency;
       }
     }

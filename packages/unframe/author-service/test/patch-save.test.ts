@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { refreshProjectLock } from "@unframe-dev/workspace";
 import { expect, it } from "vite-plus/test";
 import { prepareAuthorSave, saveAuthorPatch } from "../src/index.js";
 import type { PatchRequest } from "@unframe-dev/contracts/author-http";
@@ -51,25 +50,6 @@ it("rejects a changed source revision before committing the prepared patch", asy
   expect(committed).toBe(false);
 });
 
-it("refreshes component and theme inputs through the workspace lock contract", () => {
-  const bytes = refreshProjectLock(
-    {
-      rootDependencies: [],
-      packages: [],
-      resolutionProfile: "browser-import-production-types-v1",
-      packageSnapshotProfile: "pnpm-lock9-locator-v1",
-      componentLocks: [],
-      themeHashes: [],
-      dependencyGraphHash: "old",
-    } as never,
-    { componentLocks: [], themeHashes: [{ themeId: "theme", hash: "sha256:fresh" }] },
-  );
-  const lock = JSON.parse(new TextDecoder().decode(bytes));
-  expect(lock.themeHashes).toEqual([{ themeId: "theme", hash: "sha256:fresh" }]);
-  expect(lock.componentLocks).toEqual([]);
-  expect(lock.dependencyGraphHash).toMatch(/^sha256:[0-9a-f]{64}$/);
-});
-
 it("prepares and commits one save only after verifying the original revision", async () => {
   const events: string[] = [];
   const saved = { revision: "next", sourceHash: "s", irHash: "i", commandId: "id" };
@@ -107,7 +87,7 @@ it("prepares and commits one save only after verifying the original revision", a
   ]);
 });
 
-it("rejects a stale request before preparing Source or changing its lock", async () => {
+it("rejects a stale request before preparing Source", async () => {
   await expect(
     prepareAuthorSave({
       source: null,
@@ -123,12 +103,8 @@ it("rejects a stale request before preparing Source or changing its lock", async
       },
       revision: "stale",
       request,
-      lock: {} as never,
       prepareSource: async () => {
         throw new Error("unexpected prepare");
-      },
-      resolveAssets: async () => {
-        throw new Error("unexpected assets");
       },
       revisionFor: async () => {
         throw new Error("unexpected revision");

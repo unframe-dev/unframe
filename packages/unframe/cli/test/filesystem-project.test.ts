@@ -15,7 +15,6 @@ const links: string[] = [];
 const project = async () => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-project-"));
   directories.push(directory);
-  await writeFile(join(directory, "unframe.lock"), "{}", "utf8");
   await writeFile(join(directory, "presentation.unframe.tsx"), "export default {}", "utf8");
   await writeFile(
     join(directory, "unframe.config.ts"),
@@ -137,7 +136,6 @@ describe("filesystem project discovery", () => {
 
   it.each([
     ["unframe.config.ts", "cli-project-discovery-missing-files"],
-    ["unframe.lock", "cli-project-discovery-missing-files"],
     ["presentation.unframe.tsx", "cli-project-discovery-invalid-entry-file"],
     ["nested/source.ts", "cli-project-discovery-source-scan-failed"],
   ])("FIFOをopenせずstable failureにする: %s", async (fileName, code) => {
@@ -158,20 +156,6 @@ describe("filesystem project discovery", () => {
       ok: true,
       projectDirectory: directory,
     });
-  });
-
-  it("lock validation前のraw bytesをdescriptor snapshot用copyとして返す", async () => {
-    const directory = await project();
-    await writeFile(join(directory, "unframe.lock"), "raw-lock", "utf8");
-    const result = await discoverPresentationProjectFiles(directory);
-    expect(result).toMatchObject({ ok: true });
-    if (result.ok) {
-      expect(new TextDecoder().decode(result.lockBytes)).toBe("raw-lock");
-      result.lockBytes[0] = 0;
-    }
-    const second = await discoverPresentationProjectFiles(directory);
-    expect(second).toMatchObject({ ok: true });
-    if (second.ok) expect(new TextDecoder().decode(second.lockBytes)).toBe("raw-lock");
   });
 
   it.each([
@@ -346,7 +330,7 @@ describe("filesystem project discovery", () => {
     await expect(discoverPresentationProjectFiles(directory)).resolves.toEqual({
       ok: false,
       code: "cli-project-discovery-missing-files",
-      message: "Project root must contain regular unframe.config.ts and unframe.lock files.",
+      message: "Project root must contain a regular unframe.config.ts file.",
     });
   });
 });
