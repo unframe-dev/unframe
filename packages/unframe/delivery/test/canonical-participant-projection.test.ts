@@ -77,6 +77,48 @@ const modelRun = (completion: "blocking" | "nonBlocking") => ({
 });
 
 describe("canonical participant projection", () => {
+  it.each(["active", "retained"] as const)(
+    "projects complete %s Effect runs only for visible Nodes",
+    (status) => {
+      const source = sourceFixture();
+      hideUnsupported(source);
+      rehash(source);
+      const snapshot = fullSnapshot();
+      snapshot.lastAllocatedRunSequence = 2;
+      snapshot.clock.runtimeTimeMilliseconds = 100;
+      const visible = {
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        owner: { kind: "presentation" as const },
+        cause: modelRun("nonBlocking").cause,
+        startedAtRuntimeTimeMilliseconds: 0,
+        effectId: "held-wave",
+        nodeId: "model",
+        seed: 42,
+        status,
+        effect: {
+          kind: "wave" as const,
+          size: 1,
+          speed: 1,
+          waveCycles: 2,
+          durationMilliseconds: status === "active" ? 200 : 100,
+          color: { red: 1, green: 0.5, blue: 0, alpha: 1 },
+        },
+      };
+      const hidden = {
+        ...structuredClone(visible),
+        runId: { assignmentEpoch: 1, runSequence: 2 },
+        effectId: "presenter-wave",
+        nodeId: "node-native",
+      };
+      snapshot.effectRuns = [visible, hidden];
+      const viewer = projectCanonicalParticipantRuntimeView(source, "viewer", snapshot, 1);
+      expect(viewer.effectRuns).toEqual([visible]);
+      const presenter = projectCanonicalParticipantRuntimeView(source, "presenter", snapshot, 1);
+      expect(presenter.effectRuns).toEqual([visible, hidden]);
+      expect(snapshot.effectRuns).toEqual([visible, hidden]);
+    },
+  );
+
   it("keeps the full visible Model run and cut while hiding Media and unused variables", () => {
     const source = sourceFixture();
     hideUnsupported(source);
