@@ -152,11 +152,11 @@ namespace Unframe.Unity.VisualEffects
                 result = recognizer.Update(new GestureSample(0.2, new Vector3(0.25f, 0, 0.2f), Vector3.zero, Vector3.forward, true));
             }
             else for (var i = 1; i <= 48 && result == null; i++)
-                {
-                    float angle = i * Mathf.PI * 2 / 48;
-                    result = recognizer.Update(new GestureSample(i / 48.0,
-                        new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * 0.2f, Vector3.zero, Vector3.forward, true));
-                }
+            {
+                float angle = i * Mathf.PI * 2 / 48;
+                result = recognizer.Update(new GestureSample(i / 48.0,
+                    new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * 0.2f, Vector3.zero, Vector3.forward, true));
+            }
             status = result == null ? "Synthetic gesture rejected with current settings." : "Synthetic gesture recognized: " + result.Kind;
             if (result != null) PlayWave();
         }

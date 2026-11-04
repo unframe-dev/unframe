@@ -151,8 +151,14 @@ namespace Unframe.Unity.VisualEffects.Gestures
             if (!recognized) return null;
             var result = new GestureRecognition
             {
-                Kind = kind, Hand = hand, StartedAtSeconds = startedAt, RecognizedAtSeconds = sample.TimeSeconds,
-                Position = sample.HandPosition, Direction = forward, ForwardSpeed = speed, CircleRadius = radius,
+                Kind = kind,
+                Hand = hand,
+                StartedAtSeconds = startedAt,
+                RecognizedAtSeconds = sample.TimeSeconds,
+                Position = sample.HandPosition,
+                Direction = forward,
+                ForwardSpeed = speed,
+                CircleRadius = radius,
             };
             Cancel();
             return result;
