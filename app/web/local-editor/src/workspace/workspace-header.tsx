@@ -12,6 +12,7 @@ import {
 import { useWorkspace } from "../app/workspace-provider";
 import { Button } from "../ui/button";
 import { saveTheme } from "../ui/theme";
+import brandIconUrl from "../ui/brand/icon.svg?url";
 export function WorkspaceHeader() {
   const w = useWorkspace();
   const theme = useStore(w.ui, (s) => s.theme);
@@ -20,8 +21,11 @@ export function WorkspaceHeader() {
   return (
     <header className="workspace-header">
       <div className="brand">
-        <span className="brand-mark">u</span>
-        <h1>{w.readOnly ? "Unframe Dist Preview" : "Unframe"}</h1>
+        <img className="brand-mark" src={brandIconUrl} alt="" width={24} height={24} />
+        <h1>
+          <span className="brand-wordmark">Unframe</span>
+          {w.readOnly && <span className="brand-role">Dist Preview</span>}
+        </h1>
       </div>
       <div className="channel-switch" role="group" aria-label="Preview チャンネル">
         {!w.readOnly && (

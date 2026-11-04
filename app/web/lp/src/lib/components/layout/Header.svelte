@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ArrowUpRight, Menu, X } from "@lucide/svelte";
   import AnimatedIcon from "../AnimatedIcon.svelte";
+  import Wordmark from "../brand/Wordmark.svelte";
   import Button from "../ui/Button.svelte";
 
   let menuOpen = $state(false);
@@ -16,12 +17,12 @@
 <header class="absolute inset-x-0 top-0 z-30">
   <div class="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-6 sm:px-10 lg:px-14">
     <a
-      class="group inline-flex items-center gap-3"
+      class="group inline-flex items-center gap-[0.17em] text-[2.25rem] leading-none"
       href="/"
       aria-label="Unframe home"
     >
-      <AnimatedIcon size="2rem" duration="700ms" />
-      <span class="font-display text-[1.7rem] font-light tracking-[-0.065em] text-night">Unframe</span>
+      <AnimatedIcon size="0.78em" duration="700ms" />
+      <Wordmark />
     </a>
 
     <nav class="hidden items-center gap-5 md:flex" aria-label="Main navigation">

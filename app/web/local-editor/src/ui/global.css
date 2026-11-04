@@ -1,5 +1,13 @@
 @import "tailwindcss";
 @import "./tokens.css";
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("./brand/Poppins-Light.woff2") format("woff2");
+}
 * {
   box-sizing: border-box;
 }
@@ -150,26 +158,40 @@ a {
 }
 .brand {
   display: flex;
-  gap: 9px;
+  gap: 0.17em;
+  font-size: 26px;
   align-items: center;
   margin-right: 20px;
 }
 .brand h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: inherit;
+}
+.brand-wordmark {
+  color: #2a2a2a;
+  font-family: "Poppins", sans-serif;
+  font-size: inherit;
+  font-weight: 300;
+  font-synthesis: none;
+  letter-spacing: 0.098em;
+  line-height: 1;
+}
+.brand-role {
+  color: var(--muted);
   font-size: 14px;
-  font-weight: 650;
-  letter-spacing: -0.4px;
+  font-weight: 400;
 }
 .brand-mark {
-  display: grid;
-  place-items: center;
-  background: var(--text);
-  color: var(--panel);
-  height: 24px;
-  width: 24px;
-  font-size: 20px;
-  font-weight: 700;
-  border-radius: 6px;
-  line-height: 1;
+  flex: none;
+  height: 0.78em;
+  width: 0.78em;
+  object-fit: contain;
+}
+[data-theme="dark"] .brand-wordmark {
+  color: #fff;
 }
 .channel-switch {
   display: flex;
@@ -821,10 +843,16 @@ code {
     padding: 8px;
   }
 }
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .brand h1 {
     display: none;
   }
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+}
+@media (max-width: 600px) {
   .workspace-header .button {
     padding: 4px;
   }

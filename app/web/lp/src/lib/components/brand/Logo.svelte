@@ -1,5 +1,6 @@
 <script lang="ts">
   import iconUrl from "#lib/assets/brand/icon.svg?url";
+  import Wordmark from "./Wordmark.svelte";
 
   let { compact = false, class: className = "" }: {
     compact?: boolean;
@@ -8,7 +9,7 @@
 </script>
 
 <a
-  class={`group inline-flex items-center gap-3 ${className}`}
+  class={`group inline-flex items-center gap-[0.17em] text-[2.25rem] leading-none ${className}`}
   href="/"
   aria-label="Unframe home"
 >
@@ -17,9 +18,9 @@
     alt=""
     width="34"
     height="34"
-    class="h-8 w-8 object-contain transition duration-300 group-hover:rotate-6"
+    class="h-[0.78em] w-[0.78em] shrink-0 object-contain transition duration-300 group-hover:rotate-6"
   />
   {#if !compact}
-    <span class="font-display text-[1.7rem] font-light tracking-[-0.065em] text-night">Unframe</span>
+    <Wordmark />
   {/if}
 </a>

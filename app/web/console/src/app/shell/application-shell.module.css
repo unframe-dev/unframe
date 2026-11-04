@@ -51,9 +51,11 @@
 .brand {
   min-width: 0;
 }
+.sidebarBrand .brand {
+  font-size: 1.75rem;
+}
 .sidebarBrand .brand > span:last-child {
   overflow: hidden;
-  font-size: 1.45rem;
   text-overflow: clip;
 }
 .sidebarAccount {
@@ -266,6 +268,10 @@
   }
   .sidebar[data-collapsed="true"] .brand {
     gap: 0;
+  }
+  .sidebar[data-collapsed="true"] .brand > span:first-child {
+    width: 34px;
+    height: 34px;
   }
   .sidebar[data-collapsed="true"] .brand > span:last-child,
   .sidebar[data-collapsed="true"] .title,

@@ -109,6 +109,12 @@ LP の neutral background、濃い foreground、細い line、Blue / Red のブ�
 
 ### Typography
 
+ブランド名のワードマークは、同梱した Poppins Light（weight `300`）、字間 `0.098em`（Canva の文字間隔 `98`）、文字色 `#2A2A2A` を使います。本文や UI ラベルのフォントとは分けて扱います。
+
+アイコンと文字を並べる場合は、文字サイズに対してアイコンを `0.78em`、間隔を `0.17em` とします。折り畳み時のアイコン単独表示は `34px` を使います。
+
+ブランド名の文字サイズは通常 `2.25rem`、サイドバーでは `1.75rem` とします。
+
 ```css
 "Inter", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif
 ```

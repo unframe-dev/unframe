@@ -9,19 +9,13 @@
   align-items: center;
 }
 .audience-stage--permission,
-.audience-stage--ended {
-  background: var(--audience-surface);
-}
+.audience-stage--ended,
 .audience-stage--sdk,
 .audience-stage--error {
-  background: #17181c55;
+  background: var(--audience-surface);
 }
 .audience-stage__topbar {
   max-width: 1152px;
-}
-.audience-stage--sdk .audience-brand,
-.audience-stage--error .audience-brand {
-  color: #fff;
 }
 .audience-stage__topbar .audience-stage__menu-trigger {
   color: #17181c;
