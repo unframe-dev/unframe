@@ -63,7 +63,7 @@ describe("M3D Runtime projection and canonical snapshot", () => {
     );
     current.effectRuns[0]!.status = "retained";
     expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toEqual([]);
-    current.effectRuns[0]!.effect.speed = Number.MIN_VALUE;
+    current.effectRuns[0]!.effect.speed = 2 ** -149;
     expect(validateM3dCueRuntimeSnapshot(definition, current, 1)).toContain(
       "Effect Run deadline exceeds the safe integer range.",
     );
