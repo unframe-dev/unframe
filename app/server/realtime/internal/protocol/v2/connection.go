@@ -89,6 +89,14 @@ func (cursor *ConnectionCursor) ApplyReliable(event *realtimev2.ProjectedReliabl
 		}
 		cursor.minimumStateCut = event.Sequence
 	}
+	if changed := event.GetPresentationOriginChanged(); changed != nil {
+		if cursor.fence.PresentationOriginVersion == ^uint64(0) || changed.Origin.Version != cursor.fence.PresentationOriginVersion+1 {
+			return fmt.Errorf("publication_fence_mismatch: origin transition")
+		}
+		cursor.fence.PresentationOriginVersion = changed.Origin.Version
+		cursor.minimumStateCut = event.Sequence
+		cursor.stateSequence = 0
+	}
 	if event.GetRuntimeStatusChanged() != nil {
 		cursor.minimumStateCut = event.Sequence
 	}
