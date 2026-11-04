@@ -125,9 +125,7 @@ describe("local Preview Runtime Core playback", () => {
     });
     const initial = playback({ requestId, command: "poll" });
     expect(initial.inputs).toEqual([{ cueId: "continue", label: "continue" }]);
-    expect(() => playback({ requestId, command: "input", cueId: "continue" })).toThrow(
-      "not currently executable",
-    );
+    expect(initial.state.clock).toEqual({ runtimeTimeMs: "0", paused: { reason: 8 } });
     playback({ requestId, command: "play" });
     const started = playback({ requestId, command: "input", cueId: "continue" });
     expect(

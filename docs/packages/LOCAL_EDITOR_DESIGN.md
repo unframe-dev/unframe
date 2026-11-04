@@ -87,7 +87,7 @@ Delivery は従来どおり `verifyPublicationIntegrity` を通し、共通結�
 
 Delivery は描画 catalog・素材・fence を提供し、本番の Node／Surface の現在状態は割り当て済み Runtime Core の `ConnectionSnapshot` から取得する。本番 Adapter は Session／Publication／profile／assignment fence と Snapshot の sequence を検証してから共通 renderer に状態を渡す。復旧・進行済み Snapshot を Definition の宣言初期値へ戻さない。
 
-描画の role は viewer、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。読み込み直後は一時停止し、再生操作まで Cue／timer は進行させない。catalog に含まれても現在の表示状態に存在しない Group-owned ノードは inactive とする。
+描画の role は viewer、capability は Web Preview の実装済み機能を表す固定 profile とする。初期 Group と Surface State は Definition の宣言値を使い、Node の active／visible／opacity／local Transform を Core の初期化規則に従って生成する。読み込み直後は一時停止し、再生操作まで時計・timer・Timeline の自動進行を停止する。catalog に含まれても現在の表示状態に存在しない Group-owned ノードは inactive とする。
 
 ### ローカル再生
 
