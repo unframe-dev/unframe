@@ -2,6 +2,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
+using ProtoVector3 = Unframe.Presentation.Vector3;
 
 public sealed class AprilTagPresentationCalibrationTests
 {
@@ -51,17 +52,17 @@ public sealed class AprilTagPresentationCalibrationTests
             head.transform.SetPositionAndRotation(Vector3.up * 2.4f, Quaternion.Euler(0, 100, 0));
             bridge.BeginSession("first");
             var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-            var command = bridge.Placement.Prepare(initial, 3);
+            var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(1.5f).Within(0.00001f));
             Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
             bridge.BeginSession("second");
             Assert.That(bridge.Calibration.IsValid, Is.False);
             Assert.That(alignment.IsConfirmed, Is.False);
-            Assert.That(bridge.Placement.Prepare(initial, 3), Is.Null);
+            Assert.That(bridge.Placement.Prepare(initial, 3, new ProtoVector3()), Is.Null);
             Confirm(marker);
             bridge.Refresh();
-            command = bridge.Placement.Prepare(initial, 3);
+            command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
             Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
@@ -84,19 +85,19 @@ public sealed class AprilTagPresentationCalibrationTests
             Confirm(Pose.identity);
             bridge.Refresh();
             var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-            var old = bridge.Placement.Prepare(initial, 3);
+            var old = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(old, Is.Not.Null);
             if (invalidation == "tracking-frame") { origin.transform.position += Vector3.right; bridge.Refresh(); }
             if (invalidation == "source-reset") alignment.ResetAlignment("reset");
             if (invalidation == "disable") { bridge.enabled = false; Invoke(bridge, "OnDisable"); bridge.enabled = true; Invoke(bridge, "OnEnable"); }
             if (invalidation == "external-invalidation") bridge.Calibration.Invalidate("recentered");
-            Assert.That(bridge.Placement.Prepare(initial, 3), Is.Null, "Invalidated coordinates cannot retain a pending placement command.");
+            Assert.That(bridge.Placement.Prepare(initial, 3, new ProtoVector3()), Is.Null, "Invalidated coordinates cannot retain a pending placement command.");
             initial.Version = 1;
             head.transform.position = Vector3.up * 2.4f;
             var marker = new Pose(new Vector3(2, 0.6f, -1), Quaternion.Euler(20, 40, 10));
             Confirm(marker);
             bridge.Refresh();
-            var command = bridge.Placement.Prepare(initial, 3);
+            var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(command.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));

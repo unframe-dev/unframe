@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using ProtoPose = Unframe.Presentation.Pose;
+using ProtoVector3 = Unframe.Presentation.Vector3;
 
 public sealed class PresentationCalibrationTests
 {
@@ -13,8 +14,9 @@ public sealed class PresentationCalibrationTests
     {
         var marker = new Pose(new Vector3(3, markerHeight, -4), Quaternion.Euler(markerPitch, 47, 0));
         var head = new Pose(Vector3.up * 1.8f, Quaternion.Euler(0, 63, 0) * Quaternion.Euler(30, 0, 18));
+        var reference = new ProtoVector3 { X = .25, Y = 2.15, Z = -2.5 };
         var original = QuestPresentationTracking.ToCanonicalPose(new Vector3(0.6f, 0.2f, -0.4f), Quaternion.Euler(12, 25, 3));
-        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, original, out ProtoPose corrected), Is.True);
+        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, original, reference, out ProtoPose corrected), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(original, out Pose before), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(corrected, out Pose after), Is.True);
         Vector3 oldWorld = marker.position + marker.rotation * before.position;
@@ -24,7 +26,7 @@ public sealed class PresentationCalibrationTests
         Assert.That(world.x, Is.EqualTo(oldWorld.x).Within(0.00001f));
         Assert.That(world.z, Is.EqualTo(oldWorld.z).Within(0.00001f));
         Assert.That(Quaternion.Angle(stageRotation, marker.rotation * before.rotation), Is.LessThan(0.02f));
-        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, corrected, out ProtoPose repeated), Is.True);
+        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, corrected, reference, out ProtoPose repeated), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(repeated, out Pose repeatedPose), Is.True);
         Assert.That(Vector3.Distance(repeatedPose.position, after.position), Is.LessThan(0.00001f));
     }
@@ -36,7 +38,7 @@ public sealed class PresentationCalibrationTests
         var head = new Pose(Vector3.up, Quaternion.Euler(pitch, 90, 0));
         var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
 
-        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(Pose.identity, head, initial, out var corrected), Is.True);
+        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(Pose.identity, head, initial, new ProtoVector3(), out var corrected), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(corrected, out Pose stage), Is.True);
         Assert.That(Quaternion.Angle(stage.rotation, Quaternion.identity), Is.LessThan(0.00001f));
         Assert.That(stage.position.y, Is.EqualTo(.7f).Within(.00001f));
@@ -49,7 +51,7 @@ public sealed class PresentationCalibrationTests
         state.Capture(Pose.identity, new Pose(Vector3.up, Quaternion.identity));
         var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
 
-        var command = state.Prepare(initial, 4);
+        var command = state.Prepare(initial, 4, null);
         Assert.That(command, Is.Not.Null);
         Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(.7f).Within(.00001f));
         Assert.That(state.IsConfirmed, Is.False);
@@ -63,7 +65,7 @@ public sealed class PresentationCalibrationTests
         var marker = new Pose(new Vector3(3, height, -4), Quaternion.Euler(72, 47, 18));
         var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
         var head = new Pose(new Vector3(-8, 1.8f, 9), Quaternion.Euler(35, -90, 24));
-        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, initial, out var corrected), Is.True);
+        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, initial, new ProtoVector3 { Y = 2.15 }, out var corrected), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(corrected, out Pose pose), Is.True);
         Vector3 worldPosition = marker.position + marker.rotation * pose.position;
         Assert.That(Vector3.Distance(worldPosition, new Vector3(3, 1.5f, -4)), Is.LessThan(.00001f));
@@ -78,12 +80,12 @@ public sealed class PresentationCalibrationTests
         state.BeginSession("session-a");
         state.Capture(new Pose(Vector3.up, Quaternion.identity), new Pose(Vector3.up * 2.2f, Quaternion.identity));
         var origin = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-        var command = state.Prepare(origin, 4);
+        var command = state.Prepare(origin, 4, new ProtoVector3());
         Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(1.5f).Within(0.00001f));
         Assert.That(command.PresentationOrigin.ExpectedPresentationOriginVersion, Is.Zero);
         Assert.That(state.IsConfirmed, Is.False);
         command.PresentationOrigin.Pose.Position.Y = 9;
-        var retry = state.Prepare(origin, 5);
+        var retry = state.Prepare(origin, 5, new ProtoVector3());
         Assert.That(retry.PresentationOrigin.ClientEventId, Is.EqualTo(command.PresentationOrigin.ClientEventId));
         Assert.That(retry.PresentationOrigin.CommandEpoch, Is.EqualTo(4));
         Assert.That(retry.PresentationOrigin.Pose.Position.Y, Is.EqualTo(1.5f).Within(0.00001f));
@@ -99,7 +101,7 @@ public sealed class PresentationCalibrationTests
         Assert.That(state.Confirm(accepted, 10, 3, 7, true), Is.True);
         state.Capture(Pose.identity, new Pose(Vector3.up * 2.5f, Quaternion.identity));
         Assert.That(state.IsConfirmed, Is.True);
-        Assert.That(state.Prepare(origin, 5), Is.Null);
+        Assert.That(state.Prepare(origin, 5, new ProtoVector3()), Is.Null);
     }
 
     [Test]
@@ -108,7 +110,7 @@ public sealed class PresentationCalibrationTests
         var state = new PresenterOriginPlacement();
         state.Capture(Pose.identity, new Pose(Vector3.up * 1.8f, Quaternion.identity));
         var origin = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-        var command = state.Prepare(origin, 4);
+        var command = state.Prepare(origin, 4, new ProtoVector3());
         var outcome = new Unframe.Realtime.CommandOutcome
         {
             ClientEventId = command.PresentationOrigin.ClientEventId,
@@ -124,12 +126,12 @@ public sealed class PresentationCalibrationTests
         var state = new PresenterOriginPlacement();
         state.Capture(Pose.identity, new Pose(Vector3.up * 1.8f, Quaternion.identity));
         var origin = new Unframe.Realtime.PresentationOrigin { Version = 3, Pose = QuestPresentationTracking.ToCanonicalPose(new Vector3(1, 2, 3), Quaternion.identity) };
-        Assert.That(state.Prepare(origin, 4), Is.Null);
+        Assert.That(state.Prepare(origin, 4, new ProtoVector3()), Is.Null);
         Assert.That(state.IsConfirmed, Is.True);
         state.RequestPlacement();
-        Assert.That(state.Prepare(origin, 4), Is.Null);
+        Assert.That(state.Prepare(origin, 4, new ProtoVector3()), Is.Null);
         state.Capture(Pose.identity, new Pose(Vector3.up * 2.1f, Quaternion.identity));
-        var command = state.Prepare(origin, 4).PresentationOrigin;
+        var command = state.Prepare(origin, 4, new ProtoVector3()).PresentationOrigin;
         Assert.That(command.ExpectedPresentationOriginVersion, Is.EqualTo(3));
         Assert.That(command.Pose.Position.X, Is.EqualTo(1));
         Assert.That(command.Pose.Position.Y, Is.EqualTo(1.8f).Within(0.00001f));
@@ -145,12 +147,12 @@ public sealed class PresentationCalibrationTests
         if (explicitPlacement) state.RequestPlacement();
         state.Capture(Pose.identity, new Pose(Vector3.up * 1.8f, Quaternion.identity));
         var origin = new Unframe.Realtime.PresentationOrigin { Version = explicitPlacement ? 2ul : 0ul, Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-        var old = state.Prepare(origin, 4);
+        var old = state.Prepare(origin, 4, new ProtoVector3());
         Assert.That(state.Reject(old.PresentationOrigin.ClientEventId), Is.True);
         origin.Version = 3;
-        Assert.That(state.Prepare(origin, 4), Is.Null);
+        Assert.That(state.Prepare(origin, 4, new ProtoVector3()), Is.Null);
         state.Capture(Pose.identity, new Pose(Vector3.up * 2.4f, Quaternion.identity));
-        var retry = state.Prepare(origin, 4);
+        var retry = state.Prepare(origin, 4, new ProtoVector3());
         Assert.That(retry.PresentationOrigin.ExpectedPresentationOriginVersion, Is.EqualTo(3));
         Assert.That(retry.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
         Assert.That(retry.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(0.00001f));
@@ -165,16 +167,16 @@ public sealed class PresentationCalibrationTests
         state.RequestPlacement();
         state.Capture(Pose.identity, new Pose(Vector3.up * 1.8f, Quaternion.identity));
         var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-        var old = state.Prepare(initial, 4);
+        var old = state.Prepare(initial, 4, new ProtoVector3());
         Assert.That(state.BeginSession("b"), Is.True);
-        Assert.That(state.Prepare(initial, 4), Is.Null);
+        Assert.That(state.Prepare(initial, 4, new ProtoVector3()), Is.Null);
         Assert.That(state.Confirm(new Unframe.Realtime.CommandOutcome { ClientEventId = old.PresentationOrigin.ClientEventId, Accepted = new Unframe.Realtime.CommandAccepted { ReliableSequence = 1 } }, 1, 1, 5, true), Is.False);
         state.Capture(Pose.identity, new Pose(Vector3.up * 2.2f, Quaternion.identity));
-        Assert.That(state.Prepare(initial, 4).PresentationOrigin.Pose.Position.Y, Is.EqualTo(1.9f).Within(0.00001f));
+        Assert.That(state.Prepare(initial, 4, new ProtoVector3()).PresentationOrigin.Pose.Position.Y, Is.EqualTo(1.9f).Within(0.00001f));
         state.BeginSession("c");
         state.Capture(Pose.identity, new Pose(Vector3.up * 2.4f, Quaternion.identity));
         initial.Version = 3;
-        Assert.That(state.Prepare(initial, 4), Is.Null);
+        Assert.That(state.Prepare(initial, 4, new ProtoVector3()), Is.Null);
         Assert.That(state.IsConfirmed, Is.True);
     }
 

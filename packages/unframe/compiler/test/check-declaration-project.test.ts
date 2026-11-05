@@ -132,10 +132,13 @@ const codes = (value: unknown) => {
 };
 
 describe("checkDeclarationProject", () => {
-  it("rejects content-relative placement in the Stage declaration", () => {
+  it("preserves the authored Stage placement reference in the canonical Definition", () => {
     const input = project();
-    Object.assign(input.presentation.stage, { placementReferencePoint: [1, 2.5, -3] });
-    expect(checkDeclarationProjectWithFixtureBytes(input).valid).toBe(false);
+    input.presentation.stage.placementReferencePoint = [1, 2.5, -3];
+    const result = checkDeclarationProjectWithFixtureBytes(input);
+    expect(result.valid && result.value.definition.stage.placementReferencePoint).toEqual([
+      1, 2.5, -3,
+    ]);
   });
 
   it("lowers named logical inputs with Presenter authority", () => {

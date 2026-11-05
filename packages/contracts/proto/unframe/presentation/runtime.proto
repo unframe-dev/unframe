@@ -366,8 +366,8 @@ message ProjectedRuntimeCatalog {
   reserved 7;
   reserved "motion_guides";
   PresenterRecognitionCatalog presenter_recognition = 8;
-  reserved 9;
-  reserved "placement_reference_point";
+  // Stage-local center used by Presenter placement. Included in Delivery catalogs.
+  optional Vector3 placement_reference_point = 9;
 }
 
 enum EffectKind {

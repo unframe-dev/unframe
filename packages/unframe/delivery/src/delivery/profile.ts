@@ -5,6 +5,7 @@ import type {
   ProjectionProfileDescriptorWire,
   ProjectedRuntimeCatalogWire,
 } from "@unframe-dev/contracts/presentation/wire-types";
+import { resolvePlacementReferencePoint } from "@unframe-dev/artifacts";
 import { calculateProjectionProfileId } from "./profile-identity.js";
 import {
   selectDeliveryArtifactsParsed,
@@ -407,6 +408,7 @@ const runtimeCatalog = (
 
   return {
     catalogContractVersion: 3,
+    placementReferencePoint: vec3(resolvePlacementReferencePoint(definition, bundle)),
     nodes,
     surfaces,
     variables,

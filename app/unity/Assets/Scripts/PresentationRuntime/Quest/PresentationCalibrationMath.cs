@@ -1,12 +1,14 @@
 using System;
 using UnityEngine;
 using ProtoPose = Unframe.Presentation.Pose;
+using ProtoVector3 = Unframe.Presentation.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {
     public static class PresentationCalibrationMath
     {
-        public static bool TryPresenterOrigin(Pose worldFromMarker, Pose worldFromHead, ProtoPose current, out ProtoPose corrected)
+        public static bool TryPresenterOrigin(Pose worldFromMarker, Pose worldFromHead, ProtoPose current,
+            ProtoVector3 placementReferencePoint, out ProtoPose corrected)
         {
             corrected = null;
             if (!ValidPose(worldFromMarker) || !ValidPose(worldFromHead)

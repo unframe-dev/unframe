@@ -9,6 +9,7 @@ import { materializeCompletedSemanticTree } from "@unframe-dev/presentation";
 import { resolveStructuredLayout, type LogicalRect } from "@unframe-dev/presentation";
 import { diagnostic, pathSegment, sorted } from "@unframe-dev/presentation/validation";
 import { validatePresentationDefinition } from "@unframe-dev/presentation";
+import { PlacementReferenceError, resolvePlacementReferencePoint } from "./placement-reference.js";
 import { validateRenderBundle } from "./render-bundle.js";
 
 const sameSet = (left: Iterable<string>, right: Iterable<string>) => {
@@ -301,6 +302,17 @@ export const validatePresentationArtifacts = (
   }
 
   if (diagnostics.length > 0) return { valid: false, diagnostics: sorted(diagnostics) };
+  try {
+    resolvePlacementReferencePoint(definitionResult.value, bundleResult.value);
+  } catch (error) {
+    if (!(error instanceof PlacementReferenceError)) throw error;
+    return {
+      valid: false,
+      diagnostics: [
+        diagnostic("artifact.invalid", "/stage/placementReferencePoint", error.message),
+      ],
+    };
+  }
   return {
     valid: true,
     value: { definition: definitionResult.value, renderBundle: bundleResult.value },

@@ -619,6 +619,7 @@ export const presentationDefinitionSchema = z.strictObject({
   presentationId: idSchema,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({
+    placementReferencePoint: vector3Schema.optional(),
     coordinateSystem: z.strictObject({
       unit: z.literal("meter"),
       handedness: z.literal("right"),

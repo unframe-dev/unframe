@@ -92,7 +92,7 @@ const project = (scene: ReturnType<typeof item>[]) => ({
 });
 
 describe("Opaque React lowering", () => {
-  it("rejects content-relative placement in React scenes", () => {
+  it("preserves the authored Stage placement reference for React scenes", () => {
     const input = project([item("brand")]);
     const result = checkDeclarationProject({
       ...input,
@@ -101,7 +101,8 @@ describe("Opaque React lowering", () => {
         stage: { ...input.presentation.stage, placementReferencePoint: [0, 1.5, -3] },
       },
     });
-    expect(result.valid).toBe(false);
+    assert.isTrue(result.valid);
+    expect(result.value.definition.stage.placementReferencePoint).toEqual([0, 1.5, -3]);
   });
 
   it.each([false, true])(

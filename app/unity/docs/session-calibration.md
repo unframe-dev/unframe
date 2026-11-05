@@ -34,7 +34,7 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 
 原点がすでに設定された Session への参加・再接続では既存の共有配置を使います。再計算は Presenter の明示的な「再配置」でマーカーを測定し直したときに行います。頭部移動、マーカーの一時的な消失、tracking 復旧に伴う端末の再校正では共有配置を変更しません。Viewer は自分の高さから補正を計算しません。
 
-この版では旧 `stage.placementReferencePoint` と Delivery catalog の配置基準点を廃止しています。Source から旧フィールドを削除して再ビルド・再公開してください。catalog の変更で profile ID が変わるため、選択済みの既存 Session も作り直します。Realtime、Control Plane、Quest / Audience の更新を揃えてから使用してください。配置のために Stage 固定 Model の静的 bounds や明示基準点を要求することはありません。
+`stage.placementReferencePoint` と Delivery catalog の配置基準点は契約上保持しますが、Quest の高さ補正では参照しません。ビルド・公開時の既存の配置基準点・モデル bounds の検証は変更していません。今回の修正による契約変更、資料の再公開、Session の作り直しは不要です。確定済みの共有配置を新しい高さ補正で更新する場合は、Presenter が「再配置」を行います。
 
 更新には期待する原点 version と command ID を付けます。通信失敗時は同じ command を再送し、原点 version の競合時は Snapshot を再取得してマーカーの再測定を要求します。校正が無効になった場合も未確定の計測値と command を破棄します。共有原点は Reliable Event と Snapshot で配信され、途中参加・再接続でも復元します。原点更新後はローカル状態への反映と新しい cut の `StateReady`、Presenter の入力同期の完了を待ちます。通常の原点更新では `CommandEpoch` は増えません。Tracking は原点 version を付けて送り、サーバーが共有原点の逆変換で Stage 座標へ変換します。pause 中の凍結 Anchor も物理位置を維持する座標へ変換し直して配信します。
 

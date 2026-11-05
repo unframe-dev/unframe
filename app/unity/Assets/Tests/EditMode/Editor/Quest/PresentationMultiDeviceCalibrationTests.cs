@@ -106,8 +106,10 @@ public sealed class PresentationMultiDeviceCalibrationTests
             Assert.That(PresentationContractJsonFixtureLoader.TryParseControlItem(PresentationTestFixtures.Load("LocalSnapshot").text,
                 out ControlServerItem snapshot, out error), Is.True, error);
             var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+            delivery.ProjectionProfile.RuntimeCatalog.PlacementReferencePoint = new Unframe.Presentation.Vector3 { X = .25, Y = 2.15, Z = .5 };
             var head = new Pose(Vector3.up * 1.8f, Quaternion.Euler(20, 45, 0));
-            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(physicalMarker, head, initial, out var origin), Is.True);
+            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(physicalMarker, head, initial,
+                delivery.ProjectionProfile.RuntimeCatalog.PlacementReferencePoint, out var origin), Is.True);
             snapshot.ConnectionSnapshot.Fence.PresentationOriginVersion = 1;
             snapshot.ConnectionSnapshot.Snapshot.RuntimeView.PresentationOrigin = new PresentationOrigin { Version = 1, Pose = origin.Clone() };
             for (int index = 0; index < frames.Length; index++)
@@ -137,7 +139,8 @@ public sealed class PresentationMultiDeviceCalibrationTests
             AssertPhysicalOrigin(runtimes[1], frames[1], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
 
             var newHead = new Pose(Vector3.up * 2.3f, Quaternion.Euler(30, 75, 0));
-            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(markers[0], newHead, origin, out var replacement), Is.True);
+            Assert.That(PresentationCalibrationMath.TryPresenterOrigin(markers[0], newHead, origin,
+                stores[0].Catalog.PlacementReferencePoint, out var replacement), Is.True);
             var changed = new ControlServerItem
             {
                 ReliableEvent = new ProjectedReliableEvent

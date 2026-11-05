@@ -44,12 +44,12 @@ describe("static Model artifacts", () => {
     expect(validatePresentationArtifacts(definition, renderBundle)).toMatchObject({ valid: true });
   });
 
-  it("accepts a Stage model without content bounds for origin-based placement", () => {
+  it("rejects a Stage model without static bounds at artifact validation", () => {
     const { definition, renderBundle } = makeStaticModelArtifacts();
     delete renderBundle.models["model-asset"]!.defaultSceneBounds;
     expect(validatePresentationArtifacts(definition, renderBundle)).toMatchObject({
-      valid: true,
-      diagnostics: [],
+      valid: false,
+      diagnostics: [{ path: ["stage", "placementReferencePoint"] }],
     });
   });
 
