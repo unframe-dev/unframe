@@ -7,7 +7,7 @@ import { afterAll, afterEach, assert, beforeAll, expect, it, vi } from "vite-plu
 import type { AuthorService } from "@unframe-dev/author-service";
 import { encodeRgbaToPng } from "@unframe-dev/media-node";
 import { createAuthorService } from "../src/author/service.js";
-import { acquireSourceLock } from "@unframe-dev/workspace-node";
+import { acquireSourceLock, discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
@@ -29,12 +29,12 @@ afterEach(async () => {
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
 });
-const project = async () => {
+const project = async (options: Parameters<typeof createAuthorService>[1] = {}) => {
   const directory = await mkdtemp(join(temporaryDirectory(), "unframe-author-cache-"));
   directories.push(directory);
   await copyProjectFixture(reference, directory);
   await writeFile(join(directory, "theme.css"), "body {}\n");
-  const service = await createAuthorService(directory);
+  const service = await createAuthorService(directory, options);
   services.push(service);
   return { directory, service };
 };
@@ -54,6 +54,30 @@ it("reuses the successful analysis for an unchanged project without reading comp
   expect(initialReads).toBeGreaterThan(0);
   const second = await service.project();
   expect(second).toEqual(first);
+  expect(libraryReads()).toBe(initialReads);
+}, 30_000);
+
+it("passes the successful prepared inputs to a build without reading compiler libraries again", async () => {
+  let reused = false;
+  const { service, directory } = await project({
+    run: async ({ host }) => {
+      assert(host?.prepareInputs);
+      const found = await discoverPresentationProjectFiles(directory);
+      assert(found.ok);
+      const result = await host.prepareInputs(found);
+      assert(result.ok);
+      expect(result.value.source.entryFile).toBe(found.entryFile);
+      reused = true;
+      return { exitCode: 1, stdout: "", stderr: "stop after preparing inputs" };
+    },
+  });
+  const libraryReads = observeTypeLibraryReads();
+  const snapshot = await service.project();
+  const initialReads = libraryReads();
+  expect(initialReads).toBeGreaterThan(0);
+  const job = await service.build(snapshot.revision, "a".repeat(32));
+  await expect.poll(async () => (await service.job(job.buildId)).status).toBe("failed");
+  expect(reused).toBe(true);
   expect(libraryReads()).toBe(initialReads);
 }, 30_000);
 

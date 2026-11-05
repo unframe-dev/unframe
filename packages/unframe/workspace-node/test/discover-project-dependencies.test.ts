@@ -1,12 +1,19 @@
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, assert, expect, it } from "vite-plus/test";
+import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { createProjectRevision } from "@unframe-dev/workspace";
-import { discoverPresentationProjectFiles } from "../src/index.js";
+import {
+  acquireSourceLock,
+  discoverPresentationProjectFiles,
+  readPresentationProjectRevision,
+} from "../src/index.js";
+
+import { NativeFilesystem } from "../src/native-filesystem.js";
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
@@ -122,4 +129,125 @@ it("reports missing installed dependencies without installing them", async () =>
     ok: false,
     code: "cli-project-dependency-input-invalid",
   });
+});
+
+it("reads the same revision without loading installed package content snapshots", async () => {
+  const directory = await project();
+  const dependency = join(directory, "node_modules/example");
+  await mkdir(dependency, { recursive: true });
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({ dependencies: { example: "1.0.0" } }),
+  );
+  await writeFile(join(directory, "presentation.ts"), 'import "example"; export default {};');
+  await writeFile(
+    join(dependency, "package.json"),
+    JSON.stringify({ name: "example", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFile(join(dependency, "index.js"), "export const value = 1;");
+  const found = await discoverPresentationProjectFiles(directory);
+  assert(found.ok);
+  const reads = vi.spyOn(NativeFilesystem.prototype, "checkedRead");
+  expect(await readPresentationProjectRevision(directory)).toEqual({
+    ok: true,
+    revision: found.revision,
+  });
+  expect(reads.mock.calls.filter(([path]) => path === join(dependency, "index.js"))).toEqual([]);
+  await writeFile(join(dependency, "index.js"), "export const value = 2;");
+  const changed = await readPresentationProjectRevision(directory);
+  assert(changed.ok);
+  expect(changed.revision).not.toBe(found.revision);
+  const latest = await discoverPresentationProjectFiles(directory);
+  assert(latest.ok);
+  expect(changed.revision).toBe(latest.revision);
+});
+
+it.each(["presentation.ts", "unframe.config.ts", "assets/image.png"])(
+  "revalidates changed %s bytes with the same revision rules as discovery",
+  async (path) => {
+    const directory = await project();
+    await mkdir(join(directory, "assets"));
+    await writeFile(
+      join(directory, "unframe.config.ts"),
+      'export default {entryFile:"presentation.ts",assets:{image:{path:"assets/image.png",mediaType:"image/png"}}};',
+    );
+    await writeFile(join(directory, "assets/image.png"), new Uint8Array([1, 2, 3]));
+    const before = await readPresentationProjectRevision(directory);
+    assert(before.ok);
+    await appendFile(join(directory, path), "\n");
+    const changed = await readPresentationProjectRevision(directory);
+    assert(changed.ok);
+    expect(changed.revision).not.toBe(before.revision);
+    const found = await discoverPresentationProjectFiles(directory);
+    assert(found.ok);
+    expect(changed.revision).toBe(found.revision);
+  },
+);
+
+it("rejects unsafe source entries while revalidating a revision", async () => {
+  const directory = await project();
+  await symlink("presentation.ts", join(directory, "alias.ts"));
+  expect(await readPresentationProjectRevision(directory)).toMatchObject({
+    ok: false,
+    code: "cli-project-discovery-source-scan-failed",
+  });
+});
+
+it("requires Source recovery before revalidating a cached revision", async () => {
+  const directory = await project();
+  const transaction = join(directory, ".unframe/authoring/transactions", "a".repeat(32));
+  await mkdir(transaction, { recursive: true });
+  await writeFile(join(transaction, "journal.json"), JSON.stringify({ state: "prepared" }));
+  expect(await readPresentationProjectRevision(directory)).toMatchObject({
+    ok: false,
+    code: "cli-source-recovery-required",
+  });
+});
+
+it("rejects a dependency changed between the before and after identity captures", async () => {
+  const directory = await project();
+  const dependency = join(directory, "node_modules/example");
+  await mkdir(dependency, { recursive: true });
+  await writeFile(
+    join(directory, "package.json"),
+    JSON.stringify({ dependencies: { example: "1.0.0" } }),
+  );
+  await writeFile(
+    join(dependency, "package.json"),
+    JSON.stringify({ name: "example", version: "1.0.0", main: "index.js" }),
+  );
+  await writeFile(join(dependency, "index.js"), "export const value = 1;");
+  const capture = NativeFilesystem.prototype.checkedIdentities;
+  vi.spyOn(NativeFilesystem.prototype, "checkedIdentities").mockImplementationOnce(async function (
+    this: NativeFilesystem,
+    path,
+    names,
+  ) {
+    const value = await capture.call(this, path, names);
+    await writeFile(join(dependency, "index.js"), "export const value = 2;");
+    return value;
+  });
+  expect(await readPresentationProjectRevision(directory)).toMatchObject({
+    ok: false,
+    code: "cli-project-dependency-input-invalid",
+  });
+});
+
+it("honors the Source lease and permits its owner to revalidate inside the lease", async () => {
+  const directory = await project();
+  const before = await readPresentationProjectRevision(directory);
+  assert(before.ok);
+  const lease = await acquireSourceLock(directory);
+  assert(lease.ok);
+  try {
+    expect(await readPresentationProjectRevision(directory, { waitTimeoutMs: 0 })).toMatchObject({
+      ok: false,
+      code: "cli-source-lock-unavailable",
+    });
+    expect(await readPresentationProjectRevision(directory, { sourceLeaseHeld: true })).toEqual(
+      before,
+    );
+  } finally {
+    await lease.value.release();
+  }
 });

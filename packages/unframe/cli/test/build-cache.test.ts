@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -99,6 +99,48 @@ describe("native cache backend", () => {
     expect(await cache.get(key)).toBeUndefined();
     expect(await cache.get(second)).toBeDefined();
     expect(await readdir(join(root, ".unframe/cache/builds-v1"))).toEqual([second.slice(7)]);
+  });
+
+  it("evicts older entries when their combined stored bytes exceed the budget", async () => {
+    const root = await temporary();
+    const initial = createFilesystemBuildCache(root);
+    await initial.set(key, fixture());
+    const base = join(root, ".unframe/cache/builds-v1");
+    const entry = join(base, key.slice(7));
+    const names = await readdir(entry);
+    const sizes = await Promise.all(
+      names.map(async (name) => (await stat(join(entry, name))).size),
+    );
+    const maxBytes = sizes.reduce((total, size) => total + size, 0);
+    const cache = createFilesystemBuildCache(root, { maxBytes });
+    const second = `sha256:${"b".repeat(64)}`;
+    await cache.set(second, fixture());
+    expect(await cache.get(key)).toBeUndefined();
+    expect(await cache.get(second)).toBeDefined();
+    expect(await readdir(base)).toEqual([second.slice(7)]);
+  });
+
+  it("preserves an existing entry when a replacement exceeds the byte budget", async () => {
+    const root = await temporary();
+    await createFilesystemBuildCache(root).set(key, fixture());
+    await createFilesystemBuildCache(root, { maxBytes: 1 }).set(key, fixture());
+    expect(await createFilesystemBuildCache(root).get(key)).toBeDefined();
+    expect(await readdir(join(root, ".unframe/cache/builds-v1"))).toEqual([key.slice(7)]);
+  });
+
+  it("removes unsafe older entries without following their links during capacity enforcement", async () => {
+    const root = await temporary();
+    const outside = await temporary();
+    await writeFile(join(outside, "keep"), "outside");
+    const cache = createFilesystemBuildCache(root, { maxEntries: 1 });
+    await cache.set(key, fixture());
+    const entry = join(root, ".unframe/cache/builds-v1", key.slice(7));
+    await symlink(outside, join(entry, "unexpected"));
+    const second = `sha256:${"b".repeat(64)}`;
+    await cache.set(second, fixture());
+    expect(await readdir(join(root, ".unframe/cache/builds-v1"))).toEqual([second.slice(7)]);
+    expect(await readdir(outside)).toEqual(["keep"]);
+    expect(await cache.get(second)).toBeDefined();
   });
 
   it("破損した完成entryを再build結果で置き換える", async () => {

@@ -193,11 +193,28 @@ export const createAuthorBuildService = (
       };
       requests.set(requestId, { revision, channel, work });
       allWorks.add(work);
+      let joined = false;
       work.done = (async () => {
         try {
           await ports.validateRevision(revision, work.controller.signal);
           requireOpen();
-          if (work.controller.signal.aborted || sequence < accepted)
+          if (work.controller.signal.aborted)
+            ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
+          const shared = [...pending].find(
+            (item) =>
+              item.revision === revision &&
+              item.channel === channel &&
+              !item.controller.signal.aborted,
+          );
+          if (shared) {
+            joined = true;
+            requests.set(requestId, { revision, channel, work: shared });
+            const job = await observe(shared, work.controller.signal);
+            work.job = job;
+            response.resolve(job);
+            return;
+          }
+          if (sequence < accepted)
             ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
           if ([...pending].some((item) => item.channel !== "dev" || channel !== "dev"))
             ports.fail(409, "author-build-busy", "Another build is running.");
@@ -220,11 +237,7 @@ export const createAuthorBuildService = (
           requireCurrent(work);
           running = work;
           const candidate = successes.get(channel);
-          if (
-            channel === "dev" &&
-            candidate?.revision === revision &&
-            artifacts.hasGeneration(channel, candidate.generationId)
-          ) {
+          if (channel === "dev" && candidate?.revision === revision) {
             try {
               const published = await readPublished(
                 candidate.generationId,
@@ -297,7 +310,7 @@ export const createAuthorBuildService = (
                 diagnostics: structuredClone(result.diagnostics),
               });
           } catch (error) {
-            job.status = committed ? "succeeded" : signal.aborted ? "cancelled" : "failed";
+            job.status = committed || !signal.aborted ? "failed" : "cancelled";
             if (committed || !signal.aborted)
               job.diagnostics = [
                 diagnostic(
@@ -320,7 +333,7 @@ export const createAuthorBuildService = (
           pending.delete(work);
           allWorks.delete(work);
           if (running === work) running = undefined;
-          if (work.job) retainCompleted(work.job);
+          if (work.job && !joined) retainCompleted(work.job);
           else
             for (const [id, request] of requests) {
               if (request.work === work) requests.delete(id);

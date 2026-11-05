@@ -13,6 +13,7 @@ import {
 import { runPresentationCli } from "../application/run-presentation-cli.js";
 import type { RunPresentationCliInput } from "../application/types.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
+import { readPresentationProjectRevision } from "@unframe-dev/workspace-node";
 import { readTypeLibraries } from "@unframe-dev/workspace-node";
 import { readBuildGeneration } from "@unframe-dev/workspace-node";
 import { acquireSourceLock } from "@unframe-dev/workspace-node";
@@ -34,6 +35,7 @@ type Discovery = Extract<
 >;
 type ProjectState = {
   snapshot: ProjectSnapshot;
+  preparedInputs?: AnalysisOperations["project"]["output"]["preparedInputs"];
   found: Discovery;
   typeLibraries: Awaited<ReturnType<typeof readTypeLibraries>>;
 };
@@ -113,7 +115,20 @@ export const createAuthorService = async (
   const readState = async (signal?: AbortSignal, recovery = false): Promise<ProjectState> => {
     const captured = await withSource(
       async () => {
-        const found = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+        const previous = cached;
+        let found: Awaited<ReturnType<typeof discoverPresentationProjectFiles>>;
+        if (previous) {
+          const current = await readPresentationProjectRevision(directory, {
+            sourceLeaseHeld: true,
+          });
+          found = !current.ok
+            ? current
+            : current.revision === previous.snapshot.revision
+              ? previous.found
+              : await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+        } else {
+          found = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
+        }
         if (!found.ok) {
           latestCapture = ++captureSequence;
           cached = undefined;
@@ -137,11 +152,11 @@ export const createAuthorService = async (
     const prepared = readTypeLibraries().then(async (typeLibraries) => ({
       found,
       typeLibraries,
-      snapshot: await analyze(
+      ...(await analyze(
         "project",
         { found, typeLibraries, modelTransformIdentity: sourceAssetPorts.modelTransformIdentity },
         shutdown.signal,
-      ),
+      )),
     }));
     const analysis = { revision: found.revision, sequence, promise: prepared };
     analysis.promise = prepared
@@ -194,7 +209,7 @@ export const createAuthorService = async (
               signal,
             ),
           currentRevision: async () => {
-            const latest = await discoverPresentationProjectFiles(directory, {
+            const latest = await readPresentationProjectRevision(directory, {
               sourceLeaseHeld: true,
             });
             return latest.ok ? latest.revision : undefined;
@@ -225,7 +240,7 @@ export const createAuthorService = async (
       validateRevision: async (revision, signal) =>
         withSource(
           async () => {
-            const found = await discoverPresentationProjectFiles(directory, {
+            const found = await readPresentationProjectRevision(directory, {
               sourceLeaseHeld: true,
             });
             if (!found.ok) fail(500, found.code, found.message);
@@ -239,7 +254,7 @@ export const createAuthorService = async (
       canReuseBuild: async ({ revision, channel, generationId, identity }, signal) => {
         const matches = async () => {
           if (signal.aborted) return false;
-          const found = await discoverPresentationProjectFiles(directory, {
+          const found = await readPresentationProjectRevision(directory, {
             sourceLeaseHeld: true,
           });
           if (!found.ok || found.revision !== revision) return false;
@@ -275,7 +290,25 @@ export const createAuthorService = async (
         readBuildExecutionResult(
           await run({
             args: ["build", directory, "--format", "json"],
-            host: { expectedRevision: revision, channel, signal },
+            host: {
+              expectedRevision: revision,
+              channel,
+              signal,
+              prepareInputs: async (found, signal) => {
+                const preparedInputs =
+                  cached?.snapshot.revision === found.revision ? cached.preparedInputs : undefined;
+                if (preparedInputs) return { ok: true, value: structuredClone(preparedInputs) };
+                return analyze(
+                  "prepare",
+                  {
+                    found,
+                    typeLibraries: await readTypeLibraries(),
+                    modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+                  },
+                  signal ?? shutdown.signal,
+                );
+              },
+            },
           }),
         ),
       readPublishedArtifacts: (generation, instances, channel, maxBytes) =>

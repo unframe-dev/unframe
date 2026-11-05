@@ -219,6 +219,49 @@ describe("reference Authoring Project", () => {
     await expect(readFile(join(directory, "unframe.lock"))).rejects.toThrow();
   }, 30000);
 
+  it("builds from Host-prepared inputs after validating the current captured revision", async () => {
+    const directory = await projectCopy();
+    const before = await checkedProject(directory);
+    let reused = false;
+    const result = await runPresentationCli({
+      args: ["build", directory],
+      host: {
+        expectedRevision: before.discovered.revision,
+        prepareInputs: async (found: typeof before.discovered) => {
+          expect(found.revision).toBe(before.discovered.revision);
+          reused = true;
+          return { ok: true, value: before.prepared };
+        },
+        openFixedBrowser: async () => fakeBrowser().session,
+        buildContext,
+      },
+    });
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(reused).toBe(true);
+    expect(result.sourceRevision).toBe(before.discovered.revision);
+  }, 30_000);
+
+  it("rejects changed inputs before consulting the Host preparation cache", async () => {
+    const directory = await projectCopy();
+    const before = await checkedProject(directory);
+    const source = join(directory, "surface.structure.tsx");
+    await writeFile(source, (await readFile(source, "utf8")) + "\n");
+    let consulted = false;
+    const result = await runPresentationCli({
+      args: ["build", directory],
+      host: {
+        expectedRevision: before.discovered.revision,
+        prepareInputs: async () => {
+          consulted = true;
+          return { ok: true, value: before.prepared };
+        },
+      },
+    });
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toContain("cli-output-stale");
+    expect(consulted).toBe(false);
+  }, 30_000);
+
   it("builds changed saved inputs into Dev without changing the frozen Dist generation", async () => {
     const directory = await projectCopy();
     const dist = await runPresentationCli({

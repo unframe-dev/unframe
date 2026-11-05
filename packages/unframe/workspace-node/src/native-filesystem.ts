@@ -207,6 +207,26 @@ export class NativeFilesystem {
   async checkedNames(path: string) {
     return z.array(z.string()).parse(await this.request("listChecked", { path }));
   }
+  async checkedIdentities(path: string, names: readonly string[]) {
+    return z
+      .array(
+        z.discriminatedUnion("kind", [
+          z.object({
+            name: z.string(),
+            kind: z.literal("file"),
+            hash: z.custom<`sha256:${string}`>(
+              (value) => typeof value === "string" && /^sha256:[a-f0-9]{64}$/u.test(value),
+            ),
+            executable: z.boolean(),
+          }),
+          z.object({ name: z.string(), kind: z.literal("directory") }),
+          z.object({ name: z.string(), kind: z.literal("symlink"), link: z.string() }),
+        ]),
+      )
+      .parse(
+        await this.request("identitiesChecked", { path, names, limit: Number.MAX_SAFE_INTEGER }),
+      );
+  }
   async checkedRead(path: string, limit: number, expected?: number) {
     return this.bytes(
       await this.request("readChecked", {

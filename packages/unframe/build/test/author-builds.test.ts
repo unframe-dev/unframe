@@ -123,6 +123,21 @@ it("does not turn a successful commit into cancellation while reading inspection
   });
 });
 
+it("reports a committed build as failed when its inspection artifacts cannot be loaded", async () => {
+  const adapter = ports();
+  adapter.readPublishedArtifacts = async () => {
+    throw new Error("Published generation is incomplete");
+  };
+  const service = createAuthorBuildService(adapter);
+  const job = await service.build("r1", "request");
+  await expect.poll(async () => (await service.job(job.buildId)).status).toBe("failed");
+  expect(await service.job(job.buildId)).toMatchObject({
+    generationId: "a".repeat(32),
+    diagnostics: [{ code: "author-build-failed", message: "Published generation is incomplete" }],
+  });
+  await service.close();
+});
+
 it("keeps an output generation conflict stale even when cancellation was also requested", async () => {
   const running = Promise.withResolvers<void>();
   const resume = Promise.withResolvers<void>();
@@ -246,7 +261,7 @@ it("waits for an aborted run cleanup before starting only the latest Dev build",
   await service.close();
 });
 
-it("shares preparation only for an identical request ID and rejects conflicting use", async () => {
+it("shares preparation for an identical request ID and rejects conflicting use", async () => {
   const adapter = ports();
   const started = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
@@ -266,6 +281,85 @@ it("shares preparation only for an identical request ID and rejects conflicting 
   release.resolve();
   expect((await duplicate).buildId).toBe((await first).buildId);
   expect(prepare).toHaveBeenCalledOnce();
+  await service.close();
+});
+
+it("shares pending preparation across different request IDs for the same validated input", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const prepare = vi.fn(async (revision: string, _channel: "dev" | "dist", signal: AbortSignal) => {
+    started.resolve();
+    await release.promise;
+    expect(signal.aborted).toBe(false);
+    return { revision, snapshot };
+  });
+  adapter.prepareBuild = prepare;
+  const accepted = vi.fn();
+  const service = createAuthorBuildService(adapter);
+  const first = service.build("r1", "one", "dev", { onAccepted: accepted });
+  await started.promise;
+  const second = service.build("r1", "two", "dev", { onAccepted: accepted });
+  release.resolve();
+  const [one, two] = await Promise.all([first, second]);
+  expect(two.buildId).toBe(one.buildId);
+  expect(prepare).toHaveBeenCalledOnce();
+  expect(accepted).toHaveBeenCalledOnce();
+  expect((await service.build("r1", "two")).buildId).toBe(one.buildId);
+  await service.close();
+});
+
+it("validates a new request before joining an already running revision", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let changed = false;
+  let aborted = false;
+  adapter.validateRevision = async () => {
+    if (changed) adapter.fail(412, "author-revision-mismatch", "Changed");
+  };
+  adapter.run = async ({ signal }) => {
+    started.resolve();
+    signal.addEventListener("abort", () => {
+      aborted = true;
+    });
+    await release.promise;
+    return { status: "failed", diagnostics: [] };
+  };
+  const service = createAuthorBuildService(adapter);
+  const first = await service.build("r1", "one");
+  await started.promise;
+  changed = true;
+  await expect(service.build("r1", "two")).rejects.toMatchObject({
+    code: "author-revision-mismatch",
+  });
+  expect(aborted).toBe(false);
+  expect((await service.job(first.buildId)).status).toBe("running");
+  release.resolve();
+  await service.close();
+});
+
+it("joins a running build without restarting it or cancelling it when an observer disconnects", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const run = vi.fn(async ({ signal }: { signal: AbortSignal }) => {
+    started.resolve();
+    await release.promise;
+    expect(signal.aborted).toBe(false);
+    return { status: "failed" as const, diagnostics: [] };
+  });
+  adapter.run = run;
+  const service = createAuthorBuildService(adapter);
+  const first = await service.build("r1", "one");
+  await started.promise;
+  const disconnected = new AbortController();
+  const second = await service.build("r1", "two", "dev", { signal: disconnected.signal });
+  disconnected.abort();
+  expect(second.buildId).toBe(first.buildId);
+  expect(run).toHaveBeenCalledOnce();
+  release.resolve();
+  await expect.poll(async () => (await service.job(first.buildId)).status).toBe("failed");
   await service.close();
 });
 
@@ -363,51 +457,57 @@ it("does not invalidate Preview on rejected, duplicate, or replayed requests", a
   expect(await service.job(job.buildId)).toBeDefined();
 });
 
-it("cancels disconnected preparation only after every waiting caller has left", async () => {
-  const adapter = ports();
-  const started = Promise.withResolvers<void>();
-  const aborted = Promise.withResolvers<void>();
-  const cleaned = Promise.withResolvers<void>();
-  let prepareSignal: AbortSignal | undefined;
-  adapter.prepareBuild = async (_revision, _channel, signal) => {
-    prepareSignal = signal;
-    started.resolve();
-    await new Promise<void>((resolve) =>
-      signal.addEventListener(
-        "abort",
-        () => {
-          aborted.resolve();
-          resolve();
-        },
-        { once: true },
-      ),
-    );
-    await cleaned.promise;
-    throw new Error("Cancelled preparation");
-  };
-  const first = new AbortController();
-  const second = new AbortController();
-  const service = createAuthorBuildService(adapter);
-  const one = service.build("r1", "same", "dev", { signal: first.signal });
-  const firstCancelled = expect(one).rejects.toMatchObject({ code: "cli-cancelled" });
-  await started.promise;
-  const two = service.build("r1", "same", "dev", { signal: second.signal });
-  const secondCancelled = expect(two).rejects.toMatchObject({ code: "cli-cancelled" });
-  first.abort();
-  await firstCancelled;
-  expect(prepareSignal?.aborted).toBe(false);
-  second.abort();
-  await secondCancelled;
-  await aborted.promise;
-  let closed = false;
-  const closing = service.close().then(() => {
-    closed = true;
-  });
-  await Promise.resolve();
-  expect(closed).toBe(false);
-  cleaned.resolve();
-  await closing;
-});
+it.each(["same", "different"])(
+  "cancels disconnected preparation only after every waiting caller with %s request IDs has left",
+  async (ids) => {
+    const adapter = ports();
+    const started = Promise.withResolvers<void>();
+    const aborted = Promise.withResolvers<void>();
+    const cleaned = Promise.withResolvers<void>();
+    let prepareSignal: AbortSignal | undefined;
+    adapter.prepareBuild = async (_revision, _channel, signal) => {
+      prepareSignal = signal;
+      started.resolve();
+      await new Promise<void>((resolve) =>
+        signal.addEventListener(
+          "abort",
+          () => {
+            aborted.resolve();
+            resolve();
+          },
+          { once: true },
+        ),
+      );
+      await cleaned.promise;
+      throw new Error("Cancelled preparation");
+    };
+    const first = new AbortController();
+    const second = new AbortController();
+    const service = createAuthorBuildService(adapter);
+    const one = service.build("r1", "same", "dev", { signal: first.signal });
+    const firstCancelled = expect(one).rejects.toMatchObject({ code: "cli-cancelled" });
+    await started.promise;
+    const two = service.build("r1", ids === "same" ? "same" : "other", "dev", {
+      signal: second.signal,
+    });
+    const secondCancelled = expect(two).rejects.toMatchObject({ code: "cli-cancelled" });
+    await Promise.resolve();
+    first.abort();
+    await firstCancelled;
+    expect(prepareSignal?.aborted).toBe(false);
+    second.abort();
+    await secondCancelled;
+    await aborted.promise;
+    let closed = false;
+    const closing = service.close().then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    cleaned.resolve();
+    await closing;
+  },
+);
 
 it("does not let a slow old validation supersede a newer accepted request", async () => {
   const adapter = ports();
