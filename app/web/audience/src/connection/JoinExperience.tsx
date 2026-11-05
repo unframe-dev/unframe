@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type CompositionEvent, type FormEvent } from "react";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import Button from "@mui/material/Button";
@@ -6,6 +6,10 @@ import TextField from "@mui/material/TextField";
 import { Brand } from "../ui/Brand";
 import type { JoinController, JoinSnapshot } from "./join-controller";
 import "./connection.css";
+
+function normalizeJoinCode(value: string) {
+  return value.normalize("NFKC").toUpperCase().replaceAll("-", "");
+}
 
 const unavailableStore = createStore<JoinSnapshot>(() => ({ phase: "idle" }));
 
@@ -49,10 +53,11 @@ export function JoinExperience({
   initialJoinCode?: string | null;
 }) {
   const snapshot = useStore(controller?.store ?? unavailableStore, (state) => state);
-  const [code, setCode] = useState(() => initialJoinCode?.replaceAll("-", "") ?? "");
+  const [code, setCode] = useState(() => normalizeJoinCode(initialJoinCode ?? ""));
+  const [isComposing, setIsComposing] = useState(false);
   const busy = ["joining", "delivery", "bootstrap", "recovering"].includes(snapshot.phase);
   const prepared = snapshot.phase === "prepared";
-  const validCode = /^[A-HJ-NP-Z2-9]{8}$/.test(code);
+  const validCode = !isComposing && /^[A-HJ-NP-Z2-9]{8}$/.test(code);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (controller && validCode && !busy && !prepared)
@@ -93,12 +98,19 @@ export function JoinExperience({
                 name="roomCode"
                 label="ルームコード"
                 value={code}
-                onChange={(event) => setCode(event.target.value.toUpperCase().replaceAll("-", ""))}
+                onChange={(event) =>
+                  setCode(isComposing ? event.target.value : normalizeJoinCode(event.target.value))
+                }
                 placeholder="XXXXXXXX"
                 autoComplete="off"
                 disabled={!controller || busy || prepared}
                 slotProps={{
                   htmlInput: {
+                    onCompositionStart: () => setIsComposing(true),
+                    onCompositionEnd: (event: CompositionEvent<HTMLInputElement>) => {
+                      setIsComposing(false);
+                      setCode(normalizeJoinCode(event.currentTarget.value));
+                    },
                     autoCapitalize: "characters",
                     spellCheck: false,
                     maxLength: 9,

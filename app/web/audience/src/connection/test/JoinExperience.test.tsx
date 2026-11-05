@@ -56,6 +56,39 @@ test("8文字のルームコードを有効にしてAPI形式で送信する", (
   expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
 });
 
+test("日本語IMEの変換中は入力と削除を保持し、確定後にコードを正規化する", () => {
+  const { controller } = makeController();
+  render(<JoinExperience controller={controller} />);
+  const input = screen.getByLabelText("ルームコード") as HTMLInputElement;
+  fireEvent.compositionStart(input);
+  fireEvent.change(input, { target: { value: "a" } });
+  expect(input.value).toBe("a");
+  fireEvent.change(input, { target: { value: "" } });
+  expect(input.value).toBe("");
+  fireEvent.change(input, { target: { value: "ａｂｃｄ－２３４５" } });
+  expect(input.value).toBe("ａｂｃｄ－２３４５");
+  fireEvent.compositionEnd(input);
+  expect(input.value).toBe("ABCD2345");
+  fireEvent.click(screen.getByRole("button", { name: "参加する" }));
+  expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
+});
+
+test("IME変換中のコードは送信せず確定後に参加できる", () => {
+  const { controller } = makeController();
+  render(<JoinExperience controller={controller} />);
+  const input = screen.getByLabelText("ルームコード");
+  fireEvent.compositionStart(input);
+  fireEvent.change(input, { target: { value: "ABCD2345" } });
+  expect((screen.getByRole("button", { name: "参加する" }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
+  fireEvent.submit(screen.getByRole("form", { name: "ルームに参加" }));
+  expect(controller.join).not.toHaveBeenCalled();
+  fireEvent.compositionEnd(input);
+  fireEvent.click(screen.getByRole("button", { name: "参加する" }));
+  expect(controller.join).toHaveBeenCalledExactlyOnceWith("ABCD-2345");
+});
+
 test("共有されたルームコードを再入力せず確認して参加できる", () => {
   const { controller } = makeController();
   render(<JoinExperience controller={controller} initialJoinCode="ABCD-EFGH" />);
