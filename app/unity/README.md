@@ -81,3 +81,16 @@ Unityのクラス名・Scene名・APK名・診断ログの保存先は `AprilTag
 PNG・Native UI文字・動画は、同じSemantic Surface内のLayer順序を共通の描画順位へ変換します。Native文字はTMPのレイアウトを使用し、矩形clipとopacityを反映したMeshで描画します。準備済みの動画もSemantic Surfaceの座標で操作判定を行い、表示不能・未準備の動画は入力対象にしません。
 
 `PresentationMixedSurfaceTests`、`PresentationNativeSurfaceRenderingTests`、`PresentationMeshClipTests` が順位・操作・clipの回帰条件です。Quest実機での透明物重なりとコントローラー操作は別途確認が必要です。
+
+## Presenter の追従 HUD
+
+発表中は左下に現在ページと経過時間、右下に現在利用できる操作の案内を表示します。
+両方とも頭の移動・上下左右の向き・傾きに追従し、中央の資料を遮らない周辺配置です。
+メニュー・オンボーディング表示中、Audience、準備・校正未完了では非表示になります。
+「次へ」を実行できる場合は右 A ボタンを案内します。モーションはトリガーの
+使い方を文章と腕アニメーションで示し、複数候補は6秒ごとに切り替えます。
+Throw / Circle は文章で案内し、腕アニメーションはありません。
+経過時間はこのアプリが同じ Session で最初に Running を観測した時点から計測し、
+一時停止・同じ接続インスタンスでの再接続中も継続します。Session の切替でリセットします。
+途中参加やアプリ再起動をまたぐサーバー上の発表開始時刻の復元には対応していません。
+Quest 実機での可読性・視野端の見え方は端末で確認が必要です。
