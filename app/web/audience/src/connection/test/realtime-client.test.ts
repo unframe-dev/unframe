@@ -87,7 +87,13 @@ it("authenticates without URL credentials and gates StateReady on rendered Snaps
     expect(control.sent[0]).toBe(JSON.stringify({ credential: "private-token" }));
     expect(
       decodeWireMessage("unframe.realtime.ControlClientItem", control.sent[1] as Uint8Array),
-    ).toMatchObject({ handshake: { protocolVersion: "v3", progressionContractVersion: 2 } });
+    ).toMatchObject({
+      handshake: {
+        protocolVersion: "v3",
+        progressionContractVersion: 2,
+        supportedCapabilities: expect.arrayContaining([6]),
+      },
+    });
     control.receive("unframe.realtime.ControlServerItem", {
       connectionSnapshot: {
         schemaVersion: 1,

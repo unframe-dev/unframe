@@ -158,7 +158,8 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 - 動画: opaque H.264 MP4、Runtime時計による再生／停止／seek／途中参加。再生許可が必要な場合は明示操作。追跡低下・非表示ではpauseする。
 - GLB: 自己完結GLB、PBR／unlit、skin／morph、clip／crossfade／held。埋込PNG／JPEGとKHR_materials_unlitに対応。
 - Runtime: Snapshot、Control／State、sequence・fence、Group／Step、変数、Timeline、Surface／media／modelの進行適用。Cue／Flowの進行判断をクライアントで再実行しない。
-- 未対応: native-ui、Presenter anchor、Local Overlay、VP9／AV1／動画alpha、外部URIやDraco／Meshopt／KTX2等のGLB拡張。必須の未対応表現を黙って省略しない。
+- Presenter Anchor は Realtime から配信される位置・回転を描画に適用する。
+- 未対応: native-ui、Local Overlay、VP9／AV1／動画alpha、外部URIやDraco／Meshopt／KTX2等のGLB拡張。必須の未対応表現を黙って省略しない。
 
 素材はHTTPS・CORS・credentials omit・no-storeで取得し、期限・MIME・encoded size・SHA-256・寸法等を検証する。PNG実寸はデコード前のIHDRとデコード後に照合する。PNG／モデル等の既知保持量とロード予算を検査するが、ブラウザの動画decoder内部やGPU driverの全確保量を保証する方式ではない。
 
