@@ -36,7 +36,6 @@ static class Program
             VideoPreflightChecks.Run();
             ModelPlaybackChecks.Run();
             CheckVideoResidencyAdmission();
-            CheckPreviewAdmission();
             CheckPreviewAdapter();
             CheckRenderView();
             CheckBinaryDeliveryAndAssetDescriptor();
@@ -147,65 +146,6 @@ static class Program
         groups.Residency.Video.MaximumDecodedFrameBytes = groups.CapabilityProfile.Limits.Video.MaxDecodedFrameBytes = 80000;
         Require(new PresentationRuntimeDataStore().TryReceiveDelivery(groups, out error), "persistent video must join each group budget: " + error);
 
-    }
-
-    private static void CheckPreviewAdmission()
-    {
-        const ulong mib = 1024 * 1024;
-        TextureResidencyBinding a = PreviewTexture('a', 64 * mib, 64 * mib);
-        Require(PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(), new[] { a }, out string error), error);
-        Require(PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { a.Clone() }, out error), error);
-        TextureResidencyBinding overGpu = a.Clone();
-        overGpu.DecodedGpuBytes++;
-        Require(!PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(), new[] { overGpu }, out _), "scene GPU +1 must fail");
-        TextureResidencyBinding overCpu = a.Clone();
-        overCpu.PeakLoadCpuBytes++;
-        Require(!PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(), new[] { overCpu }, out _), "load CPU +1 must fail");
-        TextureResidencyBinding b = PreviewTexture('b', 32 * mib, 48 * mib);
-        Require(PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { b }, out error), error);
-        b.DecodedGpuBytes++;
-        Require(!PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { b }, out _), "overlap GPU +1 must fail although each scene fits");
-        TextureResidencyBinding c = PreviewTexture('c', 32 * mib, 48 * mib);
-        Require(PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { c, c.Clone() }, out error), error);
-        TextureResidencyBinding conflict = a.Clone();
-        conflict.PixelSize.Width++;
-        Require(!PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { conflict }, out _), "shared checksum metadata conflict must fail");
-        conflict = a.Clone();
-        conflict.PeakLoadCpuBytes++;
-        Require(!PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { conflict }, out _), "shared checksum CPU metadata conflict must fail");
-        TextureResidencyBinding changedAssetId = a.Clone();
-        changedAssetId.AssetId = "asset:another-reference";
-        Require(PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { changedAssetId }, out error), error);
-        Require(!PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(), new[] { a, conflict }, out _),
-            "duplicate checksum metadata conflict within one scene must fail");
-        TextureResidencyBinding huge = a.Clone();
-        huge.DecodedGpuBytes = ulong.MaxValue;
-        Require(!PresentationPreviewAdmission.TryAdmit(new[] { a }, new[] { huge }, out _), "budget accounting must reject overflow-sized costs");
-        TextureResidencyBinding serialA = PreviewTexture('d', 16 * mib, 48 * mib);
-        TextureResidencyBinding serialB = PreviewTexture('e', 16 * mib, 48 * mib);
-        Require(PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(), new[] { serialA, serialB }, out error),
-            "serial CPU accounting must use the maximum load peak, not their sum: " + error);
-        var canonical = new TextureResidencyBinding[7];
-        for (int i = 0; i < canonical.Length; i++)
-            canonical[i] = PreviewTexture((char)('a' + i), 16777216, 50335057);
-        Require(PresentationPreviewAdmission.TryAdmit(Array.Empty<TextureResidencyBinding>(),
-            new[] { canonical[0], canonical[1], canonical[2], canonical[3] }, out error), error);
-        Require(PresentationPreviewAdmission.TryAdmit(new[] { canonical[0], canonical[1], canonical[2], canonical[3] },
-            new[] { canonical[2], canonical[3], canonical[4], canonical[5] }, out error), error);
-        Require(!PresentationPreviewAdmission.TryAdmit(new[] { canonical[0], canonical[1], canonical[2], canonical[3] },
-            new[] { canonical[3], canonical[4], canonical[5], canonical[6] }, out _), "seven canonical 2048 textures exceed the overlap budget");
-    }
-
-    private static TextureResidencyBinding PreviewTexture(char hash, ulong gpu, ulong cpu)
-    {
-        return new TextureResidencyBinding
-        {
-            AssetId = "asset:" + hash,
-            Checksum = "sha256:" + new string(hash, 64),
-            PixelSize = new Unframe.Delivery.PixelSize { Width = 2048, Height = 2048 },
-            DecodedGpuBytes = gpu,
-            PeakLoadCpuBytes = cpu,
-        };
     }
 
     private static void CheckPreviewAdapter()

@@ -12,6 +12,7 @@ import {
   safeUIntSchema,
   srgbaColorSchema,
   uint32Schema,
+  vector3Schema,
 } from "./common";
 import { completedSemanticTreeSchema } from "./semantics";
 
@@ -177,6 +178,12 @@ const compiledSurfaceSchema = z.strictObject({
   interactionsByState: z.record(idSchema, z.array(regionSchema)),
 });
 const compiledModelSchema = z.strictObject({
+  defaultSceneBounds: z
+    .strictObject({ min: vector3Schema, max: vector3Schema })
+    .refine(({ min, max }) => min.every((value, index) => value <= max[index]!), {
+      message: "Model bounds must be ordered.",
+    })
+    .optional(),
   peakLoadCpuBytes: positiveSafeUIntSchema,
   assetId: idSchema,
   mediaType: z.literal("model/gltf-binary"),

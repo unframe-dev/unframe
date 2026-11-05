@@ -16,7 +16,11 @@ import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-
 import capabilityFixture from "../../../contracts/presentation/fixtures/capability-profile.json";
 import publicationFixture from "../../../contracts/presentation/fixtures/published-presentation.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { buildRuntimeProjection, selectBuildArtifacts } from "@unframe-dev/delivery";
+import {
+  buildLocalPreviewProjection,
+  buildRuntimeProjection,
+  selectBuildArtifacts,
+} from "@unframe-dev/delivery";
 import { selectDeliveryArtifacts } from "../src/delivery/selection.js";
 import { buildProjectionProfile } from "../src/delivery/profile.js";
 import { calculateProjectionProfileId } from "../src/delivery/profile-identity.js";
@@ -122,6 +126,103 @@ const groupedSource = (change?: (current: typeof source) => void) =>
   });
 
 describe("Delivery artifact selection and admission", () => {
+  it("publishes the Stage-fixed content center as a shared placement reference", () => {
+    const input = baselineSource(({ definition }) => {
+      definition.scene.nodes["node-baked"]!.transform.position = [0, 2.15, -2.5];
+      const model = definition.scene.nodes.model!;
+      model.parent = {
+        kind: "anchor",
+        owner: { kind: "presenter" },
+        target: "head",
+        followPosition: true,
+        followRotation: true,
+      };
+      model.transform.position = [0, 100, 0];
+    });
+
+    for (const role of ["presenter", "viewer"] as const) {
+      const { profile } = buildProjectionProfile(input, role);
+      expect(profile.runtimeCatalog?.placementReferencePoint).toEqual({
+        x: 0,
+        y: 2.15,
+        z: -2.5,
+      });
+    }
+  });
+
+  it("includes rotated hierarchy bounds and content from other roles and groups", () => {
+    const input = groupedSource(({ definition, renderBundle }) => {
+      const child = definition.scene.nodes["node-baked"]!;
+      child.parent = { kind: "node", nodeId: "parent" };
+      child.transform.position = [1, 0, 0];
+      definition.scene.surfaces.baked!.physicalSizeMeters = [2, 1];
+      renderBundle.surfaces.baked!.physicalSizeMeters = [2, 1];
+      definition.scene.nodes.parent = {
+        id: "parent",
+        kind: "container",
+        owner: { kind: "group", groupId: "intro" },
+        audience: { kind: "all" },
+        parent: { kind: "stage" },
+        order: 4,
+        transform: {
+          position: [0, 10, 0],
+          rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2],
+          scale: [2, 1, 1],
+        },
+        active: true,
+        visible: true,
+        opacity: 1,
+      };
+      const later = definition.scene.nodes["node-baked-middle"]!;
+      later.audience = { kind: "role", role: "viewer" };
+      later.transform.position = [0, -2, 0];
+    });
+
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    const viewer = buildProjectionProfile(input, "viewer").profile;
+    expect(presenter.visibleNodeIds).not.toContain("node-baked-middle");
+    expect(viewer.visibleNodeIds).toContain("node-baked-middle");
+    // The intro Surface spans heights 10..14 after its parent's rotation and scale.
+    // The viewer-only Surface reaches -2.5 in another group.
+    expect(presenter.runtimeCatalog?.placementReferencePoint?.y).toBeCloseTo(5.75);
+    expect(viewer.runtimeCatalog?.placementReferencePoint).toEqual(
+      presenter.runtimeCatalog?.placementReferencePoint,
+    );
+  });
+
+  it("includes the authored model's off-origin geometry in the content bounds", () => {
+    const input = baselineSource(({ definition, renderBundle }) => {
+      definition.scene.nodes.model!.transform.position = [0, 1, 0];
+      renderBundle.models["model-asset"]!.defaultSceneBounds = {
+        min: [-0.5, 2, -0.5],
+        max: [0.5, 4, 0.5],
+      };
+    });
+
+    const { profile } = buildProjectionProfile(input, "presenter");
+    const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
+    const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
+    expect(decoded.runtimeCatalog).toMatchObject({
+      placementReferencePoint: { x: 0, y: 2.25, z: 0 },
+    });
+    expect(calculateProjectionProfileId(decoded)).toBe(profile.projectionProfileId);
+  });
+
+  it("requires known static model bounds or an authored placement reference", () => {
+    const missingBounds = (current: typeof source) => {
+      delete current.renderBundle.models["model-asset"]!.defaultSceneBounds;
+    };
+    expect(() => buildProjectionProfile(baselineSource(missingBounds), "presenter")).toThrow(
+      "specify stage.placementReferencePoint",
+    );
+    const input = baselineSource((current) => {
+      missingBounds(current);
+      current.definition.stage.placementReferencePoint = [1, 2, -3];
+    });
+    const { profile } = buildProjectionProfile(input, "presenter");
+    expect(profile.runtimeCatalog?.placementReferencePoint).toEqual({ x: 1, y: 2, z: -3 });
+  });
+
   it("plans a residency window for every group and identifies the initial group", () => {
     const input = baselineSource();
     const selected = selectDeliveryArtifacts(input, "presenter");
@@ -398,6 +499,28 @@ describe("Delivery artifact selection and admission", () => {
     unsupported.capability.renderers.nativeUi.supported = false;
     unsupported.capability.renderers.nativeUi.features = [];
     expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow("No compatible artifact");
+  });
+
+  it("relaxes memory admission only through the local Preview entry point", () => {
+    const publication = baselineSource((current) => {
+      current.capability.capabilityProfileId = "local-web-preview";
+      current.capability.limits.texture.maxGpuBytes = 1024;
+    });
+    const { publishedPresentation: _, ...input } = publication;
+
+    expect(buildLocalPreviewProjection(input).residency.textures.totalDecodedGpuBytes).toBe(
+      "16777216",
+    );
+    expect(() => buildRuntimeProjection(input, "viewer")).toThrow("Texture GPU bytes");
+    expect(() => buildProjectionProfile(publication, "viewer")).toThrow("Texture GPU bytes");
+  });
+
+  it("keeps non-memory texture constraints for local Preview", () => {
+    const { publishedPresentation: _, ...input } = baselineSource((current) => {
+      current.capability.limits.texture.maxTextureWidth = 1024;
+    });
+
+    expect(() => buildLocalPreviewProjection(input)).toThrow("Texture width");
   });
 
   it("rejects hash-consistent invalid Surface geometry for unpublished projection", () => {

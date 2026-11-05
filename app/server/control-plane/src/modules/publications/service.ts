@@ -310,6 +310,12 @@ export class PublicationService {
     const nextEpoch = (expectedPublicationFence?.publicationEpoch ?? 0) + 1;
     if (!Number.isSafeInteger(nextEpoch)) throw new PublicationError("conflict");
     const artifacts = await this.build(identity, presentationId, buildId, true);
+    if (
+      !validatePresentationArtifacts(artifacts.definition, artifacts.renderBundle, {
+        fullDelivery: true,
+      }).valid
+    )
+      throw new PublicationError("invalid_build");
     for (const [assetId, descriptor] of Object.entries(artifacts.assetSet.assets)) {
       const object = await this.bucket.get(assetKey(presentationId, buildId, assetId));
       if (

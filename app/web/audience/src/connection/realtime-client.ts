@@ -1,4 +1,4 @@
-import type { SessionRecorder } from "../diagnostics/session-recorder";
+import type { DisconnectCause, SessionRecorder } from "../diagnostics/session-recorder";
 import {
   decodeWireMessage,
   encodeWireMessage,
@@ -72,10 +72,12 @@ export function createAudienceRealtime(
         state?.close(1000);
         if (active === binding) active = null;
       };
-      const fail = () => {
+      const fail = (cause: DisconnectCause, closeEvent?: CloseEvent) => {
         if (closed) return;
+        const recordClose = options.recorder?.recordDisconnect(cause, scope, closeEvent);
         close();
         input.disconnected();
+        return recordClose;
       };
       const send = (socket: WebSocket, type: string, value: object) => {
         if (socket.readyState !== 1 || socket.bufferedAmount > 1 << 20)
@@ -88,35 +90,48 @@ export function createAudienceRealtime(
         });
       };
       const connect = (
-        path: string,
+        channel: "control" | "state",
         type: string,
         handshake: object,
         receive: (value: Record<string, unknown>) => void,
-        lost: () => void,
       ) => {
-        const url = new URL(path, endpoint);
-        const socket = openSocket(url.href, protocol);
+        let socket: WebSocket;
+        try {
+          const url = new URL(`/browser/${channel}`, endpoint);
+          socket = openSocket(url.href, protocol);
+        } catch {
+          fail({ code: "socket-create-failed", channel });
+          return null;
+        }
         socket.binaryType = "arraybuffer";
         socket.addEventListener("open", () => {
-          if (closed || (path.endsWith("/state") && state !== socket)) return;
+          if (!current()) return;
           try {
             options.recorder?.record("connection.stage", {
               ...scope,
               stage: "open",
-              kind: path.endsWith("/state") ? "state" : "control",
+              kind: channel,
             });
             socket.send(JSON.stringify({ credential: getConnection().bootstrap.credential }));
             send(socket, type.replace("Server", "Client"), { handshake });
           } catch {
-            fail();
+            fail({ code: "handshake-send-failed", channel });
           }
         });
         socket.addEventListener("message", (event) => {
-          if (closed || (path.endsWith("/state") && state !== socket)) return;
+          if (!current()) return;
+          if (!(event.data instanceof ArrayBuffer) || event.data.byteLength > 1 << 20) {
+            fail({ code: "invalid-frame", channel });
+            return;
+          }
+          let decoded: Record<string, unknown>;
           try {
-            if (!(event.data instanceof ArrayBuffer) || event.data.byteLength > 1 << 20)
-              throw new Error("invalid-realtime-frame");
-            const decoded = decodeWireMessage(type, new Uint8Array(event.data));
+            decoded = decodeWireMessage(type, new Uint8Array(event.data));
+          } catch {
+            fail({ code: "decode-failed", channel });
+            return;
+          }
+          try {
             options.recorder?.record("transport.received", {
               ...scope,
               direction: "receive",
@@ -124,15 +139,21 @@ export function createAudienceRealtime(
             });
             receive(decoded);
           } catch {
-            fail();
+            fail({ code: "receive-failed", channel });
           }
         });
-        const current = () => !closed && (!path.endsWith("/state") || state === socket);
+        const current = () => !closed && (channel === "control" || state === socket);
+        let recordClose: ((event: CloseEvent) => void) | undefined;
         socket.addEventListener("error", () => {
-          if (current()) lost();
+          if (current()) recordClose = fail({ code: "socket-error", channel });
         });
-        socket.addEventListener("close", () => {
-          if (current()) lost();
+        socket.addEventListener("close", (event) => {
+          if (recordClose) {
+            recordClose(event);
+            recordClose = undefined;
+          } else if (current()) {
+            fail({ code: "socket-closed", channel }, event);
+          }
         });
         return socket;
       };
@@ -148,7 +169,7 @@ export function createAudienceRealtime(
           if (closed) return;
           options.recorder?.record("connection.retry", { ...scope, kind });
           if (kind === "snapshot") {
-            fail();
+            fail({ code: "snapshot-recovery", channel: "control" });
           } else if (receivedState && state && !recoveringState) {
             recoveringState = true;
             stateConnected = false;
@@ -163,72 +184,81 @@ export function createAudienceRealtime(
       };
       active = binding;
       try {
-        control = connect(
-          "/browser/control",
-          controlType,
-          handshake,
-          (value) => {
-            const item = value as unknown as ControlServerItemWire;
-            if (item.resyncRequired) {
-              fail();
+        control = connect("control", controlType, handshake, (value) => {
+          const item = value as unknown as ControlServerItemWire;
+          if (item.resyncRequired) {
+            fail({ code: "resync-required", channel: "control" });
+            return;
+          }
+          if (item.connectionSnapshot) {
+            if (cut) {
+              fail({ code: "duplicate-snapshot", channel: "control" });
               return;
             }
-            if (item.connectionSnapshot) {
-              if (cut) throw new Error("duplicate-snapshot");
-              const snapshot = item.connectionSnapshot;
-              if (!snapshot.connectionId || !snapshot.fence) throw new Error("invalid-snapshot");
-              connectionId = snapshot.connectionId;
-              cut = {
-                appliedReliableSequence: snapshot.reliableSequence ?? "0",
-                presentationOriginVersion: snapshot.fence.presentationOriginVersion ?? "0",
-              };
+            const snapshot = item.connectionSnapshot;
+            if (!snapshot.connectionId || !snapshot.fence) {
+              fail({ code: "invalid-snapshot", channel: "control" });
+              return;
             }
-            input.applyControl(item);
-            const origin = item.reliableEvent?.presentationOriginChanged?.origin;
-            if (origin) {
-              if (!cut || !item.reliableEvent?.sequence || !origin.version)
-                throw new Error("invalid-origin-update");
-              cut = {
-                appliedReliableSequence: item.reliableEvent.sequence,
-                presentationOriginVersion: origin.version,
-              };
-              readySent = false;
-              started = Date.now();
+            connectionId = snapshot.connectionId;
+            cut = {
+              appliedReliableSequence: snapshot.reliableSequence ?? "0",
+              presentationOriginVersion: snapshot.fence.presentationOriginVersion ?? "0",
+            };
+          }
+          input.applyControl(item);
+          const origin = item.reliableEvent?.presentationOriginChanged?.origin;
+          if (origin) {
+            if (!cut || !item.reliableEvent?.sequence || !origin.version) {
+              fail({ code: "invalid-origin-update", channel: "control" });
+              return;
             }
-            if (item.stateConnectionNonce) {
-              const nonce = item.stateConnectionNonce;
-              if (!cut || !connectionId || !nonce.nonce?.length || !nonce.expiresInMs || state)
-                throw new Error("invalid-state-nonce");
-              stateConnected = false;
-              readySent = false;
-              state = connect(
-                "/browser/state",
-                stateType,
-                { ...handshake, connectionId, stateConnectionNonce: nonce.nonce },
-                (stateValue) => {
-                  const stateItem = stateValue as unknown as StateServerItemWire;
-                  if (stateItem.connected) {
-                    if (stateItem.connected.connectionId !== connectionId || stateConnected)
-                      throw new Error("invalid-state-connection");
-                    stateConnected = true;
-                    recoveringState = false;
-                  } else if (!stateConnected) throw new Error("state-before-connected");
-                  if (stateItem.stateFrame) receivedState = true;
-                  input.applyState(stateItem);
-                },
-                fail,
-              );
-              started = Date.now();
+            cut = {
+              appliedReliableSequence: item.reliableEvent.sequence,
+              presentationOriginVersion: origin.version,
+            };
+            readySent = false;
+            started = Date.now();
+          }
+          if (item.stateConnectionNonce) {
+            const nonce = item.stateConnectionNonce;
+            if (!cut || !connectionId || !nonce.nonce?.length || !nonce.expiresInMs || state) {
+              fail({ code: "invalid-state-nonce", channel: "control" });
+              return;
             }
-          },
-          fail,
-        );
+            stateConnected = false;
+            readySent = false;
+            state = connect(
+              "state",
+              stateType,
+              { ...handshake, connectionId, stateConnectionNonce: nonce.nonce },
+              (stateValue) => {
+                const stateItem = stateValue as unknown as StateServerItemWire;
+                if (stateItem.connected) {
+                  if (stateItem.connected.connectionId !== connectionId || stateConnected) {
+                    fail({ code: "invalid-state-connection", channel: "state" });
+                    return;
+                  }
+                  stateConnected = true;
+                  recoveringState = false;
+                } else if (!stateConnected) {
+                  fail({ code: "state-before-connected", channel: "state" });
+                  return;
+                }
+                if (stateItem.stateFrame) receivedState = true;
+                input.applyState(stateItem);
+              },
+            );
+            started = Date.now();
+          }
+        });
+        if (closed) return close;
         timer = setInterval(() => {
           if (closed) return;
           try {
             const current = getConnection().bootstrap;
             if (Date.parse(current.expiresAt) <= Date.now()) {
-              fail();
+              fail({ code: "credential-expired" });
               return;
             }
             if (current.credential !== credential) {
@@ -237,7 +267,7 @@ export function createAudienceRealtime(
               return;
             }
             if ((!readySent || recoveringState) && Date.now() - started > 30000) {
-              fail();
+              fail({ code: "ready-timeout" });
               return;
             }
             const ready = input.getReadiness();
@@ -250,15 +280,20 @@ export function createAudienceRealtime(
               BigInt(ready.reliableSequence) >= BigInt(cut.appliedReliableSequence) &&
               BigInt(ready.presentationOriginVersion) >= BigInt(cut.presentationOriginVersion)
             ) {
-              send(control, "unframe.realtime.ControlClientItem", { stateReady: cut });
+              try {
+                send(control, "unframe.realtime.ControlClientItem", { stateReady: cut });
+              } catch {
+                fail({ code: "state-ready-send-failed", channel: "control" });
+                return;
+              }
               readySent = true;
             }
           } catch {
-            fail();
+            fail({ code: "connection-check-failed" });
           }
         }, 50);
       } catch {
-        fail();
+        fail({ code: "socket-create-failed", channel: "control" });
       }
       return close;
     },

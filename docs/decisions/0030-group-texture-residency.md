@@ -13,10 +13,11 @@ Accepted
 - Unity Media と Audience Web の Texture GPU 予算と encoded cache 予算を64から192 MiBへ引き上げる。Audience の常駐 binding 上限は8から32とする。単一素材の serial load CPU 予算、画像サイズ、shader の同時 sampler 上限は変えない。
 - PNG の常駐窓を、presentation 所有の全 State、現在 Group 所有の全 State、現在 Group の Cue が直接遷移できる全 Group 所有の全 State の和とする。guard は先読み候補を減らす根拠にしない。循環は一段先までで打ち切る。
 - Delivery は全画像のカタログと Group ごとの窓を渡す。`totalDecodedGpuBytes` はカタログ全体の和を維持し、窓の最大 GPU bytes と binding 数を別 field に記録する。admission は窓の最大値に、全常駐させるモデル内 Texture の費用を足して判定する。checksum が同じ画像は一度だけ計上する。
-- クライアントは現在 Group の窓を準備し、描画参照を外した窓外の GPU Texture を解放する。opacity 0 だけでは解放しない。Group 内の再表示、Surface crossfade、非表示から始まる Timeline は全 State 常駐で保護する。
+- Local Editor の Unity Preview は全 PNG を事前に常駐させ、Group ごとの解放とメモリ予算上限の admission を適用しない。素材の整合性検証と画像サイズ・描画機能の制約は維持する。
+- 本番配信のクライアントは現在 Group の窓を準備し、描画参照を外した窓外の GPU Texture を解放する。opacity 0 だけでは解放しない。Group 内の再表示、Surface crossfade、非表示から始まる Timeline は全 State 常駐で保護する。
 - 戻る操作・途中参加・高速進行で窓の準備が間に合わない場合は、準備後に最新の canonical state へ描画を合わせる。canonical clock や操作結果は変更しない。旧表示と候補の同時保持が予算を超える場合は、旧表示を外してから読み込む。Unity の遅延 Destroy が完了する前に追加 upload しない。
-- GPU 常駐と encoded cache の寿命を分ける。Web は予算内の encoded LRU、Unity は既存の検証済みファイルキャッシュを使い、GPU から退避した画像も再利用できるようにする。encoded データ全体の配信・キャッシュ予算検査は維持する。
-- Delivery 4、Projection 3、Local Preview 2へ更新し、旧版との暗黙の互換経路は設けない。ADR-0012 の解像度・RGBA32・byte式・Compiler予算は維持し、全画像の事前 GPU 常駐とセッション終了までの pin 方針を本 ADR で置き換える。
+- GPU 常駐と encoded cache の寿命を分ける。Web は予算内の encoded LRU、Unity は既存の検証済みファイルキャッシュを使い、GPU から退避した画像も再利用できるようにする。本番配信では encoded データ全体の配信・キャッシュ予算検査を維持する。
+- Delivery 4、Projection 3、Local Preview 2へ更新し、旧版との暗黙の互換経路は設けない。ADR-0012 の解像度・RGBA32・byte式・Compiler予算は維持し、本番配信での全画像の事前 GPU 常駐とセッション終了までの pin 方針を本 ADR で置き換える。
 
 ## Consequences
 

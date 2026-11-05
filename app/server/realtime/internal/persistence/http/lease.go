@@ -12,8 +12,9 @@ import (
 const maximumLeaseBytes = 16 << 10
 
 type RuntimeLease struct {
-	Assignment  BootstrapAssignment  `json:"assignment"`
-	Publication BootstrapPublication `json:"publication"`
+	SessionState string               `json:"sessionState"`
+	Assignment   BootstrapAssignment  `json:"assignment"`
+	Publication  BootstrapPublication `json:"publication"`
 }
 
 func (c *Client) Lease(ctx context.Context, request BootstrapRequest) (RuntimeLease, error) {
@@ -26,7 +27,7 @@ func (c *Client) Lease(ctx context.Context, request BootstrapRequest) (RuntimeLe
 		return RuntimeLease{}, err
 	}
 	var value RuntimeLease
-	if err := json.Unmarshal(body, &value); err != nil || !validRuntimeFence(request, value.Assignment, value.Publication) {
+	if err := json.Unmarshal(body, &value); err != nil || !validActiveSessionState(value.SessionState) || !validRuntimeFence(request, value.Assignment, value.Publication) {
 		return RuntimeLease{}, ErrInvalidBootstrap
 	}
 	return value, nil

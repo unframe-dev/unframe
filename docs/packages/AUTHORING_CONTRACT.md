@@ -157,3 +157,13 @@ Gesture は8種類から選び、Structured / React の両方で Presenter actor
 Group ごとの場面素材は `owner: group`、プレゼン全体で保持する素材は `owner: presentation` とする。PNG の GPU 常駐窓は現在 Group と直接の次候補 Group、および presentation 共通素材の和で計画する。モデル内 Texture は全常駐として各窓の予算へ加算する。[ADR-0030](../decisions/0030-group-texture-residency.md) を参照。
 
 React / Model の Scene 宣言も `owner: { kind: "group", groupId }` を指定できる。`flow.timelines[].owner` は省略時に presentation 所有となる。Group 内で動かす Timeline は同じ Group の owner を指定し、退出時に完了・解除する。
+
+## MR の配置基準点
+
+`stage.placementReferencePoint` は Stage 座標のメートル単位の `[x, y, z]` です。指定した点の高さを、Quest Presenter の配置確定時の HMD の高さ−30cmへ合わせます。Stage の原点そのものを胴体へ移すわけではありません。資料の実寸と各要素の相対位置は維持します。
+
+省略時は、全 Group・全 role の Stage 固定コンテンツを初期配置した範囲の中心を使います。Surface の実寸、Shape の寸法、Model の初期形状の範囲と、親を含む位置・回転・スケールを反映します。Presenter Anchor とその子孫、Light、Container 自体は範囲に含めません。初期 opacity が0の要素も対象とし、Timeline やページ切り替えでは基準点を変更しません。対象がない資料の基準点は `[0, 0, 0]` です。
+
+Model はデフォルトシーンの静的形状を囲む軸平行な範囲を使うため、回転後の範囲は実際の形状より広くなる場合があります。Skin / Morph を持つ Stage 固定 Model は自動計算の対象にできないため、`stage.placementReferencePoint` を明示してください。指定がなければビルド・公開時の成果物検証で拒否します。寸法情報を持たない既存の Model 資料は、再ビルド・再公開するか、基準点を明示して再ビルド・再公開する必要があります。
+
+遠くの装飾を含む資料など、自動計算の中心が配置意図と異なる場合は基準点を明示してください。配置は高さを合わせるだけで、自動縮小や水平位置の中央寄せは行いません。

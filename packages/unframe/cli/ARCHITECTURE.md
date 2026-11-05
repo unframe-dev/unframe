@@ -186,4 +186,4 @@ Opaque preview には既存の固定 Browser と OS 別の隔離実行環境が�
 
 登録GLBはCompilerのtransform identity、MP4は `UNFRAME_FFMPEG_PATH` / `UNFRAME_FFPROBE_PATH` と `UNFRAME_MEDIA_RUNTIME_CLOSURE` のtool・worker identityを一回のbuild入力へ含める。MP4 workerはreadonly input、network隔離、時間・出力・memory上限を適用し、全decode、AVC SPS、stream/packet/frameを検査する。自動transcodeは行わない。
 
-PreviewはModel/Video residencyと初期・再生stateを共通Unity playerへ渡す。Control PlaneとNative Runtimeは`unity-media-v1`を使用する。Local Editorは同じfeature/budgetでprofile IDだけを`local-web-preview`とする。これらの上限はadmission設定でありQuest実機の性能測定結果を表さない。
+PreviewはModel/Video residencyと初期・再生stateを共通Unity playerへ渡す。Control PlaneとNative Runtimeは`unity-media-v1`を使用する。Local Editorは`local-web-preview`を使用し、選択した全PNGを常駐させる。Previewのメモリ予算上限は適用せず、描画機能・画像サイズの制約と素材の整合性検証を維持する。本番配信の予算上限はadmission設定でありQuest実機の性能測定結果を表さない。

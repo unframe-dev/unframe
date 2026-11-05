@@ -81,7 +81,7 @@ publish は固定 Dist の完全性を検証し、現在の Source を読み直�
 
 ### Core の共通描画選択
 
-`verifyBuildIntegrity` 済みの BuildArtifacts と role／CapabilityProfile を受ける publication 非依存の処理で、selection・Runtime catalog を構築する。出力は visible IDs、選択済み Render Surface／State／artifact、Runtime catalog、asset closure／residency。既存の renderer 選択・参照・budget 規則を再実装しない。
+`verifyBuildIntegrity` 済みの BuildArtifacts と role／CapabilityProfile を受ける publication 非依存の処理で、selection・Runtime catalog を構築する。出力は visible IDs、選択済み Render Surface／State／artifact、Runtime catalog、asset closure／residency。既存の renderer 選択・参照検証を共有する。Local Preview 専用の入口ではメモリ予算による admission を適用せず、本番配信の入口では引き続き適用する。
 
 Delivery は従来どおり `verifyPublicationIntegrity` を通し、共通結果に PublicationFence、profile identity、projection instance、asset access を付加する。Local Preview は build identity を使い、publication／session／assignment を付加しない。
 
@@ -162,7 +162,7 @@ Dev は導入済み `node_modules` と保存済み Source・素材を検証し�
 - Bridge は `prepare(requestId)` の成功通知後に Web UI が mode／最新要求を照合し、`commit(requestId)` または `discard(requestId)` を送る。Unity は現在の要求に一致する候補だけを commit する。mode 切り替え時は要求を無効化し、古い load 成功だけで scene を交換しない。
 - Unity は scene の交換完了後に `committed(requestId, buildIdentity)` を返す。Web UI は現在の mode／要求と一致する通知だけで表示成功を確定し、認証済み Host API に報告する。Host は発行済み Preview 要求の固定 generation・artifact hashes と結び付けて表示済み記録を持つ。publish はその requestId を指定し、Host が現在の Dist 表示記録と照合する。これは協調する Editor の操作条件であり、CP の認可を代替しない。
 - `prepare` 成功と `commit` 送信だけでは公開を許可しない。commit 失敗・完了通知の欠落・Unity instance の終了では表示未確定として公開を止める。新しい load または mode 切り替え時は Host の表示済み記録を無効化してから処理し、遅延した通知で復活させない。未確定時は再読み込みで確認し、旧 scene が残っていても公開可能とは扱わない。
-- scene 交換の admission は、旧 scene と候補を同時保持する GPU 使用量と serial asset load の CPU ピークも検査する。固定 Preview capability の上限を超える場合は候補を拒否して旧 scene を維持する。ADR-0012 の単一成果物の charge は変更しない。`PresentationPreviewAdmission` は単一 scene GPU 192 MiB、旧 scene＋候補 GPU 288 MiB、serial load CPU peak 64 MiB を上限とする。GPU charge は RGBA8 の `width × height × 4`、各 texture の CPU peak は `encodedSizeBytes + 2 × decodedGpuBytes`。共有 checksum は descriptor が一致する場合だけ一度計上し、CPU peak は未共有 texture の最大値で検査する。同一 checksum の資源を共有する実装では同一資源を一度だけ計上し、load 後に不要な CPU readback copy を破棄する。
+- Local Preview は選択した全 PNG を候補 scene の準備時に GPU へ読み込み、Group の切り替えでは解放しない。scene の交換・破棄時に参照を解放する。Preview では GPU、serial load CPU、encoded bytes、旧 scene と候補の同時保持に対するメモリ予算上限を適用しない。画像サイズ・描画機能の制約と descriptor の整合性検証は維持し、共有 checksum は metadata が一致する場合だけ再利用する。load 後に不要な CPU readback copy を破棄する。
 - compile、asset、Unity load の失敗は診断を表示し、前の正常 scene を維持する。新候補の資源は破棄する。Source 保存は build／load 失敗によって巻き戻さない。
 - Dist 選択後は Dev の完了通知で表示を上書きしない。Unity instance はプレゼン更新ごとに再起動せず、終了時に scene・素材・Bridge の資源を解放する。
 - 初期は ADR-0013 と同様に過去の完成 generation を自動回収しない。Unity の旧 scene・素材の参照解放は表示交換時に行う。完成成果物の回収は cache 回収と分け、保持中の generation を保護する規則とともに後続で設計する。
