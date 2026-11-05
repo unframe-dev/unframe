@@ -21,9 +21,13 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static void Apply(GameObject root, float opacity)
         {
+            PresentationVisualOpacity rootController = root.GetComponent<PresentationVisualOpacity>();
+            if (rootController == null) rootController = root.AddComponent<PresentationVisualOpacity>();
+            rootController.SetOpacity(opacity);
             foreach (CanvasGroup canvas in root.GetComponentsInChildren<CanvasGroup>(true)) canvas.alpha = Mathf.Clamp01(opacity);
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
+                if (renderer.gameObject == root) continue;
                 PresentationVisualOpacity controller = renderer.GetComponent<PresentationVisualOpacity>();
                 if (controller == null)
                 {
@@ -68,6 +72,7 @@ namespace Unframe.Unity.PresentationRuntime
 
             initialized = true;
             Renderer renderer = GetComponent<Renderer>();
+            if (renderer == null) return;
             Material[] materials = renderer.sharedMaterials;
             for (int index = 0; index < materials.Length; index++)
             {

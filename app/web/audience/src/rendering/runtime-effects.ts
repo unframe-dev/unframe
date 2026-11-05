@@ -1,5 +1,5 @@
 import { Vector3, type Object3D } from "three";
-import type { EffectRunSnapshot } from "@unframe-dev/contracts/presentation";
+import type { ParticipantRuntimeView } from "@unframe-dev/contracts/presentation";
 import { VisualEffects, type EffectHandle, type HandGlowHandle } from "../visual-effects/effects";
 
 export interface RuntimeHandPose {
@@ -22,11 +22,12 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
   >();
   return {
     frame(
-      snapshot: readonly EffectRunSnapshot[],
+      view: Pick<ParticipantRuntimeView, "effectRuns" | "nodeStates">,
       runtimeMs: number,
       poses: readonly RuntimeHandPose[] = [],
       presentationRoot?: Object3D,
     ) {
+      const snapshot = view.effectRuns;
       const ids = new Set(
         snapshot.map((run) => `${run.runId.assignmentEpoch}:${run.runId.runSequence}`),
       );
@@ -87,6 +88,8 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
           }
           runs.set(id, entry);
         }
+        if (run.effect.kind === "wave" && entry.handle)
+          effects.setWaveOpacity(id, view.nodeStates[run.nodeId]?.opacity ?? 1);
         if (run.effect.kind === "handGlow" && entry.hand && !entry.completed) {
           const hand = run.effect.hand;
           const sample = poses.find((value) => value.hand === hand);

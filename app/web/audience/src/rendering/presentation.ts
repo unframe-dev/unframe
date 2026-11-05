@@ -140,6 +140,7 @@ export async function createPresentation(options: {
         const sample = evaluateAnimationView(options.delivery, view, time);
         if (!png.applyAnimationFrame(sample.view, sample.surfaceTransitions))
           throw new Error("Surface animation mismatch");
+        return sample.view;
       },
       prepareRender: png.prepareRender,
       dispose() {
@@ -285,13 +286,14 @@ export async function createPresentation(options: {
         return true;
       },
       applyAnimationFrame(next: ParticipantRuntimeView, time: number) {
-        if (disposed) return;
+        if (disposed) return next;
         const sample = evaluateAnimationView(options.delivery, next, time);
         if (!surfaces!.applyAnimationFrame(sample.view, sample.surfaceTransitions))
           throw new Error("Surface animation mismatch");
         video!.applyAnimationFrame(sample.view, time);
         model!.applyAnimationFrame(sample.view, time);
         options.host.setPresentationOrigin(origin);
+        return sample.view;
       },
       prepareRender(camera: Camera) {
         surfaces!.prepareRender(camera);

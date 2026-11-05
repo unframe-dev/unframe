@@ -5,6 +5,124 @@ using UnityEngine;
 
 public sealed class VisualEffectTests
 {
+    [TestCase(110, 0.4f)]
+    [TestCase(1000, 0.8f)]
+    public void WaveOpacityMultipliesTheOriginalAlphaAndAppearanceWithoutAccumulating(double now, float baseAlpha)
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            var options = new EffectOptions("wave", 1, new Color(1, 1, 1, 0.8f), 1, 1000, 42, 0);
+            var handle = effects.PlayWave(options, stage.transform);
+            effects.Evaluate(now);
+            var line = stage.GetComponentInChildren<LineRenderer>();
+            var position = line.GetPosition(10);
+            var width = line.widthMultiplier;
+            foreach (float opacity in new[] { 0.25f, 0.25f, 0f, 1f, 0.5f, 1f })
+            {
+                effects.SetWaveOpacity("wave", opacity);
+                effects.Evaluate(now);
+                Assert.That(line.colorGradient.Evaluate(0.5f).a, Is.EqualTo(baseAlpha * opacity).Within(0.005f));
+                Assert.That(line.colorGradient.Evaluate(1).a, Is.Zero.Within(0.001f));
+                Assert.That(line.GetPosition(10), Is.EqualTo(position));
+                Assert.That(line.widthMultiplier, Is.EqualTo(width));
+                Assert.That(stage.transform.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(effects.PlayWave(options, stage.transform), Is.SameAs(handle));
+                Assert.That(options.Color.a, Is.EqualTo(0.8f));
+            }
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [TestCase(float.NaN)]
+    [TestCase(float.PositiveInfinity)]
+    [TestCase(float.NegativeInfinity)]
+    [TestCase(-0.1f)]
+    [TestCase(1.1f)]
+    public void WaveRejectsInvalidOpacityWithoutChangingItsCurrentValue(float opacity)
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0), stage.transform);
+            effects.SetWaveOpacity("wave", 0.25f);
+            Assert.Throws<ArgumentOutOfRangeException>(() => effects.SetWaveOpacity("wave", opacity));
+            effects.Evaluate(1000);
+            Assert.That(stage.GetComponentInChildren<LineRenderer>().colorGradient.Evaluate(0.5f).a,
+                Is.EqualTo(0.25f).Within(0.005f));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [Test]
+    public void WaveOpacityRejectsAbsentCancelledAndNonWaveRuns()
+    {
+        using var effects = new VisualEffectPlayer();
+        Assert.Throws<ArgumentException>(() => effects.SetWaveOpacity(null, 1));
+        Assert.Throws<ArgumentException>(() => effects.SetWaveOpacity("missing", 1));
+        effects.BeginHandGlow(new EffectOptions("hand", 1, Color.white, 1, 1000, 42, 0));
+        Assert.Throws<ArgumentException>(() => effects.SetWaveOpacity("hand", 1));
+        var handle = effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0), null);
+        handle.Cancel();
+        Assert.Throws<ArgumentException>(() => effects.SetWaveOpacity("wave", 1));
+    }
+
+    [TestCase(0.2f)]
+    [TestCase(0.5f)]
+    [TestCase(1f)]
+    public void WaveLeadingEdgeHasDenseCurvesAndASoftTaper(float progress)
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            effects.PlayWave(new EffectOptions("wave", 1, Color.white, 1, 1000, 42, 0), stage.transform);
+            effects.Evaluate(progress * 1000);
+            var line = stage.GetComponentInChildren<LineRenderer>();
+            for (var i = 1; i < line.positionCount; i++)
+                Assert.That(line.GetPosition(i).x - line.GetPosition(i - 1).x, Is.LessThanOrEqualTo(0.04f));
+            Assert.That(line.numCapVertices, Is.GreaterThanOrEqualTo(4));
+            Assert.That(line.numCornerVertices, Is.GreaterThanOrEqualTo(2));
+            Assert.That(line.widthCurve.Evaluate(0.5f), Is.EqualTo(1).Within(0.001f));
+            Assert.That(line.widthCurve.Evaluate(0.97f), Is.InRange(0.2f, 0.8f));
+            Assert.That(line.widthCurve.Evaluate(1), Is.Zero.Within(0.001f));
+            Assert.That(line.colorGradient.Evaluate(0.5f).a, Is.GreaterThan(0.8f));
+            Assert.That(line.colorGradient.Evaluate(1).a, Is.Zero.Within(0.001f));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
+    [TestCase(1f, 0.018f)]
+    [TestCase(0.48f, 0.00864f)]
+    public void WaveStrandWidthAndPositionsFollowTheParentScale(float size, float expectedWidth)
+    {
+        var stage = new GameObject("Wave stage");
+        try
+        {
+            using var effects = new VisualEffectPlayer();
+            effects.PlayWave(new EffectOptions("wave", size, Color.white, 1, 1000, 42, 0), stage.transform);
+            var line = stage.GetComponentInChildren<LineRenderer>(true);
+            Assert.That(line.widthMultiplier, Is.EqualTo(expectedWidth).Within(0.00001f));
+            effects.Evaluate(1000);
+            Assert.That(line.widthMultiplier, Is.EqualTo(expectedWidth).Within(0.00001f));
+            Assert.That(line.widthCurve.Evaluate(0.5f), Is.EqualTo(1).Within(0.001f));
+            Assert.That(line.widthCurve.Evaluate(1), Is.Zero.Within(0.001f));
+            Assert.That(line.colorGradient.Evaluate(1).a, Is.Zero.Within(0.001f));
+            var localPoint = line.GetPosition(0);
+            var width = line.widthMultiplier;
+            stage.transform.localScale = Vector3.one * 0.25f;
+            effects.Evaluate(1000);
+            Assert.That(line.widthMultiplier, Is.EqualTo(width * 0.25f).Within(0.00001f));
+            Assert.That(line.transform.TransformPoint(localPoint), Is.EqualTo(localPoint * 0.25f));
+            stage.transform.localScale = Vector3.one;
+            effects.Evaluate(1000);
+            Assert.That(line.widthMultiplier, Is.EqualTo(width).Within(0.00001f));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(stage); }
+    }
+
     [Test]
     public void WaveHoldsItsFinalShapeUntilCancelled()
     {
@@ -22,12 +140,12 @@ public sealed class VisualEffectTests
             Assert.That(effects.ActiveCount, Is.EqualTo(1));
             Assert.That(handle.Progress, Is.EqualTo(1));
             var end = lines[0].GetPosition(lines[0].positionCount - 1);
-            var alpha = lines[0].endColor.a;
+            var alpha = lines[0].colorGradient.Evaluate(0.5f).a;
             Assert.That(alpha, Is.GreaterThan(0));
             var material = lines[0].sharedMaterial;
             effects.Evaluate(5000);
             Assert.That(lines[0].GetPosition(lines[0].positionCount - 1), Is.EqualTo(end));
-            Assert.That(lines[0].endColor.a, Is.EqualTo(alpha));
+            Assert.That(lines[0].colorGradient.Evaluate(0.5f).a, Is.EqualTo(alpha));
             Assert.That(effects.PlayWave(options, stage.transform), Is.SameAs(handle));
             Assert.That(completed, Is.False);
             handle.Cancel();
@@ -65,7 +183,8 @@ public sealed class VisualEffectTests
             Assert.That(lines[0].GetPosition(10), Is.EqualTo(drawn));
             Assert.That(lines[0].positionCount, Is.GreaterThan(count));
             effects.Evaluate(900);
-            Assert.That(lines[0].endColor.a, Is.EqualTo(lines[0].startColor.a).Within(0.001f));
+            Assert.That(lines[0].endColor.a, Is.Zero.Within(0.001f));
+            Assert.That(lines[0].colorGradient.Evaluate(0.5f).a, Is.EqualTo(lines[0].startColor.a).Within(0.001f));
             effects.Evaluate(1000);
             float minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
             for (int i = 0; i < lines[0].positionCount; i++)

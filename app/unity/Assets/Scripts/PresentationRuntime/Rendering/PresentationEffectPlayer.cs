@@ -12,6 +12,7 @@ namespace Unframe.Unity.PresentationRuntime
         private sealed class Entry
         {
             internal EffectRunSnapshot Snapshot;
+            internal GameObject Target;
             internal readonly List<EffectHandle> Handles = new List<EffectHandle>();
             internal bool Unsupported;
             internal ulong PoseSequence;
@@ -38,7 +39,7 @@ namespace Unframe.Unity.PresentationRuntime
                     {
                         if (hierarchy.Registry == null || !hierarchy.Registry.TryGet(run.NodeId, out GameObject node))
                             throw new InvalidOperationException("effect-node-absent");
-                        entry = new Entry { Snapshot = run.Clone() };
+                        entry = new Entry { Snapshot = run.Clone(), Target = node };
                         // Register before allocation so a failed mesh can release earlier allocations.
                         entries.Add(id, entry);
                         try { Start(run, id, node, entry); }
@@ -52,6 +53,8 @@ namespace Unframe.Unity.PresentationRuntime
                     if (entry.Snapshot.NodeId != run.NodeId || !entry.Snapshot.Configuration.Equals(run.Configuration)
                         || entry.Snapshot.StartedAtRuntimeTimeMs != run.StartedAtRuntimeTimeMs || entry.Snapshot.Seed != run.Seed)
                         throw new InvalidOperationException("effect-run-identity-changed");
+                    if (!entry.Unsupported && run.Configuration.Kind == EffectKind.Wave)
+                        player.SetWaveOpacity(id, entry.Target.GetComponent<PresentationVisualOpacity>()?.Opacity ?? 1f);
                     if (!entry.Unsupported && run.Configuration.Kind == EffectKind.HandGlow)
                         UpdateHand(store, hierarchy, run, entry, runtimeMs);
                 }

@@ -6,6 +6,72 @@ using UnityEngine;
 
 public sealed class PresentationEffectPlayerTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public void WaveUsesTimelineOpacityOnItsEmptyNodeIncludingInitialMidFadeSeek(bool startBeforeFade)
+    {
+        Assert.IsTrue(PresentationLocalPreviewAdapter.TryCreate(PresentationPreviewTestFixture.Create(), out var input, out string error), error);
+        var root = new GameObject("Effects");
+        var hierarchy = new PresentationNodeHierarchy();
+        var timelines = new PresentationTimelinePlayer();
+        using var effects = new PresentationEffectPlayer();
+        try
+        {
+            Assert.IsTrue(hierarchy.TryReplace(input, root.transform, out error), error);
+            Assert.IsTrue(hierarchy.Registry.TryGet("node:stage", out var target));
+            Assert.IsEmpty(target.GetComponentsInChildren<Renderer>());
+            var run = new EffectRunSnapshot
+            {
+                RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 },
+                NodeId = "node:stage",
+                Configuration = new EffectConfiguration
+                {
+                    Kind = EffectKind.Wave, Size = 1, Speed = 1, DurationMs = 1000,
+                    Color = new Unframe.Presentation.SrgbaColor { Alpha = 0.8 },
+                },
+            };
+            if (startBeforeFade)
+                Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 1000, out error), error);
+            var timeline = new ProjectedTimelineDefinition
+            {
+                TimelineId = "timeline:wave-opacity", DurationMs = 1000,
+                Tracks =
+                {
+                    new ProjectedTimelineTrack
+                    {
+                        Target = new TimelineTrackTarget { NodeId = run.NodeId, Property = TimelineProperty.Opacity },
+                        Keyframes =
+                        {
+                            new TimelineKeyframe { TimeMs = 0, EasingToNext = Easing.Linear, Number = new NumberKeyframeValue { Value = 1 } },
+                            new TimelineKeyframe { TimeMs = 1000, Number = new NumberKeyframeValue { Value = 0 } },
+                        },
+                    },
+                },
+            };
+            Assert.IsTrue(timelines.TryStart(timeline, hierarchy, 0, out error), error);
+            timelines.Update(0.75);
+            Assert.IsTrue(input.TryGetNodeState(run.NodeId, out var canonical));
+            Assert.That(canonical.Opacity, Is.EqualTo(1));
+            Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 1750, out error), error);
+            var line = target.GetComponentInChildren<LineRenderer>();
+            var position = line.GetPosition(80);
+            var width = line.widthMultiplier;
+            foreach (float time in new[] { 0.75f, 0.5f, 0f, 1f, 0f })
+            {
+                timelines.Update(time, true);
+                Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 1750, out error), error);
+                Assert.AreSame(line, target.GetComponentInChildren<LineRenderer>());
+                Assert.That(line.colorGradient.Evaluate(0.5f).a, Is.EqualTo(0.8f * (1 - time)).Within(0.005f));
+                Assert.That(line.colorGradient.Evaluate(1).a, Is.Zero.Within(0.001f));
+                Assert.That(line.GetPosition(80), Is.EqualTo(position));
+                Assert.That(line.widthMultiplier, Is.EqualTo(width));
+                Assert.That(target.transform.localScale, Is.EqualTo(UnityEngine.Vector3.one));
+                Assert.That(effects.Count, Is.EqualTo(1));
+            }
+        }
+        finally { timelines.Clear(); effects.Clear(); hierarchy.Clear(); Object.DestroyImmediate(root); }
+    }
+
     [Test]
     public void WaveResolvesItsNodeRestoresFromClockAndReleasesOnStop()
     {

@@ -33,13 +33,16 @@ namespace Unframe.Unity.VisualEffects
 
         private sealed class WaveRun : Run
         {
+            private const int PointCount = 256;
+            private const float StrandWidth = 0.018f;
+            internal float Opacity = 1;
             private readonly GameObject root;
             private readonly Material material;
             private readonly LineRenderer[] lines = new LineRenderer[12];
             private readonly Gradient gradient = new Gradient();
             private readonly GradientColorKey[] shortColors = new GradientColorKey[2];
             private readonly GradientColorKey[] longColors = new GradientColorKey[3];
-            private readonly GradientAlphaKey[] alphas = new GradientAlphaKey[2];
+            private readonly GradientAlphaKey[] alphas = new GradientAlphaKey[6];
             private static readonly Color Blue = new Color(0x71 / 255f, 0x87 / 255f, 0xf5 / 255f);
             private static readonly Color Purple = new Color(0x9a / 255f, 0x80 / 255f, 0xd0 / 255f);
             private static readonly Color Coral = new Color(0xdf / 255f, 0x7b / 255f, 0x80 / 255f);
@@ -51,10 +54,14 @@ namespace Unframe.Unity.VisualEffects
                 root = new GameObject("Visual wave");
                 root.transform.SetParent(parent, false);
                 root.SetActive(false);
+                var taper = new AnimationCurve(new Keyframe(0, 1), new Keyframe(0.94f, 1), new Keyframe(1, 0));
                 for (var i = 0; i < lines.Length; i++)
                 {
-                    lines[i] = CreateLine(root.transform, material, 96, options.Size * 0.012f);
+                    lines[i] = CreateLine(root.transform, material, PointCount, options.Size * StrandWidth);
                     lines[i].useWorldSpace = false;
+                    lines[i].widthCurve = taper;
+                    lines[i].numCapVertices = 8;
+                    lines[i].numCornerVertices = 2;
                 }
             }
             internal override bool Evaluate(double now)
@@ -65,9 +72,13 @@ namespace Unframe.Unity.VisualEffects
                 var tip = progress <= 0.48f ? Color.Lerp(Blue, Purple, progress / 0.48f)
                     : Color.Lerp(Purple, Coral, (progress - 0.48f) / 0.52f);
                 var tint = Options.Color;
-                var alpha = tint.a * Mathf.SmoothStep(0, 1, Mathf.Clamp01(progress / 0.22f));
+                var alpha = tint.a * Opacity * Mathf.SmoothStep(0, 1, Mathf.Clamp01(progress / 0.22f));
                 alphas[0] = new GradientAlphaKey(alpha, 0);
-                alphas[1] = new GradientAlphaKey(alpha, 1);
+                alphas[1] = new GradientAlphaKey(alpha, 0.94f);
+                alphas[2] = new GradientAlphaKey(alpha * 0.84375f, 0.955f);
+                alphas[3] = new GradientAlphaKey(alpha * 0.5f, 0.97f);
+                alphas[4] = new GradientAlphaKey(alpha * 0.15625f, 0.985f);
+                alphas[5] = new GradientAlphaKey(0, 1);
                 if (progress <= 0.48f)
                 {
                     shortColors[0] = new GradientColorKey(Blue * tint, 0);
@@ -82,14 +93,16 @@ namespace Unframe.Unity.VisualEffects
                     gradient.SetKeys(longColors, alphas);
                 }
                 var phase = -Mathf.PI * 0.2f + (Options.Seed % 1024) / 1023f * Mathf.PI * 0.1f;
-                var visiblePoints = Mathf.Clamp(Mathf.CeilToInt(progress * 95) + 1, 2, 96);
+                var visiblePoints = Mathf.Clamp(Mathf.CeilToInt(progress * (PointCount - 1)) + 1, 2, PointCount);
+                var width = Options.Size * StrandWidth * Mathf.Abs(root.transform.lossyScale.x);
                 for (var i = 0; i < lines.Length; i++)
                 {
                     lines[i].colorGradient = gradient;
+                    lines[i].widthMultiplier = width;
                     lines[i].positionCount = visiblePoints;
                     for (var j = 0; j < visiblePoints; j++)
                     {
-                        var q = Mathf.Min(j / 95f, progress);
+                        var q = Mathf.Min(j / (float)(PointCount - 1), progress);
                         var x = -4 + 8 * q;
                         var y = 0.6f * Mathf.Cos(q * Options.WaveCycles * 2 * Mathf.PI + phase) + (5.5f - i) * 0.12f;
                         lines[i].SetPosition(j, new Vector3(x, y, 0) * Options.Size);
@@ -241,6 +254,14 @@ namespace Unframe.Unity.VisualEffects
             foreach (var run in runs.Values)
                 if (run is DissolveRun dissolve && dissolve.Target == target) throw new InvalidOperationException("The target already has a dissolve effect.");
             return Add(options, () => new DissolveRun(options, target, shader, retainTerminalPose), typeof(DissolveRun), target, shader);
+        }
+        public void SetWaveOpacity(string runId, float opacity)
+        {
+            if (!EffectOptions.Finite(opacity) || opacity < 0 || opacity > 1)
+                throw new ArgumentOutOfRangeException(nameof(opacity));
+            if (runId == null || !runs.TryGetValue(runId, out var run) || !(run is WaveRun wave))
+                throw new ArgumentException("Unknown wave effect.", nameof(runId));
+            wave.Opacity = opacity;
         }
         public void UpdatePose(string runId, Vector3 position, double runtimeMs) => Hand(runId).Pose(position, runtimeMs);
         public void EndHandGlow(string runId, double runtimeMs) => Hand(runId).End(runtimeMs);
