@@ -1,7 +1,7 @@
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import {
   presentationKeys,
   presentationQueryOptions,
@@ -43,7 +43,11 @@ export function PresentationPage({ presentationId }: { presentationId: string })
         {error ? <p role="alert">{managementErrorMessage(error)}</p> : null}
         {!error && publication.data ? (
           <>
-            <Link to="/rooms" search={{ presentationId }}>
+            <Link
+              to="/rooms"
+              search={{ presentationId }}
+              className={buttonVariants({ className: "w-fit" })}
+            >
               ルームを作成
             </Link>
             <PublicationDetails publication={publication.data} />

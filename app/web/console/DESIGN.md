@@ -16,7 +16,7 @@ Web の責務と技術境界は [`ARCHITECTURE.md`](./ARCHITECTURE.md) を正本
 
 ### 作業を最短距離にする
 
-Home は marketing page ではなく、次に開く Presentation を選ぶ workspace です。認証画面は本人確認を、Settings はアカウント管理を、Rooms はルーム作成を主目的とし、各画面の主要 action を一つに絞ります。
+Home は marketing page ではなく、次に開く Presentation を選ぶ workspace です。認証画面は本人確認を、Settings はアカウント管理を、Rooms はルーム作成を主目的とし、各画面の主要 action を一つに絞ります。主要 action は画面遷移であっても共通のボタン外観を使い、遷移先を持つ要素は link として実装します。
 
 ### 状態を隠さない
 

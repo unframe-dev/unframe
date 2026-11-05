@@ -234,7 +234,10 @@ test("shows active device authorizations and links to approval without exposing 
   await expect(page.getByText("Desktop Chrome", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Expired Quest", { exact: true })).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText("secret-device-token");
-  await page.getByRole("link", { name: "デバイスを承認" }).click();
+  const approveDeviceLink = page.getByRole("link", { name: "デバイスを承認" });
+  await expect(approveDeviceLink).toHaveCSS("background-color", "rgb(223, 123, 128)");
+  await expect(approveDeviceLink).toHaveCSS("min-height", "44px");
+  await approveDeviceLink.click();
   await expect(page.getByRole("heading", { name: "Connect a device." })).toBeVisible();
   await page.getByRole("link", { name: "デバイス一覧へ" }).click();
   await expect(page.getByText("Unframe Quest", { exact: true })).toBeVisible();
