@@ -459,7 +459,6 @@ const verifyPublication = (artifacts: PublicationArtifacts, diagnostics: Diagnos
   const sharedFields = [
     "schemaVersion",
     "buildId",
-    "presentationId",
     "sourceDraftRevision",
     "definitionHash",
     "renderBundleHash",
@@ -483,6 +482,19 @@ const verifyPublication = (artifacts: PublicationArtifacts, diagnostics: Diagnos
       );
   }
 
+  const { presentationId, sourcePresentationId } = artifacts.publishedPresentation;
+  if ((sourcePresentationId ?? presentationId) !== artifacts.buildManifest.presentationId)
+    diagnostics.push(
+      diagnostic(
+        "publication.invalid",
+        [
+          "publishedPresentation",
+          sourcePresentationId === undefined ? "presentationId" : "sourcePresentationId",
+        ],
+        "Publication source ID must equal the BuildManifest presentationId.",
+      ),
+    );
+
   const { publicationManifestHash: _excluded, ...publicationPayload } =
     artifacts.publishedPresentation;
   const expectedPublicationHash = hashCanonicalJsonPayload(publicationPayload);
@@ -505,7 +517,6 @@ const verifyUnparsedPublicationAgreement = (
   const sharedFields = [
     "schemaVersion",
     "buildId",
-    "presentationId",
     "sourceDraftRevision",
     "definitionHash",
     "renderBundleHash",

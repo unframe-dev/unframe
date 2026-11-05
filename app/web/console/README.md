@@ -47,7 +47,7 @@ Home のサムネイルは認証付きの `GET /presentations/{presentationId}/b
 
 ## Dist の公開
 
-ホームの「プレゼンテーションを公開」から `/publish` を開き、ビルド済みの `dist` フォルダを選択します。receipt・manifest・素材の整合性を検証した後、新規公開か既存 Presentation の更新かを確認して公開します。素材は合計256 MiB、4つの成果物 JSON（definition・render-bundle・asset-set・build-manifest）は各8 MiB、build-receipt.json は1 KiBまでです。選択ファイルと公開中の状態は認証後の管理画面間の移動をまたいでメモリーに保持し、再読み込みでは破棄します。公開結果が不明な場合は再送せず「公開情報を確認」で照合します。
+ホームの「プレゼンテーションを公開」から `/publish` を開き、ビルド済みの `dist` フォルダを選択します。receipt・manifest・素材の整合性を検証した後、新規公開か既存 Presentation の更新かを確認して公開します。公開先はアカウントとソース ID ごとに決まるため、同じ Dist を別のアカウントでも独立して公開できます。素材は合計256 MiB、4つの成果物 JSON（definition・render-bundle・asset-set・build-manifest）は各8 MiB、build-receipt.json は1 KiBまでです。選択ファイルと公開中の状態は認証後の管理画面間の移動をまたいでメモリーに保持し、再読み込みでは破棄します。公開結果が不明な場合は再送せず「公開情報を確認」で照合します。
 
 ## 検証
 

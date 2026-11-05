@@ -106,7 +106,7 @@ export const runPresentationProcess = async ({
         result = receipt.ok
           ? {
               exitCode: 0,
-              stdout: `publish: ok (${receipt.buildId}, epoch ${receipt.publicationEpoch})\n`,
+              stdout: `publish: ok (${receipt.buildId}, epoch ${receipt.publicationEpoch})\nPresentation ID: ${receipt.presentationId}\n`,
               stderr: "",
             }
           : {
@@ -136,7 +136,7 @@ export const runPresentationProcess = async ({
         result = sent.ok
           ? {
               exitCode: 0,
-              stdout: `publish: ok (${sent.buildId}, epoch ${sent.publicationEpoch})\n`,
+              stdout: `publish: ok (${sent.buildId}, epoch ${sent.publicationEpoch})\nPresentation ID: ${sent.presentationId}\n`,
               stderr: "",
             }
           : {

@@ -35,7 +35,7 @@ public sealed class AprilTagPresentationCalibrationTests
     }
 
     [Test]
-    public void PlacementCapturesHeadHeadingAndHeightWithoutChangingPhysicalMarkerCalibration()
+    public void PlacementCapturesHeadHeightAndPreservesPhysicalMarkerOrientation()
     {
         var head = new GameObject("HMD");
         try
@@ -55,7 +55,7 @@ public sealed class AprilTagPresentationCalibrationTests
             var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(1.5f).Within(0.00001f));
-            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, Quaternion.Euler(0, 45, 0)), Is.LessThan(0.02f));
+            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
             bridge.BeginSession("second");
             Assert.That(bridge.Calibration.IsValid, Is.False);
             Assert.That(alignment.IsConfirmed, Is.False);
@@ -65,7 +65,7 @@ public sealed class AprilTagPresentationCalibrationTests
             command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
-            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, Quaternion.Euler(0, 100, 0)), Is.LessThan(0.02f));
+            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
         }
         finally { Object.DestroyImmediate(head); }
     }

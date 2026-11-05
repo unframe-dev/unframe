@@ -87,7 +87,9 @@ describe("createControlPlaneClient", () => {
 
     expectTypeOf<RequestIsTyped>().toEqualTypeOf<false>();
     expectTypeOf<ResponseIsTyped>().toEqualTypeOf<false>();
-    expectTypeOf<CreatePresentationRequest>().toEqualTypeOf<{ id: string; name: string }>();
+    expectTypeOf<CreatePresentationRequest>().toEqualTypeOf<
+      { id: string; name: string } | { sourcePresentationId: string; name: string }
+    >();
     expectTypeOf<CreatePresentationResponse["id"]>().toEqualTypeOf<string>();
     expectTypeOf<GetPresentationRequest>().toEqualTypeOf<{ param: { id: string } }>();
   });

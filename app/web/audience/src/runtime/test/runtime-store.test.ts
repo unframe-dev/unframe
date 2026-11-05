@@ -167,26 +167,26 @@ describe("runtime store", () => {
     expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
   });
 
-  it.each([6, 7])("rejects ControlConnected requiring unsupported capability %s", (capability) => {
+  it("rejects ControlConnected requiring Presenter recognition", () => {
     const { store, delivery } = setup();
     store.applyControl({
       connected: {
         protocolVersion: "v3",
         progressionContractVersion: 2,
-        requiredCapabilities: [1, capability, 8, 9, 10],
+        requiredCapabilities: [1, 7, 8, 9, 10],
         connectionId: "connection",
         projectionInstance: delivery.projectionInstance!,
       },
     });
     expect(store.getSnapshot().phase).toBe("resync-required");
   });
-  it("accepts v3 Control negotiation and then a Viewer snapshot", () => {
+  it("accepts v3 Control negotiation requiring tracking and then a Viewer snapshot", () => {
     const { store, delivery, snapshot } = setup();
     store.applyControl({
       connected: {
         protocolVersion: "v3",
         progressionContractVersion: 2,
-        requiredCapabilities: [1, 2, 3, 4, 5, 8, 9, 10],
+        requiredCapabilities: [1, 2, 3, 4, 5, 6, 8, 9, 10],
         connectionId: "connection",
         projectionInstance: delivery.projectionInstance!,
       },

@@ -28,18 +28,26 @@ const test = base.extend<{ dist: Dist }>({
   },
 });
 
+const targetId = "owned-presentation";
 const publication = (
   dist: Dist,
   epoch: number,
   buildId = dist.fixture.artifacts.buildManifest.buildId,
 ): PublishedPresentation => {
-  const payload = { ...dist.fixture.artifacts.buildManifest, buildId, publicationEpoch: epoch };
+  const { buildManifest } = dist.fixture.artifacts;
+  const payload = {
+    ...buildManifest,
+    presentationId: targetId,
+    sourcePresentationId: buildManifest.presentationId,
+    buildId,
+    publicationEpoch: epoch,
+  };
   return { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) };
 };
 type RecordedRequest = { path: string; method: string; body: Buffer | null };
 async function remote(page: Page, dist: Dist) {
-  const id = dist.fixture.artifacts.buildManifest.presentationId;
-  const apiPath = `/presentations/${encodeURIComponent(id)}`;
+  const sourcePresentationId = dist.fixture.artifacts.buildManifest.presentationId;
+  const apiPath = `/presentations/${targetId}`;
   const state = {
     exists: false,
     current: null as PublishedPresentation | null,
@@ -51,18 +59,28 @@ async function remote(page: Page, dist: Dist) {
   };
   await page.route("**/presentations**", async (route) => {
     const request = route.request();
-    if (new URL(request.url()).port === "4173") return route.continue();
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    if (url.port === "4173") return route.continue();
+    const path = url.pathname;
     const method = request.method();
     state.requests.push({ path, method, body: request.postDataBuffer() });
-    if (method === "GET" && path === "/presentations")
+    if (method === "GET" && path === "/presentations") {
+      if (url.searchParams.has("sourcePresentationId")) {
+        expect(url.searchParams.get("sourcePresentationId")).toBe(sourcePresentationId);
+        return route.fulfill({
+          json: {
+            presentations: state.exists ? [{ id: targetId, name: "既存のプレゼンテーション" }] : [],
+          },
+        });
+      }
       return route.fulfill({
         json: {
           presentations: state.current
-            ? [{ id, name: dist.fixture.artifacts.definition.metadata.title }]
+            ? [{ id: targetId, name: dist.fixture.artifacts.definition.metadata.title }]
             : [],
         },
       });
+    }
     if (method === "GET" && state.readError)
       return route.fulfill({
         status: state.readError,
@@ -70,7 +88,7 @@ async function remote(page: Page, dist: Dist) {
       });
     if (method === "GET" && path === apiPath)
       return state.exists
-        ? route.fulfill({ json: { id, name: "既存のプレゼンテーション" } })
+        ? route.fulfill({ json: { id: targetId, name: "既存のプレゼンテーション" } })
         : route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
     if (method === "GET" && path === `${apiPath}/publication`)
       return state.current
@@ -84,11 +102,11 @@ async function remote(page: Page, dist: Dist) {
       return route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
     if (method === "POST" && path === "/presentations") {
       expect(request.postDataJSON()).toEqual({
-        id,
+        sourcePresentationId,
         name: dist.fixture.artifacts.definition.metadata.title,
       });
       state.exists = true;
-      return route.fulfill({ status: 201, json: { id } });
+      return route.fulfill({ status: 201, json: { id: targetId } });
     }
     if (method === "POST" && path === `${apiPath}/builds`) {
       const envelope = request.postDataJSON();
@@ -206,7 +224,7 @@ test("confirms a new Dist before writing and publishes every validated asset exa
   });
   await expect(page.getByRole("link", { name: "プレゼンテーションを開く" })).toHaveAttribute(
     "href",
-    `/presentations/${dist.fixture.artifacts.buildManifest.presentationId}`,
+    `/presentations/${targetId}`,
   );
   await testInfo.attach("Dist publication completed", {
     body: await page.screenshot({

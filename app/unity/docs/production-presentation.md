@@ -33,25 +33,24 @@ nix develop --command env PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" \
   pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation build "/absolute/path/to/project"
 ```
 
-project の `dist` はコンパイラーが管理するgenerationへのsymlinkです。
+プロジェクトの `dist` は、コンパイラーが出力する通常のディレクトリです。
 `definition.json`、`render-bundle.json`、`asset-set.json`、`build-manifest.json`、`assets/` を
 まとめて扱い、JSONのhashや素材参照を手動で置き換えないでください。
-Presentation ID は対象 project の定義に合わせてください。
 ビルドの成功だけでは公開やSession作成は行われません。
 
 ## 2. 公開とSessionの準備
 
 既存のControl Plane・Realtime環境、公開権限のある有効なcredentialが必要です。
 `UNFRAME_ACCESS_TOKEN` をプロセス環境へ渡した状態で、CLIの公開コマンドを使います。
-対象の Presentation ID を `PRESENTATION_ID`、Control Plane origin を `UNFRAME_CONTROL_PLANE_ORIGIN` に設定してください。
+ソースの `definePresentation` に指定した ID を `SOURCE_PRESENTATION_ID`、Control Plane origin を `UNFRAME_CONTROL_PLANE_ORIGIN` に設定してください。
 
 ```bash
 nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/cli run presentation publish \
-  "$(realpath -- /absolute/path/to/project/dist)" "$PRESENTATION_ID" "$UNFRAME_CONTROL_PLANE_ORIGIN"
+  "$(realpath -- /absolute/path/to/project/dist)" "$SOURCE_PRESENTATION_ID" "$UNFRAME_CONTROL_PLANE_ORIGIN"
 ```
 
 CLIはdistのintegrityと実素材のchecksumを検証し、Build登録・素材upload・Publication確定を行います。
-公開APIの成功後、Session lifecycle APIでそのPresentationを選ぶSessionを準備してください。
+公開に成功したら、CLI が `Presentation ID` として出力する公開先 ID を Session lifecycle API に渡して Session を作成してください。
 Session作成の権限・端末参加・Runtime割当の条件は [サーバーREADME](../../server/README.md) が基準です。
 このUnity変更はサーバーのdeployや新しいSessionを自動作成しません。
 

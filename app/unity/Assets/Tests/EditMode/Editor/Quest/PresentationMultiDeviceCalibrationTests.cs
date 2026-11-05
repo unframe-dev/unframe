@@ -135,8 +135,8 @@ public sealed class PresentationMultiDeviceCalibrationTests
                 Assert.That(stores[index].TryReceiveControl(snapshot.Clone(), out error), Is.True, error);
                 applier.Apply(stores[index], hierarchies[index]);
             }
-            AssertPhysicalOrigin(runtimes[0], frames[0], new Vector3(1, -.65f, 3), Quaternion.Euler(0, 45, 0), 1.5f);
-            AssertPhysicalOrigin(runtimes[1], frames[1], new Vector3(1, -.65f, 3), Quaternion.Euler(0, 45, 0), 1.5f);
+            AssertPhysicalOrigin(runtimes[0], frames[0], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
+            AssertPhysicalOrigin(runtimes[1], frames[1], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
 
             var newHead = new Pose(Vector3.up * 2.3f, Quaternion.Euler(30, 75, 0));
             Assert.That(PresentationCalibrationMath.TryPresenterOrigin(markers[0], newHead, origin,
@@ -172,7 +172,7 @@ public sealed class PresentationMultiDeviceCalibrationTests
             {
                 Assert.That(stores[index].PresentationOrigin.Version, Is.EqualTo(2));
                 Assert.That(stores[index].PresentationOrigin.Pose, Is.EqualTo(replacement));
-                AssertPhysicalOrigin(runtimes[index], frames[index], new Vector3(1, -.15f, 3), Quaternion.Euler(0, 75, 0), 2f);
+                AssertPhysicalOrigin(runtimes[index], frames[index], new Vector3(1, 2f, 3), physicalMarker.rotation);
             }
         }
         finally
@@ -183,7 +183,7 @@ public sealed class PresentationMultiDeviceCalibrationTests
         }
     }
 
-    private static void AssertPhysicalOrigin(PresentationBakedRuntime runtime, Pose deviceFromPhysical, Vector3 expectedPosition, Quaternion expectedRotation, float expectedReferenceHeight)
+    private static void AssertPhysicalOrigin(PresentationBakedRuntime runtime, Pose deviceFromPhysical, Vector3 expectedPosition, Quaternion expectedRotation)
     {
         Transform stage = runtime.PresentationSpace.GetChild(0);
         Quaternion physicalFromDevice = Quaternion.Inverse(deviceFromPhysical.rotation);
@@ -194,7 +194,6 @@ public sealed class PresentationMultiDeviceCalibrationTests
         var localPoint = new Vector3(.25f, 2.15f, -.5f);
         Vector3 actualPoint = physicalFromDevice * (stage.TransformPoint(localPoint) - deviceFromPhysical.position);
         Assert.That(Vector3.Distance(actualPoint, expectedPosition + expectedRotation * localPoint), Is.LessThan(.00001f));
-        Assert.That(actualPoint.y, Is.EqualTo(expectedReferenceHeight).Within(.00001f));
     }
 
     private static PresentationCalibrationState Calibrate(Pose marker, Transform tracking)

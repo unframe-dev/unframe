@@ -21,6 +21,7 @@ import { joinCodeSchema } from "./modules/sessions/schema";
 import {
   presentationRegistrationSchema,
   presentationDefinitionSchema,
+  presentationListQuerySchema,
 } from "./presentation/schema";
 
 const errorSchema = z.object({ error: z.object({ code: z.string(), message: z.string() }) });
@@ -119,18 +120,20 @@ export const publicRoutes = [
     },
     responses: {
       201: {
-        description: "Created",
+        description: "Created or existing presentation for the registration",
         content: { "application/json": { schema: presentationResourceSchema } },
       },
       400: errorResponse("Invalid presentation registration"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Presentation ID is not writable"),
+      409: errorResponse("Publication target changed during registration"),
     },
   }),
   createRoute({
     method: "get",
     path: "/presentations",
     security,
+    request: { query: presentationListQuerySchema },
     responses: {
       200: {
         description: "Collection",
@@ -140,6 +143,7 @@ export const publicRoutes = [
           },
         },
       },
+      400: errorResponse("Invalid source presentation ID"),
       401: errorResponse("Unauthorized"),
     },
   }),

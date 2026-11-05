@@ -165,6 +165,9 @@ await applyD1Migrations(env.DB, [
 ]);
 
 import sessionJoinCodesMigration from "../migrations/0016_session_join_codes.sql?raw";
+import publicationTargetSourceMigration from "../migrations/0017_publication_target_source.sql?raw";
+const [publicationTargetStatements, publicationTargetTrigger] =
+  publicationTargetSourceMigration.split("CREATE TRIGGER");
 await applyD1Migrations(env.DB, [
   {
     name: "0016_session_join_codes.sql",
@@ -172,5 +175,15 @@ await applyD1Migrations(env.DB, [
       .split(";")
       .map((query: string) => query.trim())
       .filter(Boolean),
+  },
+  {
+    name: "0017_publication_target_source.sql",
+    queries: [
+      ...publicationTargetStatements!
+        .split(";")
+        .map((query) => query.trim())
+        .filter(Boolean),
+      `CREATE TRIGGER${publicationTargetTrigger}`,
+    ],
   },
 ]);

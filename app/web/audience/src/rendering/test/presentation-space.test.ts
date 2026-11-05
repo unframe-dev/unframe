@@ -85,6 +85,46 @@ describe("presentation space", () => {
   });
 });
 describe("live tag presentation placement", () => {
+  it.each([1.2, 1.9])(
+    "applies the Presenter's vertical origin correction independently of the Viewer at %sm",
+    (viewerHeight) => {
+      const scene = new Scene();
+      const marker: RigidPose = {
+        position: { x: 1, y: 0.6, z: -2 },
+        rotation: new Quaternion().setFromEuler(new Euler(0.5, 0.7, -0.2)),
+      };
+      const anchor = createLiveTagAnchor(scene, 0.15, marker, marker, false);
+      const viewerFromVenue = matrix(pose(3, 2, -4, -0.3));
+      const venueFromCamera = pose(0.5, viewerHeight, 2, 0.2);
+      const viewerFromCamera = viewerFromVenue.clone().multiply(matrix(venueFromCamera));
+      anchor.update(venueFromCamera, {
+        position: new Vector3().setFromMatrixPosition(viewerFromCamera),
+        rotation: new Quaternion().setFromRotationMatrix(viewerFromCamera),
+      });
+      const initialOrigin = matrix(pose(0.4, 0.2, -0.6, 0.35));
+      anchor.setPresentationOrigin(initialOrigin);
+      scene.updateMatrixWorld(true);
+      const before = viewerFromVenue.clone().invert().multiply(anchor.contentRoot.matrixWorld);
+
+      const presenterHeight = 1.8;
+      const corrected = before.clone();
+      corrected.elements[13] = presenterHeight - 0.3;
+      const sharedOrigin = matrix(marker).invert().multiply(corrected);
+      anchor.setPresentationOrigin(sharedOrigin);
+      scene.updateMatrixWorld(true);
+
+      const after = viewerFromVenue.clone().invert().multiply(anchor.contentRoot.matrixWorld);
+      const beforePosition = new Vector3().setFromMatrixPosition(before);
+      const afterPosition = new Vector3().setFromMatrixPosition(after);
+      expect(afterPosition.x).toBeCloseTo(beforePosition.x, 10);
+      expect(afterPosition.z).toBeCloseTo(beforePosition.z, 10);
+      expect(afterPosition.y).toBeCloseTo(1.5, 10);
+      equalMatrix(after.clone().setPosition(beforePosition), before);
+      equalMatrix(anchor.contentRoot.matrix, sharedOrigin);
+      anchor.dispose();
+    },
+  );
+
   it("uses the configured presentation placement and hides all content on tracking loss", () => {
     const scene = new Scene();
     const marker = pose(0.4, 0.5, -1, 0.5);

@@ -48,8 +48,9 @@ function build() {
 describe("fixed build publication", () => {
   it("registers the Source identity, fixes the whole expected fence, and verifies the returned artifact hashes", async () => {
     const fixed = build();
+    const sourcePresentationId = fixed.artifacts.buildManifest.presentationId;
     const expected = {
-      presentationId: fixed.artifacts.buildManifest.presentationId,
+      presentationId: "account-publication",
       publicationEpoch: 4,
       publicationManifestHash: "sha256:" + "a".repeat(64),
     };
@@ -64,7 +65,10 @@ describe("fixed build publication", () => {
         const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
         requests.push({ path, body });
         if (path === "/presentations")
-          return Response.json({ id: expected.presentationId }, { status: 201 });
+          return Response.json(
+            { id: expected.presentationId, sourcePresentationId },
+            { status: 201 },
+          );
         if (path.endsWith("/builds"))
           return Response.json(
             {
@@ -74,7 +78,12 @@ describe("fixed build publication", () => {
             { status: 201 },
           );
         if (path.includes("/assets/")) return new Response(null, { status: 204 });
-        const payload = { ...fixed.artifacts.buildManifest, publicationEpoch: 5 };
+        const payload = {
+          ...fixed.artifacts.buildManifest,
+          presentationId: expected.presentationId,
+          sourcePresentationId,
+          publicationEpoch: 5,
+        };
         return Response.json(
           { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) },
           { status: 201 },
@@ -83,11 +92,12 @@ describe("fixed build publication", () => {
     });
     expect(result).toEqual({
       ok: true,
+      presentationId: expected.presentationId,
       buildId: fixed.artifacts.buildManifest.buildId,
       publicationEpoch: 5,
     });
     expect(requests[0]?.body).toEqual({
-      id: expected.presentationId,
+      sourcePresentationId,
       name: fixed.artifacts.definition.metadata.title,
     });
     expect(requests.at(-1)?.body).toEqual({
@@ -108,7 +118,10 @@ describe("fixed build publication", () => {
         const path = new URL(String(url)).pathname;
         if (path === "/presentations")
           return Response.json(
-            { id: fixed.artifacts.buildManifest.presentationId },
+            {
+              id: fixed.artifacts.buildManifest.presentationId,
+              sourcePresentationId: fixed.artifacts.buildManifest.presentationId,
+            },
             { status: 201 },
           );
         if (path.endsWith("/builds"))
@@ -152,6 +165,7 @@ describe("fixed build publication", () => {
 it("keeps the sent operation fixed after transport failure and confirms it by receipt without republishing", async () => {
   const fixed = build();
   const manifest = structuredClone(fixed.artifacts.buildManifest);
+  const targetId = "account-publication";
   const controller = new AbortController();
   const result = await publishFixedBuild({
     ...fixed,
@@ -162,7 +176,10 @@ it("keeps the sent operation fixed after transport failure and confirms it by re
     fetch: async (url) => {
       const path = url.pathname;
       if (path === "/presentations")
-        return Response.json({ id: manifest.presentationId }, { status: 201 });
+        return Response.json(
+          { id: targetId, sourcePresentationId: manifest.presentationId },
+          { status: 201 },
+        );
       if (path.endsWith("/builds"))
         return Response.json(
           { buildId: manifest.buildId, assetIds: Object.keys(fixed.artifacts.assetSet.assets) },
@@ -177,7 +194,7 @@ it("keeps the sent operation fixed after transport failure and confirms it by re
   expect(result).toMatchObject({
     ok: false,
     outcome: "outcome-unknown",
-    operation: { buildId: manifest.buildId, publicationEpoch: 1 },
+    operation: { presentationId: targetId, buildId: manifest.buildId, publicationEpoch: 1 },
   });
   if (result.ok || !result.operation) throw new Error("Expected unknown operation");
   const operation = result.operation;
@@ -194,9 +211,15 @@ it("keeps the sent operation fixed after transport failure and confirms it by re
       if (!url.pathname.endsWith("/publication")) {
         request.resolve();
         await resume.promise;
-        return Response.json({ id: manifest.presentationId, name: "Presentation" });
+        expect(url.pathname).toBe(`/presentations/${targetId}`);
+        return Response.json({ id: targetId, name: "Presentation" });
       }
-      const payload = { ...manifest, publicationEpoch: 1 };
+      const payload = {
+        ...manifest,
+        sourcePresentationId: manifest.presentationId,
+        presentationId: targetId,
+        publicationEpoch: 1,
+      };
       return Response.json({
         ...payload,
         publicationManifestHash: hashCanonicalJsonPayload(payload),
@@ -207,6 +230,11 @@ it("keeps the sent operation fixed after transport failure and confirms it by re
   operation.buildId = "caller-mutated";
   operation.publicationEpoch = 99;
   resume.resolve();
-  expect(await query).toEqual({ ok: true, buildId: manifest.buildId, publicationEpoch: 1 });
+  expect(await query).toEqual({
+    ok: true,
+    presentationId: targetId,
+    buildId: manifest.buildId,
+    publicationEpoch: 1,
+  });
   expect(reads).toBe(2);
 });

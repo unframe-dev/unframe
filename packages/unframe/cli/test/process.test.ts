@@ -151,7 +151,12 @@ it("publishes with a process-supplied token without printing it", async () => {
         controlPlaneUrl: "http://127.0.0.1:8787/",
         bearerToken: "private-token",
       });
-      return { ok: true, buildId: "build-id", publicationEpoch: 1 };
+      return {
+        ok: true,
+        presentationId: "account-publication",
+        buildId: "build-id",
+        publicationEpoch: 1,
+      };
     },
   });
   expect(result.exitCode).toBe(0);
@@ -209,7 +214,7 @@ it("retains an unknown publication operation after a late SIGINT", async () => {
 
 it("queries the printed publication operation without sending another publication", async () => {
   const operation = {
-    presentationId: "p",
+    presentationId: "account-publication",
     buildId: "b",
     publicationEpoch: 1,
     definitionHash: `sha256:${"a".repeat(64)}`,
@@ -229,14 +234,14 @@ it("queries the printed publication operation without sending another publicatio
     query: async (input) => {
       expect(input.operation).toEqual(operation);
       expect(input.controlPlaneUrl).toBe("https://api.example");
-      return { ok: true, buildId: "b", publicationEpoch: 1 };
+      return { ok: true, presentationId: "account-publication", buildId: "b", publicationEpoch: 1 };
     },
     publish: async () => {
       throw new Error("Must not republish");
     },
   });
   expect(result.exitCode).toBe(0);
-  expect(result.stdout).toContain("publish: ok (b, epoch 1)");
+  expect(result.stdout).toBe("publish: ok (b, epoch 1)\nPresentation ID: account-publication\n");
 });
 
 it("keeps an acknowledged publication successful after a late SIGINT", async () => {
@@ -253,11 +258,11 @@ it("keeps an acknowledged publication successful after a late SIGINT", async () 
     process: host.process,
     publish: async () => {
       host.process.emit("SIGINT");
-      return { ok: true, buildId: "b", publicationEpoch: 1 };
+      return { ok: true, presentationId: "account-publication", buildId: "b", publicationEpoch: 1 };
     },
   });
   expect(result.exitCode).toBe(0);
-  expect(result.stdout).toContain("publish: ok");
+  expect(result.stdout).toBe("publish: ok (b, epoch 1)\nPresentation ID: account-publication\n");
 });
 
 it.each(["author", "dev", "preview"])(
@@ -298,7 +303,7 @@ it("resolves a relative Dist path for publication without changing its ID or ori
     process: host.process,
     publish: async (input) => {
       received = input;
-      return { ok: true, buildId: "b", publicationEpoch: 1 };
+      return { ok: true, presentationId: "account-publication", buildId: "b", publicationEpoch: 1 };
     },
   });
   expect(result.exitCode).toBe(0);
@@ -335,7 +340,12 @@ it.each(["author", "dev", "preview", "publish"])(
         },
         publish: async () => {
           dispatched = true;
-          return { ok: true, buildId: "b", publicationEpoch: 1 };
+          return {
+            ok: true,
+            presentationId: "account-publication",
+            buildId: "b",
+            publicationEpoch: 1,
+          };
         },
       });
       expect(result.exitCode).toBe(2);

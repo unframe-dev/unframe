@@ -16,15 +16,15 @@ const updateArchiveLimit = 100 * 1024 * 1024
 const updateBinaryLimit = 200 * 1024 * 1024
 
 type updateLimitedBuffer struct {
-	bytes.Buffer
-	limit int
+	buffer bytes.Buffer
+	limit  int
 }
 
 func (b *updateLimitedBuffer) Write(p []byte) (int, error) {
-	if len(p) > b.limit-b.Len() {
+	if len(p) > b.limit-b.buffer.Len() {
 		return 0, errors.New("command output limit exceeded")
 	}
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 func updateCommand(ctx context.Context, args []string, limit int) ([]byte, error) {
 	if len(args) == 0 {
@@ -39,7 +39,7 @@ func updateCommand(ctx context.Context, args []string, limit int) ([]byte, error
 	if err := command.Run(); err != nil {
 		return nil, errors.New("external command failed or timed out")
 	}
-	return output.Bytes(), nil
+	return output.buffer.Bytes(), nil
 }
 func updateJSONCommand(ctx context.Context, args []string, out any) error {
 	data, err := updateCommand(ctx, args, updateCommandLimit)
@@ -94,7 +94,7 @@ func updateFindRun(ctx context.Context, c UpdateConfig) (*updateRun, error) {
 	var response struct {
 		Artifacts *[]updateArtifact `json:"artifacts"`
 	}
-	if err := updateJSONCommand(ctx, []string{c.GH, "api", fmt.Sprintf("repos/%s/actions/artifacts?per_page=100", c.Repository)}, &response); err != nil {
+	if err := updateJSONCommand(ctx, []string{c.GH, "api", fmt.Sprintf("repos/%s/actions/artifacts?per_page=100", c.Repository), "--jq", "{artifacts: [.artifacts[] | {id, name, expired, digest, workflow_run: {id: .workflow_run.id}}]}"}, &response); err != nil {
 		return nil, err
 	}
 	if response.Artifacts == nil {
@@ -117,7 +117,7 @@ func updateFindRun(ctx context.Context, c UpdateConfig) (*updateRun, error) {
 		var response struct {
 			Runs *[]updateRun `json:"workflow_runs"`
 		}
-		if err := updateJSONCommand(ctx, []string{c.GH, "api", fmt.Sprintf("repos/%s/actions/workflows/%s/runs?branch=main&event=push&status=success&per_page=100&page=%d", c.Repository, c.Workflow, page)}, &response); err != nil {
+		if err := updateJSONCommand(ctx, []string{c.GH, "api", fmt.Sprintf("repos/%s/actions/workflows/%s/runs?branch=main&event=push&status=success&per_page=100&page=%d", c.Repository, c.Workflow, page), "--jq", "{workflow_runs: [.workflow_runs[] | {id, head_sha, head_branch, event, status, conclusion, head_repository: {full_name: .head_repository.full_name}}]}"}, &response); err != nil {
 			return nil, err
 		}
 		if response.Runs == nil {

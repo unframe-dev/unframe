@@ -16,10 +16,14 @@ export type PresentationRecord = {
 };
 
 export type PresentationRepository = {
-  create(record: PresentationRecord): Promise<void>;
+  create(record: PresentationRecord, sourcePresentationId?: string): Promise<void>;
   listAll(): Promise<PresentationRecord[]>;
   listByUser(userId: string): Promise<PresentationRecord[]>;
   findById(id: string): Promise<PresentationRecord | null>;
+  findByOwnerAndSource(
+    ownerId: string,
+    sourcePresentationId: string,
+  ): Promise<PresentationRecord | null>;
   roleFor(id: string, userId: string): Promise<"owner" | "editor" | null>;
   hasValidAssetReferences(id: string, assetIds: readonly string[]): Promise<boolean>;
   replace(
@@ -31,6 +35,16 @@ export type PresentationRepository = {
   delete(id: string, expectedRevision: number): Promise<boolean>;
 };
 
+const presentationRecordColumns = {
+  id: presentations.id,
+  ownerId: presentations.ownerId,
+  name: presentations.name,
+  revision: presentations.revision,
+  definition: presentations.definition,
+  createdAt: presentations.createdAt,
+  updatedAt: presentations.updatedAt,
+};
+
 export class D1PresentationRepository implements PresentationRepository {
   private readonly db;
 
@@ -38,12 +52,13 @@ export class D1PresentationRepository implements PresentationRepository {
     this.db = createD1Database(database);
   }
 
-  async create(record: PresentationRecord) {
+  async create(record: PresentationRecord, sourcePresentationId = record.id) {
     await this.db.batch([
       this.db
         .insert(presentations)
         .values({
           ...record,
+          sourcePresentationId,
           definition: sql`${JSON.stringify(record.definition)}`,
         })
         .onConflictDoNothing(),
@@ -65,15 +80,7 @@ export class D1PresentationRepository implements PresentationRepository {
 
   async listByUser(userId: string) {
     return this.db
-      .select({
-        id: presentations.id,
-        ownerId: presentations.ownerId,
-        name: presentations.name,
-        revision: presentations.revision,
-        definition: presentations.definition,
-        createdAt: presentations.createdAt,
-        updatedAt: presentations.updatedAt,
-      })
+      .select(presentationRecordColumns)
       .from(presentations)
       .innerJoin(presentationMembers, eq(presentationMembers.presentationId, presentations.id))
       .where(eq(presentationMembers.userId, userId))
@@ -81,12 +88,34 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async listAll() {
-    return this.db.select().from(presentations).orderBy(desc(presentations.createdAt));
+    return this.db
+      .select(presentationRecordColumns)
+      .from(presentations)
+      .orderBy(desc(presentations.createdAt));
   }
 
   async findById(id: string) {
     return (
-      (await this.db.select().from(presentations).where(eq(presentations.id, id)).get()) ?? null
+      (await this.db
+        .select(presentationRecordColumns)
+        .from(presentations)
+        .where(eq(presentations.id, id))
+        .get()) ?? null
+    );
+  }
+
+  async findByOwnerAndSource(ownerId: string, sourcePresentationId: string) {
+    return (
+      (await this.db
+        .select(presentationRecordColumns)
+        .from(presentations)
+        .where(
+          and(
+            eq(presentations.ownerId, ownerId),
+            eq(presentations.sourcePresentationId, sourcePresentationId),
+          ),
+        )
+        .get()) ?? null
     );
   }
 

@@ -406,6 +406,20 @@ public sealed class QuestOnboardingApi : IDisposable
             : status == 404 ? "not-found" : status == 409 ? "not-ready" : status == 429 ? "rate-limited" : "request-failed");
     }
 
+    public async Task ClearSavedAuthenticationAsync(CancellationToken token)
+    {
+        await authGate.WaitAsync(token);
+        try
+        {
+            // Local credential removal must survive the owning view and HTTP client being disposed.
+            credential = deviceCode = null;
+            credentialExpiresAt = authorizationExpiresAt = nextPoll = default;
+            try { credentialStore?.Delete(credentialScope); }
+            catch (Exception) { throw new QuestOnboardingApiException("credential-storage-unavailable"); }
+        }
+        finally { authGate.Release(); }
+    }
+
     public void ForgetAuthentication()
     {
         credential = null;

@@ -27,9 +27,9 @@ SDKはabsolute。NORMALが連続5秒続いた後に検出器を準備し、最�
 
 ## 操作
 
-サイトの `/` はルーム参加画面。位置合わせ単独の検証は開発時の `/?tracking=1` を開き、必要ならサイズを選び「カメラを開始」。検出器の選択はない。詳細メニューにSDK状態・理由、タグ採用回数、実効検出Hzと診断を表示する。
+サイトの `/` はルーム参加画面。ルームコードはIME変換中の入力・削除を保持し、確定時に全角英数字を半角・大文字へ正規化する。変換中は参加できない。位置合わせ単独の検証は開発時の `/?tracking=1` を開き、必要ならサイズを選び「カメラを開始」。検出器の選択はない。詳細メニューにSDK状態・理由、タグ採用回数、実効検出Hzと診断を表示する。
 
-Console の参加 URL／QR は `/#join=ABCD-EFGH` 形式です。開くとルームコードを入力済みの状態で表示し、「参加する」で匿名 Viewer として参加します。カメラは既存の開始操作まで起動しません。参加情報は読み取り後にアドレスバーから取り除き、不正・重複したコードは使わず手入力を受け付けます。
+Console の参加 URL／QR は `/#join=ABCD-EFGH` 形式です。開くとルームコードを入力済みの状態で表示し、「参加する」で匿名 Viewer として参加します。参加後にマーカーサイズを選んで「次へ」を押すとカメラ許可の案内に進み、「カメラを開始」で起動します。参加情報は読み取り後にアドレスバーから取り除き、不正・重複したコードは使わず手入力を受け付けます。
 
 黒い外周15cm・白余白込み22.5cmが既定。`/?tracking=1&size=22.5|36|50|60|70`で余白込み外寸cmを指定する。黒い境界は外寸の2/3。黒外周240mmの検証には`/?tracking=1&size=36`（余白込み360mm）を使う。サイズ選択は即反映し、変更時は前のアンカー・保存画像を消す。印刷は各サイズのSVGを直接開く（既定は`/markers/april-single-22.5.svg`）。印刷倍率は100%にする。画面表示・印刷後は実寸を測り、白余白を残す。
 
@@ -87,7 +87,7 @@ Worker は既存の専用プロトコルを継続する。[Comlink](https://gith
 - `fiducials/detector.ts` / `worker.ts`: AprilTag 3のWASMで`tag36h11`を検出。`quad_decimate=1`・`refine_edges=1`。
 - `fiducials/pose.ts` / `tag-localization.ts`: 画像だけから単一タグ姿勢を推定・判定。POSIT由来の反転初期値を含む最大4候補で探索し、曖昧姿勢と再投影誤差超過を除く。SDKをタグ推定の初期値に使わない。
 - `rendering/live-tag-anchor.ts`: `sdkFromVenue = sdkFromCamera * inverse(tagVenueFromCamera)`を即反映。検出間は行列を維持し、SDKの通常描画ループで表示する。
-- `rendering/presentation-space.ts`: タグ表示から会場基準を復元し、設定の`presentationToVenue`と共有原点用の独立Groupを接合する。子ノードはこの`contentRoot`へ追加する。Presenter が確定した共有配置を適用し、Viewer の高さでは再計算しない。原点更新後は描画準備を待って新しい version の `StateReady` を送信する。
+- `rendering/presentation-space.ts`: タグ表示から会場基準を復元し、設定の`presentationToVenue`と共有原点用の独立Groupを接合する。子ノードはこの`contentRoot`へ追加する。Presenter が原点の高さをHMDより30cm下へ合わせた共有配置を適用し、Viewer の高さや向きでは再計算しない。高さ補正前の実空間の水平位置と回転を保ち、マーカーが傾いていても共有原点をそのまま合成する。原点更新後は描画準備を待って新しい version の `StateReady` を送信する。
 - `rendering/presentation-guide.ts`: プレゼン位置確認用の1m座標軸と幅1m・高さ0.5625mの枠。実プレゼン素材ではない。
 - `rendering/png-plan.ts`: 既存DeliveryとParticipantRuntimeViewからPNGの選択済state binding、空間親子、fit、表示状態と予算を照合する。
 - `rendering/png-presentation.ts`: PNGを全件準備後にプレゼンrootへ接合し、失敗・取消時は巻き戻す。
@@ -130,7 +130,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 現在の視聴経路（2026-10-30）
 
-ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
+ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → マーカーサイズ選択・確定 → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
 `connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
 
@@ -148,7 +148,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 会場設定
 
-製品視聴ではロードした設定のboard ID・revision・配置・presentationToVenueを保持し、size queryでは上書きしない。視聴メニューで黒いマーカー外周の一辺を500・400・250・150mmから選択できる（既定150mm）。白余白は寸法に含めず、Unity MRの登壇側と同じ実寸を選ぶ。変更時は既存の追跡・位置合わせ・Runtime受信を破棄するため、カメラを開始して位置合わせをやり直す。選択はこの視聴画面内だけに適用し、サーバーへ配布・保存しない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、初期値は黒外周15cm・ID 0であり、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
+製品視聴ではロードした設定のboard ID・revision・配置・presentationToVenueを保持し、size queryでは上書きしない。参加後、カメラ許可の前に黒いマーカー外周の一辺を500・400・250・150mmから選択・確定する（既定150mm）。視聴メニューからも変更できる。白余白は寸法に含めず、Unity MRの登壇側と同じ実寸を選ぶ。変更時は既存の追跡・位置合わせ・Runtime受信を破棄するため、カメラを開始して位置合わせをやり直す。選択はこの視聴画面内だけに適用し、サーバーへ配布・保存しない。現在は `src/fiducials/default-board.json` の暫定設定をbundleから読み込む。会場原点とpresentationToVenueはidentity、初期値は黒外周15cm・ID 0であり、session固有の校正設定ではない。ルームごとの設定配布元・取得権限・revision更新時の扱いは外部担当と確定する。
 
 検証用の `/?tracking=1` とfixtureでは従来のsize指定を使う。`showGuides`は箱・軸等の描画可否だけを表し、設定モードを推測しない。
 

@@ -9,7 +9,10 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Find the authenticated account's publication target for a source ID. */
+                    sourcePresentationId?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -263,6 +266,20 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Invalid source presentation ID */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
                 /** @description Unauthorized */
                 401: {
                     headers: {
@@ -292,11 +309,14 @@ export interface paths {
                     "application/json": {
                         id: string;
                         name: string;
+                    } | {
+                        sourcePresentationId: string;
+                        name: string;
                     };
                 };
             };
             responses: {
-                /** @description Created */
+                /** @description Created or existing presentation for the registration */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -571,6 +591,20 @@ export interface paths {
                 };
                 /** @description Presentation ID is not writable */
                 403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Publication target changed during registration */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -5226,6 +5260,7 @@ export interface paths {
                             /** @enum {number} */
                             schemaVersion: 1;
                             presentationId: string;
+                            sourcePresentationId?: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
                             sourceDraftRevision: number;
@@ -5495,6 +5530,7 @@ export interface paths {
                             /** @enum {number} */
                             schemaVersion: 1;
                             presentationId: string;
+                            sourcePresentationId?: string;
                             publicationEpoch: number;
                             publicationManifestHash: string;
                             sourceDraftRevision: number;

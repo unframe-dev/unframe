@@ -18,6 +18,8 @@ Authoring Source をビルドし、
 
 ローカルの Session 選択を取り消す場合は `PresentationControlPlaneConnection.CancelLocalSelectionAsync` を呼びます。実行中の接続と Asset 処理の終了を待ってから、その participant の選択情報と durable pin を削除します。通常の再接続やアプリ終了では選択を保持します。
 
+再生中の素材ファイルの存在・サイズ確認は、同じフレーム内では結果を再利用します。ファイルの消失・サイズ変更は次のフレームで再検出し、素材の追加・破棄は同じフレームでも即座に反映します。Editor の非再生中は呼び出しごとに確認します。
+
 `PresentationBakedRuntime` は共通の `PresentationSceneRenderer` で Baked Web PNG、Native UI（固定／string・boolean・number変数テキスト）、埋め込みGLB、H264動画を読み込みます。全素材のサイズ・checksum、描画・モデル・動画のresidency、Control / State同期が揃ってから入力を許可します。Surface crossfadeとTimeline、モデルclip、動画はauthoritative Runtime clockを使用します。Local Overlay、Native UIのellipsis・明示font fallback・step timerは受け付けません。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
 
 `Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、AprilTag校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Presentation/Open Quest Presentation` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider)` へHTTPS origin、Session ID、要求ごとに更新できるcredential providerを渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。Development Build の端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential` から同じ入口を起動できます。校正JSONは不要です。通常のAPKではIntentの接続設定を読み取らず、アプリUIから参加します。Intent経路はcredentialを更新しません。更新が必要な接続では `Connect` に更新可能なcredential providerを渡します。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
@@ -81,3 +83,16 @@ Unityのクラス名・Scene名・APK名・診断ログの保存先は `AprilTag
 PNG・Native UI文字・動画は、同じSemantic Surface内のLayer順序を共通の描画順位へ変換します。Native文字はTMPのレイアウトを使用し、矩形clipとopacityを反映したMeshで描画します。準備済みの動画もSemantic Surfaceの座標で操作判定を行い、表示不能・未準備の動画は入力対象にしません。
 
 `PresentationMixedSurfaceTests`、`PresentationNativeSurfaceRenderingTests`、`PresentationMeshClipTests` が順位・操作・clipの回帰条件です。Quest実機での透明物重なりとコントローラー操作は別途確認が必要です。
+
+## Presenter の追従 HUD
+
+発表中は左下に現在ページと経過時間、右下に現在利用できる操作の案内を表示します。
+両方とも頭の移動・上下左右の向き・傾きに追従し、中央の資料を遮らない周辺配置です。
+メニュー・オンボーディング表示中、Audience、準備・校正未完了では非表示になります。
+「次へ」を実行できる場合は右 A ボタンを案内します。モーションはトリガーの
+使い方を文章と腕アニメーションで示し、複数候補は6秒ごとに切り替えます。
+Throw / Circle は文章で案内し、腕アニメーションはありません。
+経過時間はこのアプリが同じ Session で最初に Running を観測した時点から計測し、
+一時停止・同じ接続インスタンスでの再接続中も継続します。Session の切替でリセットします。
+途中参加やアプリ再起動をまたぐサーバー上の発表開始時刻の復元には対応していません。
+Quest 実機での可読性・視野端の見え方は端末で確認が必要です。

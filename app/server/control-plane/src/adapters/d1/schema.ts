@@ -7,6 +7,7 @@ import type { PresentationDefinition } from "../../presentation/schema";
 export const presentations = sqliteTable("presentations", {
   id: text().primaryKey(),
   ownerId: text("owner_id").notNull(),
+  sourcePresentationId: text("source_presentation_id"),
   name: text().notNull(),
   revision: integer().notNull(),
   definition: text({ mode: "json" }).$type<PresentationDefinition | null>().notNull(),

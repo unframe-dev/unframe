@@ -43,8 +43,9 @@ namespace Unframe.ControlPlane.Model
         /// <param name="renderBundleHash">renderBundleHash</param>
         /// <param name="assetSetHash">assetSetHash</param>
         /// <param name="contractVersions">contractVersions</param>
+        /// <param name="sourcePresentationId">sourcePresentationId</param>
         [JsonConstructor]
-        public PresentationsPresentationIdPublicationsPost201Response(SchemaVersionEnum schemaVersion, string presentationId, long publicationEpoch, string publicationManifestHash, long sourceDraftRevision, string buildId, string definitionHash, string renderBundleHash, string assetSetHash, PresentationsPresentationIdPublicationsPost201ResponseContractVersions contractVersions)
+        public PresentationsPresentationIdPublicationsPost201Response(SchemaVersionEnum schemaVersion, string presentationId, long publicationEpoch, string publicationManifestHash, long sourceDraftRevision, string buildId, string definitionHash, string renderBundleHash, string assetSetHash, PresentationsPresentationIdPublicationsPost201ResponseContractVersions contractVersions, Option<string?> sourcePresentationId = default)
         {
             SchemaVersion = schemaVersion;
             PresentationId = presentationId;
@@ -56,6 +57,7 @@ namespace Unframe.ControlPlane.Model
             RenderBundleHash = renderBundleHash;
             AssetSetHash = assetSetHash;
             ContractVersions = contractVersions;
+            SourcePresentationIdOption = sourcePresentationId;
             OnCreated();
         }
 
@@ -174,6 +176,19 @@ namespace Unframe.ControlPlane.Model
         public PresentationsPresentationIdPublicationsPost201ResponseContractVersions ContractVersions { get; set; }
 
         /// <summary>
+        /// Used to track the state of SourcePresentationId
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> SourcePresentationIdOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SourcePresentationId
+        /// </summary>
+        [JsonPropertyName("sourcePresentationId")]
+        public string? SourcePresentationId { get { return this.SourcePresentationIdOption.Value; } set { this.SourcePresentationIdOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -191,6 +206,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("  RenderBundleHash: ").Append(RenderBundleHash).Append("\n");
             sb.Append("  AssetSetHash: ").Append(AssetSetHash).Append("\n");
             sb.Append("  ContractVersions: ").Append(ContractVersions).Append("\n");
+            sb.Append("  SourcePresentationId: ").Append(SourcePresentationId).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -286,6 +302,16 @@ namespace Unframe.ControlPlane.Model
                 }
             }
 
+            if (this.SourcePresentationIdOption.Value != null) {
+                // SourcePresentationId (string) pattern
+                Regex regexSourcePresentationId = new Regex(@"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$", RegexOptions.CultureInvariant);
+
+                if (this.SourcePresentationIdOption.Value != null &&!regexSourcePresentationId.Match(this.SourcePresentationIdOption.Value).Success)
+                {
+                    yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for SourcePresentationId, must match a pattern of " + regexSourcePresentationId, new [] { "SourcePresentationId" });
+                }
+            }
+
             yield break;
         }
     }
@@ -322,6 +348,7 @@ namespace Unframe.ControlPlane.Model
             Option<string?> renderBundleHash = default;
             Option<string?> assetSetHash = default;
             Option<PresentationsPresentationIdPublicationsPost201ResponseContractVersions?> contractVersions = default;
+            Option<string?> sourcePresentationId = default;
 
             while (utf8JsonReader.Read())
             {
@@ -367,6 +394,9 @@ namespace Unframe.ControlPlane.Model
                             break;
                         case "contractVersions":
                             contractVersions = new Option<PresentationsPresentationIdPublicationsPost201ResponseContractVersions?>(JsonSerializer.Deserialize<PresentationsPresentationIdPublicationsPost201ResponseContractVersions>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            break;
+                        case "sourcePresentationId":
+                            sourcePresentationId = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         default:
                             break;
@@ -434,7 +464,10 @@ namespace Unframe.ControlPlane.Model
             if (contractVersions.IsSet && contractVersions.Value == null)
                 throw new ArgumentNullException(nameof(contractVersions), "Property is not nullable for class PresentationsPresentationIdPublicationsPost201Response.");
 
-            return new PresentationsPresentationIdPublicationsPost201Response(schemaVersion.Value!.Value!, presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!, sourceDraftRevision.Value!.Value!, buildId.Value!, definitionHash.Value!, renderBundleHash.Value!, assetSetHash.Value!, contractVersions.Value!);
+            if (sourcePresentationId.IsSet && sourcePresentationId.Value == null)
+                throw new ArgumentNullException(nameof(sourcePresentationId), "Property is not nullable for class PresentationsPresentationIdPublicationsPost201Response.");
+
+            return new PresentationsPresentationIdPublicationsPost201Response(schemaVersion.Value!.Value!, presentationId.Value!, publicationEpoch.Value!.Value!, publicationManifestHash.Value!, sourceDraftRevision.Value!.Value!, buildId.Value!, definitionHash.Value!, renderBundleHash.Value!, assetSetHash.Value!, contractVersions.Value!, sourcePresentationId);
         }
 
         /// <summary>
@@ -482,6 +515,9 @@ namespace Unframe.ControlPlane.Model
             if (presentationsPresentationIdPublicationsPost201Response.ContractVersions == null)
                 throw new ArgumentNullException(nameof(presentationsPresentationIdPublicationsPost201Response.ContractVersions), "Property is required for class PresentationsPresentationIdPublicationsPost201Response.");
 
+            if (presentationsPresentationIdPublicationsPost201Response.SourcePresentationIdOption.IsSet && presentationsPresentationIdPublicationsPost201Response.SourcePresentationId == null)
+                throw new ArgumentNullException(nameof(presentationsPresentationIdPublicationsPost201Response.SourcePresentationId), "Property is required for class PresentationsPresentationIdPublicationsPost201Response.");
+
             writer.WriteNumber("schemaVersion", PresentationsPresentationIdPublicationsPost201Response.SchemaVersionEnumToJsonValue(presentationsPresentationIdPublicationsPost201Response.SchemaVersion));
 
             writer.WriteString("presentationId", presentationsPresentationIdPublicationsPost201Response.PresentationId);
@@ -502,6 +538,8 @@ namespace Unframe.ControlPlane.Model
 
             writer.WritePropertyName("contractVersions");
             JsonSerializer.Serialize(writer, presentationsPresentationIdPublicationsPost201Response.ContractVersions, jsonSerializerOptions);
+            if (presentationsPresentationIdPublicationsPost201Response.SourcePresentationIdOption.IsSet)
+                writer.WriteString("sourcePresentationId", presentationsPresentationIdPublicationsPost201Response.SourcePresentationId);
         }
     }
 }

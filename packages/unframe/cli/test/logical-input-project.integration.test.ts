@@ -68,15 +68,16 @@ it("builds the declared Presenter input with its action and step transition", as
 
     let publishedDefinition: unknown;
     const manifest = integrity.value.buildManifest;
+    const targetId = "account-publication";
     const publication = await publishPresentation({
       directory: join(directory, "dist"),
       presentationId: manifest.presentationId,
       controlPlaneUrl: "http://127.0.0.1:8787",
       bearerToken: "test-token",
       fetch: async (url, init) => {
-        if (init.method === "GET") return new Response(null, { status: 404 });
+        if (init.method === "GET") return Response.json({ presentations: [] });
         if (url.pathname === "/presentations")
-          return Response.json({ id: manifest.presentationId }, { status: 201 });
+          return Response.json({ id: targetId }, { status: 201 });
         if (url.pathname.endsWith("/builds")) {
           const envelope = JSON.parse(String(init.body)) as { definitionJson: string };
           publishedDefinition = JSON.parse(envelope.definitionJson) as unknown;
@@ -87,7 +88,12 @@ it("builds the declared Presenter input with its action and step transition", as
         }
         if (url.pathname.includes("/assets/")) return new Response(null, { status: 204 });
         if (url.pathname.endsWith("/publications")) {
-          const receipt = { ...manifest, publicationEpoch: 1 };
+          const receipt = {
+            ...manifest,
+            presentationId: targetId,
+            sourcePresentationId: manifest.presentationId,
+            publicationEpoch: 1,
+          };
           return Response.json(
             { ...receipt, publicationManifestHash: hashCanonicalJsonPayload(receipt) },
             { status: 201 },
@@ -96,7 +102,12 @@ it("builds the declared Presenter input with its action and step transition", as
         throw new Error(`Unexpected publication request: ${url.pathname}`);
       },
     });
-    expect(publication).toEqual({ ok: true, buildId: manifest.buildId, publicationEpoch: 1 });
+    expect(publication).toEqual({
+      ok: true,
+      presentationId: targetId,
+      buildId: manifest.buildId,
+      publicationEpoch: 1,
+    });
     expect(publishedDefinition).toEqual(fixture);
   } finally {
     await rm(directory, { recursive: true, force: true });

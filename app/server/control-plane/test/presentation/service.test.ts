@@ -20,8 +20,10 @@ class FakeRepository implements PresentationRepository {
     ["presentation:owner", "owner" as const],
     ["presentation:editor", "editor" as const],
   ]);
-  async create(value: PresentationRecord) {
+  readonly sourceIds = new Map<string, string>();
+  async create(value: PresentationRecord, sourcePresentationId = value.id) {
     this.records.set(value.id, value);
+    this.sourceIds.set(value.id, sourcePresentationId);
     this.roles.set(`${value.id}:${value.ownerId}`, "owner");
   }
   async listAll() {
@@ -32,6 +34,15 @@ class FakeRepository implements PresentationRepository {
   }
   async findById(id: string) {
     return this.records.get(id) ?? null;
+  }
+  async findByOwnerAndSource(ownerId: string, sourcePresentationId: string) {
+    return (
+      [...this.records.values()].find(
+        (value) =>
+          value.ownerId === ownerId &&
+          (this.sourceIds.get(value.id) ?? value.id) === sourcePresentationId,
+      ) ?? null
+    );
   }
   async roleFor(id: string, userId: string) {
     return this.roles.get(`${id}:${userId}`) ?? null;
