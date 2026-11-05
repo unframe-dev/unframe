@@ -3,10 +3,10 @@ const waveStart = {
   owner: { kind: "group", groupId: "demo" },
   effect: {
     kind: "wave",
-    size: 0.18,
+    size: 0.48,
     color: { red: 1, green: 1, blue: 1, alpha: 0.8 },
     speed: 1,
-    durationMilliseconds: 4000,
+    durationMilliseconds: 1200,
     waveCycles: 1,
   },
 } as const;

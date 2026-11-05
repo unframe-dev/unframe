@@ -16,14 +16,14 @@ const input = (state, action = "presenter.next") =>
 const tick = (state, elapsed) =>
   advanceCueClock(definition, state, state.runtimeTimeMilliseconds + elapsed).state;
 const dismissed = () => {
-  let state = advanceCueClock(definition, initialState(), 6001).state;
+  let state = advanceCueClock(definition, initialState(), 8501).state;
   state = input(state).state;
-  state = advanceCueClock(definition, state, 6862).state;
+  state = advanceCueClock(definition, state, 9362).state;
   state = input(state).state;
   state = input(state, "presenter.rotate").state;
-  state = advanceCueClock(definition, state, 16862).state;
+  state = advanceCueClock(definition, state, 19362).state;
   state = input(state).state;
-  return advanceCueClock(definition, state, 18983).state;
+  return advanceCueClock(definition, state, 21483).state;
 };
 const node = (state, id) => state.nodes[reactResourceId("host", id)];
 
@@ -99,8 +99,8 @@ const technology = () => {
     state = enter(state, step, duration);
     for (const id of visible) assert.equal(node(state, id).opacity, 1, `${step}: ${id}`);
     for (const id of hidden) assert.equal(node(state, id)?.opacity ?? 0, 0, `${step}: ${id}`);
-    assert.equal(node(state, "brand").opacity, 1);
-    assert.deepEqual(node(state, "brand").transform.position, [-1.35872, 2.45, -2]);
+    assert.equal(node(state, "brand").opacity, 0);
+    assert.deepEqual(node(state, "brand").transform.position, [0.381, 1.6, -2]);
   }
   return state;
 };
@@ -142,7 +142,8 @@ test("閉幕は本編消去、ブランド復帰、一拍、消灯の順で通�
     "tech-links",
   ])
     assert.equal(visualValue(cleared, id, "opacity"), 0);
-  assert.deepEqual(visualValue(cleared, "brand", "transform.position"), [-1.35872, 2.45, -2]);
+  assert.deepEqual(visualValue(cleared, "brand", "transform.position"), [0.381, 1.6, -2]);
+  assert.equal(visualValue(cleared, "brand", "opacity"), 0);
   const centered = tick(cleared, 1300);
   assert.equal(visualValue(centered, "brand", "opacity"), 1);
   assert.deepEqual(visualValue(centered, "brand", "transform.position"), [0.254, 1.6, -2]);
@@ -268,7 +269,7 @@ test("技術紹介への切替と閉幕後に、前の場面の専用資産を�
 });
 
 test("当初案の回転中に次のgroupへ進んでも、立方体の回転完了と非表示状態を保つ", () => {
-  let state = tick(initialState(), 6001);
+  let state = tick(initialState(), 8501);
   state = tick(input(state).state, 861);
   state = input(state).state;
   state = input(state, "presenter.rotate").state;

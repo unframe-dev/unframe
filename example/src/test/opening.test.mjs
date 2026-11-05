@@ -29,8 +29,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
   const started = advanceCueClock(definition, initial, 1).state;
   assert.equal(started.effectRuns.length, 2);
   const directions = {
-    "opening-wave-bottom-left": { position: [-1.4, 0.7, -2.2], direction: [1, 0, 0] },
-    "opening-wave-top-right": { position: [1.4, 2.5, -2.2], direction: [-1, 0, 0] },
+    "opening-wave-bottom-left": { position: [-1.8, 0.4, -2.2], direction: [1, 0, 0] },
+    "opening-wave-top-right": { position: [1.8, 2.8, -2.2], direction: [-1, 0, 0] },
   };
   assert.deepEqual(
     new Set(started.effectRuns.map((run) => run.effectId)),
@@ -43,7 +43,7 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
     );
     assert.equal(run.effect.kind, "wave");
     assert.equal(run.effect.durationMilliseconds / run.effect.speed, 1200);
-    assert.equal(run.effect.size, 0.36);
+    assert.equal(run.effect.size, 0.48);
     const anchor = definition.scene.nodes[run.nodeId];
     assert.equal(anchor.assetId, "wave-anchor");
     assert.equal(anchor.opacity, 1);
@@ -82,6 +82,25 @@ test("開幕完了後にだけ次の場面への入力を受け付ける", () =>
       (cue) => cue.trigger.kind === "logicalInput" && cue.trigger.action === "presenter.next",
     ),
   );
+});
+
+test("wave は形を保ってタイトルと同時にフェードアウトし、終了と同時に消える", () => {
+  const started = advanceCueClock(definition, initialState(), 1).state;
+  assert.equal(started.effectRuns.length, 2);
+  for (const run of started.effectRuns) {
+    assert.equal(at("opacity", 0, run.nodeId), 1);
+    assert.equal(at("opacity", 7000, run.nodeId), 1);
+    assert.equal(at("opacity", 7750, run.nodeId), 0.5);
+    assert.equal(at("opacity", 8500, run.nodeId), 0);
+    for (const time of [0, 7000, 7750, 8500])
+      assert.deepEqual(at("transform.scale", time, run.nodeId), [1, 1, 1]);
+  }
+  assert.equal(advanceCueClock(definition, started, 8500).state.effectRuns.length, 2);
+  const completed = advanceCueClock(definition, started, 8501).state;
+  assert.equal(completed.nodes[brandId].opacity, 0);
+  assert.equal(completed.nodes[logo.id].opacity, 0);
+  for (const run of started.effectRuns) assert.equal(completed.nodes[run.nodeId].opacity, 0);
+  assert.deepEqual(completed.effectRuns, []);
 });
 
 test("ロゴは画像 Surface ではなく icon.glb の Model として配置する", async () => {

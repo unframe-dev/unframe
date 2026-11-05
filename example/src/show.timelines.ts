@@ -634,7 +634,9 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "brand", property: "opacity" },
         keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+          { timeMilliseconds: 700, value: 0, easingToNext: "cubicInOut" },
+          { timeMilliseconds: 2000, value: 1, easingToNext: "linear" },
           { timeMilliseconds: 2800, value: 1, easingToNext: "cubicInOut" },
           { timeMilliseconds: 3700, value: 0 },
         ],
@@ -642,8 +644,8 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "brand", property: "transform.position" },
         keyframes: [
-          { timeMilliseconds: 0, value: [-1.35872, 2.45, -2], easingToNext: "linear" },
-          { timeMilliseconds: 700, value: [-1.35872, 2.45, -2], easingToNext: "cubicInOut" },
+          { timeMilliseconds: 0, value: [0.381, 1.6, -2], easingToNext: "linear" },
+          { timeMilliseconds: 700, value: [0.381, 1.6, -2], easingToNext: "cubicInOut" },
           { timeMilliseconds: 2000, value: [0.254, 1.6, -2], easingToNext: "linear" },
           { timeMilliseconds: 3700, value: [0.254, 1.6, -2] },
         ],
@@ -651,8 +653,8 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "brand", property: "transform.scale" },
         keyframes: [
-          { timeMilliseconds: 0, value: [0.32, 0.32, 0.32], easingToNext: "linear" },
-          { timeMilliseconds: 700, value: [0.32, 0.32, 0.32], easingToNext: "cubicInOut" },
+          { timeMilliseconds: 0, value: [1.5, 1.5, 1.5], easingToNext: "linear" },
+          { timeMilliseconds: 700, value: [1.5, 1.5, 1.5], easingToNext: "cubicInOut" },
           { timeMilliseconds: 2000, value: [1, 1, 1], easingToNext: "linear" },
           { timeMilliseconds: 3700, value: [1, 1, 1] },
         ],
@@ -660,7 +662,9 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "logo", property: "opacity" },
         keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
+          { timeMilliseconds: 700, value: 0, easingToNext: "cubicInOut" },
+          { timeMilliseconds: 2000, value: 1, easingToNext: "linear" },
           { timeMilliseconds: 2800, value: 1, easingToNext: "cubicInOut" },
           { timeMilliseconds: 3700, value: 0 },
         ],
@@ -668,8 +672,8 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "logo", property: "transform.position" },
         keyframes: [
-          { timeMilliseconds: 0, value: [-1.64608, 2.45, -2], easingToNext: "linear" },
-          { timeMilliseconds: 700, value: [-1.64608, 2.45, -2], easingToNext: "cubicInOut" },
+          { timeMilliseconds: 0, value: [-0.966, 1.6, -2], easingToNext: "linear" },
+          { timeMilliseconds: 700, value: [-0.966, 1.6, -2], easingToNext: "cubicInOut" },
           { timeMilliseconds: 2000, value: [-0.644, 1.6, -2], easingToNext: "linear" },
           { timeMilliseconds: 3700, value: [-0.644, 1.6, -2] },
         ],
@@ -677,8 +681,8 @@ export const showTimelines = [
       {
         target: { kind: "instance", instanceId: "logo", property: "transform.scale" },
         keyframes: [
-          { timeMilliseconds: 0, value: [0.128, 0.128, 0.128], easingToNext: "linear" },
-          { timeMilliseconds: 700, value: [0.128, 0.128, 0.128], easingToNext: "cubicInOut" },
+          { timeMilliseconds: 0, value: [0.6, 0.6, 0.6], easingToNext: "linear" },
+          { timeMilliseconds: 700, value: [0.6, 0.6, 0.6], easingToNext: "cubicInOut" },
           { timeMilliseconds: 2000, value: [0.4, 0.4, 0.4], easingToNext: "linear" },
           { timeMilliseconds: 3700, value: [0.4, 0.4, 0.4] },
         ],

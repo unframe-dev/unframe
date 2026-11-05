@@ -96,7 +96,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 1,
       id: "opening-wave-bottom-left",
-      transform: { position: [-1.4, 0.7, -2.2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [-1.8, 0.4, -2.2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
     {
       model: { kind: "asset-ref", assetId: "wave-anchor" },
@@ -105,7 +105,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 1,
       id: "opening-wave-top-right",
-      transform: { position: [1.4, 2.5, -2.2], rotation: [0, 1, 0, 0], scale: [1, 1, 1] },
+      transform: { position: [1.8, 2.8, -2.2], rotation: [0, 1, 0, 0], scale: [1, 1, 1] },
     },
     {
       id: "word-speak",
@@ -476,54 +476,49 @@ export default definePresentation({
     timelines: [
       {
         id: "opening",
-        durationMilliseconds: 6000,
+        owner: { kind: "group", groupId: "demo" },
+        durationMilliseconds: 8500,
         tracks: [
           {
             target: { kind: "instance", instanceId: "brand", property: "opacity" },
             keyframes: [
               { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 1500, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 6000, value: 1 },
-            ],
-          },
-          {
-            target: { kind: "instance", instanceId: "brand", property: "transform.position" },
-            keyframes: [
-              { timeMilliseconds: 0, value: [0.381, 1.6, -2], easingToNext: "linear" },
-              { timeMilliseconds: 4000, value: [0.381, 1.6, -2], easingToNext: "cubicInOut" },
-              { timeMilliseconds: 6000, value: [-1.35872, 2.45, -2] },
-            ],
-          },
-          {
-            target: { kind: "instance", instanceId: "brand", property: "transform.scale" },
-            keyframes: [
-              { timeMilliseconds: 0, value: [1.5, 1.5, 1.5], easingToNext: "linear" },
-              { timeMilliseconds: 4000, value: [1.5, 1.5, 1.5], easingToNext: "cubicInOut" },
-              { timeMilliseconds: 6000, value: [0.32, 0.32, 0.32] },
+              { timeMilliseconds: 3000, value: 1, easingToNext: "linear" },
+              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 8500, value: 0 },
             ],
           },
           {
             target: { kind: "instance", instanceId: "logo", property: "opacity" },
             keyframes: [
               { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 1500, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 6000, value: 1 },
+              { timeMilliseconds: 3000, value: 1, easingToNext: "linear" },
+              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 8500, value: 0 },
             ],
           },
           {
-            target: { kind: "instance", instanceId: "logo", property: "transform.position" },
+            target: {
+              kind: "instance",
+              instanceId: "opening-wave-bottom-left",
+              property: "opacity",
+            },
             keyframes: [
-              { timeMilliseconds: 0, value: [-0.966, 1.6, -2], easingToNext: "linear" },
-              { timeMilliseconds: 4000, value: [-0.966, 1.6, -2], easingToNext: "cubicInOut" },
-              { timeMilliseconds: 6000, value: [-1.64608, 2.45, -2] },
+              { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 8500, value: 0 },
             ],
           },
           {
-            target: { kind: "instance", instanceId: "logo", property: "transform.scale" },
+            target: {
+              kind: "instance",
+              instanceId: "opening-wave-top-right",
+              property: "opacity",
+            },
             keyframes: [
-              { timeMilliseconds: 0, value: [0.6, 0.6, 0.6], easingToNext: "linear" },
-              { timeMilliseconds: 4000, value: [0.6, 0.6, 0.6], easingToNext: "cubicInOut" },
-              { timeMilliseconds: 6000, value: [0.128, 0.128, 0.128] },
+              { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
+              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 8500, value: 0 },
             ],
           },
         ],
