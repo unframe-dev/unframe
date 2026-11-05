@@ -55,9 +55,12 @@ export function SimulationControls() {
           </select>
           <Button
             disabled={!ready}
-            onClick={() => workspace.commands.playback({ command: "selectStep", ...selectedStep })}
+            onClick={() => {
+              (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
+              workspace.commands.playFromStep(selectedStep.groupId, selectedStep.stepId);
+            }}
           >
-            Step へ移動
+            ここから再生
           </Button>
         </div>
       )}

@@ -100,7 +100,8 @@ namespace Unframe.Unity.PresentationRuntime
         public ulong ResidentGpuBytes { get { return current?.Textures.ResidentGpuBytes ?? 0; } }
 
         public Task<string> PrepareAsync(LocalPreviewEnvelope envelope,
-            Func<string, string, CancellationToken, Task<PresentationPreviewAssetData>> assetProvider, CancellationToken token)
+            Func<string, string, CancellationToken, Task<PresentationPreviewAssetData>> assetProvider, CancellationToken token,
+            Action<string> progress = null)
         {
             CheckAccess();
             Invalidate();
@@ -115,26 +116,30 @@ namespace Unframe.Unity.PresentationRuntime
             Task prior = previousPreparation;
             var completed = new TaskCompletionSource<bool>();
             previousPreparation = completed.Task;
-            return PrepareCoreAsync(input, assetProvider, lifetime, expectedGeneration, prior, completed);
+            return PrepareCoreAsync(input, assetProvider, lifetime, expectedGeneration, prior, completed, progress);
         }
 
         private async Task<string> PrepareCoreAsync(PresentationLocalPreviewInput input,
             Func<string, string, CancellationToken, Task<PresentationPreviewAssetData>> assetProvider,
-            CancellationTokenSource lifetime, long expectedGeneration, Task prior, TaskCompletionSource<bool> completed)
+            CancellationTokenSource lifetime, long expectedGeneration, Task prior, TaskCompletionSource<bool> completed,
+            Action<string> progress)
         {
             Scene next = null;
             CancellationToken token = lifetime.Token;
             try
             {
+                progress?.Invoke("waiting");
                 // Finish the cancelled load before allocating the next candidate's CPU or GPU resources.
                 await prior;
                 if (Application.isPlaying) await Task.Yield();
                 CheckLatest(expectedGeneration, token);
+                progress?.Invoke("admission");
                 IEnumerable<TextureResidencyBinding> oldBindings = current?.Textures.Bindings ?? Array.Empty<TextureResidencyBinding>();
                 if (!PresentationPreviewAdmission.TryAdmit(oldBindings, PresentationTextureWindow.Select(input.TexturePlan, input.CurrentGroupId), out string error, current?.ModelGpuBytes ?? 0))
                     throw new InvalidOperationException(error);
                 next = new Scene(input, root, createDecoder);
                 candidate = next;
+                progress?.Invoke("texture-assets");
                 foreach (TextureResidencyBinding binding in input.TextureBindings)
                 {
                     CheckLatest(expectedGeneration, token);
@@ -153,7 +158,9 @@ namespace Unframe.Unity.PresentationRuntime
                     next.Files.Add(input.Assets[binding.AssetId], asset.Bytes);
                 }
                 CheckLatest(expectedGeneration, token);
+                progress?.Invoke("textures");
                 while (PrepareTextures(next) == null) { CheckLatest(expectedGeneration, token); await Task.Yield(); }
+                progress?.Invoke("hierarchy");
                 if (!next.Hierarchy.TryReplace(input, next.Root.transform, out error)) throw new InvalidOperationException(error);
                 ulong initialGpu = next.Textures.ResidentGpuBytes;
                 ulong initialBindings = (ulong)PresentationTextureWindow.Select(input.TexturePlan, input.CurrentGroupId).Count;
@@ -168,6 +175,7 @@ namespace Unframe.Unity.PresentationRuntime
                 modelBudget.Limits.MaxGpuBytes = Math.Min(modelBudget.Limits.MaxGpuBytes,
                     PresentationPreviewAdmission.OverlapGpuLimitBytes - previousGpu);
                 var loadedModels = new HashSet<string>();
+                progress?.Invoke("models");
                 foreach (var node in input.Catalog.Nodes)
                 {
                     if (node.NodeCase != Unframe.Presentation.ProjectedNodeDefinition.NodeOneofCase.Model || !loadedModels.Add(node.Model.ModelAssetId)) continue;
@@ -186,10 +194,13 @@ namespace Unframe.Unity.PresentationRuntime
                 if (input.TexturePlan.MaximumResidentGpuBytes > sceneLimits.MaxGpuBytes - next.ModelGpuBytes
                     || input.TexturePlan.MaximumResidentTextureBindings > sceneLimits.MaxTextureBindings - next.ModelTextureBindings)
                     throw new InvalidOperationException("texture-window-budget-exceeded");
+                progress?.Invoke("model-instances");
                 await next.Models.InstantiateAsync(input, next.Hierarchy, token);
                 CheckLatest(expectedGeneration, token);
+                progress?.Invoke("surfaces");
                 next.Renderer = new PresentationBakedSurfaceRenderer();
                 if (!next.Renderer.TryBuild(input, next.Hierarchy, out error)) throw new InvalidOperationException(error);
+                progress?.Invoke("fonts");
                 if (input.NativeUiResidency != null)
                     foreach (string fontId in input.NativeUiResidency.FontAssetIds)
                     {
@@ -198,14 +209,18 @@ namespace Unframe.Unity.PresentationRuntime
                         if (asset == null || asset.MediaType != input.Assets[fontId].MediaType) throw new InvalidOperationException("preview.font-media-type-invalid");
                         next.Files.Add(input.Assets[fontId], asset.Bytes);
                     }
+                progress?.Invoke("native-ui");
                 if (!next.Native.TryBuild(input, next.Hierarchy, next.Files.Paths, out error)) throw new InvalidOperationException(error);
                 next.Playback.Models = next.Models;
+                progress?.Invoke("videos");
                 await next.Videos.BuildAsync(input, next.Hierarchy, async (id, videoToken) => await assetProvider(input.RequestId, input.References[id], videoToken), token);
                 CheckLatest(expectedGeneration, token);
                 next.Playback.Videos = next.Videos;
+                progress?.Invoke("playback");
                 if (!next.Playback.TryRefresh(input, next.Hierarchy, (double time, out string refreshError) => Refresh(next, time, out refreshError), 0, out error)) throw new InvalidOperationException(error);
                 next.Playback.Models = next.Models;
                 next.Prepared = true;
+                progress?.Invoke("prepared");
                 return input.RequestId;
             }
             catch

@@ -83,6 +83,45 @@ const job = (revision: string, status: BuildJob["status"] = "succeeded"): BuildJ
   diagnostics: [],
   artifacts: [],
 });
+
+it.each(["build", "prepare"])(
+  "automatically displays a corrected revision after a %s failure",
+  async (failure) => {
+    const { api, driver } = fixture();
+    api.build = async (revision) => {
+      if (failure === "build" && revision === "unfinished")
+        throw new HostApiError(422, "author-source-invalid", "Source cannot be built.");
+      return job(revision);
+    };
+    api.preview = async (body) => ({
+      requestId: body.requestId,
+      buildManifest: JSON.stringify({ buildId: "fixed" }),
+      ...(body.channel === "dev" ? { sourceRevision: body.buildId } : {}),
+    });
+    driver.prepare = async (envelope) => {
+      if (failure === "prepare" && envelope.sourceRevision === "unfinished")
+        throw new UnityExchangeError("preview.input-invalid");
+      return "fixed";
+    };
+    const controller = createPreviewController({ api, driver });
+    try {
+      controller.request("dev", "unfinished", { debounce: true });
+      await vi.waitFor(() => expect(controller.store.getState().phase).toBe("failed"));
+      controller.request("dev", "corrected", { debounce: true });
+      await vi.waitFor(() =>
+        expect(controller.store.getState()).toMatchObject({
+          phase: "ready",
+          status: "ready",
+          loaded: { sourceRevision: "corrected" },
+          error: null,
+        }),
+      );
+    } finally {
+      await controller.dispose();
+    }
+  },
+);
+
 it("keeps the displayed snapshot while waiting, building, and preparing a replacement", async () => {
   vi.useFakeTimers();
   const { api, driver, commands } = fixture();

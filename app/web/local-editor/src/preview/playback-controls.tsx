@@ -10,12 +10,17 @@ import { SimulationControls } from "./simulation-controls";
 import { Button } from "../ui/button";
 export function PlaybackControls() {
   const w = useWorkspace();
-  const { playback: p, status } = useStore(w.preview.store);
+  const { playback: p, status, loaded } = useStore(w.preview.store);
+  const selection = useStore(w.ui, (state) => state.selection);
+  const revision = useStore(w.project.store, (state) => state.project?.revision);
+  const selectedStep = p?.simulation?.steps.find(
+    (step) => step.groupId === selection.groupId && step.stepId === selection.stepId,
+  );
   const ready = status === "ready";
   const inspection = p?.mode === "inspection";
   return (
     <div className="playback-controls">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {inspection && (
           <span className="mode-tag">
             Cue 確認:{" "}
@@ -33,6 +38,22 @@ export function PlaybackControls() {
         >
           <PlayIcon weight="fill" />
         </Button>
+        {!w.readOnly && (
+          <Button
+            disabled={!ready || !selectedStep || !revision || loaded?.sourceRevision !== revision}
+            title={
+              selectedStep
+                ? `${selectedStep.groupId} / ${selectedStep.stepId} から再生`
+                : "進行から Step を選択"
+            }
+            onClick={() => {
+              (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
+              w.commands.playSelectedStep();
+            }}
+          >
+            選択位置から再生
+          </Button>
+        )}
         {!inspection && (
           <Button
             aria-label="次のイベント"

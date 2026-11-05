@@ -50,6 +50,37 @@ public sealed class PresentationPreviewTransactionEditModeTests
     }
 
     [UnityTest]
+    public IEnumerator PreparationReportsTheBlockedStageBeforeAcknowledgingReadiness()
+    {
+        var root = new GameObject("preview progress test");
+        var asset = new TaskCompletionSource<PresentationPreviewAssetData>();
+        using (var transaction = new PresentationPreviewTransaction(root.transform))
+        {
+            try
+            {
+                var progress = new System.Collections.Generic.List<string>();
+                var envelope = PresentationPreviewTestFixture.Create(texture: true);
+                var prepare = transaction.PrepareAsync(envelope, (request, reference, token) => asset.Task,
+                    CancellationToken.None, progress.Add);
+                yield return null;
+                Assert.That(progress, Does.Contain("texture-assets"));
+                Assert.That(prepare.IsCompleted, Is.False);
+                asset.SetResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png"));
+                while (!prepare.IsCompleted) yield return null;
+                prepare.GetAwaiter().GetResult();
+                Assert.That(progress[progress.Count - 1], Is.EqualTo("prepared"));
+                Assert.That(transaction.PreparedRequestId, Is.EqualTo(envelope.RequestId));
+            }
+            finally
+            {
+                asset.TrySetResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png"));
+                transaction.Dispose();
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+    }
+
+    [UnityTest]
     public IEnumerator PreparedSceneRemainsHiddenUntilMatchingCommitAndSharesTextureOnSwap()
     {
         var root = new GameObject("preview test");

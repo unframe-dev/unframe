@@ -10,6 +10,101 @@ using UnityEngine.TestTools;
 
 public sealed class UnframePreviewBridgeEditModeTests
 {
+    [Test]
+    public void UnconfiguredPreparationRejectsTheMatchingRequestImmediately()
+    {
+        var root = new GameObject("UnframePreview");
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            var input = PresentationPreviewTestFixture.Create();
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events[0].kind, Is.EqualTo("failed"));
+            Assert.That(events[0].requestId, Is.EqualTo(input.RequestId));
+            Assert.That(events[0].message, Is.EqualTo("preview.not-configured"));
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [Test]
+    public void InvalidProtobufPreparationRejectsTheMatchingRequestImmediately()
+    {
+        var root = new GameObject("UnframePreview");
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            bridge.Configure("{\"token\":\"preview-token\"}");
+            string requestId = new string('a', 32);
+            bridge.Prepare("{\"requestId\":\"" + requestId + "\",\"unknownField\":true}");
+            Assert.That(events.Count, Is.EqualTo(1));
+            Assert.That(events[0].kind, Is.EqualTo("failed"));
+            Assert.That(events[0].requestId, Is.EqualTo(requestId));
+            Assert.That(events[0].message, Is.EqualTo("preview.input-invalid"));
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
+    [Test]
+    public void PreparationDiagnosticsExcludeConfigurationAndInvalidRequestIdentity()
+    {
+        var root = new GameObject("UnframePreview");
+        var messages = new List<string>();
+        Application.LogCallback collect = (message, stack, type) =>
+        {
+            if (message.StartsWith("[Unity Preview]")) messages.Add(message);
+        };
+        Application.logMessageReceived += collect;
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            bridge.Configure("{\"token\":\"secret-preview-token\"}");
+            var input = PresentationPreviewTestFixture.Create();
+            input.RequestId = "private-presentation-content";
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            Assert.That(messages, Is.Not.Empty);
+            Assert.That(messages.Exists(message => message.Contains("stage=prepare-failed")), Is.True);
+            foreach (string message in messages)
+            {
+                Assert.That(message, Does.Not.Contain("secret-preview-token"));
+                Assert.That(message, Does.Not.Contain("private-presentation-content"));
+            }
+        }
+        finally
+        {
+            Application.logMessageReceived -= collect;
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator MalformedPreparationInvalidatesThePreviousPreparedCandidate()
+    {
+        var root = new GameObject("UnframePreview");
+        try
+        {
+            var bridge = root.AddComponent<UnframePreview>();
+            var events = new List<PresentationPreviewEvent>();
+            bridge.Notification += events.Add;
+            bridge.Configure("{\"token\":\"preview-token\"}");
+            var input = PresentationPreviewTestFixture.Create();
+            bridge.Prepare(JsonFormatter.Default.Format(input));
+            while (events.Count == 0) yield return null;
+            Assert.That(events[0].kind, Is.EqualTo("prepared"));
+            bridge.Prepare("{");
+            Assert.That(events[1].kind, Is.EqualTo("failed"));
+            bridge.Commit(input.RequestId);
+            Assert.That(events[2].kind, Is.EqualTo("failed"));
+            Assert.That(events[2].message, Is.EqualTo("preview.prepared-request-mismatch"));
+            Assert.That(root.transform.childCount, Is.Zero);
+        }
+        finally { Object.DestroyImmediate(root); }
+    }
+
     [UnityTest]
     public IEnumerator CameraResetLeavesOverheadAndKeepsGuidesHiddenOnTheNextSpatialFrame()
     {

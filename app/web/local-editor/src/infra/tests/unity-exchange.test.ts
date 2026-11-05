@@ -1,6 +1,73 @@
 import { expect, it, vi } from "vite-plus/test";
 import { createUnityExchange } from "../unity-exchange";
 
+it("identifies the timed-out Unity command and its response deadline", async () => {
+  vi.useFakeTimers();
+  try {
+    const exchange = createUnityExchange({ send: () => undefined, timeoutMilliseconds: 25 });
+    const pending = exchange.request({
+      requestId: "candidate",
+      kind: "prepared",
+      method: "Prepare",
+      value: "{}",
+    });
+    const rejection = expect(pending).rejects.toThrow(
+      "Unity Preview Prepare response timed out after 25 ms (request candidate).",
+    );
+    await vi.advanceTimersByTimeAsync(25);
+    await rejection;
+    exchange.dispose();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("reports invalid acknowledgement fields without exposing the notification payload", async () => {
+  const diagnostics: unknown[] = [];
+  const exchange = createUnityExchange({
+    send: () => undefined,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+  });
+  const pending = exchange.request({
+    requestId: "candidate",
+    kind: "prepared",
+    method: "Prepare",
+    value: "private presentation payload",
+  });
+  await Promise.resolve();
+  exchange.notify({ kind: "prepared", requestId: "candidate", buildIdentity: null });
+  exchange.notify({ kind: "prepared", requestId: "candidate", buildIdentity: "build" });
+  await expect(pending).resolves.toBe("build");
+  expect(diagnostics).toEqual([
+    expect.objectContaining({ event: "sent", method: "Prepare", requestId: "candidate" }),
+    { event: "invalid-notification", fields: ["buildIdentity"] },
+    expect.objectContaining({ event: "received", method: "Prepare", requestId: "candidate" }),
+  ]);
+  expect(JSON.stringify(diagnostics)).not.toContain("private presentation payload");
+  exchange.dispose();
+});
+
+it("settles acknowledgements even if the diagnostic observer throws", async () => {
+  const exchange = createUnityExchange({
+    send: () => undefined,
+    onDiagnostic: () => {
+      throw new Error("Diagnostic output unavailable");
+    },
+  });
+  const pending = exchange.request({
+    requestId: "candidate",
+    kind: "prepared",
+    method: "Prepare",
+    value: "{}",
+  });
+  await Promise.resolve();
+  expect(() =>
+    exchange.notify({ kind: "prepared", requestId: "candidate", buildIdentity: "build" }),
+  ).not.toThrow();
+  await expect(pending).resolves.toBe("build");
+  exchange.dispose();
+});
+
 it("ignores an older playback sequence and rejects missing notifications at the deadline", async () => {
   vi.useFakeTimers();
   const exchange = createUnityExchange({ send: () => undefined, timeoutMilliseconds: 25 });
