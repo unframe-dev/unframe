@@ -25,6 +25,9 @@ export function createRuntimeStore(
     getAnchorBindings() {
       return readAnchorBindings(state.anchorBindings, now());
     },
+    getAnchorBindingsSnapshot() {
+      return structuredClone(state.anchorBindings);
+    },
     reset() {
       state = reduce(state, { kind: "reset" });
     },

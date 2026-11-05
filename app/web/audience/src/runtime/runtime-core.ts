@@ -342,6 +342,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
               assignmentEpoch: delivery.projectionInstance!.assignmentEpoch,
             });
             wireView = replacement;
+            anchorBindings = {};
             maximumRunSequence = Math.max(
               maximumRunSequence,
               ...[...(replacement.activeRuns ?? []), ...(replacement.effectRuns ?? [])].map((run) =>

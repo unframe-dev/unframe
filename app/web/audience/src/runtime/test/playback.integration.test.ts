@@ -9,6 +9,7 @@ import type {
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimeEffects } from "../../rendering/runtime-effects";
 import { createRuntimePlayback } from "../playback";
+import type { AnchorBindings } from "../anchor-bindings";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { evaluateAnimationView } from "../animation-view";
 function setup() {
@@ -748,4 +749,114 @@ it("accepts multiple effects ordered by author ID when allocation order differs"
   await playback.waitForIdle();
   expect(playback.getSnapshot().phase).toBe("ready");
   expect(playback.getSnapshot().view?.effectRuns).toHaveLength(2);
+});
+
+it("keeps prepared views and expiring Anchor samples at the same State cut while loading", async () => {
+  const { delivery, snapshot, fence, nodeId, transform } = setup();
+  delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
+    presenterAnchor: { target: 2, followPosition: true },
+  };
+  let now = 1000;
+  let finish!: () => void;
+  let onPresent: (() => void) | undefined;
+  const frames: { x: number; binding: AnchorBindings[string] | undefined }[] = [];
+  const playback = createRuntimePlayback({
+    delivery,
+    now: () => now,
+    present: () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+        onPresent?.();
+      }),
+    clear() {},
+    frame(view, _time, bindings) {
+      frames.push({ x: view.nodeStates[nodeId]!.transform.position[0], binding: bindings[nodeId] });
+    },
+  });
+  const sendFrame = (sequence: number) => {
+    playback.applyState({
+      stateFrame: {
+        fence,
+        frameSequence: String(sequence),
+        baseReliableSequence: "0",
+        kind: 1,
+        producedAtRuntimeMonotonicMs: "500",
+        elements: [
+          {
+            elementId: nodeId,
+            node: {
+              active: true,
+              visible: true,
+              opacity: 1,
+              transform: { ...transform, position: { x: sequence * 10 } },
+            },
+          },
+        ],
+        anchorBindings: [
+          {
+            nodeId,
+            sample: {
+              trackingFrameSequence: String(sequence),
+              observedAtRuntimeMonotonicMs: "500",
+              position: { x: sequence },
+            },
+          },
+        ],
+      },
+    });
+  };
+  playback.applyControl({ connectionSnapshot: snapshot });
+  await Promise.resolve();
+  finish();
+  await playback.waitForIdle();
+  playback.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  sendFrame(1);
+  await Promise.resolve();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toEqual({ x: 0, binding: undefined });
+  finish();
+  await playback.waitForIdle();
+  sendFrame(2);
+  await Promise.resolve();
+  sendFrame(3);
+  playback.prepareFrame();
+  expect(frames.at(-1)).toMatchObject({ x: 10, binding: { sample: { position: { x: 1 } } } });
+  const presentingThird = new Promise<void>((resolve) => {
+    onPresent = resolve;
+  });
+  finish();
+  await presentingThird;
+  playback.prepareFrame();
+  expect(frames.at(-1)).toMatchObject({ x: 20, binding: { sample: { position: { x: 2 } } } });
+  now = 1500;
+  finish();
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toMatchObject({ x: 30, binding: { sample: { position: { x: 3 } } } });
+  now = 1501;
+  playback.prepareFrame();
+  expect(frames.at(-1)).toEqual({ x: 30, binding: { nodeId, unavailable: {} } });
+  sendFrame(4);
+  await Promise.resolve();
+  finish();
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toMatchObject({ x: 40, binding: { sample: { position: { x: 4 } } } });
+  sendFrame(5);
+  await Promise.resolve();
+  playback.restartState();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toEqual({ x: 40, binding: undefined });
+  finish();
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toEqual({ x: 50, binding: undefined });
+  playback.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  sendFrame(1);
+  await Promise.resolve();
+  finish();
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(frames.at(-1)).toMatchObject({ x: 10, binding: { sample: { position: { x: 1 } } } });
+  playback.dispose();
 });

@@ -29,6 +29,7 @@ beforeEach(() => {
     restartState: vi.fn(),
     reset: vi.fn(),
     getAnchorBindings: () => ({}),
+    getAnchorBindingsSnapshot: () => ({}),
     getSnapshot: () => structuredClone(snapshot),
   });
 });
