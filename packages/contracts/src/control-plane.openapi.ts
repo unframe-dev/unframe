@@ -6262,6 +6262,8 @@ export interface paths {
                                 definitionHash: string;
                                 renderBundleHash: string;
                             };
+                            /** @enum {string} */
+                            sessionState: "Waiting" | "Presenting";
                             /** @description PresentationDefinition; strict schema validated at storage boundary */
                             definition: {
                                 [key: string]: unknown;
@@ -6407,6 +6409,8 @@ export interface paths {
                                 definitionHash: string;
                                 renderBundleHash: string;
                             };
+                            /** @enum {string} */
+                            sessionState: "Waiting" | "Presenting";
                         };
                     };
                 };

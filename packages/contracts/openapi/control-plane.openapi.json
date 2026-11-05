@@ -16931,6 +16931,13 @@
                         "renderBundleHash"
                       ]
                     },
+                    "sessionState": {
+                      "type": "string",
+                      "enum": [
+                        "Waiting",
+                        "Presenting"
+                      ]
+                    },
                     "definition": {
                       "type": "object",
                       "additionalProperties": {
@@ -16988,6 +16995,7 @@
                   "required": [
                     "assignment",
                     "publication",
+                    "sessionState",
                     "definition",
                     "renderBundle",
                     "checkpoint",
@@ -17276,11 +17284,19 @@
                         "definitionHash",
                         "renderBundleHash"
                       ]
+                    },
+                    "sessionState": {
+                      "type": "string",
+                      "enum": [
+                        "Waiting",
+                        "Presenting"
+                      ]
                     }
                   },
                   "required": [
                     "assignment",
-                    "publication"
+                    "publication",
+                    "sessionState"
                   ]
                 }
               }

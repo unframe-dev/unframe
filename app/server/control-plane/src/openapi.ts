@@ -1026,6 +1026,9 @@ const runtimeLeaseSchema = z.object({
     renderBundleHash: z.string(),
   }),
 });
+const runtimeSessionLeaseSchema = runtimeLeaseSchema.extend({
+  sessionState: z.enum(["Waiting", "Presenting"]),
+});
 export const internalRuntimeBootstrapRoute = createRoute({
   method: "get",
   path: "/internal/runtime/bootstrap",
@@ -1045,7 +1048,7 @@ export const internalRuntimeBootstrapRoute = createRoute({
       description: "Trusted Runtime v3 bootstrap",
       content: {
         "application/json": {
-          schema: runtimeLeaseSchema.extend({
+          schema: runtimeSessionLeaseSchema.extend({
             definition: z
               .record(z.string(), z.unknown())
               .describe("PresentationDefinition; strict schema validated at storage boundary"),
@@ -1082,7 +1085,7 @@ export const internalRuntimeLeaseRoute = createRoute({
   responses: {
     200: {
       description: "Current Runtime assignment and pinned publication fence",
-      content: { "application/json": { schema: runtimeLeaseSchema } },
+      content: { "application/json": { schema: runtimeSessionLeaseSchema } },
     },
     400: errorResponse("Invalid lease request"),
     401: errorResponse("Unauthorized"),

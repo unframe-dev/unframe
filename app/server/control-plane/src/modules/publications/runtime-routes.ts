@@ -345,13 +345,12 @@ export function createRuntimePublicationRoutes() {
         checkpointSource,
       };
       const current = await createD1Database(DB)
-        .select({ id: presentationSessions.id })
+        .select({ sessionState: presentationSessions.state })
         .from(presentationSessions)
         .innerJoin(runtimeAssignments, eq(runtimeAssignments.sessionId, presentationSessions.id))
         .where(
           and(
             eq(presentationSessions.id, sessionId),
-            ne(presentationSessions.state, "Ended"),
             eq(presentationSessions.publicationEpoch, row.publicationEpoch),
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
@@ -362,15 +361,16 @@ export function createRuntimePublicationRoutes() {
           ),
         )
         .get();
-      if (!current)
+      if (!current || current.sessionState === "Ended")
         return context.json({ error: { code: "conflict", message: "Runtime fence changed" } }, 409);
-      return context.json(result, 200);
+      return context.json({ ...result, sessionState: current.sessionState }, 200);
     })
     .openapi(internalRuntimeLeaseRoute, async (context) => {
       const { sessionId, runtimeId, assignmentEpoch } = context.req.valid("query");
       const { DB } = context.get("config");
       const row = await createD1Database(DB)
         .select({
+          sessionState: presentationSessions.state,
           presentationId: presentationSessions.presentationId,
           publicationEpoch: presentationPublications.epoch,
           runtimeKind: runtimeAssignments.runtimeKind,
@@ -390,7 +390,6 @@ export function createRuntimePublicationRoutes() {
         .where(
           and(
             eq(presentationSessions.id, sessionId),
-            ne(presentationSessions.state, "Ended"),
             eq(runtimeAssignments.runtimeId, runtimeId),
             eq(runtimeAssignments.epoch, assignmentEpoch),
             sql`${runtimeAssignments.epoch} = (SELECT MAX(latest.epoch) FROM runtime_assignments AS latest WHERE latest.session_id = ${sessionId})`,
@@ -402,7 +401,7 @@ export function createRuntimePublicationRoutes() {
         .get();
       const conflict = () =>
         context.json({ error: { code: "conflict", message: "Runtime fence unavailable" } }, 409);
-      if (!row) return conflict();
+      if (!row || row.sessionState === "Ended") return conflict();
       let manifest: unknown;
       try {
         manifest = JSON.parse(row.manifest);
@@ -420,6 +419,7 @@ export function createRuntimePublicationRoutes() {
         return conflict();
       return context.json(
         {
+          sessionState: row.sessionState,
           assignment: {
             sessionId,
             runtimeId,

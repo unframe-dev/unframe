@@ -101,11 +101,13 @@ caddy run --config /path/to/infra/Caddyfile --adapter caddyfile
 )
 ```
 
+Runtime は起動・lease 確認時に Control Plane から Session の状態を受け取ります。`Waiting` 中は観客を受け入れ、タイマーと自動遷移を停止します。`Presenting` を確認すると進行を開始します。更新時はルーム作成と参加を一時停止し、Control Plane を配備してから Cloud Host と Venue Edge を更新します。
+
 Host は登録後に割り当てを待ち、Session の準備要求を受けて Runtime を起動します。割り当て待ちでも共通 listener は存在しますが、未準備の Session への接続は拒否します。Session ID・epoch・revision・lease を環境変数へ追加する必要はありません。
 
 #### 接続確認と停止
 
-1. 発表者または管理者として Console にログインし、公開済み Presentation の Session を作成します。ルーム画面の「発表環境を準備」を押し、「発表環境の準備ができました。」を確認します。API を直接使う場合も発表者または管理者の認証が必要で、`POST /sessions/{id}/runtime-preparation` の後、同 URL の GET が `ready` になることを確認します。空き Host がない場合は `409 runtime_unavailable` です。Quest の発表者導線でも Session 作成後に準備を要求します。
+1. 発表者または管理者として Console にログインし、公開済み Presentation の Session を作成します。作成時に割り当てが要求されるので、ルーム画面で「発表環境の準備ができました。」を確認します。API では `GET /sessions/{id}/runtime-preparation` が `ready` になることを確認します。空き Host がなかった場合は、ルーム画面の「発表環境を準備」または `POST /sessions/{id}/runtime-preparation` で再試行できます。
 2. Session の bootstrap の `endpoint` が `https://realtime.un-fra.me` であることを確認し、外部回線の Quest で gRPC 接続、Audience でルーム参加から Control / State の WebSocket 接続・素材準備まで確認します。`ready` は Session の準備状態なので、公開経路の疎通確認は別に必要です。
 3. 発表を開始して進行・一時停止・再開が両端末へ反映されることを確認します。素材は Delivery に記載された URL から取得し、Caddy 設定例は素材配信を追加しません。
 

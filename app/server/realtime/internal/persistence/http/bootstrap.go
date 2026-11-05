@@ -19,6 +19,15 @@ import (
 
 const maximumBootstrapBytes = 64 << 20
 
+const (
+	SessionWaiting    = "Waiting"
+	SessionPresenting = "Presenting"
+)
+
+func validActiveSessionState(state string) bool {
+	return state == SessionWaiting || state == SessionPresenting
+}
+
 var (
 	ErrInvalidBootstrap  = errors.New("invalid runtime bootstrap")
 	ErrInvalidProjection = errors.New("invalid runtime projection")
@@ -59,6 +68,7 @@ type BootstrapCheckpointSource struct {
 }
 
 type RuntimeBootstrap struct {
+	SessionState     string                     `json:"sessionState"`
 	CheckpointSource *BootstrapCheckpointSource `json:"checkpointSource"`
 	Assignment       BootstrapAssignment        `json:"assignment"`
 	Publication      BootstrapPublication       `json:"publication"`
@@ -90,7 +100,7 @@ func (c *Client) Bootstrap(ctx context.Context, request BootstrapRequest) (Runti
 		return RuntimeBootstrap{}, err
 	}
 	var value RuntimeBootstrap
-	if err := json.Unmarshal(body, &value); err != nil || !validRuntimeFence(request, value.Assignment, value.Publication) || !json.Valid(value.Definition) || string(value.Definition) == "null" || !json.Valid(value.RenderBundle) || string(value.RenderBundle) == "null" {
+	if err := json.Unmarshal(body, &value); err != nil || !validActiveSessionState(value.SessionState) || !validRuntimeFence(request, value.Assignment, value.Publication) || !json.Valid(value.Definition) || string(value.Definition) == "null" || !json.Valid(value.RenderBundle) || string(value.RenderBundle) == "null" {
 		return RuntimeBootstrap{}, ErrInvalidBootstrap
 	}
 	if len(value.Checkpoint) != 0 && string(value.Checkpoint) != "null" {

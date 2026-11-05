@@ -50,4 +50,4 @@ Room は Session として保存します。`GET /sessions` は認証した作�
 
 運用者は `nix run .#runtime-host` で Cloud Host supervisor を起動します。Host が割り当てに従って Runtime を起動・監視し、稼働確認後に ready を報告します。設定・リース・停止と復旧の挙動は [Realtime の起動手順](realtime/README.md#cloud-host-supervisor) を参照してください。
 
-Console と Quest は `POST /sessions/{id}/runtime-preparation` で準備を要求し、同じ URL の GET が `ready` になるまで待ちます。対象 Session の Presenter または admin が操作でき、準備の再要求は既存割り当てを返します。空いている Host がなければ `409 runtime_unavailable` です。Host を起動してから同じ Session を再試行できます。GET は割り当てを作りません。Cloud VM の作成・TLS 入口の構築は運用者が行います。
+ルーム作成時に Control Plane が空き Host への割り当てを試みます。Host が `ready` を報告すると、発表開始前でも観客が接続できます。Runtime は開始操作を確認するまでタイマーと自動遷移を止めます。空き Host がない場合もルームは作成されます。Presenter または admin は `POST /sessions/{id}/runtime-preparation` で同じルームの準備を再試行できます。既存の割り当てがあればその状態を返し、空き Host がなければ `409 runtime_unavailable` を返します。同じ URL の GET で準備状況を確認できます。Cloud の割り当てが有効な間は、同じルームへの Venue Edge の割り当ては競合します。
