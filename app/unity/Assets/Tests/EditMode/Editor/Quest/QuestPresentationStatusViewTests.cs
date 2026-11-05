@@ -150,6 +150,30 @@ public sealed class QuestPresentationStatusViewTests
     }
 
     [Test]
+    public void SettingsCanClearTheSavedAccountAndReturnToAuthentication()
+    {
+        host = new GameObject("Session");
+        head = new GameObject("Head", typeof(Camera));
+        var onboarding = host.AddComponent<QuestOnboardingView>();
+        var api = new QuestOnboardingApi(new System.Uri("https://api.example"), new System.Uri("https://web.example"), "unity");
+        onboarding.Configure(null, null, null, head.transform, api);
+        onboarding.CompleteExternalConnection();
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(null, null, head.transform);
+        view.AttachOnboarding(onboarding);
+        view.Refresh();
+        Assert.That(view.FindButton("ClearAuthentication").gameObject.activeSelf, Is.False);
+        view.FindButton("Details").onClick.Invoke();
+        var clear = view.FindButton("ClearAuthentication");
+        Assert.That(clear.gameObject.activeSelf, Is.True);
+        Assert.That(clear.interactable, Is.True);
+        clear.onClick.Invoke();
+        Assert.That(onboarding.IsComplete, Is.False);
+        Assert.That(onboarding.Flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
+        Assert.That(onboarding.FindButton("Authorize"), Is.Not.Null);
+    }
+
+    [Test]
     public void EndingPlaybackRequiresAnExplicitConfirmation()
     {
         host = new GameObject("Session");
