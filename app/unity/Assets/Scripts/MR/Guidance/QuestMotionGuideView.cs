@@ -15,6 +15,7 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private readonly QuestMotionGuideState state = new QuestMotionGuideState();
         private PresentationBakedRuntime runtime;
+        private QuestPresentationEntry entry;
         private Transform trackingOrigin;
         private Transform head;
         private Camera headCamera;
@@ -23,15 +24,9 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly QuestMotionArmRig[] arms = new QuestMotionArmRig[2];
         private Text label;
         private RectTransform instructionPanel;
-        private string framedCue;
         private ulong groupEpoch;
         private ulong stepEpoch;
         private int candidateSignature;
-        private Vector3 anchor;
-        private Vector3 forward;
-        private Vector3 right;
-        private Quaternion guideRotation;
-        private bool hasGuideFrame;
         private double candidateStartedAt;
 
         public bool Visible => visuals != null && visuals.activeSelf;
@@ -40,6 +35,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             Hide();
             runtime = source;
+            entry = source != null ? source.GetComponent<QuestPresentationEntry>() : null;
             trackingOrigin = origin;
             head = headTransform;
             headCamera = head != null ? head.GetComponent<Camera>() : null;
@@ -55,8 +51,8 @@ namespace Unframe.Unity.PresentationRuntime
             state.Refresh(runtime?.InputSynchronization?.Catalog, progression,
                 runtime != null && runtime.IsPresenter && runtime.CanSendInput,
                 runtime != null && runtime.CalibrationReady, runtime?.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
-                headTracked && head != null && headCamera != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || ui.MenuOpen);
-            if (state.Candidates.Count == 0) { Hide(); return; }
+                headTracked && head != null && headCamera != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || !ui.GuidanceVisible, entry != null && entry.CanAdvance);
+            if (state.Candidates.Count == 0 && !state.ShowAdvance) { Hide(); return; }
             int signature = 17;
             for (int candidate = 0; candidate < state.Candidates.Count; candidate++)
                 signature = unchecked(signature * 31 + (int)state.Candidates[candidate]);
@@ -66,30 +62,16 @@ namespace Unframe.Unity.PresentationRuntime
                 groupEpoch = progression.GroupEntryEpoch;
                 stepEpoch = progression.StepEntryEpoch;
                 candidateStartedAt = Time.realtimeSinceStartupAsDouble;
-                framedCue = null;
             }
-            int index = (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
-            GestureKind selected = state.Candidates[index];
-            bool candidateChanged = framedCue != selected.ToString();
-            Quaternion targetRotation = QuestMotionGuideGeometry.GetYawRotation(head.rotation);
-            Vector3 targetAnchor = QuestMotionGuideGeometry.GetAnchorPosition(head.position, targetRotation,
+            int index = state.Candidates.Count == 0 ? 0
+                : (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
+            GestureKind selected = state.Candidates.Count == 0 ? GestureKind.Unspecified : state.Candidates[index];
+            Quaternion guideRotation = head.rotation;
+            Vector3 anchor = QuestMotionGuideGeometry.GetAnchorPosition(head.position, guideRotation,
                 headCamera.fieldOfView, headCamera.aspect);
-            if (!hasGuideFrame)
-            {
-                anchor = targetAnchor;
-                guideRotation = targetRotation;
-                hasGuideFrame = true;
-            }
-            else
-            {
-                float follow = 1 - Mathf.Exp(-8f * Time.unscaledDeltaTime);
-                anchor = Vector3.Lerp(anchor, targetAnchor, follow);
-                guideRotation = Quaternion.Slerp(guideRotation, targetRotation, follow);
-            }
-            QuestMotionGuideGeometry.GetFrame(guideRotation, out forward, out right);
-            bool both = (int)selected >= 7;
+            QuestMotionGuideGeometry.GetFrame(guideRotation, out Vector3 forward, out _);
+            bool both = selected == GestureKind.SpreadHands || selected == GestureKind.CloseHands;
             bool firstLeft = leftTracked;
-            framedCue = selected.ToString();
             EnsureVisuals();
             if (visuals == null) return;
             visuals.SetActive(true);
@@ -98,13 +80,15 @@ namespace Unframe.Unity.PresentationRuntime
                 QuestMotionGuideGeometry.GetFacingRotation(instructionPosition, head.position, head.rotation));
             float viewportScale = QuestMotionGuideGeometry.GetViewportScale(headCamera.fieldOfView, headCamera.aspect);
             instructionPanel.localScale = Vector3.one * (.00022f * viewportScale);
-            if (candidateChanged) label.text = Description((int)selected);
+            string instruction = Instruction(selected, state.ShowAdvance);
+            if (label.text != instruction) label.text = instruction;
             Quaternion motionFrame = Quaternion.LookRotation(forward, Vector3.up);
             Vector3 diagramOrigin = anchor;
             for (int i = 0; i < 2; i++)
             {
                 bool left = i == 0;
-                bool shown = both || left == firstLeft;
+                bool shown = selected >= GestureKind.SwipeLeft && selected <= GestureKind.CloseHands
+                    && (both || left == firstLeft);
                 arms[i].SetVisible(shown);
                 if (!shown) continue;
                 arms[i].Play(diagramOrigin, motionFrame, selected, viewportScale);
@@ -132,7 +116,7 @@ namespace Unframe.Unity.PresentationRuntime
                 canvasHost.GetComponent<Canvas>().sortingOrder = 10;
                 QuestPresentationUiFont.ConfigureCanvas(canvasHost.GetComponent<Canvas>());
                 instructionPanel = canvasHost.GetComponent<RectTransform>();
-                instructionPanel.sizeDelta = new Vector2(640, 140);
+                instructionPanel.sizeDelta = new Vector2(640, 190);
                 instructionPanel.localScale = Vector3.one * .00022f;
                 var backplate = canvasHost.AddComponent<Image>();
                 QuestPresenterUiStyle.ApplySurface(backplate);
@@ -156,6 +140,14 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
+        private static string Instruction(GestureKind gesture, bool showAdvance)
+        {
+            string motion = Description((int)gesture);
+            if (!showAdvance) return motion;
+            return string.IsNullOrEmpty(motion) ? "次へ: 右コントローラーのAボタン"
+                : motion + "\nまたは右Aボタンで次へ";
+        }
+
         private static string Description(int preset)
         {
             string action;
@@ -169,6 +161,8 @@ namespace Unframe.Unity.PresentationRuntime
                 case 6: action = "手前へ引く"; break;
                 case 7: action = "両手を広げる"; break;
                 case 8: action = "両手を寄せる"; break;
+                case 9: return "トリガーを押して投げる動作\n最後にトリガーを離す";
+                case 10: return "トリガーを押して円を描く\n最後にトリガーを離す";
                 default: return String.Empty;
             }
             return (preset >= 7 ? "両トリガーを押したまま\n" : "トリガーを押したまま\n") + action;
@@ -178,9 +172,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             foreach (QuestMotionArmRig arm in arms) arm?.SetVisible(false);
             if (visuals != null) visuals.SetActive(false);
-            framedCue = null;
             candidateSignature = 0;
-            hasGuideFrame = false;
         }
         private void OnDisable() => Hide();
         private void OnDestroy() => ReleaseVisuals();
