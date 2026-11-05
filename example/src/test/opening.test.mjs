@@ -22,16 +22,14 @@ const at = (property, milliseconds, nodeId = brandId) => {
   return evaluateTimelineTrack(track, timeline.durationMilliseconds, milliseconds);
 };
 
-test("Unframe と同時に上下左右から中央へ向かう wave を開始し、開幕完了で消す", async () => {
+test("Unframe と同時に左下と右上から wave を開始し、開幕完了で消す", async () => {
   const initial = initialState();
   assert.deepEqual(initial.effectRuns, []);
   const started = advanceCueClock(definition, initial, 1).state;
-  assert.equal(started.effectRuns.length, 4);
+  assert.equal(started.effectRuns.length, 2);
   const directions = {
-    "opening-wave-left": { position: [-1.4, 1.6, -2.2], direction: [1, 0, 0] },
-    "opening-wave-right": { position: [1.4, 1.6, -2.2], direction: [-1, 0, 0] },
-    "opening-wave-top": { position: [0, 2.5, -2.2], direction: [0, -1, 0] },
-    "opening-wave-bottom": { position: [0, 0.7, -2.2], direction: [0, 1, 0] },
+    "opening-wave-bottom-left": { position: [-1.4, 0.7, -2.2], direction: [1, 0, 0] },
+    "opening-wave-top-right": { position: [1.4, 2.5, -2.2], direction: [-1, 0, 0] },
   };
   assert.deepEqual(
     new Set(started.effectRuns.map((run) => run.effectId)),
@@ -54,7 +52,7 @@ test("Unframe と同時に上下左右から中央へ向かう wave を開始し
       assert.ok(Math.abs(forward[axis] - directions[run.effectId].direction[axis]) < 1e-12);
   }
   const retained = advanceCueClock(definition, started, 4001).state;
-  assert.equal(retained.effectRuns.length, 4);
+  assert.equal(retained.effectRuns.length, 2);
   assert.ok(retained.effectRuns.every((run) => run.status === "retained"));
   assert.deepEqual(advanceCueClock(definition, retained, 6001).state.effectRuns, []);
   const bytes = await readFile(
