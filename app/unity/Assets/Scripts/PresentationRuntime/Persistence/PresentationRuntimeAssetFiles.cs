@@ -11,8 +11,10 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private readonly string directory = Path.Combine(Application.temporaryCachePath, "unframe-runtime-" + Guid.NewGuid().ToString("N"));
         private readonly Dictionary<string, string> paths = new Dictionary<string, string>();
-        private readonly Dictionary<string, long> lengths = new Dictionary<string, long>();
+        private readonly Dictionary<string, (FileInfo File, long Length)> files = new Dictionary<string, (FileInfo File, long Length)>();
         private bool disposed;
+        private int checkedFrame = -1;
+        private bool ready;
 
         public IReadOnlyDictionary<string, string> Paths => paths;
         public bool IsReady
@@ -20,10 +22,23 @@ namespace Unframe.Unity.PresentationRuntime
             get
             {
                 if (disposed) return false;
-                foreach (var entry in lengths)
-                    if (!File.Exists(entry.Key) || new FileInfo(entry.Key).Length != entry.Value) return false;
-                return true;
+                bool playing = Application.isPlaying;
+                int frame = Time.frameCount;
+                if (playing && checkedFrame == frame) return ready;
+                ready = CheckFiles();
+                checkedFrame = playing ? frame : -1;
+                return ready;
             }
+        }
+
+        private bool CheckFiles()
+        {
+            foreach (var entry in files.Values)
+            {
+                entry.File.Refresh();
+                if (!entry.File.Exists || entry.File.Length != entry.Length) return false;
+            }
+            return true;
         }
 
         public string Add(AssetAccessBinding asset, byte[] bytes)
@@ -41,7 +56,8 @@ namespace Unframe.Unity.PresentationRuntime
             Directory.CreateDirectory(directory);
             if (!File.Exists(path)) File.WriteAllBytes(path, bytes);
             paths.Add(asset.AssetId, path);
-            lengths[path] = bytes.LongLength;
+            files[path] = (new FileInfo(path), bytes.LongLength);
+            checkedFrame = -1;
             return path;
         }
 
@@ -63,7 +79,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (disposed) return;
             disposed = true;
             paths.Clear();
-            lengths.Clear();
+            files.Clear();
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }

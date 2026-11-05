@@ -11,6 +11,9 @@ public sealed class QuestOnboardingRecoveryTests
     private GameObject host, head;
     private QuestOnboardingView view;
     private QuestOnboardingApi api;
+    private System.Threading.CancellationTokenSource connectionLifetime;
+    private PresentationSceneRenderer renderer;
+    private PresentationRealtimeConnection realtime;
     private static void Set(object target, string name, object value) => target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(target, value);
 
     private static QuestOnboardingRoom Room(string id)
@@ -32,7 +35,83 @@ public sealed class QuestOnboardingRecoveryTests
     }
 
     [TearDown]
-    public void TearDown() { Object.DestroyImmediate(host); Object.DestroyImmediate(head); }
+    public void TearDown()
+    {
+        connectionLifetime?.Cancel();
+        realtime?.Dispose(); renderer?.Dispose();
+        Object.DestroyImmediate(host); Object.DestroyImmediate(head);
+        connectionLifetime?.Dispose();
+        connectionLifetime = null; realtime = null; renderer = null;
+    }
+
+    private void PrepareConnectedEntry(bool presenter = true)
+    {
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        var runtime = host.GetComponent<PresentationBakedRuntime>();
+        var store = (PresentationRuntimeDataStore)typeof(PresentationBakedRuntime)
+            .GetField("store", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(runtime);
+        var delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        delivery.ProjectionProfile.Key.Role = presenter ? Unframe.Presentation.SessionRole.Presenter : Unframe.Presentation.SessionRole.Viewer;
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        renderer = new PresentationSceneRenderer();
+        typeof(PresentationSceneRenderer).GetProperty("Textures").SetValue(renderer, new PresentationTextureResidency());
+        typeof(PresentationSceneRenderer).GetProperty("Models").SetValue(renderer, new PresentationModelResidency());
+        typeof(PresentationSceneRenderer).GetProperty("Videos").SetValue(renderer, new PresentationVideoResidency());
+        Set(renderer, "loaded", true);
+        Set(renderer, "files", new PresentationRuntimeAssetFiles());
+        Set(renderer, "native", new PresentationNativeSurfaceRenderer());
+        Set(runtime, "sceneRenderer", renderer);
+        realtime = new PresentationRealtimeConnection(store, renderer.Textures);
+        typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+        typeof(PresentationBakedRuntime).GetProperty("DownloadReady").SetValue(runtime, true);
+        Set(runtime, "connection", realtime);
+        connectionLifetime = new System.Threading.CancellationTokenSource();
+        Set(entry, "lifetime", connectionLifetime);
+        view.Configure(null, entry, null, head.transform, api);
+        Set(view, "room", Room("session"));
+        Set(view, "ownsConnection", true);
+        Set(view, "message", "ルームの準備を待っています。");
+        Assert.That(entry.ControlReady, Is.True);
+    }
+
+    [TestCase(QuestOnboardingRole.Presenter, QuestOnboardingPage.Preparation, false)]
+    [TestCase(QuestOnboardingRole.Audience, QuestOnboardingPage.Join, false)]
+    [TestCase(QuestOnboardingRole.Presenter, QuestOnboardingPage.Authentication, true)]
+    public void ConnectionCompletingAfterTheWaitAutomaticallyAdvancesToCalibration(
+        QuestOnboardingRole role, QuestOnboardingPage page, bool returning)
+    {
+        PrepareConnectedEntry(role == QuestOnboardingRole.Presenter);
+        view.Flow.SelectRole(role);
+        if (returning) view.Flow.RequireAuthentication();
+        view.Flow.GoTo(page);
+
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Calibration));
+        Assert.That(view.Flow.IsReturningToRoom, Is.False);
+        Assert.That(view.Panel.transform.Find("Message").GetComponent<UnityEngine.UI.Text>().text, Is.Empty);
+        Assert.That(view.FindButton("Aligned"), Is.Not.Null);
+        Assert.That(view.IsComplete, Is.False);
+    }
+
+    [TestCase(QuestOnboardingPage.Preparation, true, true, true)]
+    [TestCase(QuestOnboardingPage.Preparation, false, false, true)]
+    [TestCase(QuestOnboardingPage.Preparation, false, true, false)]
+    [TestCase(QuestOnboardingPage.Rooms, false, true, true)]
+    [TestCase(QuestOnboardingPage.Authentication, false, true, true)]
+    [TestCase(QuestOnboardingPage.Ready, false, true, true)]
+    public void LateConnectionDoesNotOverrideAnotherOperationPageOrRole(
+        QuestOnboardingPage page, bool busy, bool owned, bool presenter)
+    {
+        PrepareConnectedEntry(presenter);
+        view.Flow.SelectRole(QuestOnboardingRole.Presenter);
+        view.Flow.GoTo(page);
+        Set(view, "busy", busy); Set(view, "ownsConnection", owned);
+
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+
+        Assert.That(view.Flow.Page, Is.EqualTo(page));
+    }
 
     [Test]
     public async Task ClearingSavedAuthenticationStopsTheConnectionAndDiscardsThePreviousAccountSelection()

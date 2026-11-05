@@ -18,6 +18,8 @@ Authoring Source をビルドし、
 
 ローカルの Session 選択を取り消す場合は `PresentationControlPlaneConnection.CancelLocalSelectionAsync` を呼びます。実行中の接続と Asset 処理の終了を待ってから、その participant の選択情報と durable pin を削除します。通常の再接続やアプリ終了では選択を保持します。
 
+再生中の素材ファイルの存在・サイズ確認は、同じフレーム内では結果を再利用します。ファイルの消失・サイズ変更は次のフレームで再検出し、素材の追加・破棄は同じフレームでも即座に反映します。Editor の非再生中は呼び出しごとに確認します。
+
 `PresentationBakedRuntime` は共通の `PresentationSceneRenderer` で Baked Web PNG、Native UI（固定／string・boolean・number変数テキスト）、埋め込みGLB、H264動画を読み込みます。全素材のサイズ・checksum、描画・モデル・動画のresidency、Control / State同期が揃ってから入力を許可します。Surface crossfadeとTimeline、モデルclip、動画はauthoritative Runtime clockを使用します。Local Overlay、Native UIのellipsis・明示font fallback・step timerは受け付けません。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
 
 `Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、AprilTag校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Presentation/Open Quest Presentation` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName)` へHTTPS origin、Session ID、要求ごとに更新できるcredential provider、必要ならlogical event名を渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。Development Build の端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` から同じ入口を起動できます。校正JSONは不要です。通常のAPKではIntentの接続設定を読み取らず、アプリUIから参加します。Intent経路はcredentialを更新しません。更新が必要な接続では `Connect` に更新可能なcredential providerを渡します。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
