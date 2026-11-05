@@ -26,7 +26,10 @@ public sealed class PresentationEffectPlayerTests
                 NodeId = "node:stage",
                 Configuration = new EffectConfiguration
                 {
-                    Kind = EffectKind.Wave, Size = 1, Speed = 1, DurationMs = 1000,
+                    Kind = EffectKind.Wave,
+                    Size = 1,
+                    Speed = 1,
+                    DurationMs = 1000,
                     Color = new Unframe.Presentation.SrgbaColor { Alpha = 0.8 },
                 },
             };
@@ -34,7 +37,8 @@ public sealed class PresentationEffectPlayerTests
                 Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 1000, out error), error);
             var timeline = new ProjectedTimelineDefinition
             {
-                TimelineId = "timeline:wave-opacity", DurationMs = 1000,
+                TimelineId = "timeline:wave-opacity",
+                DurationMs = 1000,
                 Tracks =
                 {
                     new ProjectedTimelineTrack
