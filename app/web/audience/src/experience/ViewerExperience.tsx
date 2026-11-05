@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Button from "@mui/material/Button";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { markerSizesMillimeters } from "../fiducials/config";
@@ -27,17 +28,32 @@ function waitingCopy(phase: ViewingSnapshot["phase"] | undefined, connected: boo
   };
 }
 
+function MarkerSizeSelect({ application }: { application: ViewerApplication }) {
+  const { config, markerSize } = useStore(
+    application.store,
+    useShallow((state) => ({ config: state.config, markerSize: state.markerSize })),
+  );
+  return (
+    <label className="audience-stage__marker-size">
+      マーカーサイズ（黒い外周）
+      <select
+        value={markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)}
+        disabled={!config}
+        onChange={(event) => application.setMarkerSize(Number(event.target.value))}
+      >
+        {markerSizesMillimeters.map((size) => (
+          <option key={size} value={size}>
+            {size} mm
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function ViewerMenu({ application }: { application: ViewerApplication }) {
-  const {
-    anchor,
-    config,
-    markerSize,
-    refreshing,
-    recovering,
-    refreshError,
-    live,
-    diagnosticsEnabled,
-  } = useStore(application.store);
+  const { anchor, config, refreshing, recovering, refreshError, live, diagnosticsEnabled } =
+    useStore(application.store);
   const viewing = useStore(
     application.viewingStore,
     useShallow((state) => ({ phase: state.phase, recovery: state.recovery })),
@@ -60,20 +76,7 @@ function ViewerMenu({ application }: { application: ViewerApplication }) {
             : "プレゼンテーションの再同期を待っています。"}
         </p>
       )}
-      <label>
-        マーカーサイズ（黒い外周）
-        <select
-          value={markerSize ?? (config ? Math.round(config.markers[0]!.sizeMeters * 1000) : 150)}
-          disabled={!config}
-          onChange={(event) => application.setMarkerSize(Number(event.target.value))}
-        >
-          {markerSizesMillimeters.map((size) => (
-            <option key={size} value={size}>
-              {size} mm
-            </option>
-          ))}
-        </select>
-      </label>
+      <MarkerSizeSelect application={application} />
       <p>
         白余白を除く一辺の実寸です。登壇側と同じサイズを選んでください。変更後はカメラを開始し、位置合わせをやり直してください。
       </p>
@@ -142,6 +145,7 @@ function ViewerMenu({ application }: { application: ViewerApplication }) {
 
 export function ViewerExperience({ application }: { application: ViewerApplication }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const [markerSizeConfirmed, setMarkerSizeConfirmed] = useState(false);
   useEffect(() => {
     if (canvas.current) application.mount(canvas.current);
     return application.dispose;
@@ -186,7 +190,7 @@ export function ViewerExperience({ application }: { application: ViewerApplicati
     <main className="audience-camera-view">
       <canvas ref={canvas} className="camera" aria-label="カメラ映像とプレゼンテーション" />
       <AudienceStage
-        phase={phase}
+        phase={phase === "permission" && !markerSizeConfirmed ? "marker-size" : phase}
         normal={screen.tracking === "NORMAL"}
         warmupSeconds={screen.wait}
         canStart={screen.configured && screen.ready && viewing.phase !== "starting"}
@@ -198,6 +202,21 @@ export function ViewerExperience({ application }: { application: ViewerApplicati
         viewingLabel={viewing.recovery === "keyframe" ? "視聴中・状態を再同期中" : "視聴中"}
         menu={<ViewerMenu application={application} />}
       >
+        {phase === "permission" && !markerSizeConfirmed && (
+          <section className="audience-stage__card">
+            <h1>マーカーサイズを選択</h1>
+            <p>白余白を除く黒い外周の一辺です。登壇側と同じサイズを選んでください。</p>
+            <MarkerSizeSelect application={application} />
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={!screen.configured || !screen.ready}
+              onClick={() => setMarkerSizeConfirmed(true)}
+            >
+              次へ
+            </Button>
+          </section>
+        )}
         {screen.blocked && (
           <button
             className="audience-stage__floating-action"

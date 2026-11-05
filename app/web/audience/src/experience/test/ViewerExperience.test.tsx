@@ -144,7 +144,16 @@ afterEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
 });
+async function confirmMarkerSize() {
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: "次へ" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+}
 async function start() {
+  if (screen.queryByRole("button", { name: "次へ" })) await confirmMarkerSize();
   await waitFor(() =>
     expect(
       (screen.getByRole("button", { name: "カメラを開始" }) as HTMLButtonElement).disabled,
@@ -155,6 +164,23 @@ async function start() {
   });
   await waitFor(() => expect(mock.openRuntime).toHaveBeenCalled());
 }
+test("参加後にマーカーサイズを選択してからカメラ許可へ進む", async () => {
+  render(<ViewerExperience {...setup()} />);
+  expect(screen.queryByRole("button", { name: "カメラを開始" })).toBeNull();
+  expect(mock.start).not.toHaveBeenCalled();
+  const select = screen.getByRole("combobox", { name: "マーカーサイズ（黒い外周）" });
+  await waitFor(() => expect((select as HTMLSelectElement).disabled).toBe(false));
+  fireEvent.change(select, { target: { value: "400" } });
+  await confirmMarkerSize();
+  expect(mock.start).not.toHaveBeenCalled();
+  expect(mock.configuredBoard).toMatchObject({ markers: [{ id: 0, sizeMeters: 0.4 }] });
+  expect(screen.queryByRole("button", { name: "次へ" })).toBeNull();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "カメラを開始" }));
+  });
+  expect(mock.start).toHaveBeenCalledOnce();
+});
+
 test("Runtimeと追跡フレームの数値更新だけでは視聴UIを再描画しない", async () => {
   const props = setup();
   let input!: RuntimeInput;
