@@ -6,6 +6,7 @@ export {
 } from "./canonicalization/artifacts.js";
 export { canonicalizeJsonPayload, hashCanonicalJsonPayload } from "./canonicalization/payload.js";
 export { validatePresentationArtifacts } from "./validation/artifacts.js";
+export { resolvePlacementReferencePoint } from "./validation/placement-reference.js";
 export { validateRenderBundle } from "./validation/render-bundle.js";
 export {
   verifyBuildIntegrity,

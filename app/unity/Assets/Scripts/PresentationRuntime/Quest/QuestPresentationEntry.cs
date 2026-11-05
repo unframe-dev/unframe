@@ -460,8 +460,17 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task SendPlacementAsync()
         {
             ControlClientItem command;
-            try { command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch); }
-            catch (Exception) { LastErrorCode = "presenter-placement-invalid"; return; }
+            try
+            {
+                command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch,
+                    runtime.DataStore.Catalog?.PlacementReferencePoint);
+            }
+            catch (InvalidOperationException)
+            {
+                LastErrorCode = "presenter-placement-invalid";
+                nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
+                return;
+            }
             if (command == null) return;
             try
             {

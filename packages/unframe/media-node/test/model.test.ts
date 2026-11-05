@@ -538,6 +538,22 @@ describe("GLB build transformation", () => {
     expect(result.value.descriptor.checksum).not.toBe(result.value.sourceChecksum);
   });
 
+  it("describes the default scene bounds of the transformed model", async () => {
+    const { document, root, child } = await fixture();
+    root.setTranslation([0, 2, 0]);
+    child.setTranslation([3, 0, -4]).setScale([2, 3, 1]);
+    const result = await transformGlb({
+      sourceId: "model",
+      bytes: await new NodeIO().writeBinary(document),
+      limits,
+    });
+    assert.isTrue(result.valid);
+    expect(result.value.descriptor.defaultSceneBounds).toEqual({
+      min: [3, 2, -4],
+      max: [5, 5, -4],
+    });
+  });
+
   it("returns a stable diagnostic for malformed GLB bytes", async () => {
     await expect(
       transformGlb({ sourceId: "robot", bytes: new Uint8Array([1, 2, 3]), limits }),

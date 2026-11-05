@@ -1630,6 +1630,47 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
+          "defaultSceneBounds": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "max": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
+              }
+            },
+            "required": ["min", "max"],
+            "additionalProperties": false
+          },
           "peakLoadCpuBytes": {
             "type": "integer",
             "minimum": 1,

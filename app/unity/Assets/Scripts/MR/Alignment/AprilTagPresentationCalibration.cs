@@ -86,7 +86,7 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
             return;
         }
         if (head != null && head.gameObject.activeInHierarchy)
-            Placement.Capture(alignment.OriginPose, head.position.y);
+            Placement.Capture(alignment.OriginPose, new Pose(head.position, head.rotation));
         capturedTrackingFrame = trackingFrame;
         hasCapturedFrame = true;
     }

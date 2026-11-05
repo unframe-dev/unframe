@@ -1001,6 +1001,9 @@ const presentationSchema = z.strictObject({
   ...stableShape,
   metadata: z.strictObject({ title: z.string().min(1) }),
   stage: z.strictObject({
+    placementReferencePoint: z
+      .tuple([finiteNumberSchema, finiteNumberSchema, finiteNumberSchema])
+      .optional(),
     zones: z
       .record(
         idSchema,

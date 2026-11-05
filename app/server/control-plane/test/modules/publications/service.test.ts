@@ -160,6 +160,24 @@ describe("publication service", () => {
     expect(row?.count).toBe(0);
   });
 
+  it("rejects publication of a stored build without a Stage placement reference", async () => {
+    const verified = verifyBuildIntegrity(artifacts);
+    if (!verified.valid) throw new Error("Invalid build fixture");
+    const legacyBuild = structuredClone(verified.value);
+    delete legacyBuild.renderBundle.models["model-asset"]!.defaultSceneBounds;
+    legacyBuild.buildManifest.renderBundleHash = hashCanonicalJsonPayload(legacyBuild.renderBundle);
+    await env.DB.prepare(
+      "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES ('demo', ?, 1, ?, '2026')",
+    )
+      .bind(legacyBuild.buildManifest.buildId, JSON.stringify(legacyBuild))
+      .run();
+
+    const service = new PublicationService(env.DB, env.ASSETS);
+    await expect(
+      service.publish(owner, "demo", legacyBuild.buildManifest.buildId, null),
+    ).rejects.toMatchObject({ code: "invalid_build" });
+  });
+
   it("connects an anonymous viewer through join, delivery and realtime bootstrap", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy, bytes } = await publishable();
@@ -234,6 +252,11 @@ describe("publication service", () => {
       "unframe.delivery.DeliveryManifest",
       new Uint8Array(await delivery.arrayBuffer()),
     ) as DeliveryManifestWire;
+    expect(manifest.projectionProfile?.runtimeCatalog?.placementReferencePoint).toEqual({
+      x: 0,
+      y: 0,
+      z: 0,
+    });
     expect(manifest.capabilityProfile?.capabilityProfileId).toBe(audienceWebCapabilityProfileId);
     expect(manifest.projectionProfile?.key?.capabilityProfileId).toBe(
       audienceWebCapabilityProfileId,

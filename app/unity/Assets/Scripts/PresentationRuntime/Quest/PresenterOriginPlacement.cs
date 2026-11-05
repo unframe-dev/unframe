@@ -1,13 +1,14 @@
 using System;
 using Unframe.Realtime;
 using UnityEngine;
+using ProtoVector3 = Unframe.Presentation.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {
     public sealed class PresenterOriginPlacement
     {
         private Pose marker;
-        private float headHeight;
+        private Pose head;
         private bool captured;
         private bool completed;
         private bool explicitPlacement;
@@ -43,15 +44,15 @@ namespace Unframe.Unity.PresentationRuntime
             command = null;
         }
 
-        public void Capture(Pose worldFromMarker, float headWorldHeight)
+        public void Capture(Pose worldFromMarker, Pose worldFromHead)
         {
             if (captured || completed) return;
             marker = worldFromMarker;
-            headHeight = headWorldHeight;
+            head = worldFromHead;
             captured = true;
         }
 
-        public ControlClientItem Prepare(PresentationOrigin origin, ulong epoch)
+        public ControlClientItem Prepare(PresentationOrigin origin, ulong epoch, ProtoVector3 placementReferencePoint)
         {
             if (completed || !captured || origin == null || epoch == 0) return null;
             if (command != null) return command.Clone();
@@ -60,7 +61,7 @@ namespace Unframe.Unity.PresentationRuntime
                 completed = true;
                 return null;
             }
-            if (!PresentationCalibrationMath.TryPresenterOrigin(marker, headHeight, origin.Pose, out var pose))
+            if (!PresentationCalibrationMath.TryPresenterOrigin(marker, head, origin.Pose, placementReferencePoint, out var pose))
                 throw new InvalidOperationException("presenter-placement-invalid");
             command = QuestPresentationInput.CreatePresentationOrigin(pose, origin.Version, epoch);
             return command.Clone();
