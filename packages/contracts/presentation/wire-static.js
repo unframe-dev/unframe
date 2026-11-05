@@ -67,6 +67,7 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION=8 RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION value
      * @property {number} RUNTIME_CAPABILITY_FROZEN_ANCHORS=9 RUNTIME_CAPABILITY_FROZEN_ANCHORS value
      * @property {number} RUNTIME_CAPABILITY_STEP_RESTORE=10 RUNTIME_CAPABILITY_STEP_RESTORE value
+     * @property {number} RUNTIME_CAPABILITY_EFFECT_PLAYBACK=11 RUNTIME_CAPABILITY_EFFECT_PLAYBACK value
      */
     presentation.RuntimeCapability = (function () {
       const valuesById = $Object.create(null),
@@ -82,6 +83,7 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[8] = "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION")] = 8;
       values[(valuesById[9] = "RUNTIME_CAPABILITY_FROZEN_ANCHORS")] = 9;
       values[(valuesById[10] = "RUNTIME_CAPABILITY_STEP_RESTORE")] = 10;
+      values[(valuesById[11] = "RUNTIME_CAPABILITY_EFFECT_PLAYBACK")] = 11;
       return values;
     })();
 
@@ -33622,6 +33624,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -33796,6 +33799,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredRuntimeCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredRuntimeCapabilities[i] = 11;
                 break;
             }
         }
@@ -40771,6 +40778,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -40857,6 +40865,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.supportedCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.supportedCapabilities[i] = 11;
                 break;
             }
         }
@@ -43301,6 +43313,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -43393,6 +43406,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredCapabilities[i] = 11;
                 break;
             }
         }
@@ -86672,6 +86689,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -86762,6 +86780,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.supportedCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.supportedCapabilities[i] = 11;
                 break;
             }
         }
@@ -92633,6 +92655,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -92822,6 +92845,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredRuntimeCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredRuntimeCapabilities[i] = 11;
                 break;
             }
         }

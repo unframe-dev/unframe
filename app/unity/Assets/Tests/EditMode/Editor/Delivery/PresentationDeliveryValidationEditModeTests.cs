@@ -69,6 +69,14 @@ public sealed class PresentationDeliveryValidationEditModeTests
         AssertAccepted(delivery);
     }
 
+    [Test]
+    public void Delivery_AcceptsRequiredEffectPlayback()
+    {
+        DeliveryManifest delivery = CreateFixture();
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.EffectPlayback);
+        AssertAccepted(delivery);
+    }
+
     [TestCase(RuntimeCapability.Unspecified)]
     [TestCase((RuntimeCapability)999)]
     public void Delivery_RejectsUnsupportedRequiredRuntimeCapability(RuntimeCapability capability)

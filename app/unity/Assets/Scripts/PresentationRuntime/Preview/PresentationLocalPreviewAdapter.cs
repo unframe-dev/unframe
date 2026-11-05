@@ -132,7 +132,7 @@ namespace Unframe.Unity.PresentationRuntime
                     ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)
-                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking)
+                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking && capability != RuntimeCapability.EffectPlayback)
                         || !capabilities.Add(capability)) return false;
 
                 var nodes = new Dictionary<string, ProjectedNodeDefinition>();

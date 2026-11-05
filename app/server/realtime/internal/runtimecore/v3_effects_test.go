@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	delivery "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/delivery"
 	presentation "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtime "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
 	protocol "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
@@ -236,5 +237,23 @@ func TestEffectCapacityRejectsWithoutChangingExistingRuns(t *testing.T) {
 	}
 	if !proto.Equal(before, s.snapshot) {
 		t.Fatal("capacity rejection changed existing effects")
+	}
+}
+
+func TestEffectEventRequiresProjectionCapability(t *testing.T) {
+	event := &realtime.ProjectedReliableEvent{Payload: &realtime.ProjectedReliableEvent_EffectRunsChanged{EffectRunsChanged: &realtime.EffectRunsChanged{EffectRuns: []*realtime.EffectRunSnapshot{{NodeId: "target"}, {NodeId: "hidden"}}}}}
+	profile := &delivery.ProjectionProfileDescriptor{VisibleNodeIds: []string{"target"}, RuntimeCatalog: &presentation.ProjectedRuntimeCatalog{}}
+	if _, visible := ProjectV2ReliableEvent(event, profile); visible {
+		t.Fatal("effect event sent to projection without effect support")
+	}
+	profile.RequiredRuntimeCapabilities = []presentation.RuntimeCapability{11}
+	projected, visible := ProjectV2ReliableEvent(event, profile)
+	if !visible || len(projected.GetEffectRunsChanged().EffectRuns) != 1 || projected.GetEffectRunsChanged().EffectRuns[0].NodeId != "target" {
+		t.Fatal("effect projection did not filter runs to visible targets")
+	}
+	event.GetEffectRunsChanged().EffectRuns = nil
+	projected, visible = ProjectV2ReliableEvent(event, profile)
+	if !visible || projected.GetEffectRunsChanged() == nil || len(projected.GetEffectRunsChanged().EffectRuns) != 0 {
+		t.Fatal("effect-capable projection must receive an empty replacement to clear previous runs")
 	}
 }

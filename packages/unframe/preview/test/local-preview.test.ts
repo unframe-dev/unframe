@@ -356,6 +356,56 @@ describe("fixed local Preview service", () => {
     ).toBe(false);
   });
 
+  it("retains effect playback capability in the wire Preview envelope", async () => {
+    const source = generation();
+    source.artifacts.definition.flow.groups.intro!.steps.start!.cues = [
+      {
+        id: "fade",
+        trigger: { kind: "logicalInput", action: "start", actor: { kind: "presenter" } },
+        priority: 0,
+        order: 0,
+        firePolicy: { kind: "repeatable" },
+        actions: [
+          {
+            kind: "effect.start",
+            effectId: "fade",
+            nodeId: "node-baked",
+            owner: { kind: "presentation" },
+            seed: 1,
+            effect: {
+              kind: "dissolve",
+              size: 1,
+              color: { red: 1, green: 1, blue: 1, alpha: 1 },
+              speed: 1,
+              durationMilliseconds: 1000,
+            },
+          },
+        ],
+        next: { kind: "stay" },
+      },
+    ];
+    source.artifacts.renderBundle.definitionHash = hashCanonicalJsonPayload(
+      source.artifacts.definition,
+    );
+    source.artifacts.buildManifest.definitionHash = source.artifacts.renderBundle.definitionHash;
+    source.artifacts.buildManifest.renderBundleHash = hashCanonicalJsonPayload(
+      source.artifacts.renderBundle,
+    );
+    const service = createLocalPreviewService("/project", { readGeneration: async () => source });
+    try {
+      const envelope = await service.load({ requestId: requestA, channel: "dist" });
+      const decoded = decodeWireMessage(
+        "unframe.preview.LocalPreviewEnvelope",
+        encodeWireMessage("unframe.preview.LocalPreviewEnvelope", envelope),
+      );
+      expect(decoded).toMatchObject({
+        projection: { requiredRuntimeCapabilities: expect.arrayContaining([11]) },
+      });
+    } finally {
+      service.close();
+    }
+  });
+
   it.each(["viewer", "presenter"] as const)(
     "admits only Viewer-visible content from the %s role",
     async (role) => {

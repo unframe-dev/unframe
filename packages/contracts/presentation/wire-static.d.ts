@@ -54,7 +54,10 @@ export namespace unframe {
             RUNTIME_CAPABILITY_FROZEN_ANCHORS = 9,
 
             /** RUNTIME_CAPABILITY_STEP_RESTORE value */
-            RUNTIME_CAPABILITY_STEP_RESTORE = 10
+            RUNTIME_CAPABILITY_STEP_RESTORE = 10,
+
+            /** RUNTIME_CAPABILITY_EFFECT_PLAYBACK value */
+            RUNTIME_CAPABILITY_EFFECT_PLAYBACK = 11
         }
 
         /**

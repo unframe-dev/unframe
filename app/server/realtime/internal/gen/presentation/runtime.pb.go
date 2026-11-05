@@ -84,6 +84,7 @@ const (
 	RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION RuntimeCapability = 8
 	RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS        RuntimeCapability = 9
 	RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE          RuntimeCapability = 10
+	RuntimeCapability_RUNTIME_CAPABILITY_EFFECT_PLAYBACK       RuntimeCapability = 11
 )
 
 // Enum value maps for RuntimeCapability.
@@ -100,6 +101,7 @@ var (
 		8:  "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION",
 		9:  "RUNTIME_CAPABILITY_FROZEN_ANCHORS",
 		10: "RUNTIME_CAPABILITY_STEP_RESTORE",
+		11: "RUNTIME_CAPABILITY_EFFECT_PLAYBACK",
 	}
 	RuntimeCapability_value = map[string]int32{
 		"RUNTIME_CAPABILITY_UNSPECIFIED":           0,
@@ -113,6 +115,7 @@ var (
 		"RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION": 8,
 		"RUNTIME_CAPABILITY_FROZEN_ANCHORS":        9,
 		"RUNTIME_CAPABILITY_STEP_RESTORE":          10,
+		"RUNTIME_CAPABILITY_EFFECT_PLAYBACK":       11,
 	}
 )
 
@@ -4184,7 +4187,7 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\vSessionRole\x12\x1c\n" +
 	"\x18SESSION_ROLE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SESSION_ROLE_PRESENTER\x10\x01\x12\x17\n" +
-	"\x13SESSION_ROLE_VIEWER\x10\x02*\xc4\x03\n" +
+	"\x13SESSION_ROLE_VIEWER\x10\x02*\xec\x03\n" +
 	"\x11RuntimeCapability\x12\"\n" +
 	"\x1eRUNTIME_CAPABILITY_UNSPECIFIED\x10\x00\x12(\n" +
 	"$RUNTIME_CAPABILITY_RUNTIME_TRANSPORT\x10\x01\x12#\n" +
@@ -4197,7 +4200,8 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"(RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION\x10\b\x12%\n" +
 	"!RUNTIME_CAPABILITY_FROZEN_ANCHORS\x10\t\x12#\n" +
 	"\x1fRUNTIME_CAPABILITY_STEP_RESTORE\x10\n" +
-	"*\x88\x01\n" +
+	"\x12&\n" +
+	"\"RUNTIME_CAPABILITY_EFFECT_PLAYBACK\x10\v*\x88\x01\n" +
 	"\n" +
 	"ScalarType\x12\x1b\n" +
 	"\x17SCALAR_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +

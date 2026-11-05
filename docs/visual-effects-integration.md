@@ -12,6 +12,8 @@ Source の `effect.start` は `effectId`、対象 `nodeId`、`owner`、`seed`、
 
 Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active／retained 状態を `effectRuns` に保持する。Snapshot、Checkpoint、Step 開始状態に保存し、Replay は `EffectRunsChanged` と RuntimeView の置換で復元する。重複配送は既存の Command ID による結果再利用で抑止する。pause 中は共有 Runtime 時計が止まり、演出も進まない。
 
+演出対象を含む投影は `EFFECT_PLAYBACK` Capability を要求し、非対応クライアントの Control 接続を拒否する。この Capability を要求しない投影には `EffectRunsChanged` を配信しない。
+
 演出の実効時間は共通で ceil(durationMilliseconds / speed) ミリ秒。
 
 - Wave は実効時間で伸び切り、retained になる。明示停止、Group 所有なら所属 Group の終了、または Presentation 終了まで保持する。Presentation 所有の Run は Group を越えて残る。
@@ -23,6 +25,8 @@ Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active�
 [Unity API](../app/unity/Assets/Scripts/VisualEffects/README.md) と [Web API](../app/web/audience/src/visual-effects/README.md) は通信から独立している。接続層が Node ID を Transform／Object3D に解決し、共有時計で更新する。Run の消失、対象の変更、Scene の破棄、切断で描画資源を解放する。
 
 HandGlow は既存の projected anchor binding を利用する。Source に指定した左右の手へ追従する presenterAnchor Node（followPosition: true）が必要で、その Node を対象クライアントの投影に含めること。手の Anchor がない場合や Pose が無効・古い場合、新しい残光は追加されない。演出対象 Node はその Anchor とは別でもよい。
+
+Audience は描画準備済みの View と同じ時点の Anchor を使い、受信後もサンプルの500ms失効を判定する。RuntimeView の置換時は以前のライブ座標を破棄し、サーバーが確定した凍結座標を使う。
 
 認識のサンプル時刻は秒、描画はミリ秒。Unity 認識器へは Unity 座標、通信へは Presentation 座標を渡す。Unity の HandGlow は world 座標、Web は対象のローカル座標へ変換する。seed は再現性のために使うが、Unity と Web のピクセル一致は保証しない。
 
