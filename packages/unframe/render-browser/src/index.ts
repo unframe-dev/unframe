@@ -28,3 +28,8 @@ export type {
 
 export { openOpaqueCaptureRuntime } from "./opaque/capture/runtime.js";
 export { createOpaqueBakedWebRenderer } from "./opaque/capture/renderer.js";
+export {
+  createOpaqueCaptureCache,
+  type OpaqueCaptureCache,
+  type OpaqueCaptureCacheStats,
+} from "./opaque/capture/cache.js";

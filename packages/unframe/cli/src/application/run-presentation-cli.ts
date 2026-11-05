@@ -1,3 +1,4 @@
+import { measureBuildStage } from "./build-timing.js";
 import type { AnalysisOperations } from "../author/analysis-protocol.js";
 import { runAnalysisOperation } from "../author/analysis-client.js";
 import { AuthorError } from "@unframe-dev/author-service";
@@ -388,17 +389,19 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     ]);
   let preparedInputs: AnalysisOperations["prepare"]["output"];
   try {
-    preparedInputs = host.prepareInputs
-      ? await host.prepareInputs(discovered, host.signal)
-      : await runAnalysisOperation(
-          "prepare",
-          {
-            found: discovered,
-            typeLibraries: await readTypeLibraries(),
-            modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
-          },
-          host.signal,
-        );
+    preparedInputs = await measureBuildStage(host.onBuildTiming, "prepare", async () =>
+      host.prepareInputs
+        ? await host.prepareInputs(discovered, host.signal)
+        : await runAnalysisOperation(
+            "prepare",
+            {
+              found: discovered,
+              typeLibraries: await readTypeLibraries(),
+              modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+            },
+            host.signal,
+          ),
+    );
   } catch (error) {
     const stale = error instanceof AuthorError && error.code === "cli-output-stale";
     return output(host.signal?.aborted ? 130 : 3, command, format, [
@@ -434,14 +437,16 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const source = prepared.source;
   let assembled: AnalysisOperations["assemble"]["output"];
   try {
-    assembled = await runAnalysisOperation(
-      "assemble",
-      {
-        source,
-        carrier: assemblyCarrier,
-        sourceAssetBytes: sourceAssets.value.sourceAssetBytes,
-      },
-      host.signal,
+    assembled = await measureBuildStage(host.onBuildTiming, "assemble", () =>
+      runAnalysisOperation(
+        "assemble",
+        {
+          source,
+          carrier: assemblyCarrier,
+          sourceAssetBytes: sourceAssets.value.sourceAssetBytes,
+        },
+        host.signal,
+      ),
     );
   } catch {
     return output(host.signal?.aborted ? 130 : 3, command, format, [
@@ -547,12 +552,15 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         },
       };
       if (opaque) {
-        const prepared = await prepareOpaqueRenderer(
-          source,
-          assemblyCarrier,
-          host.signal,
-          context.webRendererConfig,
-          sourceAssets.value.sourceAssetBytes,
+        const prepared = await measureBuildStage(host.onBuildTiming, "opaque-renderer", () =>
+          prepareOpaqueRenderer(
+            source,
+            assemblyCarrier,
+            host.signal,
+            context.webRendererConfig,
+            sourceAssets.value.sourceAssetBytes,
+            host.opaqueCaptureCache,
+          ),
         );
         sessions.push(prepared);
         renderer = prepared.renderer;
@@ -567,7 +575,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           host.openFixedBrowser ??
           ((options: Readonly<{ signal?: AbortSignal }>) => openPlaywrightFixedBrowser(options));
         try {
-          fixedSession = await opener(host.signal ? { signal: host.signal } : {});
+          fixedSession = await measureBuildStage(host.onBuildTiming, "structured-browser", () =>
+            opener(host.signal ? { signal: host.signal } : {}),
+          );
           sessions.push(fixedSession);
         } catch {
           if (host.signal?.aborted)
@@ -601,35 +611,44 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         { revision: discovered.revision, expectedGeneration },
         {
           prepare: async () => {
-            const compiled = await compileCheckedDeclarationProject(
-              assembledProject,
-              checked.value,
-              {
-                compiler: {
-                  ...context.compiler,
-                  baseEnvironmentHash: hashCanonicalJsonPayload({
-                    baseEnvironmentHash: context.compiler.baseEnvironmentHash,
-                    typeLibraries: hashSourceTypeLibraries(source.typeLibraries),
-                  }),
+            const compiled = await measureBuildStage(host.onBuildTiming, "compile", async () =>
+              compileCheckedDeclarationProject(
+                assembledProject,
+                checked.value,
+                {
+                  compiler: {
+                    ...context.compiler,
+                    baseEnvironmentHash: hashCanonicalJsonPayload({
+                      baseEnvironmentHash: context.compiler.baseEnvironmentHash,
+                      typeLibraries: hashSourceTypeLibraries(source.typeLibraries),
+                    }),
+                  },
+                  locale: context.locale,
+                  timezone: context.timezone,
+                  colorScheme: context.colorScheme,
+                  rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
+                  renderers: renderer ? [renderer] : [],
+                  encodeLimits: limits,
+                  ...(Object.values(checked.value.assetSet.assets).some(
+                    (asset) => asset.mediaType === "video/mp4",
+                  )
+                    ? { videoValidator: await createVideoValidator(host.signal) }
+                    : {}),
                 },
-                locale: context.locale,
-                timezone: context.timezone,
-                colorScheme: context.colorScheme,
-                rendererConfigHash: createWebRendererConfigHash(context.webRendererConfig),
-                renderers: renderer ? [renderer] : [],
-                encodeLimits: limits,
-                ...(Object.values(checked.value.assetSet.assets).some(
-                  (asset) => asset.mediaType === "video/mp4",
-                )
-                  ? { videoValidator: await createVideoValidator(host.signal) }
-                  : {}),
-              },
-              sourceAssets.value.sourceAssetBytes,
-              createFilesystemBuildCache(
-                discovered.projectDirectory,
-                host.signal ? { signal: host.signal } : {},
+                sourceAssets.value.sourceAssetBytes,
+                createFilesystemBuildCache(
+                  discovered.projectDirectory,
+                  host.signal ? { signal: host.signal } : {},
+                ),
+                buildMediaPorts,
+                host.onBuildTiming
+                  ? (timing) =>
+                      host.onBuildTiming?.({
+                        ...timing,
+                        stage: `compiler:${timing.stage}`,
+                      })
+                  : undefined,
               ),
-              buildMediaPorts,
             );
             if (!compiled.valid)
               throw new BuildStageFailure(
@@ -648,14 +667,16 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             return compiled.value;
           },
           commit: async (value, identity) => {
-            const outcome = await publishProjectBuild({
-              projectDirectory: discovered.projectDirectory,
-              artifacts: artifacts(value),
-              revision: discovered.revision,
-              expectedGeneration: identity.expectedGeneration,
-              ...sourceWait,
-              ...(host.channel ? { channel: host.channel } : {}),
-            });
+            const outcome = await measureBuildStage(host.onBuildTiming, "publish", () =>
+              publishProjectBuild({
+                projectDirectory: discovered.projectDirectory,
+                artifacts: artifacts(value),
+                revision: discovered.revision,
+                expectedGeneration: identity.expectedGeneration,
+                ...sourceWait,
+                ...(host.channel ? { channel: host.channel } : {}),
+              }),
+            );
             if (outcome.kind === "lease-error")
               throw new BuildStageFailure(
                 output(outcome.code === "cli-cancelled" ? 130 : 3, command, format, [

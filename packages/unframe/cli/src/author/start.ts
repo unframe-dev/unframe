@@ -208,7 +208,16 @@ export const runAuthorProcess = async (
       }
     : undefined;
   const auth = createPublicationAuth(target);
-  const service = await createAuthorService(directory);
+  const service = await createAuthorService(
+    directory,
+    process.env["UNFRAME_BUILD_PROFILE"] === "1"
+      ? {
+          onBuildProfile: (profile) => {
+            process.stderr.write(`[unframe-build-profile] ${JSON.stringify(profile)}\n`);
+          },
+        }
+      : {},
+  );
   const previews = createLocalPreviewService(directory);
   let host: Awaited<ReturnType<typeof startAuthorHost>>;
   let changes: ProjectChanges | undefined;

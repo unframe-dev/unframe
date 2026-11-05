@@ -7,6 +7,8 @@ export type CompilerStage =
   | "renderer-validation"
   | "cache"
   | "planning"
+  | "models"
+  | "videos"
   | "rendering"
   | "encoding"
   | "artifacts";

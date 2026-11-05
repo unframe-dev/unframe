@@ -267,6 +267,61 @@ describe("compileDeclarationProject", () => {
     encodeLimits: PNG_ABSOLUTE_LIMITS,
   });
 
+  it("reports compiler stage durations without changing build artifacts", async () => {
+    const timings: import("@unframe-dev/build").CompilerBuildTiming[] = [];
+    const baseline = await compileDeclarationProjectWithFixtureBytes(project(), options());
+    const measured = await compileDeclarationProjectWithFixtureBytes(
+      project(),
+      options(),
+      undefined,
+      (timing) => timings.push(timing),
+    );
+    expect(measured).toEqual(baseline);
+    expect(timings.map(({ stage }) => stage)).toEqual(
+      expect.arrayContaining([
+        "check",
+        "renderer-validation",
+        "cache",
+        "planning",
+        "models",
+        "videos",
+        "rendering",
+        "encoding",
+        "artifacts",
+      ]),
+    );
+    expect(
+      timings.every(
+        ({ durationMilliseconds }) =>
+          Number.isFinite(durationMilliseconds) && durationMilliseconds >= 0,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps successful builds successful when the timing observer fails", async () => {
+    const result = await compileDeclarationProjectWithFixtureBytes(
+      project(),
+      options(),
+      undefined,
+      () => {
+        throw new Error("observer failed");
+      },
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it("reports elapsed validation time when compilation fails", async () => {
+    const timings: import("@unframe-dev/build").CompilerBuildTiming[] = [];
+    const result = await compileDeclarationProjectWithFixtureBytes(
+      {},
+      options(),
+      undefined,
+      (timing) => timings.push(timing),
+    );
+    expect(result.valid).toBe(false);
+    expect(timings).toEqual([{ stage: "check", durationMilliseconds: expect.any(Number) }]);
+  });
+
   it("carries compiled Gestures into the production presenter projection", async () => {
     const input = project();
     input.presentation.flow.groups.group!.steps.step!.cues = [
@@ -1642,7 +1697,8 @@ const compileDeclarationProjectWithFixtureBytes = (
   input: unknown,
   config: unknown,
   cache?: import("@unframe-dev/build").CompilerBuildCache,
-) => compileDeclarationProject(input, config, fixtureSourceAssetBytes(input), cache);
+  onTiming?: (timing: import("@unframe-dev/build").CompilerBuildTiming) => void,
+) => compileDeclarationProject(input, config, fixtureSourceAssetBytes(input), cache, onTiming);
 const compileCheckedDeclarationProjectWithFixtureBytes = (
   input: CompilerDeclarationProject,
   checked: import("@unframe-dev/build").CheckedDeclarationProject,

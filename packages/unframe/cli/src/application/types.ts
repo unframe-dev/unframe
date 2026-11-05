@@ -1,6 +1,6 @@
 import type { FixedBrowserSession, WebRendererConfig } from "@unframe-dev/render-browser";
 import type { StyleDiagnostic } from "@unframe-dev/styles-node";
-import type { ProjectInputPreparationResult } from "@unframe-dev/build";
+import type { CompilerStage, ProjectInputPreparationResult } from "@unframe-dev/build";
 import type { DiscoveredProjectFiles } from "@unframe-dev/workspace-node";
 
 export type PresentationCliExitCode = 0 | 1 | 2 | 3 | 130;
@@ -45,7 +45,21 @@ export type PresentationCliBuildContext = Readonly<{
   webRendererConfig: WebRendererConfig;
 }>;
 
+export type PresentationCliBuildTiming = Readonly<{
+  stage:
+    | "prepare"
+    | "assemble"
+    | "opaque-renderer"
+    | "structured-browser"
+    | "compile"
+    | "publish"
+    | `compiler:${CompilerStage}`;
+  durationMilliseconds: number;
+}>;
+
 export type PresentationCliHost = Readonly<{
+  onBuildTiming?: (timing: PresentationCliBuildTiming) => void;
+  opaqueCaptureCache?: import("@unframe-dev/render-browser").OpaqueCaptureCache;
   prepareInputs?: (
     found: Extract<DiscoveredProjectFiles, { ok: true }>,
     signal?: AbortSignal,

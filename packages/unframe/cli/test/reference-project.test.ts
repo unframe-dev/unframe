@@ -15,6 +15,7 @@ import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { join } from "node:path";
 import { afterEach, assert, describe, expect, it } from "vite-plus/test";
 import type { FixedBrowserSession } from "@unframe-dev/render-browser";
+import type { PresentationCliBuildTiming } from "../src/application/types.js";
 
 import { verifyBuildIntegrity } from "@unframe-dev/artifacts";
 import {
@@ -223,9 +224,11 @@ describe("reference Authoring Project", () => {
     const directory = await projectCopy();
     const before = await checkedProject(directory);
     let reused = false;
+    const timings: PresentationCliBuildTiming[] = [];
     const result = await runPresentationCli({
       args: ["build", directory],
       host: {
+        onBuildTiming: (timing: PresentationCliBuildTiming) => timings.push(timing),
         expectedRevision: before.discovered.revision,
         prepareInputs: async (found: typeof before.discovered) => {
           expect(found.revision).toBe(before.discovered.revision);
@@ -239,6 +242,17 @@ describe("reference Authoring Project", () => {
     expect(result.exitCode, result.stderr).toBe(0);
     expect(reused).toBe(true);
     expect(result.sourceRevision).toBe(before.discovered.revision);
+    expect(timings.map(({ stage }) => stage)).toEqual(
+      expect.arrayContaining([
+        "prepare",
+        "assemble",
+        "structured-browser",
+        "compiler:rendering",
+        "compiler:encoding",
+        "compile",
+        "publish",
+      ]),
+    );
   }, 30_000);
 
   it("rejects changed inputs before consulting the Host preparation cache", async () => {
