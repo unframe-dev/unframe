@@ -6,6 +6,13 @@ import { definition } from "./schema.test";
 import type { PresentationDefinition } from "../../src/presentation/schema";
 
 describe("D1 presentation migration", () => {
+  it("keeps an existing presentation ID as the owner's target for its source", async () => {
+    const repository = new D1PresentationRepository(env.DB);
+    await expect(
+      repository.findByOwnerAndSource("migration-runtime-user", "migration-runtime-presentation"),
+    ).resolves.toMatchObject({ id: "migration-runtime-presentation" });
+  });
+
   it("registers null draft metadata atomically and does not grant access on a local ID collision", async () => {
     const suffix = crypto.randomUUID();
     const firstUser = `registration-first-${suffix}`;

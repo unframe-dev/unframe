@@ -37,6 +37,7 @@ export const buildManifestSchema = z.strictObject({
 export const publishedPresentationSchema = z.strictObject({
   schemaVersion: z.literal(1),
   presentationId: idSchema,
+  sourcePresentationId: idSchema.optional(),
   publicationEpoch: positiveSafeUIntSchema,
   publicationManifestHash: contentHashSchema,
   sourceDraftRevision: safeUIntSchema,

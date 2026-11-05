@@ -13,12 +13,13 @@ import {
 } from "./read-dist";
 
 type Selection = { dist: BrowserDistSnapshot; target: PublicationTarget };
-type PublishedResult = { buildId: string; publicationEpoch: number };
+type PublishedResult = { presentationId: string; buildId: string; publicationEpoch: number };
+type PendingPublication = { selection: Selection; presentationId?: string };
 export type PublicationState =
   | { status: "idle" }
   | { status: "reading" }
   | { status: "checking"; dist: BrowserDistSnapshot }
-  | { status: "resolving"; selection: Selection }
+  | ({ status: "resolving" } & PendingPublication)
   | { status: "ready"; selection: Selection }
   | { status: "publishing"; selection: Selection; progress?: PublicationProgress }
   | {
@@ -28,7 +29,7 @@ export type PublicationState =
       alreadyPublished: boolean;
     }
   | { status: "error"; message: string; dist?: BrowserDistSnapshot }
-  | { status: "uncertain"; message: string; selection: Selection };
+  | ({ status: "uncertain"; message: string } & PendingPublication);
 
 export function publicationErrorMessage(error: unknown): string {
   if (error instanceof BrowserDistError) {
@@ -72,7 +73,7 @@ export function createPublicationController(client: ReturnType<typeof createPubl
   const check = async (dist: BrowserDistSnapshot, task: ReturnType<typeof begin>) => {
     update({ status: "checking", dist });
     try {
-      const target = await client.getTarget(dist.artifacts.buildManifest.presentationId, {
+      const target = await client.getSourceTarget(dist.artifacts.buildManifest.presentationId, {
         signal: task.signal,
       });
       if (task.id !== operation) return;
@@ -125,17 +126,24 @@ export function createPublicationController(client: ReturnType<typeof createPubl
     },
     async recheck() {
       if (state.status === "uncertain") {
-        const { selection } = state;
+        const { selection, presentationId } = state;
+        const pending = { selection, ...(presentationId ? { presentationId } : {}) };
         const task = begin();
-        update({ status: "resolving", selection });
+        update({ status: "resolving", ...pending });
         try {
-          const target = await client.getTarget(
-            selection.dist.artifacts.buildManifest.presentationId,
-            { signal: task.signal },
-          );
+          const options = { signal: task.signal };
+          const confirmedId = presentationId ?? selection.target.presentation?.id;
+          const target = confirmedId
+            ? await client.getTarget(confirmedId, options)
+            : await client.getSourceTarget(
+                selection.dist.artifacts.buildManifest.presentationId,
+                options,
+              );
           if (task.id !== operation) return;
           if (
             target.publication?.buildId === selection.dist.artifacts.buildManifest.buildId &&
+            target.publication.publicationEpoch ===
+              (selection.target.expectedPublicationFence?.publicationEpoch ?? 0) + 1 &&
             verifyPublicationIntegrity({
               ...selection.dist.artifacts,
               publishedPresentation: target.publication,
@@ -150,14 +158,14 @@ export function createPublicationController(client: ReturnType<typeof createPubl
           } else
             update({
               status: "uncertain",
-              selection,
+              ...pending,
               message: "まだ公開結果を確認できません。時間をおいて、公開情報を再確認してください。",
             });
         } catch (error) {
           if (task.id === operation)
             update({
               status: "uncertain",
-              selection,
+              ...pending,
               message: `公開結果を確認できません。${publicationErrorMessage(error)}`,
             });
         }
@@ -181,6 +189,9 @@ export function createPublicationController(client: ReturnType<typeof createPubl
           artifacts: selection.dist.artifacts,
           readAsset: selection.dist.readAsset,
           expectedPublicationFence: selection.target.expectedPublicationFence,
+          ...(selection.target.presentation
+            ? { expectedPresentationId: selection.target.presentation.id }
+            : {}),
           signal: task.signal,
           onProgress(progress) {
             if (task.id === operation) update({ status: "publishing", selection, progress });
@@ -192,6 +203,7 @@ export function createPublicationController(client: ReturnType<typeof createPubl
           update({
             status: "uncertain",
             selection,
+            presentationId: result.presentationId,
             message:
               "公開結果を確認できません。公開された可能性があるため、公開情報を確認してください。",
           });
@@ -232,6 +244,9 @@ export function createPublicationController(client: ReturnType<typeof createPubl
         update({
           status: "uncertain",
           selection: state.selection,
+          ...(state.status === "resolving" && state.presentationId
+            ? { presentationId: state.presentationId }
+            : {}),
           message: "公開結果を確認できません。公開情報を確認してください。",
         });
       } else if (state.status !== "uncertain") update({ status: "idle" });

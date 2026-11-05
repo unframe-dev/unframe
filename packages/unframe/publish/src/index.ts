@@ -12,7 +12,7 @@ export type PublicationRemote = Readonly<{
   fetch?: (input: URL, init: RequestInit) => Promise<Response>;
 }>;
 export type PublishResult =
-  | Readonly<{ ok: true; buildId: string; publicationEpoch: number }>
+  | Readonly<{ ok: true; presentationId: string; buildId: string; publicationEpoch: number }>
   | Readonly<{ ok: false; code: string; outcome?: never; operation?: never }>
   | Readonly<{
       ok: false;
@@ -24,6 +24,7 @@ export type FixedPublishInput = PublicationRemote & {
   artifacts: BuildArtifacts;
   readAsset(assetId: string): Promise<{ bytes: Uint8Array; mediaType: string }>;
   expectedPublicationFence: PublicationFence | null;
+  expectedPresentationId?: string;
 };
 const failure = (code: string): PublishResult => ({ ok: false, code });
 const clientFor = (input: Pick<PublicationRemote, "controlPlaneUrl" | "bearerToken" | "fetch">) =>
@@ -42,6 +43,19 @@ export async function readPublicationFence(
   );
 }
 
+export async function readSourcePublicationTarget(
+  input: PublicationRemote & { sourcePresentationId: string },
+): Promise<Pick<FixedPublishInput, "expectedPresentationId" | "expectedPublicationFence">> {
+  const target = await clientFor(input).getSourceTarget(
+    input.sourcePresentationId,
+    input.signal ? { signal: input.signal } : {},
+  );
+  return {
+    expectedPublicationFence: target.expectedPublicationFence,
+    ...(target.kind === "existing" ? { expectedPresentationId: target.presentation.id } : {}),
+  };
+}
+
 export async function publishFixedBuild(input: FixedPublishInput): Promise<PublishResult> {
   const fixed = {
     ...input,
@@ -50,12 +64,14 @@ export async function publishFixedBuild(input: FixedPublishInput): Promise<Publi
       ? { ...input.expectedPublicationFence }
       : null,
   };
-  const operation = publicationOperation(fixed);
   try {
     const result = await clientFor(fixed).publish({
       artifacts: fixed.artifacts,
       readAsset: fixed.readAsset,
       expectedPublicationFence: fixed.expectedPublicationFence,
+      ...(fixed.expectedPresentationId !== undefined
+        ? { expectedPresentationId: fixed.expectedPresentationId }
+        : {}),
       ...(input.signal ? { signal: input.signal } : {}),
     });
     if (result.ok) return result;
@@ -64,7 +80,7 @@ export async function publishFixedBuild(input: FixedPublishInput): Promise<Publi
         ok: false,
         code: "cli-publish-outcome-unknown",
         outcome: "outcome-unknown",
-        operation,
+        operation: publicationOperation(fixed, result.presentationId),
       };
     return failure(result.code.replace(/^publication-/u, "cli-publish-"));
   } catch {
@@ -80,8 +96,11 @@ export type PublicationOperation = {
   renderBundleHash: string;
   assetSetHash: string;
 };
-const publicationOperation = (input: FixedPublishInput): PublicationOperation => ({
-  presentationId: input.artifacts.buildManifest.presentationId,
+const publicationOperation = (
+  input: FixedPublishInput,
+  presentationId: string,
+): PublicationOperation => ({
+  presentationId,
   buildId: input.artifacts.buildManifest.buildId,
   publicationEpoch: (input.expectedPublicationFence?.publicationEpoch ?? 0) + 1,
   definitionHash: input.artifacts.buildManifest.definitionHash,
@@ -106,7 +125,12 @@ export async function queryPublication(
         ([key, value]) => receipt[key as keyof typeof receipt] === value,
       )
     )
-      return { ok: true, buildId: receipt.buildId, publicationEpoch: receipt.publicationEpoch };
+      return {
+        ok: true,
+        presentationId: receipt.presentationId,
+        buildId: receipt.buildId,
+        publicationEpoch: receipt.publicationEpoch,
+      };
   } catch {
     /* An unavailable receipt does not prove rejection. */
   }

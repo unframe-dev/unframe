@@ -19,22 +19,44 @@ export class PresentationService {
     identity: Identity,
     registration: PresentationRegistration,
   ): Promise<PresentationResource> {
-    const existing = await this.repository.findById(registration.id);
-    if (existing) return resource(await this.requireWrite(identity, registration.id));
+    const scoped = "sourcePresentationId" in registration;
+    const sourcePresentationId = scoped ? registration.sourcePresentationId : registration.id;
+    const existing = scoped
+      ? await this.repository.findByOwnerAndSource(identity.userId, sourcePresentationId)
+      : await this.repository.findById(registration.id);
+    if (existing)
+      return resource(scoped ? existing : await this.requireWrite(identity, existing.id));
+    const id = scoped ? crypto.randomUUID() : registration.id;
     const timestamp = this.now();
-    await this.repository.create({
-      id: registration.id,
-      name: registration.name,
-      ownerId: identity.userId,
-      revision: 1,
-      definition: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    });
-    return resource(await this.requireWrite(identity, registration.id));
+    await this.repository.create(
+      {
+        id,
+        name: registration.name,
+        ownerId: identity.userId,
+        revision: 1,
+        definition: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      sourcePresentationId,
+    );
+    if (!scoped) return resource(await this.requireWrite(identity, id));
+    const registered = await this.repository.findByOwnerAndSource(
+      identity.userId,
+      sourcePresentationId,
+    );
+    if (!registered) throw new PresentationError("conflict");
+    return resource(registered);
   }
 
-  async list(identity: Identity) {
+  async list(identity: Identity, sourcePresentationId?: string) {
+    if (sourcePresentationId !== undefined) {
+      const owned = await this.repository.findByOwnerAndSource(
+        identity.userId,
+        sourcePresentationId,
+      );
+      return owned ? [resource(owned)] : [];
+    }
     return (
       identity.globalRole === "admin"
         ? await this.repository.listAll()

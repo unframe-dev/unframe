@@ -33,29 +33,40 @@ namespace Unframe.ControlPlane.Model
         /// <summary>
         /// Initializes a new instance of the <see cref="PresentationsPostRequest" /> class.
         /// </summary>
-        /// <param name="id">id</param>
-        /// <param name="name">name</param>
-        [JsonConstructor]
-        public PresentationsPostRequest(string id, string name)
+        /// <param name="presentationsPostRequestAnyOf"></param>
+        /// <param name="presentationsPostRequestAnyOf1"></param>
+        public PresentationsPostRequest(Option<PresentationsPostRequestAnyOf?> presentationsPostRequestAnyOf, Option<PresentationsPostRequestAnyOf1?> presentationsPostRequestAnyOf1)
         {
-            Id = id;
-            Name = name;
+            PresentationsPostRequestAnyOfOption = presentationsPostRequestAnyOf;
+            PresentationsPostRequestAnyOf1Option = presentationsPostRequestAnyOf1;
             OnCreated();
         }
 
         partial void OnCreated();
 
         /// <summary>
-        /// Gets or Sets Id
+        /// Used to track the state of PresentationsPostRequestAnyOf
         /// </summary>
-        [JsonPropertyName("id")]
-        public string Id { get; set; }
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<PresentationsPostRequestAnyOf?> PresentationsPostRequestAnyOfOption { get; private set; }
 
         /// <summary>
-        /// Gets or Sets Name
+        /// Gets or Sets PresentationsPostRequestAnyOf
         /// </summary>
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public PresentationsPostRequestAnyOf? PresentationsPostRequestAnyOf { get { return this.PresentationsPostRequestAnyOfOption.Value; } set { this.PresentationsPostRequestAnyOfOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of PresentationsPostRequestAnyOf1
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<PresentationsPostRequestAnyOf1?> PresentationsPostRequestAnyOf1Option { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets PresentationsPostRequestAnyOf1
+        /// </summary>
+        public PresentationsPostRequestAnyOf1? PresentationsPostRequestAnyOf1 { get { return this.PresentationsPostRequestAnyOf1Option.Value; } set { this.PresentationsPostRequestAnyOf1Option = new(value); } }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -65,8 +76,6 @@ namespace Unframe.ControlPlane.Model
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("class PresentationsPostRequest {\n");
-            sb.Append("  Id: ").Append(Id).Append("\n");
-            sb.Append("  Name: ").Append(Name).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -78,40 +87,6 @@ namespace Unframe.ControlPlane.Model
         /// <returns>Validation Result</returns>
         IEnumerable<ValidationResult> IValidatableObject.Validate(ValidationContext validationContext)
         {
-            // Id (string) maxLength
-            if (this.Id != null && this.Id.Length > 128)
-            {
-                yield return new ValidationResult("Invalid value for Id, length must be less than 128.", new [] { "Id" });
-            }
-
-            // Id (string) minLength
-            if (this.Id != null && this.Id.Length < 1)
-            {
-                yield return new ValidationResult("Invalid value for Id, length must be greater than 1.", new [] { "Id" });
-            }
-
-            if (this.Id != null) {
-                // Id (string) pattern
-                Regex regexId = new Regex(@"^[A-Za-z0-9_-]+$", RegexOptions.CultureInvariant);
-
-                if (!regexId.Match(this.Id).Success)
-                {
-                    yield return new System.ComponentModel.DataAnnotations.ValidationResult("Invalid value for Id, must match a pattern of " + regexId, new [] { "Id" });
-                }
-            }
-
-            // Name (string) maxLength
-            if (this.Name != null && this.Name.Length > 256)
-            {
-                yield return new ValidationResult("Invalid value for Name, length must be less than 256.", new [] { "Name" });
-            }
-
-            // Name (string) minLength
-            if (this.Name != null && this.Name.Length < 1)
-            {
-                yield return new ValidationResult("Invalid value for Name, length must be greater than 1.", new [] { "Name" });
-            }
-
             yield break;
         }
     }
@@ -138,8 +113,27 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<string?> id = default;
-            Option<string?> name = default;
+            PresentationsPostRequestAnyOf? presentationsPostRequestAnyOf = default;
+            PresentationsPostRequestAnyOf1? presentationsPostRequestAnyOf1 = default;
+
+            Utf8JsonReader utf8JsonReaderAnyOf = utf8JsonReader;
+            while (utf8JsonReaderAnyOf.Read())
+            {
+                if (startingTokenType == JsonTokenType.StartObject && utf8JsonReaderAnyOf.TokenType == JsonTokenType.EndObject && currentDepth == utf8JsonReaderAnyOf.CurrentDepth)
+                    break;
+
+                if (startingTokenType == JsonTokenType.StartArray && utf8JsonReaderAnyOf.TokenType == JsonTokenType.EndArray && currentDepth == utf8JsonReaderAnyOf.CurrentDepth)
+                    break;
+
+                if (utf8JsonReaderAnyOf.TokenType == JsonTokenType.PropertyName && currentDepth == utf8JsonReaderAnyOf.CurrentDepth - 1)
+                {
+                    Utf8JsonReader utf8JsonReaderPresentationsPostRequestAnyOf = utf8JsonReader;
+                    ClientUtils.TryDeserialize<PresentationsPostRequestAnyOf?>(ref utf8JsonReaderPresentationsPostRequestAnyOf, jsonSerializerOptions, out presentationsPostRequestAnyOf);
+
+                    Utf8JsonReader utf8JsonReaderPresentationsPostRequestAnyOf1 = utf8JsonReader;
+                    ClientUtils.TryDeserialize<PresentationsPostRequestAnyOf1?>(ref utf8JsonReaderPresentationsPostRequestAnyOf1, jsonSerializerOptions, out presentationsPostRequestAnyOf1);
+                }
+            }
 
             while (utf8JsonReader.Read())
             {
@@ -156,31 +150,20 @@ namespace Unframe.ControlPlane.Model
 
                     switch (localVarJsonPropertyName)
                     {
-                        case "id":
-                            id = new Option<string?>(utf8JsonReader.GetString()!);
-                            break;
-                        case "name":
-                            name = new Option<string?>(utf8JsonReader.GetString()!);
-                            break;
                         default:
                             break;
                     }
                 }
             }
 
-            if (!id.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(id));
+            Option<PresentationsPostRequestAnyOf?> presentationsPostRequestAnyOfParsedValue = presentationsPostRequestAnyOf == null
+                ? default
+                : new Option<PresentationsPostRequestAnyOf?>(presentationsPostRequestAnyOf);
+            Option<PresentationsPostRequestAnyOf1?> presentationsPostRequestAnyOf1ParsedValue = presentationsPostRequestAnyOf1 == null
+                ? default
+                : new Option<PresentationsPostRequestAnyOf1?>(presentationsPostRequestAnyOf1);
 
-            if (!name.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsPostRequest.", nameof(name));
-
-            if (id.IsSet && id.Value == null)
-                throw new ArgumentNullException(nameof(id), "Property is not nullable for class PresentationsPostRequest.");
-
-            if (name.IsSet && name.Value == null)
-                throw new ArgumentNullException(nameof(name), "Property is not nullable for class PresentationsPostRequest.");
-
-            return new PresentationsPostRequest(id.Value!, name.Value!);
+            return new PresentationsPostRequest(presentationsPostRequestAnyOfParsedValue, presentationsPostRequestAnyOf1ParsedValue);
         }
 
         /// <summary>
@@ -193,6 +176,18 @@ namespace Unframe.ControlPlane.Model
         public override void Write(Utf8JsonWriter writer, PresentationsPostRequest presentationsPostRequest, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
+
+            if (presentationsPostRequest.PresentationsPostRequestAnyOfOption.IsSet && presentationsPostRequest.PresentationsPostRequestAnyOfOption.Value != null)
+            {
+                PresentationsPostRequestAnyOfJsonConverter presentationsPostRequestAnyOfJsonConverter = (PresentationsPostRequestAnyOfJsonConverter) jsonSerializerOptions.Converters.First(c => c.CanConvert(presentationsPostRequest.PresentationsPostRequestAnyOfOption.Value.GetType()));
+                presentationsPostRequestAnyOfJsonConverter.WriteProperties(writer, presentationsPostRequest.PresentationsPostRequestAnyOfOption.Value, jsonSerializerOptions);
+            }
+
+            if (presentationsPostRequest.PresentationsPostRequestAnyOf1Option.IsSet && presentationsPostRequest.PresentationsPostRequestAnyOf1Option.Value != null)
+            {
+                PresentationsPostRequestAnyOf1JsonConverter presentationsPostRequestAnyOf1JsonConverter = (PresentationsPostRequestAnyOf1JsonConverter) jsonSerializerOptions.Converters.First(c => c.CanConvert(presentationsPostRequest.PresentationsPostRequestAnyOf1Option.Value.GetType()));
+                presentationsPostRequestAnyOf1JsonConverter.WriteProperties(writer, presentationsPostRequest.PresentationsPostRequestAnyOf1Option.Value, jsonSerializerOptions);
+            }
 
             WriteProperties(writer, presentationsPostRequest, jsonSerializerOptions);
             writer.WriteEndObject();
@@ -207,15 +202,7 @@ namespace Unframe.ControlPlane.Model
         /// <exception cref="NotImplementedException"></exception>
         public void WriteProperties(Utf8JsonWriter writer, PresentationsPostRequest presentationsPostRequest, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (presentationsPostRequest.Id == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Id), "Property is required for class PresentationsPostRequest.");
 
-            if (presentationsPostRequest.Name == null)
-                throw new ArgumentNullException(nameof(presentationsPostRequest.Name), "Property is required for class PresentationsPostRequest.");
-
-            writer.WriteString("id", presentationsPostRequest.Id);
-
-            writer.WriteString("name", presentationsPostRequest.Name);
         }
     }
 }

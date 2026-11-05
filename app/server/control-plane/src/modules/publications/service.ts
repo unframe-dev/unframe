@@ -74,7 +74,10 @@ export class PublicationService {
 
   private async authorize(identity: Identity, presentationId: string, write: boolean) {
     const record = await this.orm
-      .select({ revision: presentations.revision })
+      .select({
+        revision: presentations.revision,
+        sourcePresentationId: presentations.sourcePresentationId,
+      })
       .from(presentations)
       .where(eq(presentations.id, presentationId))
       .get();
@@ -111,7 +114,7 @@ export class PublicationService {
     if (!parsed.valid) throw new PublicationError("invalid_build");
     const artifacts = parsed.value;
     if (
-      artifacts.buildManifest.presentationId !== presentationId ||
+      artifacts.buildManifest.presentationId !== record.sourcePresentationId ||
       !validatePresentationArtifacts(artifacts.definition, artifacts.renderBundle, {
         fullDelivery: true,
       }).valid
@@ -163,7 +166,7 @@ export class PublicationService {
   }
 
   private async build(identity: Identity, presentationId: string, buildId: string, write: boolean) {
-    await this.authorize(identity, presentationId, write);
+    const record = await this.authorize(identity, presentationId, write);
     const row = await this.orm
       .select({ artifacts: presentationBuilds.artifacts })
       .from(presentationBuilds)
@@ -176,7 +179,12 @@ export class PublicationService {
       .get();
     if (!row) throw new PublicationError("not_found");
     const parsed = verifyBuildIntegrity(JSON.parse(row.artifacts));
-    if (!parsed.valid) throw new PublicationError("invalid_build");
+    if (
+      !parsed.valid ||
+      parsed.value.buildManifest.presentationId !== record.sourcePresentationId ||
+      parsed.value.buildManifest.buildId !== buildId
+    )
+      throw new PublicationError("invalid_build");
     return parsed.value;
   }
 
@@ -192,11 +200,6 @@ export class PublicationService {
         throw new PublicationError("conflict");
       throw error;
     }
-    if (
-      artifacts.buildManifest.presentationId !== presentationId ||
-      artifacts.buildManifest.buildId !== buildId
-    )
-      throw new PublicationError("conflict");
     const assetId = firstThumbnailTexture(artifacts.renderBundle);
     if (!assetId) throw new PublicationError("not_found");
     const result = await this.downloadPublishedAsset(presentationId, buildId, assetId);
@@ -206,8 +209,12 @@ export class PublicationService {
 
   async downloadPublishedAsset(presentationId: string, buildId: string, assetId: string) {
     const row = await this.orm
-      .select({ artifacts: presentationBuilds.artifacts })
+      .select({
+        artifacts: presentationBuilds.artifacts,
+        sourcePresentationId: presentations.sourcePresentationId,
+      })
       .from(presentationBuilds)
+      .innerJoin(presentations, eq(presentations.id, presentationBuilds.presentationId))
       .where(
         and(
           eq(presentationBuilds.presentationId, presentationId),
@@ -236,7 +243,7 @@ export class PublicationService {
     const verified = verifyBuildIntegrity(input);
     if (
       !verified.valid ||
-      verified.value.buildManifest.presentationId !== presentationId ||
+      verified.value.buildManifest.presentationId !== row.sourcePresentationId ||
       verified.value.buildManifest.buildId !== buildId
     )
       throw new PublicationError("conflict");
@@ -328,6 +335,10 @@ export class PublicationService {
     }
     const payload = {
       ...artifacts.buildManifest,
+      presentationId,
+      ...(artifacts.buildManifest.presentationId === presentationId
+        ? {}
+        : { sourcePresentationId: artifacts.buildManifest.presentationId }),
       publicationEpoch: nextEpoch,
     };
     const manifest: PublishedPresentation = {
@@ -404,7 +415,8 @@ export class PublicationService {
       throw new PublicationError("conflict");
     }
     const parsed = publishedPresentationSchema.safeParse(manifest);
-    if (!parsed.success) throw new PublicationError("conflict");
+    if (!parsed.success || parsed.data.presentationId !== presentationId)
+      throw new PublicationError("conflict");
     return parsed.data;
   }
 
@@ -441,6 +453,7 @@ export class PublicationService {
     });
     if (
       !parsed.valid ||
+      parsed.value.publishedPresentation.presentationId !== presentationId ||
       !validatePresentationArtifacts(parsed.value.definition, parsed.value.renderBundle, {
         fullDelivery: true,
       }).valid

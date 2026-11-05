@@ -43,14 +43,13 @@ export type PublicationErrorCode =
   | "publication-target-rejected"
   | "publication-target-invalid";
 export type PublicationPublishResult =
-  | { ok: true; buildId: string; publicationEpoch: number }
-  | {
+  | { ok: true; presentationId: string; buildId: string; publicationEpoch: number }
+  | ({
       ok: false;
       code: PublicationErrorCode;
-      outcome: "rejected" | "unknown";
       status?: number;
       reason?: string;
-    };
+    } & ({ outcome: "rejected" } | { outcome: "unknown"; presentationId: string }));
 export type PublicationProgress = {
   stage: "validating" | "registering" | "uploading" | "publishing";
   uploadedAssets: number;
@@ -60,6 +59,7 @@ export type PublicationPublishInput = {
   artifacts: BuildArtifacts;
   readAsset(assetId: string): Promise<{ bytes: Uint8Array; mediaType: string }>;
   expectedPublicationFence: PublicationFence | null;
+  expectedPresentationId?: string;
   signal?: AbortSignal;
   onProgress?: (progress: PublicationProgress) => void;
 };
@@ -82,13 +82,15 @@ export class PublicationRequestError extends Error {
 }
 const fail = (
   code: PublicationErrorCode,
-  outcome: "rejected" | "unknown" = "rejected",
+  presentationId?: string,
   status?: number,
   reason?: string,
 ): PublicationPublishResult => ({
   ok: false,
   code,
-  outcome,
+  ...(presentationId === undefined
+    ? { outcome: "rejected" }
+    : { outcome: "unknown", presentationId }),
   ...(status === undefined ? {} : { status }),
   ...(reason === undefined ? {} : { reason }),
 });
@@ -174,7 +176,71 @@ export function createPublicationClient(options: PublicationClientOptions) {
       throw new PublicationRequestError("publication-target-invalid");
     return parsed.data;
   };
+  const newTarget = {
+    kind: "new",
+    presentation: null,
+    publication: null,
+    expectedPublicationFence: null,
+  } as const;
+  const isPresentation = (value: unknown): value is { id: string; name: string } =>
+    value !== null &&
+    typeof value === "object" &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    /^[A-Za-z0-9_-]{1,128}$/u.test(value.id) &&
+    "name" in value &&
+    typeof value.name === "string";
+
+  const existingTarget = async (
+    presentation: { id: string; name: string },
+    signal?: AbortSignal,
+  ): Promise<PublicationTarget> => {
+    const publication = await readPublication(presentation.id, signal);
+    return {
+      kind: "existing",
+      presentation: { id: presentation.id, name: presentation.name },
+      publication,
+      expectedPublicationFence: publication ? fenceFor(publication) : null,
+    };
+  };
+  const requireTargetResponse = async (response: Response) => {
+    if (!response.ok)
+      throw new PublicationRequestError(
+        "publication-target-rejected",
+        response.status,
+        await errorReason(response),
+      );
+  };
   return {
+    async getSourceTarget(
+      sourcePresentationId: string,
+      { signal }: { signal?: AbortSignal } = {},
+    ): Promise<PublicationTarget> {
+      const query = new URLSearchParams({ sourcePresentationId });
+      const response = await send(`/presentations?${query}`, { method: "GET" }, signal);
+      await requireTargetResponse(response);
+      const body: unknown = await response.json();
+      if (
+        body === null ||
+        typeof body !== "object" ||
+        !("presentations" in body) ||
+        !Array.isArray(body.presentations) ||
+        body.presentations.length > 1
+      )
+        throw new PublicationRequestError("publication-target-invalid");
+      if (body.presentations.length === 0) return newTarget;
+      const [presentation] = body.presentations;
+      if (!isPresentation(presentation))
+        throw new PublicationRequestError("publication-target-invalid");
+      const target = await existingTarget(presentation, signal);
+      if (
+        target.publication &&
+        (target.publication.sourcePresentationId ?? target.publication.presentationId) !==
+          sourcePresentationId
+      )
+        throw new PublicationRequestError("publication-target-invalid");
+      return target;
+    },
     async getTarget(
       presentationId: string,
       { signal }: { signal?: AbortSignal } = {},
@@ -184,36 +250,12 @@ export function createPublicationClient(options: PublicationClientOptions) {
         { method: "GET" },
         signal,
       );
-      if (response.status === 404)
-        return {
-          kind: "new",
-          presentation: null,
-          publication: null,
-          expectedPublicationFence: null,
-        };
-      if (!response.ok)
-        throw new PublicationRequestError(
-          "publication-target-rejected",
-          response.status,
-          await errorReason(response),
-        );
+      if (response.status === 404) return newTarget;
+      await requireTargetResponse(response);
       const presentation: unknown = await response.json();
-      if (
-        presentation === null ||
-        typeof presentation !== "object" ||
-        !("id" in presentation) ||
-        presentation.id !== presentationId ||
-        !("name" in presentation) ||
-        typeof presentation.name !== "string"
-      )
+      if (!isPresentation(presentation) || presentation.id !== presentationId)
         throw new PublicationRequestError("publication-target-invalid");
-      const publication = await readPublication(presentationId, signal);
-      return {
-        kind: "existing",
-        presentation: { id: presentationId, name: presentation.name },
-        publication,
-        expectedPublicationFence: publication ? fenceFor(publication) : null,
-      };
+      return existingTarget(presentation, signal);
     },
     async readFence(
       presentationId: string,
@@ -223,21 +265,23 @@ export function createPublicationClient(options: PublicationClientOptions) {
       return publication ? fenceFor(publication) : null;
     },
     async publish(input: PublicationPublishInput): Promise<PublicationPublishResult> {
-      let publicationSent = false;
+      let submittedPresentationId: string | undefined;
       try {
         if (input.signal?.aborted) return fail("publication-cancelled");
         input.onProgress?.({ stage: "validating", uploadedAssets: 0, totalAssets: 0 });
         const integrity = verifyBuildIntegrity(input.artifacts);
         if (!integrity.valid) return fail("publication-build-invalid");
         const artifacts = integrity.value;
-        const presentationId = artifacts.buildManifest.presentationId;
+        const sourcePresentationId = artifacts.buildManifest.presentationId;
         const expected =
           input.expectedPublicationFence === null
             ? null
             : publicationFenceSchema.safeParse(input.expectedPublicationFence);
         if (
           expected !== null &&
-          (!expected.success || expected.data.presentationId !== presentationId)
+          (!expected.success ||
+            (input.expectedPresentationId !== undefined &&
+              expected.data.presentationId !== input.expectedPresentationId))
         )
           return fail("publication-fence-invalid");
         const fence = expected === null ? null : expected.data;
@@ -282,14 +326,17 @@ export function createPublicationClient(options: PublicationClientOptions) {
           {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ id: presentationId, name: artifacts.definition.metadata.title }),
+            body: JSON.stringify({
+              sourcePresentationId,
+              name: artifacts.definition.metadata.title,
+            }),
           },
           input.signal,
         );
         if (registered.status !== 201)
           return fail(
             "publication-registration-rejected",
-            "rejected",
+            undefined,
             registered.status,
             await errorReason(registered),
           );
@@ -298,9 +345,14 @@ export function createPublicationClient(options: PublicationClientOptions) {
           record === null ||
           typeof record !== "object" ||
           !("id" in record) ||
-          record.id !== presentationId
+          typeof record.id !== "string" ||
+          !/^[A-Za-z0-9_-]{1,128}$/u.test(record.id)
         )
           return fail("publication-registration-invalid");
+        const presentationId = record.id;
+        const expectedId = input.expectedPresentationId ?? fence?.presentationId;
+        if (expectedId !== undefined && expectedId !== presentationId)
+          return fail("publication-conflict");
         const path = `/presentations/${encodeURIComponent(presentationId)}`;
         const created = await send(
           path + "/builds",
@@ -314,7 +366,7 @@ export function createPublicationClient(options: PublicationClientOptions) {
         if (created.status !== 201)
           return fail(
             "publication-build-rejected",
-            "rejected",
+            undefined,
             created.status,
             await errorReason(created),
           );
@@ -344,7 +396,7 @@ export function createPublicationClient(options: PublicationClientOptions) {
           if (response.status !== 204)
             return fail(
               "publication-asset-rejected",
-              "rejected",
+              undefined,
               response.status,
               await errorReason(response),
             );
@@ -356,7 +408,7 @@ export function createPublicationClient(options: PublicationClientOptions) {
         }
         input.onProgress?.({ stage: "publishing", uploadedAssets, totalAssets: assets.size });
         input.signal?.throwIfAborted();
-        publicationSent = true;
+        submittedPresentationId = presentationId;
         const response = await send(
           path + "/publications",
           {
@@ -370,13 +422,13 @@ export function createPublicationClient(options: PublicationClientOptions) {
           input.signal,
         );
         if (response.status === 409)
-          return fail("publication-conflict", "rejected", 409, await errorReason(response));
+          return fail("publication-conflict", undefined, 409, await errorReason(response));
         if (response.status !== 201)
           return fail(
             "publication-publication-rejected",
             response.ok || response.status >= 500 || response.status === 408
-              ? "unknown"
-              : "rejected",
+              ? presentationId
+              : undefined,
             response.status,
             await errorReason(response),
           );
@@ -384,13 +436,22 @@ export function createPublicationClient(options: PublicationClientOptions) {
           ...artifacts,
           publishedPresentation: await response.json(),
         });
-        if (!verified.valid || verified.value.publishedPresentation.publicationEpoch !== epoch)
-          return fail("publication-publication-response-invalid", "unknown");
-        return { ok: true, buildId: artifacts.buildManifest.buildId, publicationEpoch: epoch };
+        if (
+          !verified.valid ||
+          verified.value.publishedPresentation.presentationId !== presentationId ||
+          verified.value.publishedPresentation.publicationEpoch !== epoch
+        )
+          return fail("publication-publication-response-invalid", presentationId);
+        return {
+          ok: true,
+          presentationId,
+          buildId: artifacts.buildManifest.buildId,
+          publicationEpoch: epoch,
+        };
       } catch {
         return fail(
           input.signal?.aborted ? "publication-cancelled" : "publication-io",
-          publicationSent ? "unknown" : "rejected",
+          submittedPresentationId,
         );
       }
     },

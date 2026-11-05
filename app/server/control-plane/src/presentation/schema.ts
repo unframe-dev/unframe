@@ -1,3 +1,4 @@
+import { idSchema as sourcePresentationIdSchema } from "@unframe-dev/contracts/presentation/common";
 import { z } from "zod";
 
 const id = z
@@ -286,12 +287,19 @@ export const presentationDefinitionSchema = z
     "Atomic presentation definition. IDs are unique within their documented scope; all asset, zone, element, step, and group references must resolve. Step transitions cannot cross group boundaries.",
   );
 
-export const presentationRegistrationSchema = z
-  .object({
-    id,
-    name: z.string().trim().min(1).max(256),
-  })
-  .strict();
+const presentationNameSchema = z.string().trim().min(1).max(256);
+export const presentationRegistrationSchema = z.union([
+  z.strictObject({ id, name: presentationNameSchema }),
+  z.strictObject({
+    sourcePresentationId: sourcePresentationIdSchema,
+    name: presentationNameSchema,
+  }),
+]);
+export const presentationListQuerySchema = z.object({
+  sourcePresentationId: sourcePresentationIdSchema
+    .optional()
+    .describe("Find the authenticated account's publication target for a source ID."),
+});
 export type PresentationRegistration = z.infer<typeof presentationRegistrationSchema>;
 
 export type PresentationDefinition = z.infer<typeof presentationDefinitionSchema>;

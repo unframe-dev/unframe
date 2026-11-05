@@ -106,12 +106,14 @@ namespace Unframe.ControlPlane.Client
             _jsonOptions.Converters.Add(new PresentationsGet200ResponsePresentationsInnerDefinitionStageCoordinateSystemJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponsePresentationsInnerDefinitionStageZonesInnerJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsGet200ResponsePresentationsInnerDefinitionStageZonesInnerBoundsJsonConverter());
-            _jsonOptions.Converters.Add(new PresentationsGet401ResponseJsonConverter());
-            _jsonOptions.Converters.Add(new PresentationsGet401ResponseErrorJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsGet400ResponseJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsGet400ResponseErrorJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsIdDeleteRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsIdPutRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsIdPutRequestDefinitionJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPostRequestJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsPostRequestAnyOfJsonConverter());
+            _jsonOptions.Converters.Add(new PresentationsPostRequestAnyOf1JsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdBuildsPost201ResponseJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdBuildsPostRequestJsonConverter());
             _jsonOptions.Converters.Add(new PresentationsPresentationIdPublicationsPost201ResponseJsonConverter());

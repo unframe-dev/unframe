@@ -147,6 +147,63 @@ describe("publication service", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ error: { code: "conflict" } });
   });
+  it("publishes the same Dist independently for two accounts", async () => {
+    const second = { userId: "publication-second", globalRole: "user" as const };
+    await env.DB.prepare(
+      "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, 'Second', ?, 1, '2026', '2026')",
+    )
+      .bind(second.userId, "publication-second@example.test")
+      .run();
+    const app = createApp({ identityProvider: async () => second });
+    const response = await app.fetch(
+      new Request("https://example.test/presentations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sourcePresentationId: "demo", name: "Second account copy" }),
+      }),
+      runtimeEnvironment(),
+    );
+    expect(response.status).toBe(201);
+    const { id: secondTarget } = (await response.json()) as { id: string };
+    expect(secondTarget).not.toBe("demo");
+
+    const service = new PublicationService(env.DB, env.ASSETS);
+    const { copy, bytes } = await publishable();
+    const { buildId } = copy.buildManifest;
+    const uploadAssets = async (identity: typeof owner, target: string) => {
+      for (const [id, descriptor] of Object.entries(copy.assetSet.assets))
+        await service.uploadAsset(identity, target, buildId, id, bytes[id]!, descriptor.mediaType);
+    };
+    await service.createBuild(owner, "demo", upload(copy));
+    await uploadAssets(owner, "demo");
+    await expect(service.publish(owner, "demo", buildId, null)).resolves.toMatchObject({
+      presentationId: "demo",
+      publicationEpoch: 1,
+    });
+
+    await expect(service.createBuild(second, "demo", upload(copy))).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await service.createBuild(second, secondTarget, upload(copy));
+    await expect(service.publish(second, secondTarget, buildId, null)).rejects.toMatchObject({
+      code: "invalid_asset",
+    });
+    await uploadAssets(second, secondTarget);
+    await expect(service.publish(second, secondTarget, buildId, null)).resolves.toMatchObject({
+      presentationId: secondTarget,
+      sourcePresentationId: "demo",
+      publicationEpoch: 1,
+    });
+    await expect(service.publishedArtifacts(secondTarget)).resolves.toMatchObject(copy);
+    const [assetId] = Object.keys(bytes);
+    assert.isDefined(assetId);
+    await expect(
+      service.downloadPublishedAsset(secondTarget, buildId, assetId),
+    ).resolves.toMatchObject({
+      bytes: bytes[assetId],
+    });
+  });
+
   it("rejects build IDs that escape a publication storage segment", async () => {
     const service = new PublicationService(env.DB, env.ASSETS);
     const { copy } = await publishable();

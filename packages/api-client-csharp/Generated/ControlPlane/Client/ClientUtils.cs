@@ -158,12 +158,16 @@ namespace Unframe.ControlPlane.Client
                 return CallbacksCompletionsPostRequestParticipantsInner.RoleEnumToJsonValue(callbacksCompletionsPostRequestParticipantsInnerRoleEnum);
             if (obj is InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnum internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum)
                 return InternalRuntimeAssetsGet200ResponseAssignment.RuntimeKindEnumToJsonValue(internalRuntimeAssetsGet200ResponseAssignmentRuntimeKindEnum);
+            if (obj is InternalRuntimeBootstrapGet200Response.SessionStateEnum internalRuntimeBootstrapGet200ResponseSessionStateEnum)
+                return InternalRuntimeBootstrapGet200Response.SessionStateEnumToJsonValue(internalRuntimeBootstrapGet200ResponseSessionStateEnum);
             if (obj is InternalRuntimeBootstrapGet200ResponseCheckpointSource.RuntimeKindEnum internalRuntimeBootstrapGet200ResponseCheckpointSourceRuntimeKindEnum)
                 return InternalRuntimeBootstrapGet200ResponseCheckpointSource.RuntimeKindEnumToJsonValue(internalRuntimeBootstrapGet200ResponseCheckpointSourceRuntimeKindEnum);
             if (obj is InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnum internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInnerRuntimeKindEnum)
                 return InternalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInner.RuntimeKindEnumToJsonValue(internalRuntimeHostsRuntimeIdHeartbeatPost200ResponseAssignmentsInnerRuntimeKindEnum);
             if (obj is InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner.StateEnum internalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInnerStateEnum)
                 return InternalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInner.StateEnumToJsonValue(internalRuntimeHostsRuntimeIdHeartbeatPostRequestSessionsInnerStateEnum);
+            if (obj is InternalRuntimeLeaseGet200Response.SessionStateEnum internalRuntimeLeaseGet200ResponseSessionStateEnum)
+                return InternalRuntimeLeaseGet200Response.SessionStateEnumToJsonValue(internalRuntimeLeaseGet200ResponseSessionStateEnum);
             if (obj is InternalRuntimeProjectionGet200Response.RoleEnum internalRuntimeProjectionGet200ResponseRoleEnum)
                 return InternalRuntimeProjectionGet200Response.RoleEnumToJsonValue(internalRuntimeProjectionGet200ResponseRoleEnum);
             if (obj is PresentationsGet200ResponsePresentationsInnerDefinition.SchemaVersionEnum presentationsGet200ResponsePresentationsInnerDefinitionSchemaVersionEnum)
