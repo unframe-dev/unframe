@@ -92,7 +92,11 @@ public final class QuestCredentialStorage {
     }
 
     public static synchronized String delete(Context context, String scope) throws Exception {
-        file(context, scope).delete();
+        AtomicFile storage = file(context, scope);
+        storage.delete();
+        if (storage.getBaseFile().exists() || new File(storage.getBaseFile().getPath() + ".bak").exists()
+            || new File(storage.getBaseFile().getPath() + ".new").exists())
+            throw new java.io.IOException("Credential storage could not be deleted");
         return null;
     }
 }

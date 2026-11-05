@@ -186,6 +186,8 @@ namespace Unframe.Unity.PresentationRuntime
             SetVisible("Retry", !confirmEnd && ((detailsOpen && display.IsRunning) || !String.IsNullOrEmpty(error)));
             SetEnabled("Retry", !busy && display.HasConnectionSettings);
             SetVisible("Exit", detailsOpen && !confirmEnd);
+            SetVisible("ClearAuthentication", !audience && detailsOpen && !confirmEnd && onboarding != null);
+            SetEnabled("ClearAuthentication", !busy && onboarding != null && onboarding.CanClearSavedAuthentication);
             SetVisible("Steps", !audience && !confirmEnd && detailsOpen);
             SetEnabled("Steps", !busy && display.CanControl && reachedSteps.Count > 0);
             SetVisible("PreviousSteps", stepsOpen && !audience && !confirmEnd);
@@ -205,7 +207,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private static readonly string[] ConfirmActions = { "ConfirmEnd", "CancelEnd" };
-        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "Steps", "Details" };
+        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "ClearAuthentication", "Steps", "Details" };
         private static readonly string[] StepActions = { "Step0", "Step1", "Step2", "PreviousSteps", "MoreSteps", "Details" };
         private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details" };
 
@@ -454,6 +456,11 @@ namespace Unframe.Unity.PresentationRuntime
                 operationRevision++;
                 operation = ExecuteOperation(async () => { await session.ExitAsync(); onboarding?.ResetFlow(); });
             });
+            AddButton("ClearAuthentication", "認証情報を削除", 10, () => RunOperation(async () =>
+            {
+                await onboarding.ClearSavedAuthenticationAsync();
+                detailsOpen = stepsOpen = confirmEnd = false;
+            }));
             AddButton("CameraPermission", "カメラを許可", 10, () => { cameraPreview.RetryCameraPermission(); });
             AddButton("ConfirmEnd", "終了する", 0, () => { confirmEnd = false; RunOperation(() => entry.EndAsync()); });
             AddButton("CancelEnd", "戻る", 1, () => { confirmEnd = false; Refresh(); });
