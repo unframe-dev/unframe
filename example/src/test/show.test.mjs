@@ -16,14 +16,14 @@ const input = (state, action = "presenter.next") =>
 const tick = (state, elapsed) =>
   advanceCueClock(definition, state, state.runtimeTimeMilliseconds + elapsed).state;
 const dismissed = () => {
-  let state = advanceCueClock(definition, initialState(), 3001).state;
+  let state = advanceCueClock(definition, initialState(), 6001).state;
   state = input(state).state;
-  state = advanceCueClock(definition, state, 3862).state;
+  state = advanceCueClock(definition, state, 6862).state;
   state = input(state).state;
   state = input(state, "presenter.rotate").state;
-  state = advanceCueClock(definition, state, 13862).state;
+  state = advanceCueClock(definition, state, 16862).state;
   state = input(state).state;
-  return advanceCueClock(definition, state, 15983).state;
+  return advanceCueClock(definition, state, 18983).state;
 };
 const node = (state, id) => state.nodes[reactResourceId("host", id)];
 
@@ -268,7 +268,7 @@ test("技術紹介への切替と閉幕後に、前の場面の専用資産を�
 });
 
 test("当初案の回転中に次のgroupへ進んでも、立方体の回転完了と非表示状態を保つ", () => {
-  let state = tick(initialState(), 3001);
+  let state = tick(initialState(), 6001);
   state = tick(input(state).state, 861);
   state = input(state).state;
   state = input(state, "presenter.rotate").state;

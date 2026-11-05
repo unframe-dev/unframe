@@ -22,8 +22,52 @@ const at = (property, milliseconds, nodeId = brandId) => {
   return evaluateTimelineTrack(track, timeline.durationMilliseconds, milliseconds);
 };
 
+test("Unframe と同時に上下左右から中央へ向かう wave を開始し、開幕完了で消す", async () => {
+  const initial = initialState();
+  assert.deepEqual(initial.effectRuns, []);
+  const started = advanceCueClock(definition, initial, 1).state;
+  assert.equal(started.effectRuns.length, 4);
+  const directions = {
+    "opening-wave-left": { position: [-1.4, 1.6, -2.2], direction: [1, 0, 0] },
+    "opening-wave-right": { position: [1.4, 1.6, -2.2], direction: [-1, 0, 0] },
+    "opening-wave-top": { position: [0, 2.5, -2.2], direction: [0, -1, 0] },
+    "opening-wave-bottom": { position: [0, 0.7, -2.2], direction: [0, 1, 0] },
+  };
+  assert.deepEqual(
+    new Set(started.effectRuns.map((run) => run.effectId)),
+    new Set(Object.keys(directions)),
+  );
+  for (const run of started.effectRuns) {
+    assert.equal(
+      run.startedAtRuntimeTimeMilliseconds,
+      started.activeRuns[0].startedAtRuntimeTimeMilliseconds,
+    );
+    assert.equal(run.effect.kind, "wave");
+    assert.equal(run.effect.durationMilliseconds / run.effect.speed, 4000);
+    const anchor = definition.scene.nodes[run.nodeId];
+    assert.equal(anchor.assetId, "wave-anchor");
+    assert.equal(anchor.opacity, 1);
+    assert.deepEqual(anchor.transform.position, directions[run.effectId].position);
+    const [x, y, z, w] = anchor.transform.rotation;
+    const forward = [1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y)];
+    for (let axis = 0; axis < 3; axis++)
+      assert.ok(Math.abs(forward[axis] - directions[run.effectId].direction[axis]) < 1e-12);
+  }
+  const retained = advanceCueClock(definition, started, 4001).state;
+  assert.equal(retained.effectRuns.length, 4);
+  assert.ok(retained.effectRuns.every((run) => run.status === "retained"));
+  assert.deepEqual(advanceCueClock(definition, retained, 6001).state.effectRuns, []);
+  const bytes = await readFile(
+    new URL(`../../${config.assets["wave-anchor"].path}`, import.meta.url),
+  );
+  const gltf = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8"));
+  assert.equal(gltf.meshes?.length ?? 0, 0, "配置用 Model 自体は描画しない");
+});
+
 test("開幕完了後にだけ次の場面への入力を受け付ける", () => {
-  const completed = advanceCueClock(definition, initialState(), 3001).state;
+  const completed = advanceCueClock(definition, initialState(), 6001).state;
+  const moving = advanceCueClock(definition, initialState(), 5001).state;
+  assert.equal(moving.currentStepId, "opening");
   assert.equal(completed.currentStepId, "opening-ready");
   const step = definition.flow.groups.demo.steps[completed.currentStepId];
   assert.ok(
@@ -97,33 +141,35 @@ test("ロゴの上端を上向きにし、正面を観客へ向ける", () => {
   }
 });
 
-test("開幕は自動で始まり、ロゴと Unframe が 0.9 秒かけて現れる", () => {
+test("開幕は自動で始まり、ロゴと Unframe が 1.5 秒かけて現れる", () => {
   const initial = initialState();
   assert.equal(initial.nodes[brandId].opacity, 0);
   const started = advanceCueClock(definition, initial, 1).state;
   assert.equal(started.activeRuns.length, 1, "ロゴと文字の開幕を単一 Timeline で開始する");
   for (const run of started.activeRuns) assert.equal(run.startedAtRuntimeTimeMilliseconds, 1);
-  assert.equal(at("opacity", 450), 0.5);
-  assert.equal(at("opacity", 900), 1);
-  assert.deepEqual(at("transform.position", 900), [0.254, 1.6, -2]);
-  assert.deepEqual(at("transform.scale", 900), [1, 1, 1]);
+  assert.equal(at("opacity", 750), 0.5);
+  assert.equal(at("opacity", 1500), 1);
+  assert.deepEqual(at("transform.position", 1500), [0.381, 1.6, -2]);
+  assert.deepEqual(at("transform.scale", 1500), [1.5, 1.5, 1.5]);
+  assert.deepEqual(at("transform.position", 1500, logo.id), [-0.966, 1.6, -2]);
+  assert.deepEqual(at("transform.scale", 1500, logo.id), [0.6, 0.6, 0.6]);
 });
 
-test("表示後は 0.8 秒静止し、縮小と左上への移動を同じタイミングで行う", () => {
-  assert.equal(at("opacity", 1700), 1);
-  assert.deepEqual(at("transform.position", 1700), [0.254, 1.6, -2]);
-  assert.deepEqual(at("transform.scale", 1700), [1, 1, 1]);
-  const middle = at("transform.position", 2350);
-  assert.ok(Math.abs(middle[0] - -0.55236) < 1e-12);
+test("表示後は 2.5 秒静止し、縮小と左上への移動を同じタイミングで行う", () => {
+  assert.equal(at("opacity", 4000), 1);
+  assert.deepEqual(at("transform.position", 4000), [0.381, 1.6, -2]);
+  assert.deepEqual(at("transform.scale", 4000), [1.5, 1.5, 1.5]);
+  const middle = at("transform.position", 5000);
+  assert.ok(Math.abs(middle[0] - -0.48886) < 1e-12);
   assert.ok(Math.abs(middle[1] - 2.025) < 1e-12);
   assert.equal(middle[2], -2);
-  for (const axis of at("transform.scale", 2350)) {
-    assert.ok(Math.abs(axis - 0.66) < 1e-12);
+  for (const axis of at("transform.scale", 5000)) {
+    assert.ok(Math.abs(axis - 0.91) < 1e-12);
   }
 });
 
-test("3 秒で移動を終え、Unframe を左上で維持する", () => {
-  const completed = advanceCueClock(definition, initialState(), 3001).state;
+test("6 秒で移動を終え、Unframe を左上で維持する", () => {
+  const completed = advanceCueClock(definition, initialState(), 6001).state;
   assert.equal(completed.activeRuns.length, 0);
   assert.equal(completed.ended, false);
   assert.deepEqual(completed.nodes[brandId].transform.position, [-1.35872, 2.45, -2]);
@@ -138,7 +184,7 @@ test("3 秒で移動を終え、Unframe を左上で維持する", () => {
 
 test("3D ロゴは文字との間隔と高さを保ってフェード・縮小移動し、左上に残る", () => {
   assert.equal(initialState().nodes[logo.id].opacity, 0);
-  for (const time of [0, 450, 900, 1700, 2025, 2350, 2675, 3000]) {
+  for (const time of [0, 750, 1500, 4000, 4500, 5000, 5500, 6000]) {
     assert.equal(at("opacity", time, logo.id), at("opacity", time));
     const modelPosition = at("transform.position", time, logo.id);
     const textPosition = at("transform.position", time);
@@ -150,7 +196,7 @@ test("3D ロゴは文字との間隔と高さを保ってフェード・縮小�
     for (let axis = 0; axis < 3; axis++)
       assert.ok(Math.abs(modelScale[axis] - 0.4 * textScale[axis]) < 1e-12);
   }
-  const completed = advanceCueClock(definition, initialState(), 3001).state;
+  const completed = advanceCueClock(definition, initialState(), 6001).state;
   assert.deepEqual(completed.nodes[logo.id].transform.position, [-1.64608, 2.45, -2]);
   assert.deepEqual(completed.nodes[logo.id].transform.scale, [0.128, 0.128, 0.128]);
   assert.equal(completed.nodes[logo.id].opacity, 1);

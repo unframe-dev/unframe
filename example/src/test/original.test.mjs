@@ -22,11 +22,11 @@ const input = (state, action) =>
     payload: {},
     causeEventId: `input-${++sequence}`,
   });
-const ready = () => advanceCueClock(definition, initialState(), 3001).state;
+const ready = () => advanceCueClock(definition, initialState(), 6001).state;
 const showOriginal = () => {
   const next = input(ready(), "presenter.next");
   assert.equal(next.outcome.kind, "accepted");
-  return advanceCueClock(definition, next.state, 3862).state;
+  return advanceCueClock(definition, next.state, 6862).state;
 };
 
 test("開幕を飛ばさず、次の入力でパネルと立方体が現れ、左上の Unframe は動かない", () => {
@@ -84,7 +84,7 @@ test("回転操作で立方体が10秒かけて一周し、パネルとロゴを
   const start = evaluateTimelineTrack(track, 10000, 0);
   const halfway = evaluateTimelineTrack(track, 10000, 5000);
   assert.ok(Math.abs(start.reduce((sum, value, i) => sum + value * halfway[i], 0)) < 1e-12);
-  const complete = advanceCueClock(definition, turning.state, 13862).state;
+  const complete = advanceCueClock(definition, turning.state, 16862).state;
   assert.equal(complete.currentStepId, "original-shown");
   assert.equal(complete.activeRuns.length, 0);
   assert.equal(complete.ended, false);
@@ -100,13 +100,13 @@ test("回転操作で立方体が10秒かけて一周し、パネルとロゴを
 test("回転後の次へで一拍置いて×を出し、当初案だけをまとめて退場させる", () => {
   const detail = input(showOriginal(), "presenter.next").state;
   const turning = input(detail, "presenter.rotate").state;
-  const stopped = advanceCueClock(definition, turning, 13862).state;
+  const stopped = advanceCueClock(definition, turning, 16862).state;
   const rejected = input(stopped, "presenter.next");
   assert.equal(rejected.outcome.kind, "accepted");
   const markId = reactResourceId("host", "rejection-mark");
   assert.equal(stopped.nodes[markId].opacity, 0);
   assert.equal(input(rejected.state, "presenter.next").outcome.kind, "none");
-  const paused = advanceCueClock(definition, rejected.state, 14463).state;
+  const paused = advanceCueClock(definition, rejected.state, 17463).state;
   assert.equal(paused.nodes[markId].opacity, 0);
   assert.deepEqual(paused.nodes[cubeId], stopped.nodes[cubeId]);
   assert.deepEqual(paused.nodes[panelId], stopped.nodes[panelId]);
@@ -127,7 +127,7 @@ test("回転後の次へで一拍置いて×を出し、当初案だけをまと
     assert.ok(at(id, "transform.position", 1770)[1] < at(id, "transform.position", 1420)[1]);
   }
   assert.ok(timeline.tracks.every((track) => ![brandId, logoId].includes(track.target.nodeId)));
-  const complete = advanceCueClock(definition, paused, 15983).state;
+  const complete = advanceCueClock(definition, paused, 18983).state;
   assert.equal(complete.currentStepId, "original-dismissed");
   assert.equal(complete.activeRuns.length, 0);
   assert.equal(complete.ended, false);
@@ -142,21 +142,21 @@ test("回転開始直後も回転途中も、完了を待たず次へ進んで�
   const detail = input(showOriginal(), "presenter.next").state;
   const turning = input(detail, "presenter.rotate").state;
   assert.equal(input(turning, "presenter.next").outcome.kind, "accepted");
-  const halfway = advanceCueClock(definition, turning, 8862).state;
+  const halfway = advanceCueClock(definition, turning, 11862).state;
   assert.equal(halfway.activeRuns.length, 1);
   const rejected = input(halfway, "presenter.next");
   assert.equal(rejected.outcome.kind, "accepted");
   assert.equal(rejected.state.currentStepId, "original-reject");
   assert.equal(rejected.state.activeRuns.length, 1);
-  const dismissing = advanceCueClock(definition, rejected.state, 9683).state;
+  const dismissing = advanceCueClock(definition, rejected.state, 12683).state;
   assert.equal(dismissing.activeRuns.length, 2);
-  const dismissed = advanceCueClock(definition, dismissing, 10983).state;
+  const dismissed = advanceCueClock(definition, dismissing, 13983).state;
   assert.equal(dismissed.currentStepId, "original-dismissed");
   for (const id of [reactResourceId("host", "rejection-mark"), panelId, cubeId])
     assert.equal(dismissed.nodes[id].opacity, 0);
   assert.deepEqual(dismissed.nodes[brandId], detail.nodes[brandId]);
   assert.deepEqual(dismissed.nodes[logoId], detail.nodes[logoId]);
-  const complete = advanceCueClock(definition, dismissed, 13862).state;
+  const complete = advanceCueClock(definition, dismissed, 16862).state;
   assert.equal(complete.currentStepId, "original-dismissed");
   assert.equal(complete.activeRuns.length, 0);
   assert.equal(complete.nodes[cubeId].opacity, 0);
