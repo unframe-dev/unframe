@@ -16,6 +16,8 @@
 
 HTTP の生成元は [openapi.ts](../../../server/control-plane/src/openapi.ts)、通信の正本は [Browser Realtime transport](../../../../packages/contracts/browser-realtime.md)。API 資格と Runtime JWT を混同しない。
 
+Audience はモデルのインスタンス数にアプリ独自の上限を設けない。他の資源予算と入力検証は維持する。資源ポリシーの変更で profile ID も変わるため、Control Plane と Audience は同じ共有定義でビルド・デプロイする。
+
 ## 資格・復帰
 
 - API bearer はメモリのみで保持する。期限の5分前以降の HTTP 取得では更新し、旧 token を破棄する。期限は1時間、更新可能期間は初回から24時間。
