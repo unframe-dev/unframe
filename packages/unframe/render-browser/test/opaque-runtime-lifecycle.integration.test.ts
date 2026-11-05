@@ -11,6 +11,7 @@ const boundary = vi.hoisted(() => ({
   resets: 0,
   stderrFailures: 0,
   onBootstrap: undefined as (() => void) | undefined,
+  onReady: undefined as (() => void) | undefined,
 }));
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -21,6 +22,7 @@ vi.mock("node:child_process", async (importOriginal) => {
       const child = actual.spawn(...args);
       child.stdout?.on("data", (chunk: Buffer) => {
         if (chunk.includes('"bootstrap"')) boundary.onBootstrap?.();
+        if (chunk.includes('"type":"ready"') && boundary.onReady) queueMicrotask(boundary.onReady);
       });
       if (boundary.resetBarrierOnExit)
         child.once("exit", () => {
@@ -128,6 +130,20 @@ it("fails capture when worker stderr fails before the result", async () => {
     expect(boundary.stderrFailures).toBeGreaterThan(0);
   } finally {
     boundary.failStderrOnBootstrap = false;
+    await runtime.close();
+  }
+}, 120_000);
+
+it("cancels an active Chromium worker", async () => {
+  const controller = new AbortController();
+  const runtime = await openOpaqueCaptureRuntime({ signal: controller.signal });
+  boundary.onReady = () => controller.abort();
+  try {
+    await expect(runtime.capture(request)).rejects.toMatchObject({
+      code: "opaque-capture-cancelled",
+    });
+  } finally {
+    boundary.onReady = undefined;
     await runtime.close();
   }
 }, 120_000);
