@@ -123,7 +123,7 @@ func validateAuthority(message protoreflect.Message, path string) error {
 				return fmt.Errorf("protocol_incompatible: required v3 capability")
 			}
 		}
-	case "LogicalInputCommand", "SurfaceInteractionCommand", "GestureInputCommand", "ZoneInputCommand", "RuntimeControlCommand", "PresentationOriginCommand", "RuntimeCommandHistory":
+	case "LogicalInputCommand", "ForceAdvanceCommand", "SurfaceInteractionCommand", "GestureInputCommand", "ZoneInputCommand", "RuntimeControlCommand", "PresentationOriginCommand", "RuntimeCommandHistory":
 		if !ValidCommandID(get("client_event_id").String(), get("command_epoch").Uint()) {
 			return invalid()
 		}

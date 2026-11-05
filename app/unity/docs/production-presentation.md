@@ -65,13 +65,13 @@ Android Build Support、IL2CPP、ARM64、OpenCV for Unity とAndroid用の `UNFR
 成功・失敗の両方で復元します。
 
 呼び出し元から `QuestPresentationSession.Connect` にHTTPS Control Plane origin、Session ID、
-更新可能なcredential provider、必要ならlogical event名を渡します。
+更新可能なcredential providerを渡します。
 配信は `PresentationControlPlaneConnection` がDeliveryとbootstrapを取得し、
 `PresentationBakedRuntime` が素材とControl/Stateの同期を検証します。
 校正とSessionReadyが揃ってから表示・入力を有効にします。
 
 Development BuildではAndroid launch Intentから `unframe.controlPlaneOrigin`、`unframe.sessionId`、
-`unframe.credential`、任意の `unframe.advanceLogicalEvent` を渡す一時接続もあります。通常のAPKはIntentの接続設定を読み取りません。
+`unframe.credential` を渡す一時接続もあります。通常のAPKはIntentの接続設定を読み取りません。
 Sceneにcredentialを保存しないでください。Intent経路はtoken更新機構を提供しないため、
 継続運用には呼び出し元のcredential providerを使用します。
 通常起動では端末コード認証、資料選択・ルーム参加のUIを使用します。Presenterはルーム作成後に
@@ -106,7 +106,6 @@ Quest・iPhone実機の受入や会場ネットワークの確認はEditorテス
 1. `Unframe > Presentation > Open Quest Presentation` を開いてPlay Modeへ入ります。
 2. `Unframe > Presentation > Connect to Session` を開きます。
 3. HTTPS origin（パスなし）、Session ID、有効なcredentialを入力してConnectします。
-   任意の `Advance logical event` は対象プレゼンに定義されたlogical event名を指定します。
 
 窓のcredentialはPassword表示で、接続開始時および窓を閉じる際に入力欄を消去します。
 Scene、PlayerPrefs、ログへは保存しません。接続中のcredential providerはSessionのメモリでのみ保持します。

@@ -2584,7 +2584,8 @@
                     "gestureInput",
                     "zoneInput",
                     "inputSynchronizationAck",
-                    "presentationOrigin"
+                    "presentationOrigin",
+                    "forceAdvance"
                   ]
                 }
               },
@@ -2628,6 +2629,10 @@
                 "presentationOrigin": {
                   "type": "PresentationOriginCommand",
                   "id": 103
+                },
+                "forceAdvance": {
+                  "type": "ForceAdvanceCommand",
+                  "id": 104
                 }
               },
               "reserved": [
@@ -2900,6 +2905,26 @@
                 "commandEpoch": {
                   "type": "uint64",
                   "id": 6
+                }
+              }
+            },
+            "ForceAdvanceCommand": {
+              "fields": {
+                "clientEventId": {
+                  "type": "string",
+                  "id": 1
+                },
+                "presentationOriginVersion": {
+                  "type": "uint64",
+                  "id": 2
+                },
+                "inputContext": {
+                  "type": "InputContext",
+                  "id": 3
+                },
+                "commandEpoch": {
+                  "type": "uint64",
+                  "id": 4
                 }
               }
             },
@@ -3435,7 +3460,8 @@
                     "gestureInputAccepted",
                     "zoneInputAccepted",
                     "runtimeViewReplaced",
-                    "effectRunsChanged"
+                    "effectRunsChanged",
+                    "forceAdvanceAccepted"
                   ]
                 }
               },
@@ -3614,6 +3640,10 @@
                 "effectRunsChanged": {
                   "type": "EffectRunsChanged",
                   "id": 1004
+                },
+                "forceAdvanceAccepted": {
+                  "type": "ForceAdvanceAccepted",
+                  "id": 1005
                 }
               },
               "reserved": [
@@ -3817,6 +3847,9 @@
                   "id": 1
                 }
               }
+            },
+            "ForceAdvanceAccepted": {
+              "fields": {}
             },
             "GestureInputAccepted": {
               "fields": {

@@ -428,6 +428,8 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!PresentationDeliveryCatalog.IsId(reliableEvent.LogicalInputAccepted.LogicalEventName))
                     { error = "realtime.event input is invalid."; return false; }
                     break;
+                case ProjectedReliableEvent.PayloadOneofCase.ForceAdvanceAccepted:
+                    break;
                 case ProjectedReliableEvent.PayloadOneofCase.SurfaceInteractionAccepted:
                     if (!delivery.ContainsSurface(reliableEvent.SurfaceInteractionAccepted.SurfaceId)
                         || !PresentationDeliveryCatalog.IsId(reliableEvent.SurfaceInteractionAccepted.InteractionId))

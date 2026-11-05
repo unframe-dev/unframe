@@ -147,6 +147,35 @@ public sealed class QuestPresentationEntryEditModeTests
     }
 
     [Test]
+    public void LeftStickClickAdvancesOnceAndRequiresAReleaseAfterReadiness()
+    {
+        var edges = new QuestPresentationButtonEdges();
+        edges.Sample(false, false, false, true, false, out _, out _, out bool advance);
+        Assert.That(advance, Is.False);
+        edges.Sample(false, false, false, true, true, out _, out _, out advance);
+        Assert.That(advance, Is.False);
+        edges.Sample(false, false, false, false, true, out _, out _, out _);
+        edges.Sample(false, false, false, true, true, out _, out _, out advance);
+        Assert.That(advance, Is.True);
+        edges.Sample(false, false, false, true, true, out _, out _, out advance);
+        Assert.That(advance, Is.False);
+    }
+
+    [Test]
+    public void ForceAdvanceIncludesSynchronizedContextAndOrigin()
+    {
+        var context = new InputContext { InputEpoch = 2, GroupId = "group", StepId = "step" };
+        var command = QuestPresentationInput.CreateForceAdvance(7, context, 3);
+        Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.ForceAdvance));
+        Assert.That(command.ForceAdvance.PresentationOriginVersion, Is.EqualTo(7));
+        Assert.That(command.ForceAdvance.CommandEpoch, Is.EqualTo(3));
+        Assert.That(command.ForceAdvance.InputContext, Is.EqualTo(context));
+        Assert.That(command.ForceAdvance.InputContext, Is.Not.SameAs(context));
+        Assert.That(command.ForceAdvance.ClientEventId, Is.Not.Empty);
+        Assert.Throws<System.ArgumentNullException>(() => QuestPresentationInput.CreateForceAdvance(7, null, 3));
+    }
+
+    [Test]
     public void RayPickingUsesFrontFaceAndCurrentStateRegions()
     {
         GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);

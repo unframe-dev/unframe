@@ -52,7 +52,6 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CalibrationReady => runtime != null && runtime.CalibrationReady;
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
         public bool CanControlPresentation => IsRunning && !commandPending && PlacementReady && runtime != null && CanControl;
-        private string AdvanceLogicalEventName => String.IsNullOrWhiteSpace(logicalEventName) ? "presenter.next" : logicalEventName;
         public bool CanAdvance => PlacementReady && IsRunning && !commandPending && runtime != null && runtime.CanSendInput
             && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
@@ -77,7 +76,6 @@ namespace Unframe.Unity.PresentationRuntime
             : !PlacementReady ? "Confirming presentation placement"
             : !SessionReady ? "Synchronizing session"
             : IsPresenter ? "Ready: Presenter" : "Ready: Viewer";
-        private string logicalEventName;
         private PresentationSessionDiagnostics diagnostics;
         private PresentationConnectionStage? diagnosticStage;
         private readonly QuestPresentationButtonEdges buttons = new QuestPresentationButtonEdges();
@@ -152,7 +150,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public void Configure(Uri controlPlaneOrigin, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
-            PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null,
+            PresentationCalibrationState calibrationState, PresentationSessionDiagnostics diagnosticLog = null,
             Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null, PresenterOriginPlacement presenterPlacement = null)
         {
             if (!isActiveAndEnabled) throw new InvalidOperationException("The Quest presentation entry must be active.");
@@ -170,7 +168,6 @@ namespace Unframe.Unity.PresentationRuntime
             calibration = calibrationState;
             runtime.DisplayEnabled = presentationDisplayEnabled;
             runtime.ConfigureCalibration(calibration, questTrackingOrigin);
-            logicalEventName = advanceLogicalEventName;
             CancellationTokenSource runLifetime = new CancellationTokenSource();
             lifetime = runLifetime;
             calibrationRevision = 0;
@@ -213,7 +210,6 @@ namespace Unframe.Unity.PresentationRuntime
                     interactionLifetime = null;
                     lifetime = null;
                     connection = null;
-                    logicalEventName = null;
                     commandPending = false;
                     if (connectionStage != PresentationConnectionStage.Failed) connectionStage = PresentationConnectionStage.Stopped;
                 }
@@ -267,7 +263,7 @@ namespace Unframe.Unity.PresentationRuntime
             commandPending = true;
             try
             {
-                input = SendInputAsync(QuestPresentationInput.CreateLogical(AdvanceLogicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
+                input = SendInputAsync(QuestPresentationInput.CreateForceAdvance(runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
                 await input;
             }
             finally { commandPending = false; }
@@ -285,7 +281,8 @@ namespace Unframe.Unity.PresentationRuntime
             bool nextLeft = ReadTrigger(XRNode.LeftHand, ref leftTriggerHeld);
             bool nextRight = ReadTrigger(XRNode.RightHand, ref rightTriggerHeld);
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);
-            buttons.Sample(nextLeft, nextRight, nextPrimary, runtime.CanSendInput && PresentationInputEnabled,
+            bool nextLeftStick = IsPressed(XRNode.LeftHand, CommonUsages.primary2DAxisClick);
+            buttons.Sample(nextLeft, nextRight, nextPrimary, nextLeftStick, runtime.CanSendInput && PresentationInputEnabled,
                 out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed);
             uiButtons.Sample(nextLeft, nextRight, false, true, out bool uiLeft, out bool uiRight, out _);
             bool leftConsumed = uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay);

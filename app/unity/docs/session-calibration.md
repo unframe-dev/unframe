@@ -37,12 +37,12 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 呼び出し元は認証・Session選択を担当し、次のように同じStateを渡します。
 
 ```csharp
-session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName);
+session.Connect(controlPlaneOrigin, sessionId, credentialProvider);
 ```
 
 `credentialProvider` は要求ごとに有効なcredentialを返します。credential、Session ID、endpointをSceneへ保存しません。校正がまだ無効でも接続・素材ロードを始められます。Presenterだけに入力・Trackingを許可しますが、Viewerにも自分の描画用校正が必要です。
 
-`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Development Build のAndroid Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。通常のAPKはIntentの接続設定を読み取りません。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
+`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Development Build のAndroid Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。通常のAPKはIntentの接続設定を読み取りません。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
 
 ## 無効化と再測定
 

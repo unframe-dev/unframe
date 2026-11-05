@@ -147,11 +147,9 @@ public sealed class PresentationRuntimeCalibrationTests
         }
     }
 
-    [TestCase(null, "presenter.next", false)]
-    [TestCase("advance", "advance", false)]
-    [TestCase(null, "presenter.next", true)]
-    [TestCase("advance", "advance", true)]
-    public async Task EntryAdvancesAfterLiveResumeWithoutFreshAvailability(string configuredName, string expectedName, bool staleOtherInput)
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task EntryAdvancesAfterLiveResumeWithoutFreshAvailability(bool staleOtherInput)
     {
         var host = new GameObject("Initial origin advance");
         var lifetime = new CancellationTokenSource();
@@ -165,7 +163,6 @@ public sealed class PresentationRuntimeCalibrationTests
             typeof(QuestPresentationEntry).GetField("runtime", flags).SetValue(entry, runtime);
             typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
             typeof(QuestPresentationEntry).GetField("interactionLifetime", flags).SetValue(entry, interaction);
-            typeof(QuestPresentationEntry).GetField("logicalEventName", flags).SetValue(entry, configuredName);
             Assert.That(entry.CanAdvance, Is.False);
             await entry.AdvanceAsync();
             Assert.That(writer.Items, Is.Empty);
@@ -199,9 +196,9 @@ public sealed class PresentationRuntimeCalibrationTests
             Assert.That(entry.CanAdvance, Is.True);
             await entry.AdvanceAsync();
             Assert.That(writer.Items.Count, Is.EqualTo(1));
-            Assert.That(writer.Items[0].LogicalInput.LogicalEventName, Is.EqualTo(expectedName));
-            Assert.That(writer.Items[0].LogicalInput.PresentationOriginVersion, Is.EqualTo(7));
-            Assert.That(writer.Items[0].LogicalInput.CommandEpoch, Is.EqualTo(1));
+            Assert.That(writer.Items[0].ForceAdvance, Is.Not.Null);
+            Assert.That(writer.Items[0].ForceAdvance.PresentationOriginVersion, Is.EqualTo(7));
+            Assert.That(writer.Items[0].ForceAdvance.CommandEpoch, Is.EqualTo(1));
             store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
             Assert.That(entry.CanAdvance, Is.False);
             store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Presenter;

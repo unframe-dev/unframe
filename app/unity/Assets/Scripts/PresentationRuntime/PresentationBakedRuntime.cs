@@ -208,7 +208,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string clientEventId = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string clientEventId = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId;
             store.TrackCommand(clientEventId);
             return SendTrackedCommandAsync(command, clientEventId, token);
         }
@@ -223,7 +223,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string id = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string id = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId;
             store.TrackCommand(id);
             try { return await connection.SendConfirmedAsync(command, TimeSpan.FromSeconds(10), token); }
             catch { store.ClearCommandOutcome(id); throw; }
