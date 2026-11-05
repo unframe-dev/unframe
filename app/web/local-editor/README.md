@@ -64,7 +64,7 @@ Preview は Viewer 向けに投影し、Presenter 専用コンテンツを表示
 
 Dev Preview は導入済み `node_modules` の依存・workspace・symlink と現在のソース・素材・PostCSS 設定から build 入力を生成します。依存の導入・更新はプロジェクトのパッケージマネージャーで行ってください。Unframe は install や lock の更新を実行しません。PnP は未対応です。入力変更は revision に反映し、失敗時は前の正常な Preview を保持します。
 
-Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。保存・外部変更による連続更新は200msでまとめ、初回表示と手動再読込は即時に要求します。Host は現在の Source revision を確認してから旧 Dev build を取り消し、後始末が終わってから最新の処理を開始します。受付待ちの旧要求も結果を回収して取り消し、遅延した結果を表示へ反映しません。同じ入力の成功済み generation は、現在の参照先と成果物・アセットの完全性を確認できる場合に再利用します。
+Dev Preview は保存済み revision を自動 build し、`.unframe/preview/` に生成します。保存・外部変更による連続更新は200msでまとめ、初回表示と手動再読込は即時に要求します。Host は同じ revision・channel の要求をまとめ、準備中・待機中・実行中も処理を共有します。新 revision の Dev 要求だけが旧 Dev build を取り消し、後始末が終わってから最新の処理を開始します。要求ごとの取消や準備中の切断は他の要求を巻き込まず、待っている要求がすべてなくなった場合に処理を止めます。受付待ちの旧要求も結果を回収して取り消し、遅延した結果を表示へ反映しません。同じ入力の成功済み generation は、現在の参照先と成果物・アセットの完全性を確認できる場合に再利用します。
 
 保存内容の検証、入力の生成、描画と成果物の一時書き込みは Source ロック外で進め、保存・成果物の確定時に再取得して revision を検証します。競合した結果は確定せず、保存要求の再送は同じ command ID の receipt と照合します。Host 終了時には待機を中断し、受付済み build は取消でも待機を中断できます。「本番 build」は `dist` を更新し、Dist Preview は現在の固定 generation を再 build せず読み込みます。build／load 失敗時は前の正常 scene を保ち、保存済み Source は巻き戻しません。未保存の Inspector buffer は Preview 入力に含めません。
 

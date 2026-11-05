@@ -57,11 +57,22 @@ export const createAuthorBuildService = (
     revision: string;
     channel: Channel;
     controller: AbortController;
-    ready: Promise<BuildJob>;
+    ready: Promise<void>;
     done: Promise<void>;
-    job?: BuildJob;
+    job?: Omit<BuildJob, "buildId">;
+    requests: Set<BuildRequest>;
+  };
+  type BuildRequest = {
+    requestId: string;
+    buildId: string;
+    work: Work;
+    controller: AbortController;
+    ready: Promise<void>;
     callers: number;
     delivered: boolean;
+    cancelled: boolean;
+    cancelledJob?: BuildJob;
+    retained: boolean;
   };
   type Success = {
     revision: string;
@@ -70,9 +81,10 @@ export const createAuthorBuildService = (
     instances: string[];
     diagnostics: AuthorDiagnostic[];
   };
-  const jobs = new Map<string, BuildJob>();
-  const requests = new Map<string, { revision: string; channel: Channel; work: Work }>();
+  const jobs = new Map<string, BuildRequest>();
+  const requests = new Map<string, BuildRequest>();
   const completed: string[] = [];
+  const validations = new Set<Promise<void>>();
   const successes = new Map<Channel, Success>();
   const artifacts = new AuthorArtifactCache(
     options.artifactRetention?.maxGenerations,
@@ -93,28 +105,32 @@ export const createAuthorBuildService = (
     if (work.controller.signal.aborted || latest !== work)
       ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
   };
-  const retainCompleted = (job: BuildJob) => {
-    completed.push(job.buildId);
+  const forget = (request: BuildRequest) => {
+    request.controller.abort();
+    jobs.delete(request.buildId);
+    if (requests.get(request.requestId) === request) requests.delete(request.requestId);
+    request.work.requests.delete(request);
+  };
+  const retainCompleted = (request: BuildRequest) => {
+    if (request.retained) return;
+    request.retained = true;
+    completed.push(request.buildId);
     while (completed.length > maxCompletedJobs) {
-      const stale = completed.shift()!;
-      jobs.delete(stale);
-      for (const [id, request] of requests) {
-        if (request.work.job?.buildId === stale) requests.delete(id);
-      }
+      const stale = jobs.get(completed.shift()!);
+      if (stale) forget(stale);
     }
-    const finished = [...requests].filter(([, request]) => !allWorks.has(request.work));
-    for (const [id] of finished.slice(0, Math.max(0, finished.length - maxCompletedJobs)))
-      requests.delete(id);
   };
-  const getJob = (id: string) => {
-    const value = jobs.get(id);
-    if (!value) ports.fail(404, "author-build-not-found", "Build job was not found.");
-    return value;
+  const getRequest = (id: string) => {
+    const request = jobs.get(id);
+    if (!request) ports.fail(404, "author-build-not-found", "Build job was not found.");
+    return request;
   };
+  const requestJob = (request: BuildRequest): BuildJob =>
+    structuredClone(request.cancelledJob ?? { ...request.work.job!, buildId: request.buildId });
+  const getJob = (id: string) => requestJob(getRequest(id));
   const register = (work: Work, revision: string) => {
     requireCurrent(work);
-    const job: BuildJob = {
-      buildId: randomId(),
+    const job: Omit<BuildJob, "buildId"> = {
       channel: work.channel,
       revision,
       generationId: null,
@@ -122,27 +138,75 @@ export const createAuthorBuildService = (
       diagnostics: [],
       artifacts: [],
     };
-    jobs.set(job.buildId, job);
     work.job = job;
     return job;
   };
-  const observe = (work: Work, signal?: AbortSignal): Promise<BuildJob> => {
-    ++work.callers;
+  const attach = (work: Work, requestId: string, validateRevision = false): BuildRequest => {
+    const request: BuildRequest = {
+      requestId,
+      buildId: randomId(),
+      work,
+      controller: new AbortController(),
+      ready: work.ready,
+      callers: 0,
+      delivered: false,
+      cancelled: false,
+      retained: false,
+    };
+    requests.set(requestId, request);
+    work.requests.add(request);
+    if (validateRevision) {
+      const signal = AbortSignal.any([request.controller.signal, work.controller.signal]);
+      const validation = (async () => {
+        try {
+          await ports.validateRevision(work.revision, signal);
+        } catch (error) {
+          requireOpen();
+          if (!signal.aborted) throw error;
+        }
+        requireOpen();
+        if (signal.aborted) ports.fail(409, "cli-cancelled", "Build request was cancelled.");
+      })();
+      validations.add(validation);
+      void validation.then(
+        () => validations.delete(validation),
+        () => validations.delete(validation),
+      );
+      request.ready = Promise.all([work.ready, validation]).then(() => {});
+    }
+    return request;
+  };
+  const abortIfUnobserved = (work: Work) => {
+    const unobserved = ![...work.requests].some(
+      (request) => !request.cancelled && (request.delivered || request.callers > 0),
+    );
+    if (unobserved) work.controller.abort();
+    return unobserved;
+  };
+  const observe = (request: BuildRequest, signal?: AbortSignal): Promise<BuildJob> => {
+    const { work } = request;
+    ++request.callers;
     return new Promise((resolve, reject) => {
       let settled = false;
       const finish = (error?: unknown) => {
         if (settled) return;
         settled = true;
         signal?.removeEventListener("abort", abort);
-        --work.callers;
-        if (error) reject(error);
-        else {
-          work.delivered = true;
-          resolve(structuredClone(work.job!));
+        --request.callers;
+        if (error) {
+          abortIfUnobserved(work);
+          if (!request.delivered && request.callers === 0) forget(request);
+          reject(error);
+        } else {
+          if (!request.delivered) {
+            request.delivered = true;
+            jobs.set(request.buildId, request);
+            if (!allWorks.has(work)) retainCompleted(request);
+          }
+          resolve(requestJob(request));
         }
       };
       const abort = () => {
-        if (!settled && work.callers === 1 && !work.delivered) work.controller.abort();
         try {
           ports.fail(409, "cli-cancelled", "Build request was disconnected.");
         } catch (error) {
@@ -150,7 +214,7 @@ export const createAuthorBuildService = (
         }
       };
       signal?.addEventListener("abort", abort, { once: true });
-      void work.ready.then(
+      void request.ready.then(
         () => finish(),
         (error: unknown) => finish(error),
       );
@@ -172,51 +236,45 @@ export const createAuthorBuildService = (
         ports.fail(400, "author-output-channel-invalid", "Invalid build channel.");
       const existing = requests.get(requestId);
       if (existing) {
-        if (existing.revision !== revision || existing.channel !== channel)
+        if (existing.work.revision !== revision || existing.work.channel !== channel)
           ports.fail(
             409,
             "author-request-id-conflict",
             "Build request ID was used for another revision.",
           );
-        return observe(existing.work, requestOptions.signal);
+        return observe(existing, requestOptions.signal);
+      }
+      const shared = [...allWorks].find(
+        (work) =>
+          work.revision === revision && work.channel === channel && !work.controller.signal.aborted,
+      );
+      if (shared) {
+        return observe(attach(shared, requestId, pending.has(shared)), requestOptions.signal);
       }
       const sequence = ++arrival;
-      const response = Promise.withResolvers<BuildJob>();
+      const response = Promise.withResolvers<void>();
       const work: Work = {
         revision,
         channel,
         controller: new AbortController(),
         ready: response.promise,
         done: Promise.resolve(),
-        callers: 0,
-        delivered: false,
+        requests: new Set(),
       };
-      requests.set(requestId, { revision, channel, work });
+      const request = attach(work, requestId);
       allWorks.add(work);
-      let joined = false;
       work.done = (async () => {
         try {
           await ports.validateRevision(revision, work.controller.signal);
           requireOpen();
-          if (work.controller.signal.aborted)
+          if (work.controller.signal.aborted || sequence < accepted)
             ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
-          const shared = [...pending].find(
-            (item) =>
-              item.revision === revision &&
-              item.channel === channel &&
-              !item.controller.signal.aborted,
-          );
-          if (shared) {
-            joined = true;
-            requests.set(requestId, { revision, channel, work: shared });
-            const job = await observe(shared, work.controller.signal);
-            work.job = job;
-            response.resolve(job);
-            return;
-          }
-          if (sequence < accepted)
-            ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
-          if ([...pending].some((item) => item.channel !== "dev" || channel !== "dev"))
+          if (
+            [...pending].some(
+              (item) =>
+                !item.controller.signal.aborted && (item.channel !== "dev" || channel !== "dev"),
+            )
+          )
             ports.fail(409, "author-build-busy", "Another build is running.");
           const previous = running?.done ?? Promise.resolve();
           accepted = sequence;
@@ -237,7 +295,7 @@ export const createAuthorBuildService = (
           requireCurrent(work);
           running = work;
           const candidate = successes.get(channel);
-          if (channel === "dev" && candidate?.revision === revision) {
+          if (candidate?.revision === revision) {
             try {
               const published = await readPublished(
                 candidate.generationId,
@@ -259,7 +317,7 @@ export const createAuthorBuildService = (
                   diagnostics: candidate.diagnostics,
                   artifacts: published.catalog,
                 });
-                response.resolve(job);
+                response.resolve();
                 return;
               }
             } catch {
@@ -271,7 +329,7 @@ export const createAuthorBuildService = (
           const current = structuredClone(await ports.prepareBuild(revision, channel, signal));
           requireCurrent(work);
           const job = register(work, current.revision);
-          response.resolve(job);
+          response.resolve();
           await new Promise<void>((resolve) => setImmediate(resolve));
           if (signal.aborted) {
             job.status = "cancelled";
@@ -301,7 +359,7 @@ export const createAuthorBuildService = (
             job.artifacts = published.catalog;
             job.diagnostics = result.diagnostics;
             job.status = "succeeded";
-            if (channel === "dev" && !signal.aborted && !closed && latest === work)
+            if (!signal.aborted && !closed && latest === work)
               successes.set(channel, {
                 revision: current.revision,
                 generationId: result.generationId,
@@ -333,20 +391,30 @@ export const createAuthorBuildService = (
           pending.delete(work);
           allWorks.delete(work);
           if (running === work) running = undefined;
-          if (work.job && !joined) retainCompleted(work.job);
-          else
-            for (const [id, request] of requests) {
-              if (request.work === work) requests.delete(id);
-            }
+          for (const request of work.requests) {
+            if (request.delivered) retainCompleted(request);
+            else if (request.callers === 0) forget(request);
+          }
         }
       })();
-      return observe(work, requestOptions.signal);
+      return observe(request, requestOptions.signal);
     },
-    job: async (id: string) => structuredClone(getJob(id)),
+    job: async (id: string) => getJob(id),
     cancel: async (id: string) => {
-      const job = getJob(id);
-      for (const work of pending) if (work.job === job) work.controller.abort();
-      return structuredClone(job);
+      const request = getRequest(id);
+      const job = request.work.job!;
+      if (
+        !request.cancelled &&
+        (job.status === "queued" || job.status === "running") &&
+        !job.generationId
+      ) {
+        request.cancelled = true;
+        if (!abortIfUnobserved(request.work)) {
+          request.cancelledJob = { ...requestJob(request), status: "cancelled" };
+          retainCompleted(request);
+        }
+      }
+      return requestJob(request);
     },
     artifact: async (id: string, assetId: string) => {
       const job = getJob(id);
@@ -361,7 +429,8 @@ export const createAuthorBuildService = (
     close: async () => {
       closed = true;
       for (const work of allWorks) work.controller.abort();
-      await Promise.allSettled([...allWorks].map((work) => work.done));
+      for (const request of requests.values()) request.controller.abort();
+      await Promise.allSettled([...allWorks].map((work) => work.done).concat([...validations]));
       successes.clear();
       artifacts.clear();
     },
