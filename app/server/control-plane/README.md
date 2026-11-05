@@ -41,6 +41,16 @@ pnpm r2:cors:list
 `api.un-fra.me` の Worker Custom Domain はリポジトリ外の [`infra`](../../../../infra/README.md)
 Terraform で管理します。Wrangler は Worker の build / deploy、secret、D1 migration を担当します。
 
+Cloudflare Workers Builds はリポジトリルートを作業ディレクトリにし、次のコマンドを設定します。
+
+| 設定            | コマンド                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------- |
+| Build command   | `pnpm --filter @unframe-dev/control-plane --fail-if-no-match run check`                     |
+| Deploy command  | `pnpm --filter @unframe-dev/control-plane --fail-if-no-match run deploy`                    |
+| Version command | `pnpm --filter @unframe-dev/control-plane --fail-if-no-match exec wrangler versions upload` |
+
+`--fail-if-no-match` により、パッケージ名の不一致を成功扱いにしません。公開先と Dist の契約バージョンを揃えるため、ビルドの成功だけでなく、Production の稼働バージョンが対象コミットへ更新されたことも確認してください。
+
 ## Commands
 
 ```sh
