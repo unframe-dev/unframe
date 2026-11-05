@@ -16,6 +16,7 @@
 | `presentation.unframe.tsx` | タイトル、Stage、空間配置、コンポーネントのインスタンス、Group / Step / Cue による進行 |
 | `surface.manifest.ts`      | コンポーネントの props・状態・操作・出力と、構造ファイルへの参照                       |
 | `surface.structure.tsx`    | Surface のサイズ、レイアウト、見た目、意味構造、操作領域                               |
+| `*.component.tsx`          | React の描画と、編集可能な props・意味構造・状態・操作                                 |
 | `theme.unframe.ts`         | テーマのトークンと名前付きスタイル                                                     |
 | `unframe.config.ts`        | エントリーファイルと素材 ID・ローカルファイルの対応                                    |
 | `assets/`                  | プレゼンで使用する画像・フォントなどの素材                                             |
@@ -40,6 +41,8 @@
 テンプレートの宣言形式は、Unframe のレイアウト・スタイル・意味構造を明示して作る方法です。`surface.manifest.ts` と `surface.structure.tsx` を編集するところから始めてください。props・状態・出力などの公開仕様は manifest、具体的な構造は structure に記述します。専用 JSX を使うファイルでは `jsxImportSource` を `@unframe-dev/authoring` にします。テンプレートの `tsconfig.json` はこの設定です。
 
 HTML / CSS で見た目を作りたい場合は、React 形式の `defineComponent` を使います。`react` と `react-dom` を pnpm で追加し、型定義の `@types/react` を devDependency に追加してください。React DOM の API も直接使う場合は `@types/react-dom` も追加します。React ファイルを `*.component.tsx` として作成してください。専用 JSX と混同しないよう、React ファイルには `/** @jsxImportSource react */` を指定します。
+
+各 `*.component.tsx` は、`export const 名前 = defineComponent({ ... })` を一つだけ持つ形にしてください。`defineComponent` にはオブジェクトリテラルを直接渡し、`render` はその場に同期のアロー関数で記述します。補助関数は描画用として非公開にし、メタデータの生成には使わないでください。
 
 次の例は `Title.component.tsx` です。利用条件を確認した、日本語の表示文字を含む Regular フォントを `assets/title.ttf` に用意してください。テンプレートにはフォントは同梱されていません。
 
@@ -99,9 +102,11 @@ export const Title = defineComponent({
 
 `texts` は props と意味構造から解決された文字列、`bindings` は意味ノードと描画要素を対応させる属性です。同じノードの文字列と属性を対応する DOM 要素に使ってください。
 
-定義した `Title` をエントリーファイルで import し、scene のインスタンスに `component: Title` と `props` を指定します。React のみの scene は配列形式、既存の宣言形式と混在させる場合は `scene.components` に追加します。React インスタンスには `id`、`owner`、`audience`、`parent`、`physicalSizeMeters`、`fit`、`transform` も指定します。インストール済みの `ReactSceneBase` 型に従ってください。
+定義した `Title` をエントリーファイルで import し、scene のインスタンスに `component: Title` と `props` を指定します。React と Model を配置する scene は配列形式、既存の宣言形式と React を混在させる場合は `scene.components` に追加します。React インスタンスには `id`、`owner`、`audience`、`parent`、`physicalSizeMeters`、`fit`、`transform` も指定します。インストール済みの `ReactSceneBase` 型に従ってください。
 
 React の描画結果は build 時に画像と操作領域へ変換されます。表示後の操作・状態遷移は Unframe の interactions・states・actions・outputs で定義してください。React のイベントハンドラーやクライアントの state だけに進行を持たせないでください。
+
+描画時の外部通信は許可されません。外部画像・Web フォント・API の取得に依存せず、必要なデータと素材をローカルに用意してください。CSS の animation / transition は画像生成時に無効化されるため、再生時の動きは Unframe の Timeline や effect で定義してください。
 
 ### テーマ・CSS・素材
 
@@ -120,6 +125,8 @@ export default defineTheme({
 構造側では `tokenRef({ tokenId: "heading-size", category: "logicalLength" })` を `fontSize` などに指定できます。文字の `font` と `lineHeight` も定義してください。
 
 React 形式では通常の CSS を component ファイルから import します。フォントはローカル素材を CSS の `@font-face` から参照してください。Unframe のテーマは DOM の CSS に自動適用されません。
+
+3D Model は既定 scene を選択した自己完結の glTF 2.0 バイナリ（`.glb`）を使用してください。buffer と PNG / JPEG 画像は GLB 内に埋め込み、外部ファイル参照は使わないでください。拡張は `KHR_materials_unlit` のみ対応します。素材の容量・構造の制限は `unframe check .` で確認してください。
 
 Tailwind を使う場合は `postcss`・`tailwindcss`・`@tailwindcss/postcss` をプロジェクトへ追加し、`postcss.config.mjs` に `export default { plugins: { "@tailwindcss/postcss": {} } };`、import する CSS に `@import "tailwindcss";` を記述します。PostCSS 8 / Tailwind 4 が対象です。依存を導入し、下記の check / build を実行してください。
 
@@ -141,6 +148,28 @@ const openDetails = cue({
 ```
 
 この `openDetails` を `start.cues` の要素にします。操作も実行する場合は、対象コンポーネントに定義済みの action を `invokeComponentAction({ componentInstanceId, actionId, arguments: {} })` で `actions` に追加します。DOM のクリックから直接 Step を書き換えず、interaction → output → Cue → action / 次の Step の対応をそろえてください。
+
+## 宣言ソースの制約
+
+Presentation、scene、flow、コンポーネントのメタデータなどの宣言は、通常の JavaScript として実行されず、Unframe が静的に解析します。TypeScript の型が合っていても、使用できない式があります。
+
+- 宣言はオブジェクト・配列リテラル、定数、その参照と、Unframe が認識する宣言ビルダーで記述してください。共通値は定数として別ファイルから import できます。
+- 宣言を置くモジュールでは import・型宣言・初期値のある `const`・export を使い、`let` / `var`、ループ、実行時の初期化処理は置かないでください。
+- 宣言を組み立てるための `.map()`・`.filter()`・`.reduce()`、独自関数や任意のライブラリ関数の呼び出しは使わないでください。繰り返す要素も、必要な要素を配列リテラルに明示してください。
+- 算術式、三項演算子、文字列の補間による値の生成も未対応です。寸法・時刻・回転などの計算結果は有限の数値や文字列のリテラルで記述してください。`as const` や `satisfies` を付けても、使える式は増えません。
+- オブジェクト・配列の spread は、参照先も静的に解析できる場合に使えます。関数呼び出しで生成した配列を spread しても、この制約は回避できません。
+- React 形式の `render` は描画用のコードです。ここでの JavaScript / JSX と、`defineComponent` のメタデータや Presentation の宣言で使える式を混同しないでください。
+- 型検査や、宣言を直接 import して実行するテストだけでは、この制約違反を検出できません。変更後は「作業と確認」の `unframe check .` と `unframe build .` で Source の解析・生成を確認してください。
+
+## 空間配置・Timeline・effect の制約
+
+- scene の配列形式に置けるのは React コンポーネントと Model です。任意の spatial node や、宣言形式のコンポーネントを配列へ混ぜないでください。配列形式の `parent` は Stage、`audience` は `all` です。
+- 宣言形式と React を混在させた scene では、共有 Scene Timeline（`flow.timelines`、Cue の `timeline.play` / `timelineCompleted`）は未対応です。複数の React / Model を共有 Timeline で動かす場合は scene の配列形式を使ってください。
+- Timeline が変更できるのは `opacity` と `transform.position` / `rotation` / `scale` です。回転は角度ではなく正規化した `[x, y, z, w]` の quaternion、scale は各軸とも正の値で指定してください。
+- 各トラックの keyframe は 0 ms から Timeline の duration まで時刻を厳密に増加させ、最後以外に `easingToNext` を指定してください。同じ Timeline 内で同じ対象の同じプロパティを複数トラックから変更しないでください。
+- 場面をまたいで残す要素は presentation 所有、その Group だけで使う要素は group 所有にしてください。Timeline の owner は対象の寿命に合わせます。presentation 所有の Timeline から group 所有の要素は操作できません。
+- `effect.start` は既存の対象 `nodeId` に対して起動します。位置・向きは対象ノードの transform で指定し、effect に未定義の position / direction を追加しないでください。実時間での長さは `durationMilliseconds / speed` ミリ秒で、端数は切り上げます。
+- Wave は対象のローカル XY 平面で X の負方向から正方向へ描き進み、描画完了後も形を保持します。消したい時点で同じ `effectId` の `effect.stop` を実行してください。複数の波には別々の `effectId` を付けてください。
 
 ## 編集上の注意
 
