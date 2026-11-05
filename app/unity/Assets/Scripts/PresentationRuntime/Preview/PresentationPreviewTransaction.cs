@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Unframe.Delivery;
@@ -39,7 +38,6 @@ namespace Unframe.Unity.PresentationRuntime
             internal RuntimeClockSnapshot Clock;
             internal double ClockReceivedAt;
             internal ulong Sequence;
-            internal ulong ModelGpuBytes, ModelTextureBindings;
             internal bool Prepared;
             internal bool Faulted;
             private bool disposed;
@@ -48,6 +46,9 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 Input = input;
                 Videos = new PresentationVideoResidency(createDecoder);
+                Videos.Limits.MaxEncodedBytes = ulong.MaxValue;
+                Videos.Limits.MaxDecodedFrameBytes = ulong.MaxValue;
+                Models.Limits.MaxEncodedBytes = ulong.MaxValue;
                 Root = new GameObject("Preview " + input.RequestId);
                 Root.SetActive(false);
                 Root.transform.SetParent(parent, false);
@@ -130,43 +131,26 @@ namespace Unframe.Unity.PresentationRuntime
                 await prior;
                 if (Application.isPlaying) await Task.Yield();
                 CheckLatest(expectedGeneration, token);
-                IEnumerable<TextureResidencyBinding> oldBindings = current?.Textures.Bindings ?? Array.Empty<TextureResidencyBinding>();
-                if (!PresentationPreviewAdmission.TryAdmit(oldBindings, PresentationTextureWindow.Select(input.TexturePlan, input.CurrentGroupId), out string error, current?.ModelGpuBytes ?? 0))
-                    throw new InvalidOperationException(error);
                 next = new Scene(input, root, createDecoder);
                 candidate = next;
                 foreach (TextureResidencyBinding binding in input.TextureBindings)
                 {
                     CheckLatest(expectedGeneration, token);
-                    PresentationPreviewAssetData asset = null;
-                    if (current != null)
-                        foreach (var oldBinding in current.Input.TextureBindings)
-                            if (oldBinding.Checksum == binding.Checksum && current.Files.Paths.TryGetValue(oldBinding.AssetId, out string oldPath))
-                            {
-                                asset = new PresentationPreviewAssetData(File.ReadAllBytes(oldPath), "image/png");
-                                break;
-                            }
-                    if (asset == null) asset = await assetProvider(input.RequestId, input.References[binding.AssetId], token);
+                    if (next.Textures.TryRetain(binding, out _)) continue;
+                    var asset = await assetProvider(input.RequestId, input.References[binding.AssetId], token);
                     CheckLatest(expectedGeneration, token);
                     if (asset == null || asset.MediaType != input.Assets[binding.AssetId].MediaType)
                         throw new InvalidOperationException("preview.asset-load-invalid");
-                    next.Files.Add(input.Assets[binding.AssetId], asset.Bytes);
+                    if (!next.Textures.TryLoad(binding, input.Assets[binding.AssetId], asset.Bytes, out string textureError))
+                        throw new InvalidOperationException(textureError);
                 }
                 CheckLatest(expectedGeneration, token);
-                while (PrepareTextures(next) == null) { CheckLatest(expectedGeneration, token); await Task.Yield(); }
-                if (!next.Hierarchy.TryReplace(input, next.Root.transform, out error)) throw new InvalidOperationException(error);
-                ulong initialGpu = next.Textures.ResidentGpuBytes;
-                ulong initialBindings = (ulong)PresentationTextureWindow.Select(input.TexturePlan, input.CurrentGroupId).Count;
-                var modelBudget = new PresentationModelTextureBudget { Limits = PresentationLocalPreviewAdapter.PreviewTextureLimits("local-web-preview"), UsedGpuBytes = initialGpu, UsedBindings = initialBindings };
-                ulong previousGpu = current?.ModelGpuBytes ?? 0;
-                if (current != null)
+                if (!next.Hierarchy.TryReplace(input, next.Root.transform, out string error)) throw new InvalidOperationException(error);
+                var modelBudget = new PresentationModelTextureBudget
                 {
-                    var nextChecksums = new HashSet<string>(PresentationTextureWindow.Checksums(next.Textures.Bindings));
-                    foreach (var binding in current.Textures.Bindings)
-                        if (!nextChecksums.Contains(binding.Checksum)) previousGpu = checked(previousGpu + binding.DecodedGpuBytes);
-                }
-                modelBudget.Limits.MaxGpuBytes = Math.Min(modelBudget.Limits.MaxGpuBytes,
-                    PresentationPreviewAdmission.OverlapGpuLimitBytes - previousGpu);
+                    Limits = PresentationLocalPreviewAdapter.PreviewTextureLimits(),
+                    UsedBindings = input.TexturePlan.MaximumResidentTextureBindings,
+                };
                 var loadedModels = new HashSet<string>();
                 foreach (var node in input.Catalog.Nodes)
                 {
@@ -180,12 +164,6 @@ namespace Unframe.Unity.PresentationRuntime
                     await next.Models.LoadAsync(model, input.Assets[model.AssetId], asset.Bytes, token, modelBudget);
                     CheckLatest(expectedGeneration, token);
                 }
-                next.ModelGpuBytes = modelBudget.UsedGpuBytes - initialGpu;
-                next.ModelTextureBindings = modelBudget.UsedBindings - initialBindings;
-                var sceneLimits = PresentationLocalPreviewAdapter.PreviewTextureLimits("local-web-preview");
-                if (input.TexturePlan.MaximumResidentGpuBytes > sceneLimits.MaxGpuBytes - next.ModelGpuBytes
-                    || input.TexturePlan.MaximumResidentTextureBindings > sceneLimits.MaxTextureBindings - next.ModelTextureBindings)
-                    throw new InvalidOperationException("texture-window-budget-exceeded");
                 await next.Models.InstantiateAsync(input, next.Hierarchy, token);
                 CheckLatest(expectedGeneration, token);
                 next.Renderer = new PresentationBakedSurfaceRenderer();
@@ -227,7 +205,7 @@ namespace Unframe.Unity.PresentationRuntime
             CheckAccess();
             if (requestId != latestRequestId || candidate == null || !candidate.Prepared || candidate.Input.RequestId != requestId)
                 throw new InvalidOperationException("preview.prepared-request-mismatch");
-            if (!candidate.Textures.IsReady(candidate.Textures.Bindings)) throw new InvalidOperationException("asset_residency_lost");
+            if (!candidate.Textures.IsReady(candidate.Input.TextureBindings)) throw new InvalidOperationException("asset_residency_lost");
             Scene old = current;
             Scene next = candidate;
             if (old?.Root != null) old.Root.SetActive(false);
@@ -265,7 +243,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 error = "asset_residency_lost";
-                if (current.Root == null || !current.Textures.IsReady(current.Textures.Bindings))
+                if (current.Root == null || !current.Textures.IsReady(current.Input.TextureBindings))
                 {
                     PlaybackRejected = false;
                     StopPlayback();
@@ -330,25 +308,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             error = "asset_residency_lost";
             if (!scene.Files.IsReady) return false;
-            var required = PrepareTextures(scene);
-            if (required == null) { error = null; return true; }
-            if (!scene.Renderer.TryRefresh(scene.Input, scene.Textures, time, out error)
-                || !scene.Native.TryRefresh(scene.Input, time, out error)) return false;
-            scene.Textures.RetainOnly(PresentationTextureWindow.Checksums(required));
-            return true;
-        }
-
-        private static List<TextureResidencyBinding> PrepareTextures(Scene scene)
-        {
-            var required = PresentationTextureWindow.Select(scene.Input.TexturePlan, scene.Input.CurrentGroupId);
-            bool ready = PresentationTextureWindow.Prepare(scene.Textures, required,
-                PresentationLocalPreviewAdapter.PreviewTextureLimits("local-web-preview"),
-                scene.ModelGpuBytes, scene.ModelTextureBindings, () => scene.Renderer?.DetachTextures(), binding =>
-                {
-                    if (!scene.Files.Paths.TryGetValue(binding.AssetId, out string path)) return false;
-                    return scene.Textures.TryLoad(binding, scene.Input.Assets[binding.AssetId], File.ReadAllBytes(path), out _);
-                });
-            return ready ? required : null;
+            return scene.Renderer.TryRefresh(scene.Input, scene.Textures, time, out error)
+                && scene.Native.TryRefresh(scene.Input, time, out error);
         }
 
         public bool TryApplySpatial(PresentationPreviewSpatialState state, out string error)

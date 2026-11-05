@@ -35,7 +35,6 @@
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationRuntimeDataStore.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/IPresentationRenderView.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/State/PresentationMediaPlaybackValidation.cs" />
-    <Compile Include="../../Assets/Scripts/PresentationRuntime/Rendering/PresentationPreviewAdmission.cs" />
     <Compile Include="../../Assets/Scripts/PresentationRuntime/Preview/PresentationLocalPreviewAdapter.cs" />
     <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/LocalDelivery.json" CopyToOutputDirectory="PreserveNewest" Link="LocalDelivery.json" />
     <Content Include="../../Assets/Tests/EditMode/Editor/FixturesData/LocalSnapshot.json" CopyToOutputDirectory="PreserveNewest" Link="LocalSnapshot.json" />

@@ -223,7 +223,7 @@ namespace Unframe.Unity.PresentationRuntime
                         }
                     }, surfaces, assets, out error)
                     || !PresentationBakedDeliveryValidation.TryValidate(projection.RenderSurfaces, projection.TextureResidency,
-                        textureCapability, PreviewTextureLimits(projection.TextureResidency.BudgetTierId), assets.Values, out error)
+                        textureCapability, PreviewTextureLimits(), assets.Values, out error)
                     || !PresentationBakedDeliveryValidation.TryValidateOwnership(projection.RuntimeCatalog, projection.RenderSurfaces, projection.TextureResidency, out error)) return false;
                 var variableDefinitions = new Dictionary<string, ProjectedVariableDefinition>();
                 foreach (var variable in projection.RuntimeCatalog.Variables) variableDefinitions.Add(variable.VariableId, variable);
@@ -256,7 +256,16 @@ namespace Unframe.Unity.PresentationRuntime
                             || !glyphs.Add(glyph.FontChecksum + ":" + glyph.UnicodeScalar)) return false;
                 }
                 foreach (string id in fontAssets) selectedAssets.Add(id);
-                foreach (TextureResidencyBinding binding in projection.TextureResidency.Textures) selectedAssets.Add(binding.AssetId);
+                foreach (TextureResidencyBinding binding in projection.TextureResidency.Textures)
+                {
+                    var access = assets[binding.AssetId];
+                    if (access.MediaType != "image/png" || binding.PeakLoadCpuBytes != access.EncodedSizeBytes + 2 * binding.DecodedGpuBytes)
+                    {
+                        error = "preview.texture-metadata-invalid";
+                        return false;
+                    }
+                    selectedAssets.Add(binding.AssetId);
+                }
                 foreach (DeliveredRenderSurface render in projection.RenderSurfaces)
                     foreach (DeliveredArtifact artifact in render.Artifacts)
                         if (artifact.BakedWeb != null) foreach (BakedWebStateTexture state in artifact.BakedWeb.States) selectedAssets.Add(state.Texture.AssetId);
@@ -268,14 +277,6 @@ namespace Unframe.Unity.PresentationRuntime
                         selectedAssets.Add(node.Model.ModelAssetId);
                     }
                 if (!selectedAssets.SetEquals(assets.Keys)) return false;
-                ulong encodedBytes = 0;
-                var encodedChecksums = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var asset in assets.Values)
-                    if (encodedChecksums.Add(asset.Checksum))
-                    {
-                        if (asset.EncodedSizeBytes > PresentationPreviewAdmission.EncodedCacheLimitBytes - encodedBytes) return false;
-                        encodedBytes += asset.EncodedSizeBytes;
-                    }
                 var modelIds = new HashSet<string>(); foreach (var node in nodes.Values) if (node.Model != null) modelIds.Add(node.Model.ModelAssetId);
                 var boundModels = new HashSet<string>();
                 if (projection.ModelResidency != null)
@@ -373,17 +374,17 @@ namespace Unframe.Unity.PresentationRuntime
             };
         }
 
-        internal static TextureLimits PreviewTextureLimits(string tierId)
+        internal static TextureLimits PreviewTextureLimits()
         {
             return new TextureLimits
             {
-                TierId = tierId,
+                TierId = "local-web-preview",
                 MaxTextureWidth = 2048,
                 MaxTextureHeight = 2048,
                 MaxTexturePixels = 2048 * 2048,
                 MaxTextureBindings = 1024,
-                MaxGpuBytes = PresentationPreviewAdmission.SceneGpuLimitBytes,
-                MaxSerialLoadCpuBytes = PresentationPreviewAdmission.LoadCpuLimitBytes,
+                MaxGpuBytes = ulong.MaxValue,
+                MaxSerialLoadCpuBytes = ulong.MaxValue,
             };
         }
 

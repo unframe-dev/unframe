@@ -15,7 +15,11 @@ import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-
 import capabilityFixture from "../../../contracts/presentation/fixtures/capability-profile.json";
 import publicationFixture from "../../../contracts/presentation/fixtures/published-presentation.json";
 import buildFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { buildRuntimeProjection, selectBuildArtifacts } from "@unframe-dev/delivery";
+import {
+  buildLocalPreviewProjection,
+  buildRuntimeProjection,
+  selectBuildArtifacts,
+} from "@unframe-dev/delivery";
 import { selectDeliveryArtifacts } from "../src/delivery/selection.js";
 import { buildProjectionProfile } from "../src/delivery/profile.js";
 import { calculateProjectionProfileId } from "../src/delivery/profile-identity.js";
@@ -397,6 +401,28 @@ describe("Delivery artifact selection and admission", () => {
     unsupported.capability.renderers.nativeUi.supported = false;
     unsupported.capability.renderers.nativeUi.features = [];
     expect(() => selectBuildArtifacts(unsupported, "presenter")).toThrow("No compatible artifact");
+  });
+
+  it("relaxes memory admission only through the local Preview entry point", () => {
+    const publication = baselineSource((current) => {
+      current.capability.capabilityProfileId = "local-web-preview";
+      current.capability.limits.texture.maxGpuBytes = 1024;
+    });
+    const { publishedPresentation: _, ...input } = publication;
+
+    expect(buildLocalPreviewProjection(input).residency.textures.totalDecodedGpuBytes).toBe(
+      "16777216",
+    );
+    expect(() => buildRuntimeProjection(input, "viewer")).toThrow("Texture GPU bytes");
+    expect(() => buildProjectionProfile(publication, "viewer")).toThrow("Texture GPU bytes");
+  });
+
+  it("keeps non-memory texture constraints for local Preview", () => {
+    const { publishedPresentation: _, ...input } = baselineSource((current) => {
+      current.capability.limits.texture.maxTextureWidth = 1024;
+    });
+
+    expect(() => buildLocalPreviewProjection(input)).toThrow("Texture width");
   });
 
   it("rejects hash-consistent invalid Surface geometry for unpublished projection", () => {
