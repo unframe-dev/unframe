@@ -1,6 +1,6 @@
 # Unity visual effects
 
-通信から独立したローカル描画モジュール。`Unframe.Unity.VisualEffects` の API に外部時刻と設定を渡す。Pose 送信、Gesture enum の登録、Cue、Snapshot、再送は呼び出し側の担当。
+通信から独立したローカル描画モジュール。`Unframe.Unity.VisualEffects` の API に外部時刻と設定を渡す。Pose 送信、Cue、Snapshot、再送は呼び出し側の担当。正式な `throw`／`circle` は既存 Gesture と同じ製品入力経路へ接続されている。
 
 ```csharp
 var player = new VisualEffectPlayer();
@@ -33,14 +33,8 @@ Dissolve の初期対象は不透明な静的 MeshRenderer。元の base texture
 
 Wave は各線の左から右へ青紫 `#7187f5` → 紫 `#9a80d0` → コーラル `#df7b80` のグラデーションを描く。`color` はこのパレットへの乗算色として使い、白で指定グラデーションを表示する。
 
-## 確認用シーン
-
-`Assets/Scenes/VisualEffectsPreview.unity` を開いて Play し、Game ビューのボタンを操作する。Wave A／B は個別に開始・停止できる。Dissolve、手元の光、Pause／Resume、Reset も試せる。サイズ・色・速度は画面またはルートの Inspector で変更でき、次に開始する演出へ適用する。Reset はすべてキャンセルしモデルを再表示する。
-
-カメラ・照明・対象モデルは Play 時に生成する。通信や Quest 認証は不要。Gesture の2つのボタンは固定の合成サンプルを認識器に渡す動作確認であり、実際の手・コントローラー入力ではない。認識設定は Inspector で調整できる。URP を使う Editor の Game ビュー向けで、XR 実機操作用の UI は含まない。
-
 ## Wave の現在の仕様
 
 一回の起動で平行な12本の線が1つの束として片端から伸び、描き終わった形を保持する。基準幅は8m、振幅は0.6m、線間隔は0.12m。別の対象 Transform と実行 ID を渡せば、複数の束を独立して配置・停止できる。
 
-波数は `WaveCycles`（Unity）／`waveCycles`（Web）で0〜6、初期値1。0は上下のうねりなし。確認画面の波数設定は次回起動から適用する。確認用の基準尺は4.5秒で、出現は進行の最初の22%をかける。
+波数は `WaveCycles`（Unity）／`waveCycles`（Web）で0〜6、初期値1。0は上下のうねりなし。出現は進行の最初の22%をかける。

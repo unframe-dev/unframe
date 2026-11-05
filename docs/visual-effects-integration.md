@@ -4,7 +4,7 @@ Source の Gesture と演出 Action を Compiler が正式契約へ変換し、R
 
 ## Source と Runtime
 
-Gesture は既存8種類に `throw`／`circle` を追加した。Quest は現在の認識カタログに含まれる候補だけを認識し、捕捉開始時の InputContext を既存 GestureInputCommand 経路へ渡す。Throw／Circle と既存 Gesture が競合する場合は専用認識器を優先する。UI 操作、追跡喪失、入力同期・校正・Step の変更は捕捉を破棄する。
+Gesture は既存8種類に `throw`／`circle` を追加した。Source の `trigger: { kind: "gesture", gesture: "throw" }` または `gesture: "circle"` で指定し、他の Gesture と同じ Cue の設定・送信形式を使用する。Quest は現在の認識カタログに含まれる候補だけを認識し、捕捉開始時の InputContext を既存 GestureInputCommand 経路へ渡す。Throw／Circle と既存 Gesture が競合する場合は専用認識器を優先する。UI 操作、追跡喪失、入力同期・校正・Step の変更は捕捉を破棄する。
 
 Source の `effect.start` は `effectId`、対象 `nodeId`、`owner`、`seed`、`effect` を指定する。`effect.stop` は `effectId` で停止する。同じ effectId の実行中の再起動は拒否するため、複数の演出には別の ID を付ける。同時に保持できる演出 Run は最大32件。同じ Node の Dissolve は別 ID でも同時に開始できない。
 
@@ -36,4 +36,8 @@ Audience は描画準備済みの View と同じ時点の Anchor を使い、受
 
 指定 Unity 6000.3.27f2 の本プロジェクト EditMode、および Quest／スマートフォンでの認識品質、見た目、性能は実機受入が必要。Throw／Circle と既存 Gesture の競合、重複・遅延、pause／resume、Step 復元、途中参加・再接続を含めて確認する。自動テストだけで実機受入済みとは扱わない。
 
-Unity Dissolve の対象は不透明な静的モデルの基本色・テクスチャで、PBR 全属性は保持しない。透明素材・SkinnedMesh は対象外。両端は非対応の対象ではその Run の描画を行わず、通信と他の演出を継続する。Dissolve 完了時のサーバーによる非表示は適用される。通信なしの `/visual-effects.html` と Unity `VisualEffectsPreview.unity` は描画確認用で、実通信の受入を代替しない。
+Unity Dissolve の対象は不透明な静的モデルの基本色・テクスチャで、PBR 全属性は保持しない。透明素材・SkinnedMesh は対象外。両端は非対応の対象ではその Run の描画を行わず、通信と他の演出を継続する。Dissolve 完了時のサーバーによる非表示は適用される。
+
+## ジェスチャーの周期位置出力
+
+Throw／Circle の有効な Step では `QuestPresentationEntry.GesturePositionSampleReady` から左右の位置サンプルを受け取れる。間隔は `GesturePositionSampleIntervalSeconds`（既定0.05秒）で調整し、通信自体はこの通知で実行しない。座標・時刻・InputContext と通知寿命は [認識README](../app/unity/Assets/Scripts/VisualEffects/Gestures/README.md) を参照する。既存 TrackingFrame の0.1秒送信との重複を避け、流量制御・正式な通信契約への対応は通信担当が接続する。

@@ -87,6 +87,16 @@ namespace Unframe.Unity.PresentationRuntime
         private double lastTrackingAt;
 
         private readonly QuestGestureRecognition recognition = new QuestGestureRecognition();
+        public event Action<PresenterGesturePositionSample> GesturePositionSampleReady
+        {
+            add => recognition.PositionSampleReady += value;
+            remove => recognition.PositionSampleReady -= value;
+        }
+        public double GesturePositionSampleIntervalSeconds
+        {
+            get => recognition.PositionSampleIntervalSeconds;
+            set => recognition.PositionSampleIntervalSeconds = value;
+        }
         private ulong recognitionRevision;
         private bool recalibrationPending;
         private ulong calibrationRevision;
