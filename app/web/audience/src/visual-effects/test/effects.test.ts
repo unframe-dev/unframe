@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { assert, describe, expect, it, vi } from "vite-plus/test";
 import {
   BoxGeometry,
   type BufferGeometry,
@@ -156,6 +156,113 @@ describe("standalone visual effects", () => {
 });
 
 describe("wave choreography", () => {
+  it("multiplies wave opacity without accumulating or changing its path, scale or tip", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play({ ...options, color: [1, 1, 1, 0.8] }, target);
+    effects.setWaveOpacity(options.runId, 0.5);
+    effects.evaluate(210);
+    const group = target.children[0]!;
+    const line = group.children[0] as Line<BufferGeometry, LineBasicMaterial>;
+    expect(line.material.opacity).toBeCloseTo(0.2);
+    effects.evaluate(1100);
+    const positions = [...line.geometry.getAttribute("position").array];
+    const colors = [...line.geometry.getAttribute("color").array];
+    expect(line.material.opacity).toBeCloseTo(0.4);
+    for (const opacity of [0.5, 0, 1]) {
+      effects.setWaveOpacity(options.runId, opacity);
+      effects.evaluate(1100);
+      expect(line.material.opacity).toBeCloseTo(0.8 * opacity);
+      expect([...line.geometry.getAttribute("position").array]).toEqual(positions);
+      expect([...line.geometry.getAttribute("color").array]).toEqual(colors);
+      expect(group.scale.toArray()).toEqual([1, 1, 1]);
+    }
+    effects.dispose();
+  });
+  it.each([NaN, Infinity, -Infinity, -0.01, 1.01])("rejects invalid wave opacity %s", (opacity) => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play(options, target);
+    effects.setWaveOpacity(options.runId, 0.5);
+    expect(() => effects.setWaveOpacity(options.runId, opacity)).toThrow("Invalid wave opacity");
+    effects.evaluate(1100);
+    const line = target.children[0]!.children[0] as Line<BufferGeometry, LineBasicMaterial>;
+    expect(line.material.opacity).toBe(0.5);
+    effects.dispose();
+  });
+
+  it.each([0.137, 0.5, 1])(
+    "softens the advancing tip without dimming the body at progress %s",
+    (progress) => {
+      const effects = new VisualEffects();
+      const target = new Group();
+      effects.play(options, target);
+      effects.evaluate(options.startedAtRuntimeMs + options.durationMs * progress);
+      const wave = target.children[0];
+      assert(wave);
+      const strand = wave.children[0];
+      assert(strand instanceof Line);
+      const positions = strand.geometry.getAttribute("position");
+      const colors = strand.geometry.getAttribute("color");
+      const last = strand.geometry.drawRange.count - 1;
+      expect(positions.count).toBeGreaterThanOrEqual(256);
+      expect(colors.itemSize).toBe(4);
+      expect(positions.getX(last)).toBeCloseTo(-4 + 8 * progress);
+      expect(colors.getW(0)).toBe(1);
+      expect(colors.getW(last)).toBe(0);
+      expect(colors.getW(last - 1)).toBeGreaterThan(0);
+      expect(colors.getW(last - 1)).toBeLessThan(1);
+      for (let i = 1; i <= last; i++) {
+        expect(positions.getX(i) - positions.getX(i - 1)).toBeLessThanOrEqual(8 / 255 + 0.000001);
+        expect(colors.getW(i)).toBeLessThanOrEqual(colors.getW(i - 1));
+      }
+      effects.dispose();
+    },
+  );
+  it("reconstructs the same tip and path when external playback time is revisited", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play(options, target);
+    effects.evaluate(600);
+    const wave = target.children[0];
+    assert(wave);
+    const strand = wave.children[0];
+    assert(strand instanceof Line);
+    const positions = Array.from(strand.geometry.getAttribute("position").array);
+    const colors = Array.from(strand.geometry.getAttribute("color").array);
+    const range = { ...strand.geometry.drawRange };
+    effects.evaluate(1100);
+    effects.evaluate(600);
+    expect(Array.from(strand.geometry.getAttribute("position").array)).toEqual(positions);
+    expect(Array.from(strand.geometry.getAttribute("color").array)).toEqual(colors);
+    expect(strand.geometry.drawRange).toEqual(range);
+    effects.dispose();
+  });
+  it("inherits an anchor scale animation while retaining the sampled path", () => {
+    const effects = new VisualEffects();
+    const target = new Group();
+    effects.play(options, target);
+    effects.evaluate(1100);
+    const wave = target.children[0];
+    assert(wave);
+    const strand = wave.children[0];
+    assert(strand instanceof Line);
+    const positions = strand.geometry.getAttribute("position");
+    const first = new Vector3().fromBufferAttribute(positions, 0);
+    const last = new Vector3().fromBufferAttribute(positions, positions.count - 1);
+    target.updateMatrixWorld(true);
+    const full = strand.localToWorld(first.clone()).distanceTo(strand.localToWorld(last.clone()));
+    const sampled = Array.from(positions.array);
+    target.scale.setScalar(0.25);
+    effects.evaluate(2100);
+    target.updateMatrixWorld(true);
+    const shrinking = strand
+      .localToWorld(first.clone())
+      .distanceTo(strand.localToWorld(last.clone()));
+    expect(shrinking).toBeCloseTo(full * 0.25);
+    expect(Array.from(positions.array)).toEqual(sampled);
+    effects.dispose();
+  });
   it("keeps the vertical bend gentle across the full width", () => {
     const effects = new VisualEffects();
     const target = new Group();

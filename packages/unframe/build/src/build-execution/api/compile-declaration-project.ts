@@ -40,6 +40,7 @@ import type {
   CheckedDeclarationProject,
   CompiledDeclarationProject,
   CompilerBuildOptions,
+  CompilerBuildTiming,
   CompilerDeclarationProject,
 } from "./types.js";
 
@@ -230,8 +231,10 @@ const compileUnchecked = async (
   const mediaAssets = Object.fromEntries(
     compiledPlan.value.mediaPlan.map((asset) => [asset.id, asset]),
   );
+  context.stage = "models";
   const modelAssets = await compileModelAssets(mediaAssets, prepared.value.sourceAssetBytes, media);
   if (!modelAssets.valid) return modelAssets;
+  context.stage = "planning";
   for (const [groupId, group] of Object.entries(checked.value.definition.flow.groups))
     for (const [stepId, step] of Object.entries(group.steps))
       for (const [cueIndex, cue] of step.cues.entries()) {
@@ -276,12 +279,14 @@ const compileUnchecked = async (
           "Every declared clip must exist with a positive measured duration in the transformed GLB.",
         );
   }
+  context.stage = "videos";
   const videoAssets = await compileVideoAssets(
     mediaAssets,
     prepared.value.sourceAssetBytes,
     buildOptions.videoValidator,
   );
   if (!videoAssets.valid) return videoAssets;
+  context.stage = "planning";
   const sourceDescriptors = { ...checked.value.assetSet.assets, ...modelAssets.value.descriptors };
   const assets: Record<string, Uint8Array> = { ...modelAssets.value.bytes };
   const fontAssets: Record<
@@ -802,12 +807,37 @@ const compileWithErrors = async (
   sourceAssetBytes: unknown,
   cache: CompilerBuildCache | undefined,
   media: BuildMediaPorts,
+  onTiming?: (timing: CompilerBuildTiming) => void,
 ): Promise<ValidationResult<CompiledDeclarationProject>> => {
-  const context: { stage: CompilerStage } = { stage: "check" };
+  let stage: CompilerStage = "check";
+  let started = onTiming ? performance.now() : 0;
+  const flush = () => {
+    if (!onTiming) return;
+    const elapsed = performance.now() - started;
+    try {
+      onTiming({ stage, durationMilliseconds: elapsed });
+    } catch {
+      // Observability must not change compilation results.
+    }
+    started = performance.now();
+  };
+  const context: { stage: CompilerStage } = onTiming
+    ? {
+        get stage() {
+          return stage;
+        },
+        set stage(next) {
+          flush();
+          stage = next;
+        },
+      }
+    : { stage };
   try {
     return await compileUnchecked(input, options, checked, sourceAssetBytes, cache, media, context);
   } catch (cause) {
     throw new CompilerInternalError(context.stage, cause);
+  } finally {
+    flush();
   }
 };
 
@@ -818,12 +848,14 @@ export const compileCheckedDeclarationProject = (
   sourceAssetBytes: CompilerSourceAssetBytes,
   cache: CompilerBuildCache | undefined,
   media: BuildMediaPorts,
-) => compileWithErrors(project, options, checked, sourceAssetBytes, cache, media);
+  onTiming?: (timing: CompilerBuildTiming) => void,
+) => compileWithErrors(project, options, checked, sourceAssetBytes, cache, media, onTiming);
 export const compileDeclarationProject = (
   input: unknown,
   options: unknown,
   sourceAssetBytes: CompilerSourceAssetBytes,
   cache: CompilerBuildCache | undefined,
   media: BuildMediaPorts,
+  onTiming?: (timing: CompilerBuildTiming) => void,
 ): Promise<ValidationResult<CompiledDeclarationProject>> =>
-  compileWithErrors(input, options, undefined, sourceAssetBytes, cache, media);
+  compileWithErrors(input, options, undefined, sourceAssetBytes, cache, media, onTiming);

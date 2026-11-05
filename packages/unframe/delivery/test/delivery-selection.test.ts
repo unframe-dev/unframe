@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from "vite-plus/test";
 import {
   assetSetManifestSchema,
   capabilityProfileSchema,
+  createAudienceWebCapabilityProfile,
   presentationDefinitionSchema,
   renderBundleSchema,
   publishedPresentationSchema,
@@ -631,6 +632,22 @@ describe("Delivery artifact selection and admission", () => {
 });
 
 describe("Model instance resource budgets", () => {
+  it("includes all nine model instances in the Audience viewer projection", () => {
+    const input = baselineSource((current) => {
+      const model = current.definition.scene.nodes.model;
+      assert.isDefined(model);
+      assert(model.kind === "model");
+      for (let order = 10; order < 18; order++) {
+        const id = `audience-model-${order}`;
+        current.definition.scene.nodes[id] = { ...structuredClone(model), id, order };
+      }
+      current.capability = createAudienceWebCapabilityProfile();
+    });
+
+    const { profile } = buildProjectionProfile(input, "viewer");
+    expect(profile.runtimeCatalog?.nodes?.filter((node) => node.model)).toHaveLength(9);
+  });
+
   const withTwoInstances = (aliasAsset = false, change?: (current: typeof source) => void) =>
     baselineSource((current) => {
       const node = current.definition.scene.nodes.model;

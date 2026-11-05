@@ -39,6 +39,7 @@ interface Run {
   handle: EffectHandle;
   sample(time: number): boolean;
   release(): void;
+  setOpacity?: ((opacity: number) => void) | undefined;
   completed?: (() => void) | undefined;
 }
 function time(value: number): void {
@@ -191,6 +192,13 @@ export class VisualEffects {
     if (input.effectId !== "handGlow") throw new Error("begin requires handGlow");
     return this.start(input, target, completed) as HandGlowHandle;
   }
+  setWaveOpacity(runId: string, opacity: number): void {
+    if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1)
+      throw new Error("Invalid wave opacity");
+    const run = this.runs.get(runId);
+    if (!run?.setOpacity) throw new Error("Wave run not found");
+    run.setOpacity(opacity);
+  }
   evaluate(runtimeMs: number): void {
     time(runtimeMs);
     // Snapshot prevents completion callbacks from adding runs to this evaluation.
@@ -227,6 +235,7 @@ export class VisualEffects {
     const handle: EffectHandle = { cancel: () => this.remove(run) };
     const implementation: {
       handle?: EffectHandle;
+      setOpacity?: (opacity: number) => void;
       sample(time: number): boolean;
       release(): void;
     } =
@@ -240,6 +249,7 @@ export class VisualEffects {
       target,
       handle: implementation.handle ?? handle,
       sample: implementation.sample,
+      setOpacity: implementation.setOpacity,
       release: implementation.release,
       completed,
     };
@@ -247,6 +257,7 @@ export class VisualEffects {
     return run.handle;
   }
   private wave(options: EffectOptions, target: Object3D) {
+    let opacity = 1;
     const group = new Group();
     group.visible = false;
     group.scale.setScalar(options.size);
@@ -256,14 +267,21 @@ export class VisualEffects {
     const coral = new Color("#df7b80");
     const shade = new Color();
     const phase = -Math.PI * 0.2 + ((options.seed % 1024) / 1023) * Math.PI * 0.1;
+    const samples = 256;
     const lines = Array.from({ length: 12 }, () => {
-      const item = line(options, 96);
-      item.geometry.setAttribute("color", new Float32BufferAttribute(new Float32Array(96 * 3), 3));
+      const item = line(options, samples);
+      item.geometry.setAttribute(
+        "color",
+        new Float32BufferAttribute(new Float32Array(samples * 4), 4),
+      );
       item.material.vertexColors = true;
       group.add(item);
       return item;
     });
     return {
+      setOpacity(value: number) {
+        opacity = value;
+      },
       sample(now: number) {
         const p = progress(options, now);
         group.visible = now >= options.startedAtRuntimeMs;
@@ -282,14 +300,15 @@ export class VisualEffects {
             );
             if (q <= 0.48) shade.copy(blue).lerp(purple, q / 0.48);
             else shade.copy(purple).lerp(coral, (q - 0.48) / 0.52);
-            colors.setXYZ(i, shade.r, shade.g, shade.b);
+            const tip = Math.max(0, Math.min(1, (p - q) / 0.06));
+            colors.setXYZW(i, shade.r, shade.g, shade.b, tip * tip * (3 - 2 * tip));
           }
-          item.geometry.setDrawRange(0, Math.max(2, Math.ceil(p * 95) + 1));
+          item.geometry.setDrawRange(0, Math.max(2, Math.ceil(p * (samples - 1)) + 1));
           positions.needsUpdate = true;
           colors.needsUpdate = true;
           item.geometry.computeBoundingSphere();
           const appear = Math.max(0, Math.min(1, p / 0.22));
-          item.material.opacity = options.color[3] * appear * appear * (3 - 2 * appear);
+          item.material.opacity = options.color[3] * appear * appear * (3 - 2 * appear) * opacity;
         });
         return false;
       },

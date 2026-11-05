@@ -4,6 +4,7 @@ import {
   participantRuntimeViewSchema,
   type DeliveryManifestWire,
 } from "@unframe-dev/contracts/presentation";
+import * as runtimeEffects from "../../rendering/runtime-effects";
 import { createPresentation } from "../../rendering/presentation";
 import { createPresentationSession } from "../presentation-session";
 import { createPngTexturePool } from "../../assets/png-texture-pool";
@@ -27,7 +28,7 @@ function loaded() {
     applyView: vi.fn(() => false),
     updatePngTextures: vi.fn(),
     prepareRender: vi.fn(),
-    applyAnimationFrame: vi.fn(),
+    applyAnimationFrame: vi.fn((next) => next),
     setPlaybackEnabled: vi.fn(),
     resumePlayback: vi.fn(async () => {}),
     playbackBlocked: false,
@@ -201,6 +202,29 @@ describe("presentation session resources", () => {
     await session.resumePlayback();
     expect(current.resumePlayback).toHaveBeenCalledOnce();
     session.dispose();
+  });
+  it("passes the animation sampler view to runtime effects", async () => {
+    const frameEffects = vi.fn();
+    const factory = vi.spyOn(runtimeEffects, "createRuntimeEffects").mockReturnValue({
+      frame: frameEffects,
+      dispose: vi.fn(),
+    });
+    try {
+      const { session } = setup();
+      const current = loaded();
+      const sampled = structuredClone(view);
+      vi.mocked(current.applyAnimationFrame).mockReturnValue(sampled);
+      vi.mocked(createPresentation).mockResolvedValue(current);
+      session.openRuntime(delivery);
+      await session.present(delivery, view);
+      const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
+      frame(view, 1200, {});
+      expect(frameEffects.mock.calls[0]![0]).toBe(sampled);
+      expect(frameEffects.mock.calls[0]![1]).toBe(1200);
+      session.dispose();
+    } finally {
+      factory.mockRestore();
+    }
   });
   it("samples runtime frames with current playback permission and blocked state", async () => {
     let canPlay = false;

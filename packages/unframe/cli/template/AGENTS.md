@@ -163,7 +163,7 @@ Presentation、scene、flow、コンポーネントのメタデータなどの�
 
 ## 空間配置・Timeline・effect の制約
 
-- scene の配列形式に置けるのは React コンポーネントと Model です。任意の spatial node や、宣言形式のコンポーネントを配列へ混ぜないでください。配列形式の `parent` は Stage、`audience` は `all` です。
+- scene の配列形式に置けるのは React コンポーネントと Model です。任意の spatial node や、宣言形式のコンポーネントを配列へ混ぜないでください。React の `parent` は Stage、Model の `parent` は Stage または presenter の Anchor、`audience` は `all` です。Model の Anchor は `kind: "anchor"`、`owner: { kind: "presenter" }`、`target`（head / leftHand / rightHand / body）、`followPosition`、`followRotation` を指定します。
 - 宣言形式と React を混在させた scene では、共有 Scene Timeline（`flow.timelines`、Cue の `timeline.play` / `timelineCompleted`）は未対応です。複数の React / Model を共有 Timeline で動かす場合は scene の配列形式を使ってください。
 - Timeline が変更できるのは `opacity` と `transform.position` / `rotation` / `scale` です。回転は角度ではなく正規化した `[x, y, z, w]` の quaternion、scale は各軸とも正の値で指定してください。
 - 各トラックの keyframe は 0 ms から Timeline の duration まで時刻を厳密に増加させ、最後以外に `easingToNext` を指定してください。同じ Timeline 内で同じ対象の同じプロパティを複数トラックから変更しないでください。

@@ -3,6 +3,7 @@ import {
   createOpaqueBakedWebRenderer,
   openOpaqueCaptureRuntime,
   type WebRendererConfig,
+  type OpaqueCaptureCache,
 } from "@unframe-dev/render-browser";
 import { runAnalysisOperation } from "../author/analysis-client.js";
 
@@ -12,6 +13,7 @@ export const prepareOpaqueRenderer = async (
   signal: AbortSignal | undefined,
   config: WebRendererConfig,
   sourceAssetBytes: CompilerSourceAssetBytes = {},
+  captureCache?: OpaqueCaptureCache,
 ) => {
   const programs = await runAnalysisOperation(
     "opaque",
@@ -25,7 +27,9 @@ export const prepareOpaqueRenderer = async (
         programs,
         config,
         runtimeFingerprint: runtime.fingerprint,
-        capture: runtime.capture,
+        capture: captureCache
+          ? (input) => captureCache.capture(runtime, input, signal)
+          : runtime.capture,
       }),
       close: runtime.close,
     };

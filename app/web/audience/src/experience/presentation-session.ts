@@ -208,10 +208,10 @@ export function createPresentationSession(options: {
         frame(view, runtimeTimeMilliseconds, bindings) {
           if (!presentation || presentationDelivery !== delivery) return;
           presentation.setPlaybackEnabled(options.canPlay());
-          presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
+          const sampled = presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
           const poses = applyRuntimeAnchors(presentation.root, delivery, view, bindings);
           effects.frame(
-            view.effectRuns,
+            sampled,
             runtimeTimeMilliseconds,
             view.clock.lifecycle.kind === "running" ? poses : [],
             host?.contentRoot.parent ?? undefined,

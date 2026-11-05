@@ -6,9 +6,13 @@ import {
   MeshStandardMaterial,
   MeshBasicMaterial,
   SkinnedMesh,
+  type Object3D,
 } from "three";
-import type { EffectRunSnapshot } from "@unframe-dev/contracts/presentation";
-import { createRuntimeEffects } from "../runtime-effects";
+import type {
+  EffectRunSnapshot,
+  ParticipantRuntimeView,
+} from "@unframe-dev/contracts/presentation";
+import { createRuntimeEffects, type RuntimeHandPose } from "../runtime-effects";
 
 function run(kind: "wave" | "handGlow" | "dissolve" = "wave"): EffectRunSnapshot {
   return {
@@ -41,15 +45,48 @@ function run(kind: "wave" | "handGlow" | "dissolve" = "wave"): EffectRunSnapshot
     } as EffectRunSnapshot["effect"],
   };
 }
+function frame(
+  effects: ReturnType<typeof createRuntimeEffects>,
+  effectRuns: EffectRunSnapshot[],
+  runtimeMs: number,
+  poses: readonly RuntimeHandPose[] = [],
+  root?: Object3D,
+) {
+  effects.frame({ effectRuns, nodeStates: {} }, runtimeMs, poses, root);
+}
+
+it("applies sampled node opacity on the first wave frame and restores it on the same run", () => {
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const node = { opacity: 0.25 } as ParticipantRuntimeView["nodeStates"][string];
+  const view = { effectRuns: [run()], nodeStates: { target: node } };
+  effects.frame(view, 1100);
+  const wave = target.children[0]!;
+  const line = wave.children[0] as import("three").Line<
+    import("three").BufferGeometry,
+    import("three").LineBasicMaterial
+  >;
+  const positions = [...line.geometry.getAttribute("position").array];
+  for (const opacity of [0.25, 0, 1]) {
+    node.opacity = opacity;
+    effects.frame(view, 1100);
+    expect(target.children).toEqual([wave]);
+    expect(line.material.opacity).toBe(opacity);
+    expect(wave.scale.toArray()).toEqual([1, 1, 1]);
+    expect([...line.geometry.getAttribute("position").array]).toEqual(positions);
+  }
+  effects.dispose();
+});
+
 it("retains a completed wave, ignores repeated snapshots and releases a removed run", () => {
   const target = new Group();
   const effects = createRuntimeEffects(() => target);
-  effects.frame([run()], 1100);
+  frame(effects, [run()], 1100);
   expect(target.children).toHaveLength(1);
   const wave = target.children[0];
-  effects.frame([{ ...run(), status: "retained" }], 5000);
+  frame(effects, [{ ...run(), status: "retained" }], 5000);
   expect(target.children).toEqual([wave]);
-  effects.frame([], 5000);
+  frame(effects, [], 5000);
   expect(target.children).toHaveLength(0);
 });
 it("converts fresh presentation poses into target-local space and does not repeat stale samples", () => {
@@ -60,27 +97,27 @@ it("converts fresh presentation poses into target-local space and does not repea
   root.add(target);
   const effects = createRuntimeEffects(() => target);
   const pose = { hand: "left" as const, sequence: 1, position: [3, 0, 0] as const };
-  effects.frame([run("handGlow")], 100, [], root);
-  effects.frame([run("handGlow")], 101, [pose], root);
+  frame(effects, [run("handGlow")], 100, [], root);
+  frame(effects, [run("handGlow")], 101, [pose], root);
   const halo = target.children[0]!.children[0] as Mesh;
   expect(halo.geometry.getAttribute("position").getX(0)).toBeCloseTo(1.035);
-  effects.frame([run("handGlow")], 1200, [pose], root);
+  frame(effects, [run("handGlow")], 1200, [pose], root);
   expect(target.children[0]!.visible).toBe(false);
   effects.dispose();
-  effects.frame([run("handGlow")], 1300, [], root);
+  frame(effects, [run("handGlow")], 1300, [], root);
   expect(target.children[0]!.visible).toBe(false);
 });
 it("restores dissolve materials at completion without restarting the same run", () => {
   const material = new MeshStandardMaterial();
   const target = new Mesh(new BoxGeometry(), material);
   const effects = createRuntimeEffects(() => target);
-  effects.frame([run("dissolve")], 100);
+  frame(effects, [run("dissolve")], 100);
   expect(target.material).not.toBe(material);
-  effects.frame([run("dissolve")], 1100);
+  frame(effects, [run("dissolve")], 1100);
   expect(target.material).toBe(material);
   expect(target.visible).toBe(false);
   target.visible = true;
-  effects.frame([run("dissolve")], 1200);
+  frame(effects, [run("dissolve")], 1200);
   expect(target.material).toBe(material);
   expect(target.visible).toBe(false);
 });
@@ -100,7 +137,7 @@ it.each([
     const effects = createRuntimeEffects((id) => (id === "wave-target" ? waveTarget : target));
     const dissolve = run("dissolve");
     const wave = { ...run(), runId: { assignmentEpoch: 1, runSequence: 2 }, nodeId: "wave-target" };
-    expect(() => effects.frame([dissolve, wave], 100)).not.toThrow();
+    expect(() => frame(effects, [dissolve, wave], 100)).not.toThrow();
     expect(target.visible).toBe(true);
     expect(waveTarget.children).toHaveLength(1);
     const line = waveTarget.children[0]!.children[0] as import("three").Line;
@@ -109,9 +146,9 @@ it.each([
     line.geometry.addEventListener("dispose", () => {
       released = true;
     });
-    effects.frame([dissolve, wave], 600);
+    frame(effects, [dissolve, wave], 600);
     expect(line.geometry.drawRange.count).toBeGreaterThan(initialCount);
-    effects.frame([], 600);
+    frame(effects, [], 600);
     expect(released).toBe(true);
     expect(waveTarget.children).toHaveLength(0);
   },
@@ -119,13 +156,13 @@ it.each([
 it("does not retry an unsupported Dissolve until the failed run is removed", () => {
   const target: Mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial());
   const effects = createRuntimeEffects(() => target);
-  expect(() => effects.frame([run("dissolve")], 100)).not.toThrow();
+  expect(() => frame(effects, [run("dissolve")], 100)).not.toThrow();
   const material = new MeshStandardMaterial();
   target.material = material;
-  effects.frame([run("dissolve")], 200);
+  frame(effects, [run("dissolve")], 200);
   expect(target.material).toBe(material);
-  effects.frame([], 200);
-  effects.frame([{ ...run("dissolve"), runId: { assignmentEpoch: 1, runSequence: 2 } }], 200);
+  frame(effects, [], 200);
+  frame(effects, [{ ...run("dissolve"), runId: { assignmentEpoch: 1, runSequence: 2 } }], 200);
   expect(target.material).not.toBe(material);
   effects.dispose();
   expect(target.material).toBe(material);
@@ -137,9 +174,9 @@ it("dissolves model meshes while Wave and HandGlow on the same target stay alive
   const hand = run("handGlow");
   const wave = { ...run(), runId: { assignmentEpoch: 1, runSequence: 2 } };
   const dissolve = { ...run("dissolve"), runId: { assignmentEpoch: 1, runSequence: 3 } };
-  effects.frame([hand], 100);
+  frame(effects, [hand], 100);
   expect(() =>
-    effects.frame([hand, wave, dissolve], 100, [
+    frame(effects, [hand, wave, dissolve], 100, [
       { hand: "left", sequence: 1, position: [0, 0, 0] },
     ]),
   ).not.toThrow();
@@ -155,13 +192,13 @@ it("starts a new or reconnected HandGlow only from a pose received after that ru
   const target = new Group();
   const effects = createRuntimeEffects(() => target);
   const oldPose = { hand: "left" as const, sequence: 1, position: [0, 0, 0] as const };
-  effects.frame([run("handGlow")], 100, [oldPose]);
+  frame(effects, [run("handGlow")], 100, [oldPose]);
   expect(target.children[0]!.visible).toBe(false);
-  effects.frame([run("handGlow")], 110, [{ ...oldPose, sequence: 2 }]);
+  frame(effects, [run("handGlow")], 110, [{ ...oldPose, sequence: 2 }]);
   expect(target.children[0]!.visible).toBe(true);
   effects.dispose();
-  effects.frame([run("handGlow")], 120, [oldPose]);
+  frame(effects, [run("handGlow")], 120, [oldPose]);
   expect(target.children[0]!.visible).toBe(false);
-  effects.frame([run("handGlow")], 130, [{ ...oldPose, sequence: 2 }]);
+  frame(effects, [run("handGlow")], 130, [{ ...oldPose, sequence: 2 }]);
   expect(target.children[0]!.visible).toBe(true);
 });

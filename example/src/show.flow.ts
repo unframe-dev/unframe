@@ -27,7 +27,109 @@ export const showGroups = {
         id: "expression",
         cues: [
           {
-            id: "expression-start",
+            id: "expression-trail-start",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 1,
+            },
+            actions: [
+              {
+                kind: "effect.start",
+                effectId: "expression-left-trail",
+                nodeId: "expression-trail-root",
+                owner: {
+                  kind: "group",
+                  groupId: "expression",
+                },
+                seed: 0,
+                effect: {
+                  kind: "handGlow",
+                  hand: "left",
+                  size: 1,
+                  color: {
+                    red: 0.7,
+                    green: 0.75,
+                    blue: 1,
+                    alpha: 0.9,
+                  },
+                  speed: 1,
+                  durationMilliseconds: 60000,
+                },
+              },
+              {
+                kind: "effect.start",
+                effectId: "expression-right-trail",
+                nodeId: "expression-trail-root",
+                owner: {
+                  kind: "group",
+                  groupId: "expression",
+                },
+                seed: 0,
+                effect: {
+                  kind: "handGlow",
+                  hand: "right",
+                  size: 1,
+                  color: {
+                    red: 0.7,
+                    green: 0.75,
+                    blue: 1,
+                    alpha: 0.9,
+                  },
+                  speed: 1,
+                  durationMilliseconds: 60000,
+                },
+              },
+            ],
+          },
+          {
+            id: "expression-circle",
+            trigger: {
+              kind: "gesture",
+              gesture: "circle",
+            },
+            actions: [
+              {
+                kind: "effect.stop",
+                effectId: "expression-left-trail",
+              },
+              {
+                kind: "effect.stop",
+                effectId: "expression-right-trail",
+              },
+            ],
+            next: {
+              kind: "step",
+              stepId: "expression-draw",
+            },
+          },
+          {
+            id: "expression-trail-renew",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 60000,
+            },
+            actions: [
+              {
+                kind: "effect.stop",
+                effectId: "expression-left-trail",
+              },
+              {
+                kind: "effect.stop",
+                effectId: "expression-right-trail",
+              },
+            ],
+            next: {
+              kind: "step",
+              stepId: "expression",
+            },
+          },
+        ],
+      },
+      "expression-draw": {
+        id: "expression-draw",
+        cues: [
+          {
+            id: "expression-draw-start",
             trigger: {
               kind: "timer",
               afterMilliseconds: 1,
@@ -35,16 +137,64 @@ export const showGroups = {
             actions: [
               {
                 kind: "timeline.play",
-                timelineId: "expression",
+                timelineId: "expression-draw",
                 completion: "nonBlocking",
               },
             ],
           },
           {
-            id: "expression-complete",
+            id: "expression-draw-complete",
             trigger: {
               kind: "timelineCompleted",
-              timelineId: "expression",
+              timelineId: "expression-draw",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "expression-drawn",
+            },
+          },
+        ],
+      },
+      "expression-drawn": {
+        id: "expression-drawn",
+        cues: [
+          {
+            id: "expression-throw",
+            trigger: {
+              kind: "gesture",
+              gesture: "throw",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "expression-move",
+            },
+          },
+        ],
+      },
+      "expression-move": {
+        id: "expression-move",
+        cues: [
+          {
+            id: "expression-move-start",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 1,
+            },
+            actions: [
+              {
+                kind: "timeline.play",
+                timelineId: "expression-move",
+                completion: "nonBlocking",
+              },
+            ],
+          },
+          {
+            id: "expression-move-complete",
+            trigger: {
+              kind: "timelineCompleted",
+              timelineId: "expression-move",
             },
             actions: [],
             next: {
@@ -75,8 +225,74 @@ export const showGroups = {
   },
   journey: {
     id: "journey",
-    initialStepId: "journey-goal",
+    initialStepId: "journey-zone",
     steps: {
+      "journey-zone": {
+        id: "journey-zone",
+        cues: [
+          {
+            id: "journey-zone-enter",
+            trigger: {
+              kind: "zoneEdge",
+              zoneId: "journey-stage",
+              edge: "enter",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "journey-frame",
+            },
+          },
+        ],
+      },
+      "journey-frame": {
+        id: "journey-frame",
+        cues: [
+          {
+            id: "journey-frame-start",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 1,
+            },
+            actions: [
+              {
+                kind: "timeline.play",
+                timelineId: "journey-frame",
+                completion: "nonBlocking",
+              },
+            ],
+          },
+          {
+            id: "journey-frame-complete",
+            trigger: {
+              kind: "timelineCompleted",
+              timelineId: "journey-frame",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "journey-framed",
+            },
+          },
+        ],
+      },
+      "journey-framed": {
+        id: "journey-framed",
+        cues: [
+          {
+            id: "journey-spread",
+            trigger: {
+              kind: "gesture",
+              gesture: "spreadHands",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "journey-goal",
+            },
+          },
+        ],
+      },
       "journey-goal": {
         id: "journey-goal",
         cues: [
@@ -119,198 +335,24 @@ export const showGroups = {
             },
             actions: [],
             next: {
-              kind: "step",
-              stepId: "journey-challenge",
-            },
-          },
-        ],
-      },
-      "journey-challenge": {
-        id: "journey-challenge",
-        cues: [
-          {
-            id: "journey-challenge-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "journey-challenge",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "journey-challenge-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "journey-challenge",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-challenge-ready",
-            },
-          },
-        ],
-      },
-      "journey-challenge-ready": {
-        id: "journey-challenge-ready",
-        cues: [
-          {
-            id: "journey-challenge-ready-next",
-            trigger: {
-              kind: "logicalInput",
-              action: "presenter.next",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-prototype",
-            },
-          },
-        ],
-      },
-      "journey-prototype": {
-        id: "journey-prototype",
-        cues: [
-          {
-            id: "journey-prototype-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "journey-prototype",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "journey-prototype-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "journey-prototype",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-prototype-ready",
-            },
-          },
-        ],
-      },
-      "journey-prototype-ready": {
-        id: "journey-prototype-ready",
-        cues: [
-          {
-            id: "journey-prototype-ready-next",
-            trigger: {
-              kind: "logicalInput",
-              action: "presenter.next",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-discovery",
-            },
-          },
-        ],
-      },
-      "journey-discovery": {
-        id: "journey-discovery",
-        cues: [
-          {
-            id: "journey-discovery-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "journey-discovery",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "journey-discovery-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "journey-discovery",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-discovery-ready",
-            },
-          },
-        ],
-      },
-      "journey-discovery-ready": {
-        id: "journey-discovery-ready",
-        cues: [
-          {
-            id: "journey-discovery-ready-next",
-            trigger: {
-              kind: "logicalInput",
-              action: "presenter.next",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "journey-exit",
-            },
-          },
-        ],
-      },
-      "journey-exit": {
-        id: "journey-exit",
-        cues: [
-          {
-            id: "journey-exit-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "journey-exit",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "journey-exit-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "journey-exit",
-            },
-            actions: [],
-            next: {
               kind: "group",
-              groupId: "comparison",
+              groupId: "conditions",
             },
           },
         ],
       },
     },
   },
-  comparison: {
-    id: "comparison",
-    initialStepId: "comparison-expected",
+
+  conditions: {
+    id: "conditions",
+    initialStepId: "conditions",
     steps: {
-      "comparison-expected": {
-        id: "comparison-expected",
+      conditions: {
+        id: "conditions",
         cues: [
           {
-            id: "comparison-expected-start",
+            id: "conditions-start",
             trigger: {
               kind: "timer",
               afterMilliseconds: 1,
@@ -318,126 +360,30 @@ export const showGroups = {
             actions: [
               {
                 kind: "timeline.play",
-                timelineId: "comparison-expected",
+                timelineId: "conditions",
                 completion: "nonBlocking",
               },
             ],
           },
           {
-            id: "comparison-expected-complete",
+            id: "conditions-complete",
             trigger: {
               kind: "timelineCompleted",
-              timelineId: "comparison-expected",
+              timelineId: "conditions",
             },
             actions: [],
             next: {
               kind: "step",
-              stepId: "comparison-expected-ready",
+              stepId: "conditions-ready",
             },
           },
         ],
       },
-      "comparison-expected-ready": {
-        id: "comparison-expected-ready",
+      "conditions-ready": {
+        id: "conditions-ready",
         cues: [
           {
-            id: "comparison-expected-ready-next",
-            trigger: {
-              kind: "logicalInput",
-              action: "presenter.next",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "comparison-observed",
-            },
-          },
-        ],
-      },
-      "comparison-observed": {
-        id: "comparison-observed",
-        cues: [
-          {
-            id: "comparison-observed-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "comparison-observed",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "comparison-observed-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "comparison-observed",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "comparison-observed-ready",
-            },
-          },
-        ],
-      },
-      "comparison-observed-ready": {
-        id: "comparison-observed-ready",
-        cues: [
-          {
-            id: "comparison-observed-ready-next",
-            trigger: {
-              kind: "logicalInput",
-              action: "presenter.next",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "showcase",
-            },
-          },
-        ],
-      },
-      showcase: {
-        id: "showcase",
-        cues: [
-          {
-            id: "showcase-start",
-            trigger: {
-              kind: "timer",
-              afterMilliseconds: 1,
-            },
-            actions: [
-              {
-                kind: "timeline.play",
-                timelineId: "showcase",
-                completion: "nonBlocking",
-              },
-            ],
-          },
-          {
-            id: "showcase-complete",
-            trigger: {
-              kind: "timelineCompleted",
-              timelineId: "showcase",
-            },
-            actions: [],
-            next: {
-              kind: "step",
-              stepId: "showcase-ready",
-            },
-          },
-        ],
-      },
-      "showcase-ready": {
-        id: "showcase-ready",
-        cues: [
-          {
-            id: "showcase-ready-next",
+            id: "conditions-next",
             trigger: {
               kind: "logicalInput",
               action: "presenter.next",
@@ -445,22 +391,22 @@ export const showGroups = {
             actions: [],
             next: {
               kind: "group",
-              groupId: "technology",
+              groupId: "content-action",
             },
           },
         ],
       },
     },
   },
-  technology: {
-    id: "technology",
-    initialStepId: "technology",
+  "content-action": {
+    id: "content-action",
+    initialStepId: "content-action",
     steps: {
-      technology: {
-        id: "technology",
+      "content-action": {
+        id: "content-action",
         cues: [
           {
-            id: "technology-start",
+            id: "content-action-start",
             trigger: {
               kind: "timer",
               afterMilliseconds: 1,
@@ -468,47 +414,53 @@ export const showGroups = {
             actions: [
               {
                 kind: "timeline.play",
-                timelineId: "technology",
+                timelineId: "content-action",
                 completion: "nonBlocking",
               },
             ],
           },
           {
-            id: "technology-complete",
+            id: "content-action-complete",
             trigger: {
               kind: "timelineCompleted",
-              timelineId: "technology",
+              timelineId: "content-action",
             },
             actions: [],
             next: {
               kind: "step",
-              stepId: "technology-ready",
+              stepId: "content-action-ready",
             },
           },
         ],
       },
-      "technology-ready": {
-        id: "technology-ready",
+      "content-action-ready": {
+        id: "content-action-ready",
         cues: [
           {
-            id: "technology-ready-next",
+            id: "content-action-next",
             trigger: {
               kind: "logicalInput",
               action: "presenter.next",
             },
             actions: [],
             next: {
-              kind: "step",
-              stepId: "closing",
+              kind: "group",
+              groupId: "space-sharing",
             },
           },
         ],
       },
-      closing: {
-        id: "closing",
+    },
+  },
+  "space-sharing": {
+    id: "space-sharing",
+    initialStepId: "space-sharing",
+    steps: {
+      "space-sharing": {
+        id: "space-sharing",
         cues: [
           {
-            id: "closing-start",
+            id: "space-sharing-start",
             trigger: {
               kind: "timer",
               afterMilliseconds: 1,
@@ -516,16 +468,87 @@ export const showGroups = {
             actions: [
               {
                 kind: "timeline.play",
-                timelineId: "closing",
+                timelineId: "space-sharing",
                 completion: "nonBlocking",
               },
             ],
           },
           {
-            id: "closing-complete",
+            id: "space-sharing-complete",
             trigger: {
               kind: "timelineCompleted",
-              timelineId: "closing",
+              timelineId: "space-sharing",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "space-sharing-ready",
+            },
+          },
+        ],
+      },
+      "space-sharing-ready": {
+        id: "space-sharing-ready",
+        cues: [
+          {
+            id: "space-sharing-next",
+            trigger: {
+              kind: "logicalInput",
+              action: "presenter.next",
+            },
+            actions: [],
+            next: {
+              kind: "group",
+              groupId: "summary",
+            },
+          },
+        ],
+      },
+    },
+  },
+  summary: {
+    id: "summary",
+    initialStepId: "summary",
+    steps: {
+      summary: {
+        id: "summary",
+        cues: [
+          {
+            id: "summary-start",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 1,
+            },
+            actions: [
+              {
+                kind: "timeline.play",
+                timelineId: "summary",
+                completion: "nonBlocking",
+              },
+            ],
+          },
+          {
+            id: "summary-complete",
+            trigger: {
+              kind: "timelineCompleted",
+              timelineId: "summary",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "summary-ready",
+            },
+          },
+        ],
+      },
+      "summary-ready": {
+        id: "summary-ready",
+        cues: [
+          {
+            id: "summary-next",
+            trigger: {
+              kind: "logicalInput",
+              action: "presenter.next",
             },
             actions: [],
             next: {

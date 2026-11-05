@@ -9,6 +9,7 @@ import { UnityExchangeError } from "../infra/unity-exchange";
 
 type WithoutRequest<T> = T extends unknown ? Omit<T, "requestId"> : never;
 export type PlaybackIntent = WithoutRequest<PreviewPlaybackCommand>;
+type QueuedIntent = PlaybackIntent | { command: "playFromStep"; groupId: string; stepId: string };
 export function createPlaybackController(input: {
   api: Pick<HostApi, "playback" | "subscribePlayback">;
   driver: Pick<PreviewDriver, "playback">;
@@ -21,7 +22,7 @@ export function createPlaybackController(input: {
     epoch = 0;
   let requestId: string | undefined;
   let abort = new AbortController();
-  let pending: PlaybackIntent[] = [];
+  let pending: QueuedIntent[] = [];
   let pushed: PreviewPlaybackResponse | undefined;
   let latest: PreviewPlaybackResponse | null = null;
   let delivering: PreviewPlaybackResponse | null = null;
@@ -29,6 +30,21 @@ export function createPlaybackController(input: {
     if (pushed && BigInt(pushed.state.sequence!) <= BigInt(sequence)) pushed = undefined;
   }
   const current = (serial: number) => !closed && epoch === serial && !!requestId;
+  function nextIntent(): PlaybackIntent {
+    const next = pending.shift();
+    if (next?.command !== "playFromStep") return next ?? { command: "poll" };
+    const select: PlaybackIntent = {
+      command: "selectStep",
+      groupId: next.groupId,
+      stepId: next.stepId,
+    };
+    pending.unshift({ command: "play" });
+    if (latest?.inspection) {
+      pending.unshift(select);
+      return { command: "leaveInspection", inspectionId: latest.inspection.inspectionId };
+    }
+    return select;
+  }
   async function drain() {
     if (running || closed || !requestId) return;
     running = true;
@@ -37,9 +53,7 @@ export function createPlaybackController(input: {
       signal = abort.signal;
     const update = pushed;
     pushed = undefined;
-    const intent = update
-      ? { command: "poll" as const }
-      : (pending.shift() ?? { command: "poll" as const });
+    const intent = update ? { command: "poll" as const } : nextIntent();
     let response: PreviewPlaybackResponse | null = null;
     try {
       response =
@@ -136,6 +150,11 @@ export function createPlaybackController(input: {
       void drain();
     },
     command,
+    playFromStep(groupId: string, stepId: string) {
+      if (closed || !requestId) return;
+      pending.push({ command: "playFromStep", groupId, stepId });
+      void drain();
+    },
     inspectCue(occurrenceId: string) {
       command({
         command: "inspectCue",

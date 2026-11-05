@@ -25,6 +25,8 @@ namespace Unframe.Unity.PresentationRuntime
         [Serializable]
         private sealed class Configuration { public string token; }
         [Serializable]
+        private sealed class RequestIdentity { public string requestId; }
+        [Serializable]
         private sealed class SpatialIdentity { public string requestId; public string sequence; }
         [Serializable]
         private sealed class InteractionEvent { public string requestId; public string surfaceId; public string interactionId; }
@@ -80,27 +82,38 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async void Prepare(string json)
         {
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
             long expected = ++generation;
             string requestId = null;
+            LogProgress(requestId, "prepare-received", elapsed);
             try
             {
                 EnsureTransaction();
                 transaction.Invalidate();
                 spatialReady = false;
                 latestRequest = null;
+                // Preserve request correlation even when protobuf validation rejects the envelope.
+                requestId = JsonUtility.FromJson<RequestIdentity>(json)?.requestId;
                 if (String.IsNullOrEmpty(bearer)) throw new InvalidOperationException("preview.not-configured");
                 LocalPreviewEnvelope envelope = JsonParser.Default.Parse<LocalPreviewEnvelope>(json);
                 requestId = envelope.RequestId;
                 latestRequest = requestId;
+                LogProgress(requestId, "validation", elapsed);
                 if (!PresentationLocalPreviewAdapter.TryCreate(envelope, out PresentationLocalPreviewInput input, out string error))
                     throw new InvalidOperationException(error);
                 var provider = new PresentationPreviewAssetProvider(input, bearer);
-                await transaction.PrepareAsync(envelope, provider.GetAsync, CancellationToken.None);
-                if (expected != generation) return;
+                await transaction.PrepareAsync(envelope, provider.GetAsync, CancellationToken.None,
+                    stage => LogProgress(requestId, stage, elapsed));
+                if (expected != generation)
+                {
+                    LogProgress(requestId, "prepare-superseded", elapsed);
+                    return;
+                }
                 Emit("prepared", requestId, input.BuildIdentity, null);
             }
             catch (Exception exception)
             {
+                LogProgress(requestId, expected == generation ? "prepare-failed" : "prepare-superseded", elapsed);
                 if (expected == generation)
                     Emit("failed", requestId, null, exception is OperationCanceledException ? "preview.cancelled"
                         : exception is InvalidOperationException ? exception.Message : "preview.input-invalid");
@@ -109,6 +122,8 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Commit(string requestId)
         {
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            LogProgress(requestId, "commit-received", elapsed);
             try
             {
                 if (requestId != latestRequest) throw new InvalidOperationException("preview.prepared-request-mismatch");
@@ -120,11 +135,19 @@ namespace Unframe.Unity.PresentationRuntime
                 camera?.Frame(transform);
                 camera?.SetView(view);
                 Emit("committed", requestId, identity, null);
+                LogProgress(requestId, "committed", elapsed);
             }
             catch (Exception exception)
             {
+                LogProgress(requestId, "commit-failed", elapsed);
                 Emit("failed", requestId, null, exception is InvalidOperationException ? exception.Message : "preview.commit-failed");
             }
+        }
+
+        private static void LogProgress(string requestId, string stage, System.Diagnostics.Stopwatch elapsed)
+        {
+            string identity = Guid.TryParseExact(requestId, "N", out _) ? requestId : "unidentified";
+            Debug.LogFormat("[Unity Preview] request={0} stage={1} elapsedMs={2}", identity, stage, elapsed.ElapsedMilliseconds);
         }
 
         public void Playback(string json) { ApplyPlayback(json, false); }

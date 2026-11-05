@@ -3,6 +3,7 @@ import type {
   PreviewPlaybackResponse,
   PreviewPlaybackCommand,
 } from "@unframe-dev/contracts/author-http";
+import { HostApiError } from "../../infra/host-api";
 import { UnityExchangeError } from "../../infra/unity-exchange";
 import { createPlaybackController } from "../playback-controller";
 const state = (requestId: string, sequence = "1"): PreviewPlaybackResponse => ({
@@ -305,6 +306,127 @@ it("discards a pushed tick overtaken by an in-flight operation response", async 
     finish(state("r", "3"));
     await vi.waitFor(() => expect(delivered).toContain("3"));
     expect(delivered).toEqual(["1", "3"]);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("starts at an unvisited Step only after Unity acknowledges the selected state", async () => {
+  const commands: PreviewPlaybackCommand[] = [];
+  let sequence = 0;
+  let release!: () => void;
+  const onState = vi.fn();
+  const controller = createPlaybackController({
+    api: {
+      subscribePlayback: () => () => undefined,
+      playback: async (command) => {
+        commands.push(command);
+        return state("r", String(command.command === "applied" ? sequence : ++sequence));
+      },
+    },
+    driver: {
+      playback: async () => {
+        if (commands.at(-1)?.command === "selectStep")
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+      },
+    },
+    onState,
+    onFault: vi.fn(),
+    onDiagnostic: vi.fn(),
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(onState).toHaveBeenCalled());
+    controller.playFromStep("later", "entry");
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    expect(commands.some((command) => command.command === "play")).toBe(false);
+    release();
+    await vi.waitFor(() =>
+      expect(commands.some((command) => command.command === "play")).toBe(true),
+    );
+    const selected = commands.findIndex((command) => command.command === "selectStep");
+    expect(commands.slice(selected, selected + 3)).toEqual([
+      { requestId: "r", command: "selectStep", groupId: "later", stepId: "entry" },
+      { requestId: "r", command: "applied", sequence: "2" },
+      { requestId: "r", command: "play" },
+    ]);
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("does not play the previous position when selecting a Step is rejected", async () => {
+  const commands: string[] = [];
+  const diagnostic = vi.fn();
+  const onState = vi.fn();
+  const controller = createPlaybackController({
+    api: {
+      subscribePlayback: () => () => undefined,
+      playback: async (command) => {
+        commands.push(command.command);
+        if (command.command === "selectStep")
+          throw new HostApiError(400, "preview-step-invalid", "Missing Step");
+        return state("r");
+      },
+    },
+    driver: { playback: async () => undefined },
+    onState,
+    onFault: vi.fn(),
+    onDiagnostic: diagnostic,
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(onState).toHaveBeenCalled());
+    controller.playFromStep("later", "missing");
+    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalled());
+    expect(commands).not.toContain("play");
+  } finally {
+    controller.dispose();
+  }
+});
+
+it("leaves Cue inspection before starting from a selected Step", async () => {
+  const commands: string[] = [];
+  let inspecting = true;
+  let sequence = 0;
+  const onState = vi.fn();
+  const controller = createPlaybackController({
+    api: {
+      subscribePlayback: () => () => undefined,
+      playback: async (command) => {
+        commands.push(command.command);
+        if (command.command === "leaveInspection") inspecting = false;
+        return {
+          ...state("r", String(command.command === "applied" ? sequence : ++sequence)),
+          mode: inspecting ? "inspection" : "normal",
+          inspection: inspecting
+            ? {
+                inspectionId: "i",
+                occurrenceId: "o",
+                timeMilliseconds: 0,
+                durationMilliseconds: 1000,
+              }
+            : null,
+        };
+      },
+    },
+    driver: { playback: async () => undefined },
+    onState,
+    onFault: vi.fn(),
+    onDiagnostic: vi.fn(),
+  });
+  try {
+    controller.load("r");
+    await vi.waitFor(() => expect(onState).toHaveBeenCalled());
+    controller.playFromStep("later", "entry");
+    await vi.waitFor(() => expect(commands).toContain("play"));
+    expect(commands.filter((command) => !["poll", "applied"].includes(command))).toEqual([
+      "leaveInspection",
+      "selectStep",
+      "play",
+    ]);
   } finally {
     controller.dispose();
   }

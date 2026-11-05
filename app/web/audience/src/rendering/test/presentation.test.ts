@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { AnimationClip, Group, Texture, Mesh, ShaderMaterial } from "three";
+import { evaluateAnimationView } from "../../runtime/animation-view";
 import { createPresentation } from "../presentation";
 import { createMediaFixtureScenario } from "../../dev/fixtures/media-scenario";
 import { createRuntimeStore } from "../../runtime/runtime-store";
@@ -89,7 +90,9 @@ it("combines PNG, independently controlled video and model under one committed r
     const view = store.getSnapshot().view;
     if (!view) continue;
     expect(presentation.applyView(view), action.label).toBe(true);
-    presentation.applyAnimationFrame(view, view.clock.runtimeTimeMilliseconds);
+    expect(presentation.applyAnimationFrame(view, view.clock.runtimeTimeMilliseconds)).toEqual(
+      evaluateAnimationView(scenario.delivery, view, view.clock.runtimeTimeMilliseconds).view,
+    );
   }
   expect(loadPngTexture).toHaveBeenCalledTimes(1);
   expect(loadVideoAsset).toHaveBeenCalledTimes(1);

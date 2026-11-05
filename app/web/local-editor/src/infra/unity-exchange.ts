@@ -23,6 +23,14 @@ const notificationSchema = z
         : !!value.sequence),
   );
 export type UnityNotification = z.infer<typeof notificationSchema>;
+export type UnityExchangeDiagnostic =
+  | { event: "invalid-notification"; fields: string[] }
+  | {
+      event: "sent" | "received" | "timeout";
+      method: string;
+      requestId: string;
+      elapsedMilliseconds: number;
+    };
 export class UnityExchangeError extends Error {
   constructor(
     message: string,
@@ -43,14 +51,34 @@ export function createUnityExchange(input: {
   send(method: string, value: string): void | Promise<void>;
   timeoutMilliseconds?: number;
   onFailure?(notification: UnityNotification): void;
+  onDiagnostic?(diagnostic: UnityExchangeDiagnostic): void;
 }) {
   let disposed = false;
-  const waiters = new Set<{ request: Request; finish(error?: Error, result?: string): void }>();
+  const diagnose = (diagnostic: UnityExchangeDiagnostic) => {
+    try {
+      input.onDiagnostic?.(diagnostic);
+    } catch {
+      // Diagnostics must not prevent acknowledgement or timeout completion.
+    }
+  };
+  const waiters = new Set<{
+    request: Request;
+    finish(error?: Error, result?: string): void;
+    received(): void;
+  }>();
   return {
     request(request: Request): Promise<string> {
       if (disposed || request.signal?.aborted)
         return Promise.reject(new DOMException("Preview request cancelled.", "AbortError"));
       return new Promise((resolve, reject) => {
+        const started = performance.now();
+        const report = (event: "sent" | "received" | "timeout") =>
+          diagnose({
+            event,
+            method: request.method,
+            requestId: request.requestId,
+            elapsedMilliseconds: Math.round(performance.now() - started),
+          });
         const cancel = () => finish(new DOMException("Preview request cancelled.", "AbortError"));
         const finish = (error?: Error, result?: string) => {
           if (!waiters.delete(waiter)) return;
@@ -59,16 +87,25 @@ export function createUnityExchange(input: {
           if (error) reject(error);
           else resolve(result ?? "");
         };
-        const waiter = { request, finish };
-        const timer = setTimeout(
-          () => finish(new UnityExchangeError("Unity Preview response timed out.")),
-          input.timeoutMilliseconds ?? (request.kind === "prepared" ? 60_000 : 10_000),
-        );
+        const waiter = { request, finish, received: () => report("received") };
+        const timeoutMilliseconds =
+          input.timeoutMilliseconds ?? (request.kind === "prepared" ? 60_000 : 10_000);
+        const timer = setTimeout(() => {
+          report("timeout");
+          finish(
+            new UnityExchangeError(
+              `Unity Preview ${request.method} response timed out after ${timeoutMilliseconds} ms (request ${request.requestId}).`,
+            ),
+          );
+        }, timeoutMilliseconds);
         waiters.add(waiter);
         request.signal?.addEventListener("abort", cancel, { once: true });
         Promise.resolve()
           .then(() => {
-            if (waiters.has(waiter)) return input.send(request.method, request.value);
+            if (waiters.has(waiter)) {
+              report("sent");
+              return input.send(request.method, request.value);
+            }
           })
           .catch((error: unknown) =>
             finish(error instanceof Error ? error : new Error(String(error))),
@@ -78,7 +115,13 @@ export function createUnityExchange(input: {
     notify(value: unknown) {
       if (disposed) return;
       const parsed = notificationSchema.safeParse(value);
-      if (!parsed.success) return;
+      if (!parsed.success) {
+        diagnose({
+          event: "invalid-notification",
+          fields: parsed.error.issues.map((issue) => issue.path.join(".")),
+        });
+        return;
+      }
       const notification: UnityNotification = parsed.data;
       let matched = false;
       for (const waiter of waiters) {
@@ -86,6 +129,7 @@ export function createUnityExchange(input: {
         if (waiter.request.sequence && notification.sequence !== waiter.request.sequence) continue;
         if (notification.kind === "failed") {
           matched = true;
+          waiter.received();
           waiter.finish(
             new UnityExchangeError(notification.message ?? "Unity Preview failed.", notification),
           );
@@ -93,6 +137,7 @@ export function createUnityExchange(input: {
           const result = notification.sequence ?? notification.buildIdentity;
           if (typeof result === "string" && result.length) {
             matched = true;
+            waiter.received();
             waiter.finish(undefined, result);
           }
         }

@@ -11,7 +11,12 @@ import {
   type AuthorService,
 } from "@unframe-dev/author-service";
 import { runPresentationCli } from "../application/run-presentation-cli.js";
-import type { RunPresentationCliInput } from "../application/types.js";
+import type {
+  PresentationCliBuildTiming,
+  PresentationCliExitCode,
+  RunPresentationCliInput,
+} from "../application/types.js";
+import { createOpaqueCaptureCache } from "@unframe-dev/render-browser";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { readPresentationProjectRevision } from "@unframe-dev/workspace-node";
 import { readTypeLibraries } from "@unframe-dev/workspace-node";
@@ -39,6 +44,13 @@ type ProjectState = {
   found: Discovery;
   typeLibraries: Awaited<ReturnType<typeof readTypeLibraries>>;
 };
+export type AuthorBuildProfile = {
+  channel: "dev" | "dist";
+  exitCode: PresentationCliExitCode | null;
+  durationMilliseconds: number;
+  stages: Partial<Record<PresentationCliBuildTiming["stage"], number>>;
+  opaqueCaptures: { hits: number; misses: number };
+};
 const readPublishedArtifacts = async (
   directory: string,
   generationId: string,
@@ -61,10 +73,12 @@ export const createAuthorService = async (
     readPublishedArtifacts?: typeof readPublishedArtifacts;
     artifactRetention?: { maxGenerations?: number; maxBytes?: number };
     maxCompletedJobs?: number;
+    onBuildProfile?: (profile: AuthorBuildProfile) => void;
   } = {},
 ): Promise<AuthorService> => {
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
   const run = options.run ?? runPresentationCli;
+  const captureCache = createOpaqueCaptureCache();
   let closed = false;
   const shutdown = new AbortController();
   const workers = new Set<Promise<unknown>>();
@@ -286,14 +300,27 @@ export const createAuthorService = async (
         return { revision, snapshot: current.snapshot };
       },
 
-      run: async ({ revision, channel, signal }) =>
-        readBuildExecutionResult(
-          await run({
+      run: async ({ revision, channel, signal }) => {
+        const started = options.onBuildProfile ? performance.now() : 0;
+        const before = captureCache.stats();
+        const stages: AuthorBuildProfile["stages"] = {};
+        let exitCode: PresentationCliExitCode | null = null;
+        try {
+          const result = await run({
             args: ["build", directory, "--format", "json"],
             host: {
               expectedRevision: revision,
               channel,
               signal,
+              ...(channel === "dev" ? { opaqueCaptureCache: captureCache } : {}),
+              ...(options.onBuildProfile
+                ? {
+                    onBuildTiming: (timing: PresentationCliBuildTiming) => {
+                      stages[timing.stage] =
+                        (stages[timing.stage] ?? 0) + timing.durationMilliseconds;
+                    },
+                  }
+                : {}),
               prepareInputs: async (found, signal) => {
                 const preparedInputs =
                   cached?.snapshot.revision === found.revision ? cached.preparedInputs : undefined;
@@ -309,8 +336,29 @@ export const createAuthorService = async (
                 );
               },
             },
-          }),
-        ),
+          });
+          exitCode = result.exitCode;
+          return readBuildExecutionResult(result);
+        } finally {
+          if (options.onBuildProfile) {
+            const after = captureCache.stats();
+            try {
+              options.onBuildProfile({
+                channel,
+                exitCode,
+                durationMilliseconds: performance.now() - started,
+                stages,
+                opaqueCaptures: {
+                  hits: after.hits - before.hits,
+                  misses: after.misses - before.misses,
+                },
+              });
+            } catch {
+              // Diagnostic output must not change a build's outcome.
+            }
+          }
+        }
+      },
       readPublishedArtifacts: (generation, instances, channel, maxBytes) =>
         readPublished(directory, generation, instances, channel, maxBytes),
     },
@@ -325,6 +373,7 @@ export const createAuthorService = async (
       analyzing = undefined;
       await service.close();
       await Promise.allSettled(workers);
+      captureCache.clear();
     },
   };
 };

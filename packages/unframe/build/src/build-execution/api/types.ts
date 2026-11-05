@@ -26,6 +26,11 @@ export type CompilerVideoValidator = {
     readonly encodedSizeBytes: number;
   }): Promise<import("@unframe-dev/presentation").ValidationResult<VideoMetadata>>;
 };
+export type CompilerBuildTiming = Readonly<{
+  stage: import("./compiler-internal-error.js").CompilerStage;
+  durationMilliseconds: number;
+}>;
+
 export type CompilerBuildOptions = {
   readonly videoValidator?: CompilerVideoValidator;
   readonly compiler: {

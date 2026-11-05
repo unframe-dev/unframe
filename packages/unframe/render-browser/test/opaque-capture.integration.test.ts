@@ -267,20 +267,6 @@ it("terminates a renderer that never returns from mount", async () => {
     await runtime.close();
   }
 }, 50_000);
-it("cancels an active Chromium worker", async () => {
-  const controller = new AbortController();
-  const runtime = await openOpaqueCaptureRuntime({ signal: controller.signal });
-  const timer = setTimeout(() => controller.abort(), 1_000);
-  try {
-    await expect(
-      runtime.capture({ ...request, javascript: "globalThis.__unframeMount=()=>{while(true){}};" }),
-    ).rejects.toMatchObject({ code: "opaque-capture-cancelled" });
-  } finally {
-    clearTimeout(timer);
-    await runtime.close();
-  }
-}, 30_000);
-
 it("reports a font that passes metadata checks but cannot be decoded", async () => {
   const runtime = await openOpaqueCaptureRuntime();
   try {

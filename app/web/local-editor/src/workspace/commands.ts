@@ -34,6 +34,17 @@ export function createCommands(input: {
     const view = input.preview.store.getState().loaded;
     return !!p && !!view?.sourceRevision && view.sourceRevision === p.revision;
   };
+  const playFromStep = (groupId: string, stepId: string) => {
+    const playback = input.preview.store.getState().playback;
+    if (
+      !available() ||
+      !playback?.simulation?.steps.some(
+        (step) => step.groupId === groupId && step.stepId === stepId,
+      )
+    )
+      return;
+    input.preview.playback.playFromStep(groupId, stepId);
+  };
   return {
     saveProps: (propId: string) =>
       input.readOnly ? Promise.resolve() : input.project.saveProp(propId),
@@ -60,6 +71,12 @@ export function createCommands(input: {
     },
     playback(intent: PlaybackIntent) {
       if (available()) input.preview.playback.command(intent);
+    },
+    playFromStep,
+    playSelectedStep() {
+      if (!consistent()) return;
+      const { groupId, stepId } = input.ui.getState().selection;
+      if (groupId && stepId) playFromStep(groupId, stepId);
     },
     inspectCue() {
       if (!available() || !consistent()) return;

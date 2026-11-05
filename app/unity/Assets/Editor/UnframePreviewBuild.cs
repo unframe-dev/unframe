@@ -41,6 +41,7 @@ public static class UnframePreviewBuild
         GraphicsSettings.defaultRenderPipeline = pipeline;
         QualitySettings.renderPipeline = pipeline;
         PlayerSettings.colorSpace = ColorSpace.Linear;
+        PlayerSettings.runInBackground = true;
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
         PlayerSettings.WebGL.nameFilesAsHashes = false;
         PlayerSettings.companyName = "Unframe";

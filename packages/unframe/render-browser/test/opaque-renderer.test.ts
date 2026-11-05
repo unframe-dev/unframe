@@ -8,6 +8,7 @@ import {
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "../src/opaque/capture/types.js";
 import {
   createOpaqueBakedWebRenderer,
+  createOpaqueCaptureCache,
   createWebRendererConfigHash,
   type WebRendererConfig,
 } from "../src/index.js";
@@ -121,6 +122,42 @@ const validCapture = (
 });
 
 describe("Opaque Baked Web RendererPlugin adapter", () => {
+  it("reuses identical captures while producing provenance for the current build", async () => {
+    const cache = createOpaqueCaptureCache();
+    let captures = 0;
+    const runtime = {
+      fingerprint: "sha256:runtime",
+      capture: async (request: OpaqueCaptureRequest) => {
+        captures++;
+        return validCapture(request);
+      },
+    };
+    const renderer = makeRenderer((request) => cache.capture(runtime, request));
+    const first = inputForRenderer(renderer);
+    const next = {
+      ...first,
+      context: {
+        ...first.context,
+        inputHash: "sha256:next-input",
+        buildContextHash: "sha256:next-context",
+      },
+    };
+    const original = await executeRendererPlugin(renderer, first);
+    const updated = await executeRendererPlugin(renderer, next);
+    expect(original.valid).toBe(true);
+    expect(updated).toMatchObject({
+      valid: true,
+      value: {
+        provenance: {
+          inputHash: "sha256:next-input",
+          buildContextHash: "sha256:next-context",
+        },
+      },
+    });
+    expect(captures).toBe(1);
+    expect(cache.stats()).toMatchObject({ hits: 1, misses: 1 });
+  });
+
   it.each([
     [{ line: 2, column: 1 }, ["Hero.component.tsx", 106, 107, 6, 1]],
     [{ line: 3, column: 1 }, ["helper.ts", 0, 1, 1, 1]],

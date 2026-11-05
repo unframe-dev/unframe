@@ -1,3 +1,5 @@
+import { NarrativeLine } from "../component/narrative-line.component.tsx";
+import { SlideFrame } from "../component/slide-frame.component.tsx";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -12,8 +14,6 @@ import { OpeningBrand } from "../component/opening.component.tsx";
 import { OriginalPanel } from "../component/original-panel.component.tsx";
 import { RejectionMark } from "../component/rejection.component.tsx";
 import { SpatialWord } from "../component/spatial-word.component.tsx";
-import { GestureDrawing } from "../component/gesture-drawing.component.tsx";
-import { TechnologyLinks } from "../component/technology-links.component.tsx";
 import config from "../../unframe.config.ts";
 
 const assets = Object.fromEntries(
@@ -35,9 +35,9 @@ const assets = Object.fromEntries(
 const components = await Promise.all(
   [
     ["src/component/opening.component.tsx", OpeningBrand],
+    ["src/component/slide-frame.component.tsx", SlideFrame],
     ["src/component/spatial-word.component.tsx", SpatialWord],
-    ["src/component/technology-links.component.tsx", TechnologyLinks],
-    ["src/component/gesture-drawing.component.tsx", GestureDrawing],
+    ["src/component/narrative-line.component.tsx", NarrativeLine],
     ["src/component/original-panel.component.tsx", OriginalPanel],
     ["src/component/rejection.component.tsx", RejectionMark],
   ].map(async ([file, component]) => {

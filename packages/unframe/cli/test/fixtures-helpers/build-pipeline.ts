@@ -26,7 +26,8 @@ export const compileDeclarationProject = (
   options: unknown,
   bytes: CompilerSourceAssetBytes = {},
   cache?: CompilerBuildCache,
-) => compile(input, options, bytes, cache, media);
+  onTiming?: (timing: import("@unframe-dev/build").CompilerBuildTiming) => void,
+) => compile(input, options, bytes, cache, media, onTiming);
 export const compileCheckedDeclarationProject = (
   project: CompilerDeclarationProject,
   checked: CheckedDeclarationProject,

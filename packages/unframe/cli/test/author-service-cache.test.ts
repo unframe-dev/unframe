@@ -11,6 +11,7 @@ import { acquireSourceLock, discoverPresentationProjectFiles } from "@unframe-de
 import { temporaryDirectory } from "../src/platform/temporary-directory.js";
 import { copyProjectFixture } from "./copy-project-fixture.js";
 import { prepareReactProjectFixture } from "./react-project-fixture.js";
+import type { AuthorBuildProfile } from "../src/author/service.js";
 
 let reference: string;
 const directories: string[] = [];
@@ -44,6 +45,78 @@ const observeTypeLibraryReads = () => {
   const libraryDirectory = dirname(ts.getDefaultLibFilePath({}));
   return () => reads.mock.calls.filter(([path]) => path === libraryDirectory).length;
 };
+
+it("reuses unchanged Dev captures across revisions and reports each build without affecting its result", async () => {
+  const profiles: AuthorBuildProfile[] = [];
+  let captures = 0;
+  let captureCache: import("@unframe-dev/render-browser").OpaqueCaptureCache | undefined;
+  const runtime = {
+    fingerprint: "sha256:fixture-runtime",
+    capture: async () => {
+      captures++;
+      return {
+        ok: true as const,
+        rgbaBase64: "AAAA/w==",
+        pixelSize: [1, 1] as const,
+        browserVersion: "fixture-browser",
+        bindings: [],
+      };
+    },
+  };
+  const input = {
+    javascript: "fixture",
+    stylesheets: [],
+    assets: [],
+    props: {},
+    texts: {},
+    expectedBindings: {},
+    stateId: "default",
+    logicalSize: [1, 1] as const,
+    pixelTarget: [1, 1] as const,
+    background: [0, 0, 0, 0] as const,
+    colorScheme: "light" as const,
+  };
+  const { service, directory } = await project({
+    onBuildProfile: (profile) => {
+      profiles.push(profile);
+      throw new Error("Profiling output is unavailable");
+    },
+    run: async ({ host }) => {
+      assert(host?.opaqueCaptureCache);
+      captureCache = host.opaqueCaptureCache;
+      await captureCache.capture(runtime, input, host.signal);
+      host.onBuildTiming?.({ stage: "compile", durationMilliseconds: 7 });
+      host.onBuildTiming?.({ stage: "compile", durationMilliseconds: 5 });
+      return { exitCode: 1, stdout: "", stderr: "fixture build failure" };
+    },
+  });
+  const before = await service.project();
+  const first = await service.build(before.revision, "a".repeat(32));
+  await expect.poll(async () => (await service.job(first.buildId)).status).toBe("failed");
+  await writeFile(join(directory, "theme.css"), "body {}\n/* source update */\n");
+  const after = await service.project();
+  expect(after.revision).not.toBe(before.revision);
+  const second = await service.build(after.revision, "b".repeat(32));
+  await expect.poll(async () => (await service.job(second.buildId)).status).toBe("failed");
+  expect(captures).toBe(1);
+  expect(profiles).toMatchObject([
+    {
+      channel: "dev",
+      exitCode: 1,
+      stages: { compile: 12 },
+      opaqueCaptures: { hits: 0, misses: 1 },
+    },
+    {
+      channel: "dev",
+      exitCode: 1,
+      stages: { compile: 12 },
+      opaqueCaptures: { hits: 1, misses: 0 },
+    },
+  ]);
+  expect(profiles.every((profile) => profile.durationMilliseconds >= 0)).toBe(true);
+  await service.close();
+  expect(captureCache?.stats()).toMatchObject({ entries: 0, bytes: 0 });
+}, 30_000);
 
 it("reuses the successful analysis for an unchanged project without reading compiler libraries again", async () => {
   const { service } = await project();

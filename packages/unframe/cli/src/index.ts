@@ -4,6 +4,7 @@ export { publishPresentation } from "./application/publish.js";
 export { runPresentationProcess } from "./process/run-presentation-process.js";
 export type {
   PresentationCliBuildContext,
+  PresentationCliBuildTiming,
   PresentationCliExitCode,
   PresentationCliHost,
   PresentationCliResult,

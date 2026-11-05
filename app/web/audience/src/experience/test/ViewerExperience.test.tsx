@@ -655,18 +655,30 @@ test("Snapshot再同期は明示restartで新inputへ復旧し古い回復callba
 
 test("Runtime復旧待ちは旧受信を止めカメラを保持し新assignmentで受信を再開する", async () => {
   const props = setup();
+  const recorder = createSessionRecorder();
   let previous!: RuntimeInput;
   const release = vi.fn();
   const onRuntimeInput = vi.fn((input: RuntimeInput) => {
     previous = input;
     return release;
   });
-  const ui = render(<ViewerExperience {...props} onRuntimeInput={onRuntimeInput} />);
+  const ui = render(
+    <ViewerExperience {...props} recorder={recorder} onRuntimeInput={onRuntimeInput} />,
+  );
   await start();
   const oldInput = previous;
   ui.rerender(
-    <ViewerExperience {...props} recovering refreshing onRuntimeInput={onRuntimeInput} />,
+    <ViewerExperience
+      {...props}
+      recorder={recorder}
+      recovering
+      refreshing
+      onRuntimeInput={onRuntimeInput}
+    />,
   );
+  expect(recorder.getLastDisconnect(props.connection.session?.id)).toMatchObject({
+    code: "runtime-unavailable",
+  });
   expect(release).toHaveBeenCalledOnce();
   expect(mock.stop).not.toHaveBeenCalled();
   expect(mock.dispose).not.toHaveBeenCalled();
@@ -675,7 +687,14 @@ test("Runtime復旧待ちは旧受信を止めカメラを保持し新assignment
   const next = structuredClone(props.connection);
   next.delivery.projectionInstance!.assignmentEpoch = "2";
   next.bootstrap.assignmentEpoch = 2;
-  ui.rerender(<ViewerExperience {...props} connection={next} onRuntimeInput={onRuntimeInput} />);
+  ui.rerender(
+    <ViewerExperience
+      {...props}
+      recorder={recorder}
+      connection={next}
+      onRuntimeInput={onRuntimeInput}
+    />,
+  );
   expect(onRuntimeInput).toHaveBeenCalledTimes(2);
   expect(mock.start).toHaveBeenCalledOnce();
 });

@@ -41,7 +41,8 @@ export const audienceWebResourcePolicy: CapabilityProfile["limits"] = {
   model: {
     tierId: "audience-web-model",
     maxAssets: 4,
-    maxInstances: 8,
+    // The wire contract requires a positive safe integer, even without a count cap.
+    maxInstances: Number.MAX_SAFE_INTEGER,
     maxEncodedBytes: memoryCapacityBytes,
     maxNodes: 2048,
     maxPrimitives: 1024,

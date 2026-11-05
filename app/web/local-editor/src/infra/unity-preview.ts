@@ -44,6 +44,21 @@ export function createUnityPreviewDriver(canvas: HTMLCanvasElement, token: strin
   const presenterListeners = new Set<(movement: PresenterMovement) => void>();
   const exchange = createUnityExchange({
     send,
+    onDiagnostic: (diagnostic) => {
+      if (
+        import.meta.env.DEV &&
+        (diagnostic.event === "invalid-notification" ||
+          diagnostic.event === "timeout" ||
+          ["Prepare", "Commit", "Restore"].includes(diagnostic.method))
+      )
+        console.info(
+          `[Unity Preview] ${JSON.stringify({
+            ...diagnostic,
+            visibility: document.visibilityState,
+            focused: document.hasFocus(),
+          })}`,
+        );
+    },
     onFailure: (notification) => {
       for (const listener of listeners) listener(notification);
     },

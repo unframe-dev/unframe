@@ -238,3 +238,42 @@ it("coalesces saved and externally observed revisions while initial load and rel
     vi.useRealTimers();
   }
 });
+
+it("starts the selected flow Step only when it belongs to the loaded Source revision", async () => {
+  const { workspace: w } = fixture();
+  await w.project.refresh();
+  w.preview.store.setState({
+    status: "ready",
+    loaded: { channel: "dev", requestId: "r", buildIdentity: "b", sourceRevision: "r1" },
+    playback: {
+      mode: "normal",
+      inspection: null,
+      occurrences: [],
+      inputs: [],
+      groupId: "g",
+      stepId: "s",
+      ended: false,
+      state: { requestId: "r", sequence: "1" },
+      simulation: {
+        steps: [{ groupId: "later", stepId: "entry" }],
+        gestures: [],
+        events: [],
+        nextInput: null,
+      },
+    },
+  });
+  const play = vi.spyOn(w.preview.playback, "playFromStep");
+  w.commands.selectFlow({ groupId: "later", stepId: "entry", cueId: null });
+  w.commands.playSelectedStep();
+  expect(play).toHaveBeenCalledExactlyOnceWith("later", "entry");
+  play.mockClear();
+  w.preview.store.setState({
+    loaded: { channel: "dev", requestId: "r", buildIdentity: "b", sourceRevision: "old" },
+  });
+  w.commands.playSelectedStep();
+  expect(play).not.toHaveBeenCalled();
+  w.preview.store.setState({ status: "recovering" });
+  w.commands.playFromStep("later", "entry");
+  expect(play).not.toHaveBeenCalled();
+  w.dispose();
+});

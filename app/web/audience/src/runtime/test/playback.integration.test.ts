@@ -562,35 +562,37 @@ it("keeps Viewer inputs disabled and applies variables without fetching PNG text
   playback.dispose();
 });
 
+function waveSnapshot(nodeId: string) {
+  return {
+    runId: { assignmentEpoch: "1", runSequence: "1" },
+    owner: { presentation: {} },
+    cause: {
+      cueId: "wave",
+      causeEventId: "event",
+      groupId: "intro",
+      groupEntryEpoch: "1",
+      stepId: "start",
+      stepEntryEpoch: "1",
+    },
+    startedAtRuntimeTimeMs: "0",
+    effectId: "wave",
+    nodeId,
+    seed: 1,
+    status: 1,
+    configuration: {
+      kind: 1,
+      size: 1,
+      color: { red: 1, green: 1, blue: 1, alpha: 1 },
+      speed: 1,
+      durationMs: "1000",
+      waveCycles: 1,
+    },
+  };
+}
+
 it("renders a Snapshot effect using the Runtime clock and releases it on disconnect", async () => {
   const { delivery, snapshot, nodeId } = setup();
-  snapshot.snapshot!.runtimeView!.effectRuns = [
-    {
-      runId: { assignmentEpoch: "1", runSequence: "1" },
-      owner: { presentation: {} },
-      cause: {
-        cueId: "wave",
-        causeEventId: "event",
-        groupId: "intro",
-        groupEntryEpoch: "1",
-        stepId: "start",
-        stepEntryEpoch: "1",
-      },
-      startedAtRuntimeTimeMs: "0",
-      effectId: "wave",
-      nodeId,
-      seed: 1,
-      status: 1,
-      configuration: {
-        kind: 1,
-        size: 1,
-        color: { red: 1, green: 1, blue: 1, alpha: 1 },
-        speed: 1,
-        durationMs: "1000",
-        waveCycles: 1,
-      },
-    },
-  ];
+  snapshot.snapshot!.runtimeView!.effectRuns = [waveSnapshot(nodeId)];
   const contentRoot = new Group();
   const target = new Group();
   target.name = nodeId;
@@ -602,7 +604,7 @@ it("renders a Snapshot effect using the Runtime clock and releases it on disconn
     now: () => now,
     present: async () => {},
     clear: () => effects.dispose(),
-    frame: (view, time) => effects.frame(view.effectRuns, time),
+    frame: (view, time) => effects.frame(evaluateAnimationView(delivery, view, time).view, time),
   });
   playback.applyControl({ connectionSnapshot: snapshot });
   await playback.waitForIdle();
@@ -611,9 +613,72 @@ it("renders a Snapshot effect using the Runtime clock and releases it on disconn
   playback.prepareFrame();
   expect(target.children).toHaveLength(1);
   const line = target.children[0]!.children[0] as import("three").Line;
-  expect(line.geometry.drawRange.count).toBe(49);
+  expect(line.geometry.drawRange.count).toBe(129);
   playback.reset();
   expect(target.children).toHaveLength(0);
+});
+
+it("reconnects mid-fade using sampled Timeline opacity without shrinking the retained wave", async () => {
+  const { delivery, snapshot, nodeId } = setup();
+  const state = snapshot.snapshot!.runtimeView!;
+  const wave = waveSnapshot(nodeId);
+  state.effectRuns = [wave];
+  state.clock!.runtimeTimeMs = "1500";
+  const timeline = delivery.projectionProfile!.runtimeCatalog!.timelines![0]!;
+  timeline.durationMs = "1000";
+  timeline.tracks = [
+    {
+      target: { nodeId, property: 1 },
+      keyframes: [
+        { timeMs: "0", number: { value: 1 }, easingToNext: 1 },
+        { timeMs: "1000", number: { value: 0 } },
+      ],
+    },
+  ];
+  state.activeRuns = [
+    {
+      runId: { assignmentEpoch: "1", runSequence: "2" },
+      owner: wave.owner,
+      cause: wave.cause,
+      completion: 2,
+      startedAtRuntimeTimeMs: "1000",
+      timeline: { timelineId: timeline.timelineId! },
+    },
+  ];
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  let now = 0;
+  const playback = createRuntimePlayback({
+    delivery,
+    now: () => now,
+    present: async () => {},
+    clear: () => effects.dispose(),
+    frame: (view, time) => effects.frame(evaluateAnimationView(delivery, view, time).view, time),
+  });
+  playback.applyControl({ connectionSnapshot: snapshot });
+  await playback.waitForIdle();
+  playback.prepareFrame();
+  expect(playback.getSnapshot().phase).toBe("ready");
+  const group = target.children[0]!;
+  const line = group.children[0] as import("three").Line<
+    import("three").BufferGeometry,
+    import("three").LineBasicMaterial
+  >;
+  expect(line.material.opacity).toBeCloseTo(0.5);
+  const positions = [...line.geometry.getAttribute("position").array];
+  for (const [elapsed, opacity] of [
+    [250, 0.25],
+    [500, 0],
+  ] as const) {
+    now = elapsed;
+    playback.prepareFrame();
+    expect(line.material.opacity).toBeCloseTo(opacity);
+    expect(target.children).toEqual([group]);
+    expect(group.scale.toArray()).toEqual([1, 1, 1]);
+    expect([...line.geometry.getAttribute("position").array]).toEqual(positions);
+  }
+  expect(playback.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(1);
+  playback.dispose();
 });
 
 it("applies reliable effect starts and stops without recreating a repeated retained wave", async () => {
@@ -625,7 +690,7 @@ it("applies reliable effect starts and stops without recreating a repeated retai
     now: () => 0,
     present: async () => {},
     clear: () => effects.dispose(),
-    frame: (view, time) => effects.frame(view.effectRuns, time),
+    frame: (view, time) => effects.frame(evaluateAnimationView(delivery, view, time).view, time),
   });
   playback.applyControl({ connectionSnapshot: snapshot });
   await playback.waitForIdle();
@@ -703,7 +768,7 @@ it("accepts multiple effects ordered by author ID when allocation order differs"
     now: () => 0,
     present: async () => {},
     clear: () => effects.dispose(),
-    frame: (view, time) => effects.frame(view.effectRuns, time),
+    frame: (view, time) => effects.frame(evaluateAnimationView(delivery, view, time).view, time),
   });
   playback.applyControl({ connectionSnapshot: snapshot });
   await playback.waitForIdle();

@@ -18,7 +18,8 @@ const at = (property, milliseconds, nodeId = brandId) => {
   const track = timeline.tracks.find(
     (entry) => entry.target.property === property && entry.target.nodeId === nodeId,
   );
-  assert.ok(track, `${property} トラックが必要`);
+  if (!track)
+    return property.split(".").reduce((value, key) => value[key], definition.scene.nodes[nodeId]);
   return evaluateTimelineTrack(track, timeline.durationMilliseconds, milliseconds);
 };
 
@@ -28,8 +29,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
   const started = advanceCueClock(definition, initial, 1).state;
   assert.equal(started.effectRuns.length, 2);
   const directions = {
-    "opening-wave-bottom-left": { position: [-1.4, 0.7, -2.2], direction: [1, 0, 0] },
-    "opening-wave-top-right": { position: [1.4, 2.5, -2.2], direction: [-1, 0, 0] },
+    "opening-wave-bottom-left": { position: [-2.1, 0.4, -2.2], direction: [1, 0, 0] },
+    "opening-wave-top-right": { position: [2.1, 2.8, -2.2], direction: [-1, 0, 0] },
   };
   assert.deepEqual(
     new Set(started.effectRuns.map((run) => run.effectId)),
@@ -41,7 +42,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
       started.activeRuns[0].startedAtRuntimeTimeMilliseconds,
     );
     assert.equal(run.effect.kind, "wave");
-    assert.equal(run.effect.durationMilliseconds / run.effect.speed, 4000);
+    assert.equal(run.effect.durationMilliseconds / run.effect.speed, 1200);
+    assert.equal(run.effect.size, 0.48);
     const anchor = definition.scene.nodes[run.nodeId];
     assert.equal(anchor.assetId, "wave-anchor");
     assert.equal(anchor.opacity, 1);
@@ -51,10 +53,17 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
     for (let axis = 0; axis < 3; axis++)
       assert.ok(Math.abs(forward[axis] - directions[run.effectId].direction[axis]) < 1e-12);
   }
-  const retained = advanceCueClock(definition, started, 4001).state;
+  const retained = advanceCueClock(definition, started, 1201).state;
   assert.equal(retained.effectRuns.length, 2);
   assert.ok(retained.effectRuns.every((run) => run.status === "retained"));
-  assert.deepEqual(advanceCueClock(definition, retained, 6001).state.effectRuns, []);
+  const fading = advanceCueClock(definition, retained, 8500).state;
+  assert.equal(fading.currentStepId, "opening");
+  assert.equal(fading.effectRuns.length, 2);
+  assert.ok(at("opacity", 8499) > 0);
+  const completed = advanceCueClock(definition, fading, 8501).state;
+  assert.deepEqual(completed.effectRuns, []);
+  assert.equal(completed.nodes[brandId].opacity, 0);
+  assert.equal(completed.nodes[logo.id].opacity, 0);
   const bytes = await readFile(
     new URL(`../../${config.assets["wave-anchor"].path}`, import.meta.url),
   );
@@ -63,8 +72,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
 });
 
 test("開幕完了後にだけ次の場面への入力を受け付ける", () => {
-  const completed = advanceCueClock(definition, initialState(), 6001).state;
-  const moving = advanceCueClock(definition, initialState(), 5001).state;
+  const completed = advanceCueClock(definition, initialState(), 8501).state;
+  const moving = advanceCueClock(definition, initialState(), 8500).state;
   assert.equal(moving.currentStepId, "opening");
   assert.equal(completed.currentStepId, "opening-ready");
   const step = definition.flow.groups.demo.steps[completed.currentStepId];
@@ -73,6 +82,25 @@ test("開幕完了後にだけ次の場面への入力を受け付ける", () =>
       (cue) => cue.trigger.kind === "logicalInput" && cue.trigger.action === "presenter.next",
     ),
   );
+});
+
+test("wave は形を保ってタイトルと同時にフェードアウトし、終了と同時に消える", () => {
+  const started = advanceCueClock(definition, initialState(), 1).state;
+  assert.equal(started.effectRuns.length, 2);
+  for (const run of started.effectRuns) {
+    assert.equal(at("opacity", 0, run.nodeId), 1);
+    assert.equal(at("opacity", 7000, run.nodeId), 1);
+    assert.equal(at("opacity", 7750, run.nodeId), 0.5);
+    assert.equal(at("opacity", 8500, run.nodeId), 0);
+    for (const time of [0, 7000, 7750, 8500])
+      assert.deepEqual(at("transform.scale", time, run.nodeId), [1, 1, 1]);
+  }
+  assert.equal(advanceCueClock(definition, started, 8500).state.effectRuns.length, 2);
+  const completed = advanceCueClock(definition, started, 8501).state;
+  assert.equal(completed.nodes[brandId].opacity, 0);
+  assert.equal(completed.nodes[logo.id].opacity, 0);
+  for (const run of started.effectRuns) assert.equal(completed.nodes[run.nodeId].opacity, 0);
+  assert.deepEqual(completed.effectRuns, []);
 });
 
 test("ロゴは画像 Surface ではなく icon.glb の Model として配置する", async () => {
@@ -139,67 +167,50 @@ test("ロゴの上端を上向きにし、正面を観客へ向ける", () => {
   }
 });
 
-test("開幕は自動で始まり、ロゴと Unframe が 1.5 秒かけて現れる", () => {
+test("開幕は自動で始まり、ロゴと Unframe が 3 秒かけて現れる", () => {
   const initial = initialState();
   assert.equal(initial.nodes[brandId].opacity, 0);
   const started = advanceCueClock(definition, initial, 1).state;
-  assert.equal(started.activeRuns.length, 1, "ロゴと文字の開幕を単一 Timeline で開始する");
-  for (const run of started.activeRuns) assert.equal(run.startedAtRuntimeTimeMilliseconds, 1);
-  assert.equal(at("opacity", 750), 0.5);
-  assert.equal(at("opacity", 1500), 1);
-  assert.deepEqual(at("transform.position", 1500), [0.381, 1.6, -2]);
-  assert.deepEqual(at("transform.scale", 1500), [1.5, 1.5, 1.5]);
-  assert.deepEqual(at("transform.position", 1500, logo.id), [-0.966, 1.6, -2]);
-  assert.deepEqual(at("transform.scale", 1500, logo.id), [0.6, 0.6, 0.6]);
-});
-
-test("表示後は 2.5 秒静止し、縮小と左上への移動を同じタイミングで行う", () => {
-  assert.equal(at("opacity", 4000), 1);
-  assert.deepEqual(at("transform.position", 4000), [0.381, 1.6, -2]);
-  assert.deepEqual(at("transform.scale", 4000), [1.5, 1.5, 1.5]);
-  const middle = at("transform.position", 5000);
-  assert.ok(Math.abs(middle[0] - -0.48886) < 1e-12);
-  assert.ok(Math.abs(middle[1] - 2.025) < 1e-12);
-  assert.equal(middle[2], -2);
-  for (const axis of at("transform.scale", 5000)) {
-    assert.ok(Math.abs(axis - 0.91) < 1e-12);
+  assert.equal(started.activeRuns.length, 1);
+  assert.equal(started.activeRuns[0].startedAtRuntimeTimeMilliseconds, 1);
+  for (const id of [brandId, logo.id]) {
+    assert.equal(at("opacity", 1500, id), 0.5);
+    assert.equal(at("opacity", 3000, id), 1);
   }
 });
 
-test("6 秒で移動を終え、Unframe を左上で維持する", () => {
-  const completed = advanceCueClock(definition, initialState(), 6001).state;
+test("フェードイン完了から4秒保持し、位置とサイズを変えず1.5秒でフェードアウトする", () => {
+  for (const id of [brandId, logo.id]) {
+    for (const time of [3000, 4500, 6999, 7000]) assert.equal(at("opacity", time, id), 1);
+    assert.equal(at("opacity", 7750, id), 0.5);
+    assert.equal(at("opacity", 8500, id), 0);
+  }
+  for (const time of [0, 3000, 7000, 7750, 8500]) {
+    assert.deepEqual(at("transform.position", time), [0.381, 1.6, -2]);
+    assert.deepEqual(at("transform.scale", time), [1.5, 1.5, 1.5]);
+    assert.deepEqual(at("transform.position", time, logo.id), [-0.966, 1.6, -2]);
+    assert.deepEqual(at("transform.scale", time, logo.id), [0.6, 0.6, 0.6]);
+  }
+});
+
+test("8.5秒でロゴと Unframe を消し、中央の配置を保って非表示で待機する", () => {
+  const initial = initialState();
+  const completed = advanceCueClock(definition, initial, 8501).state;
   assert.equal(completed.activeRuns.length, 0);
   assert.equal(completed.ended, false);
-  assert.deepEqual(completed.nodes[brandId].transform.position, [-1.35872, 2.45, -2]);
-  assert.deepEqual(completed.nodes[brandId].transform.scale, [0.32, 0.32, 0.32]);
-  assert.equal(completed.nodes[brandId].opacity, 1);
-  const later = advanceCueClock(definition, completed, 10001).state;
-  assert.deepEqual(later.nodes[brandId], completed.nodes[brandId]);
-  assert.equal(later.activeRuns.length, 0);
+  for (const id of [brandId, logo.id]) {
+    assert.deepEqual(completed.nodes[id].transform, initial.nodes[id].transform);
+    assert.equal(completed.nodes[id].opacity, 0);
+    const later = advanceCueClock(definition, completed, 12001).state;
+    assert.deepEqual(later.nodes[id], completed.nodes[id]);
+    assert.equal(later.activeRuns.length, 0);
+  }
   const surface = definition.scene.surfaces[reactResourceId("surface", "brand")];
   assert.equal(Object.values(surface.baseSemanticTree.nodes)[0].text, "Unframe");
 });
 
-test("3D ロゴは文字との間隔と高さを保ってフェード・縮小移動し、左上に残る", () => {
+test("3D ロゴと Unframe は同じ不透明度でフェードイン・保持・フェードアウトする", () => {
   assert.equal(initialState().nodes[logo.id].opacity, 0);
-  for (const time of [0, 750, 1500, 4000, 4500, 5000, 5500, 6000]) {
+  for (const time of [0, 750, 1500, 3000, 5000, 7000, 7750, 8499, 8500])
     assert.equal(at("opacity", time, logo.id), at("opacity", time));
-    const modelPosition = at("transform.position", time, logo.id);
-    const textPosition = at("transform.position", time);
-    const modelScale = at("transform.scale", time, logo.id);
-    const textScale = at("transform.scale", time);
-    assert.ok(Math.abs(textPosition[0] - modelPosition[0] - 0.898 * textScale[0]) < 1e-12);
-    assert.equal(modelPosition[1], textPosition[1]);
-    assert.equal(modelPosition[2], textPosition[2]);
-    for (let axis = 0; axis < 3; axis++)
-      assert.ok(Math.abs(modelScale[axis] - 0.4 * textScale[axis]) < 1e-12);
-  }
-  const completed = advanceCueClock(definition, initialState(), 6001).state;
-  assert.deepEqual(completed.nodes[logo.id].transform.position, [-1.64608, 2.45, -2]);
-  assert.deepEqual(completed.nodes[logo.id].transform.scale, [0.128, 0.128, 0.128]);
-  assert.equal(completed.nodes[logo.id].opacity, 1);
-  assert.deepEqual(
-    advanceCueClock(definition, completed, 10001).state.nodes[logo.id],
-    completed.nodes[logo.id],
-  );
 });
