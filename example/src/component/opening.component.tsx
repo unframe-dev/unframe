@@ -1,5 +1,5 @@
 import { defineComponent, editableText, prop } from "@unframe-dev/authoring";
-import "./style.css";
+import "../style.css";
 
 export const OpeningBrand = defineComponent({
   id: "opening-brand",

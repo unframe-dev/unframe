@@ -42,10 +42,12 @@ export function createRuntimePlayback(options: {
     error = "presentation-render-failed";
     assetFailure = getAssetFailure(cause);
     renderFailurePhase = phase;
-    appliedView = null;
-    appliedBindings = {};
     generation++;
-    options.clear();
+    if (phase === "frame" || !appliedView) {
+      appliedView = null;
+      appliedBindings = {};
+      options.clear();
+    }
   }
   function schedule() {
     const snapshot = store.getSnapshot();

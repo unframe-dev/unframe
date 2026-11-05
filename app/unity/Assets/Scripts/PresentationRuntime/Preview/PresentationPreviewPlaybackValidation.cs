@@ -99,6 +99,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (!PresentationEffectValidation.Validate(state.EffectRuns, input.Catalog, state.Clock.RuntimeTimeMs,
                 state.CurrentGroupId, 0, 0)) return false;
             input.ReplaceEffects(state.EffectRuns);
+            input.CurrentGroupId = state.CurrentGroupId;
             input.ReplaceVariables(state.VariableStates);
             input.ReplaceMediaPlayback(state.MediaStates, state.ModelClipStates);
             input.ReplacePlayback(nodes, surfaces, new List<RuntimeRunSnapshot>(state.ActiveRuns));

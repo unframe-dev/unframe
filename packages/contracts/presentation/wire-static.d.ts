@@ -13665,6 +13665,129 @@ export namespace unframe {
         }
 
         /**
+         * Properties of a TextureResidencyWindow.
+         * @deprecated Use unframe.delivery.TextureResidencyWindow.$Properties instead.
+         */
+        interface ITextureResidencyWindow extends unframe.delivery.TextureResidencyWindow.$Properties {
+        }
+
+        /** Represents a TextureResidencyWindow. */
+        class TextureResidencyWindow {
+
+            /**
+             * Constructs a new TextureResidencyWindow.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: unframe.delivery.TextureResidencyWindow.$Properties);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+
+            /** TextureResidencyWindow groupId. */
+            groupId: string;
+
+            /** TextureResidencyWindow assetIds. */
+            assetIds: string[];
+
+            /**
+             * Creates a new TextureResidencyWindow instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns TextureResidencyWindow instance
+             */
+            static create(properties: unframe.delivery.TextureResidencyWindow.$Shape): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+            static create(properties?: unframe.delivery.TextureResidencyWindow.$Properties): unframe.delivery.TextureResidencyWindow;
+
+            /**
+             * Encodes the specified TextureResidencyWindow message. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+             * @param message TextureResidencyWindow message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encode(message: unframe.delivery.TextureResidencyWindow.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified TextureResidencyWindow message, length delimited. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+             * @param message TextureResidencyWindow message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encodeDelimited(message: unframe.delivery.TextureResidencyWindow.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a TextureResidencyWindow message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+
+            /**
+             * Decodes a TextureResidencyWindow message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+
+            /**
+             * Verifies a TextureResidencyWindow message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a TextureResidencyWindow message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns TextureResidencyWindow
+             */
+            static fromObject(object: { [k: string]: any }): unframe.delivery.TextureResidencyWindow;
+
+            /**
+             * Creates a plain object from a TextureResidencyWindow message. Also converts values to other types if specified.
+             * @param message TextureResidencyWindow
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            static toObject(message: unframe.delivery.TextureResidencyWindow, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this TextureResidencyWindow to JSON.
+             * @returns JSON object
+             */
+            toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the type url for TextureResidencyWindow
+             * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns The type url
+             */
+            static getTypeUrl(prefix?: string): string;
+        }
+
+        namespace TextureResidencyWindow {
+
+            /** Properties of a TextureResidencyWindow. */
+            interface $Properties {
+
+                /** TextureResidencyWindow groupId */
+                groupId?: (string|null);
+
+                /** TextureResidencyWindow assetIds */
+                assetIds?: (string[]|null);
+
+                /** Unknown fields preserved while decoding when enabled */
+                $unknowns?: Uint8Array[];
+            }
+
+            /** Shape of a TextureResidencyWindow. */
+            type $Shape = unframe.delivery.TextureResidencyWindow.$Properties;
+        }
+
+        /**
          * Properties of a TextureResidencyPlan.
          * @deprecated Use unframe.delivery.TextureResidencyPlan.$Properties instead.
          */
@@ -13694,6 +13817,18 @@ export namespace unframe {
 
             /** TextureResidencyPlan maximumPeakLoadCpuBytes. */
             maximumPeakLoadCpuBytes: (number|Long);
+
+            /** TextureResidencyPlan initialGroupId. */
+            initialGroupId: string;
+
+            /** TextureResidencyPlan groupWindows. */
+            groupWindows: unframe.delivery.TextureResidencyWindow.$Properties[];
+
+            /** TextureResidencyPlan maximumResidentGpuBytes. */
+            maximumResidentGpuBytes: (number|Long);
+
+            /** TextureResidencyPlan maximumResidentTextureBindings. */
+            maximumResidentTextureBindings: (number|Long);
 
             /**
              * Creates a new TextureResidencyPlan instance using the specified properties.
@@ -13790,6 +13925,18 @@ export namespace unframe {
 
                 /** TextureResidencyPlan maximumPeakLoadCpuBytes */
                 maximumPeakLoadCpuBytes?: (number|Long|null);
+
+                /** TextureResidencyPlan initialGroupId */
+                initialGroupId?: (string|null);
+
+                /** TextureResidencyPlan groupWindows */
+                groupWindows?: (unframe.delivery.TextureResidencyWindow.$Properties[]|null);
+
+                /** TextureResidencyPlan maximumResidentGpuBytes */
+                maximumResidentGpuBytes?: (number|Long|null);
+
+                /** TextureResidencyPlan maximumResidentTextureBindings */
+                maximumResidentTextureBindings?: (number|Long|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
@@ -15155,8 +15302,11 @@ export namespace unframe {
             /** ControlClientItem inputSynchronizationAck. */
             inputSynchronizationAck?: (unframe.realtime.InputSynchronizationAck.$Properties|null);
 
+            /** ControlClientItem presentationOrigin. */
+            presentationOrigin?: (unframe.realtime.PresentationOriginCommand.$Properties|null);
+
             /** ControlClientItem item. */
-            item?: ("handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck");
+            item?: ("handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin");
 
             /**
              * Creates a new ControlClientItem instance using the specified properties.
@@ -15269,8 +15419,11 @@ export namespace unframe {
                 /** ControlClientItem inputSynchronizationAck */
                 inputSynchronizationAck?: (unframe.realtime.InputSynchronizationAck.$Properties|null);
 
+                /** ControlClientItem presentationOrigin */
+                presentationOrigin?: (unframe.realtime.PresentationOriginCommand.$Properties|null);
+
                 /** ControlClientItem item */
-                item?: ("handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck");
+                item?: ("handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin");
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
@@ -15287,9 +15440,10 @@ export namespace unframe {
               gestureInput?: unframe.realtime.GestureInputCommand.$Shape|null;
               zoneInput?: unframe.realtime.ZoneInputCommand.$Shape|null;
               inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Shape|null;
+              presentationOrigin?: unframe.realtime.PresentationOriginCommand.$Shape|null;
               $unknowns?: Uint8Array[];
             } & (
-              ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape })
+              ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape; presentationOrigin?: null }|{ item?: "presentationOrigin"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin: unframe.realtime.PresentationOriginCommand.$Shape })
             );
         }
 
@@ -16813,6 +16967,141 @@ export namespace unframe {
 
             /** Shape of a RuntimeControlCommand. */
             type $Shape = unframe.realtime.RuntimeControlCommand.$Properties;
+        }
+
+        /**
+         * Properties of a PresentationOriginCommand.
+         * @deprecated Use unframe.realtime.PresentationOriginCommand.$Properties instead.
+         */
+        interface IPresentationOriginCommand extends unframe.realtime.PresentationOriginCommand.$Properties {
+        }
+
+        /** Represents a PresentationOriginCommand. */
+        class PresentationOriginCommand {
+
+            /**
+             * Constructs a new PresentationOriginCommand.
+             * @param [properties] Properties to set
+             */
+            constructor(properties?: unframe.realtime.PresentationOriginCommand.$Properties);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+
+            /** PresentationOriginCommand clientEventId. */
+            clientEventId: string;
+
+            /** PresentationOriginCommand expectedPresentationOriginVersion. */
+            expectedPresentationOriginVersion: (number|Long);
+
+            /** PresentationOriginCommand pose. */
+            pose?: (unframe.presentation.Pose.$Properties|null);
+
+            /** PresentationOriginCommand commandEpoch. */
+            commandEpoch: (number|Long);
+
+            /**
+             * Creates a new PresentationOriginCommand instance using the specified properties.
+             * @param [properties] Properties to set
+             * @returns PresentationOriginCommand instance
+             */
+            static create(properties: unframe.realtime.PresentationOriginCommand.$Shape): unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape;
+            static create(properties?: unframe.realtime.PresentationOriginCommand.$Properties): unframe.realtime.PresentationOriginCommand;
+
+            /**
+             * Encodes the specified PresentationOriginCommand message. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+             * @param message PresentationOriginCommand message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encode(message: unframe.realtime.PresentationOriginCommand.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Encodes the specified PresentationOriginCommand message, length delimited. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+             * @param message PresentationOriginCommand message or plain object to encode
+             * @param [writer] Writer to encode to
+             * @returns Writer
+             */
+            static encodeDelimited(message: unframe.realtime.PresentationOriginCommand.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+            /**
+             * Decodes a PresentationOriginCommand message from the specified reader or buffer.
+             * @param reader Reader or buffer to decode from
+             * @param [length] Message length if known beforehand
+             * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape;
+
+            /**
+             * Decodes a PresentationOriginCommand message from the specified reader or buffer, length delimited.
+             * @param reader Reader or buffer to decode from
+             * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape;
+
+            /**
+             * Verifies a PresentationOriginCommand message.
+             * @param message Plain object to verify
+             * @returns `null` if valid, otherwise the reason why it is not
+             */
+            static verify(message: { [k: string]: any }): (string|null);
+
+            /**
+             * Creates a PresentationOriginCommand message from a plain object. Also converts values to their respective internal types.
+             * @param object Plain object
+             * @returns PresentationOriginCommand
+             */
+            static fromObject(object: { [k: string]: any }): unframe.realtime.PresentationOriginCommand;
+
+            /**
+             * Creates a plain object from a PresentationOriginCommand message. Also converts values to other types if specified.
+             * @param message PresentationOriginCommand
+             * @param [options] Conversion options
+             * @returns Plain object
+             */
+            static toObject(message: unframe.realtime.PresentationOriginCommand, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+            /**
+             * Converts this PresentationOriginCommand to JSON.
+             * @returns JSON object
+             */
+            toJSON(): { [k: string]: any };
+
+            /**
+             * Gets the type url for PresentationOriginCommand
+             * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns The type url
+             */
+            static getTypeUrl(prefix?: string): string;
+        }
+
+        namespace PresentationOriginCommand {
+
+            /** Properties of a PresentationOriginCommand. */
+            interface $Properties {
+
+                /** PresentationOriginCommand clientEventId */
+                clientEventId?: (string|null);
+
+                /** PresentationOriginCommand expectedPresentationOriginVersion */
+                expectedPresentationOriginVersion?: (number|Long|null);
+
+                /** PresentationOriginCommand pose */
+                pose?: (unframe.presentation.Pose.$Properties|null);
+
+                /** PresentationOriginCommand commandEpoch */
+                commandEpoch?: (number|Long|null);
+
+                /** Unknown fields preserved while decoding when enabled */
+                $unknowns?: Uint8Array[];
+            }
+
+            /** Shape of a PresentationOriginCommand. */
+            type $Shape = unframe.realtime.PresentationOriginCommand.$Properties;
         }
 
         /**
@@ -32184,6 +32473,9 @@ export namespace unframe {
             /** TrackingFrame presentationFromQuestLocal. */
             presentationFromQuestLocal?: (unframe.presentation.Pose.$Properties|null);
 
+            /** TrackingFrame presentationOriginVersion. */
+            presentationOriginVersion: (number|Long);
+
             /**
              * Creates a new TrackingFrame instance using the specified properties.
              * @param [properties] Properties to set
@@ -32279,6 +32571,9 @@ export namespace unframe {
 
                 /** TrackingFrame presentationFromQuestLocal */
                 presentationFromQuestLocal?: (unframe.presentation.Pose.$Properties|null);
+
+                /** TrackingFrame presentationOriginVersion */
+                presentationOriginVersion?: (number|Long|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];

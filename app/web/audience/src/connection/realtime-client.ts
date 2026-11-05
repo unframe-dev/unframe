@@ -184,6 +184,17 @@ export function createAudienceRealtime(
               };
             }
             input.applyControl(item);
+            const origin = item.reliableEvent?.presentationOriginChanged?.origin;
+            if (origin) {
+              if (!cut || !item.reliableEvent?.sequence || !origin.version)
+                throw new Error("invalid-origin-update");
+              cut = {
+                appliedReliableSequence: item.reliableEvent.sequence,
+                presentationOriginVersion: origin.version,
+              };
+              readySent = false;
+              started = Date.now();
+            }
             if (item.stateConnectionNonce) {
               const nonce = item.stateConnectionNonce;
               if (!cut || !connectionId || !nonce.nonce?.length || !nonce.expiresInMs || state)

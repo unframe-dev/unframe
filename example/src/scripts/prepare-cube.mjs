@@ -135,4 +135,4 @@ json.copy(output, 20);
 output.writeUInt32LE(binary.length, 20 + padded);
 output.writeUInt32LE(0x004e4942, 24 + padded);
 binary.copy(output, 28 + padded);
-await writeFile(new URL("../assets/cube.glb", import.meta.url), output);
+await writeFile(new URL("../../assets/cube.glb", import.meta.url), output);

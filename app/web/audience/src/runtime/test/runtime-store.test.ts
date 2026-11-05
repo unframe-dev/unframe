@@ -459,6 +459,76 @@ describe("runtime store", () => {
     });
     expect(store.getSnapshot().phase).toBe("resync-required");
   });
+  it("converges existing and late viewers to the same absolute origin across repeated updates", () => {
+    const { store, snapshot, fence, delivery } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "first-placement",
+        presentationOriginChanged: {
+          origin: {
+            version: "1",
+            pose: { position: { x: 0.4, y: 1.3, z: -0.2 }, rotation: { w: 1 } },
+          },
+        },
+      },
+    });
+    const origin = {
+      version: "2",
+      pose: { position: { x: 0.4, y: 0.8, z: -0.2 }, rotation: { w: 1 } },
+    };
+    store.applyControl({
+      reliableEvent: {
+        fence: { ...fence, presentationOriginVersion: "1" },
+        sequence: "2",
+        eventId: "replacement-placement",
+        presentationOriginChanged: { origin },
+      },
+    });
+    const lateSnapshot = structuredClone(snapshot);
+    lateSnapshot.fence = { ...fence, presentationOriginVersion: "2" };
+    lateSnapshot.reliableSequence = "2";
+    lateSnapshot.snapshot!.reliableSequence = "2";
+    lateSnapshot.snapshot!.runtimeView!.baseReliableSequence = "2";
+    lateSnapshot.snapshot!.runtimeView!.presentationOrigin = origin;
+    const lateViewer = createRuntimeStore(delivery);
+    lateViewer.applyControl({ connectionSnapshot: lateSnapshot });
+    expect(store.getSnapshot().phase).toBe("ready");
+    expect(lateViewer.getSnapshot().phase).toBe("ready");
+    expect(store.getSnapshot().view!.presentationOrigin.pose.position).toEqual([0.4, 0.8, -0.2]);
+    expect(lateViewer.getSnapshot().view!.presentationOrigin).toEqual(
+      store.getSnapshot().view!.presentationOrigin,
+    );
+  });
+  it("accepts a replacement view under the new fence immediately after origin placement", () => {
+    const { store, snapshot, fence } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    const origin = { version: "1", pose: { position: { y: 1.3 }, rotation: { w: 1 } } };
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "origin",
+        presentationOriginChanged: { origin },
+      },
+    });
+    const replacement = structuredClone(snapshot.snapshot!.runtimeView!);
+    replacement.baseReliableSequence = "2";
+    replacement.presentationOrigin = origin;
+    store.applyControl({
+      reliableEvent: {
+        fence: { ...fence, presentationOriginVersion: "1" },
+        sequence: "2",
+        eventId: "rebased-view",
+        runtimeViewReplaced: { runtimeView: replacement },
+      },
+    });
+    expect(store.getSnapshot().phase).toBe("ready");
+    expect(store.getSnapshot().reliableSequence).toBe("2");
+    expect(store.getSnapshot().view!.presentationOrigin.pose.position).toEqual([0, 1.3, 0]);
+  });
   it("applies step entry only with consecutive epoch and matching runtime timestamp", () => {
     const { store, snapshot, fence } = setup();
     store.applyControl({ connectionSnapshot: snapshot });

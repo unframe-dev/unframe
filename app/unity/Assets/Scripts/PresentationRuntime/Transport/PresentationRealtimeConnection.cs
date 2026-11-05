@@ -260,11 +260,25 @@ namespace Unframe.Unity.PresentationRuntime
                                 }
                                 if (fence != null && store.PresentationOrigin != null)
                                     fence.PresentationOriginVersion = store.PresentationOrigin.Version;
+                                if ((store.PresentationOrigin?.Version ?? 0) != priorOriginVersion && item.ReliableEvent?.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.PresentationOriginChanged && !replayBootstrap)
+                                {
+                                    replayReadyCut = store.LastReliableSequence;
+                                    replayOriginVersion = store.PresentationOrigin.Version;
+                                    replayReadyCutAvailable = true;
+                                    if (ControlReady) await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
+                                }
                                 ApplyStepCatalog();
                                 RuntimeChanged?.Invoke();
                                 await AcknowledgeInputSynchronization(token);
                                 if (stateLoop != null && stateLoop.IsCompleted) await stateLoop;
                             }
+                        }
+                        catch (RpcException exception)
+                        {
+                            lock (pendingGate)
+                                foreach (var completion in pendingOutcomes.Values)
+                                    completion.TrySetException(exception);
+                            throw;
                         }
                         finally
                         {
@@ -326,6 +340,11 @@ namespace Unframe.Unity.PresentationRuntime
         private bool TryPrepareSnapshotRetry(RpcException exception)
         {
             if (exception.StatusCode != StatusCode.FailedPrecondition) return false;
+            if (exception.Status.Detail == "presentation_origin_mismatch")
+            {
+                ResetSnapshotBootstrap();
+                return true;
+            }
             string reason = null;
             int count = 0;
             foreach (Metadata.Entry entry in exception.Trailers)
@@ -366,10 +385,13 @@ namespace Unframe.Unity.PresentationRuntime
 
         private StateReady CreateStateReady()
         {
-            if (replayReadyCutAvailable)
+            ulong currentVersion = store.PresentationOrigin?.Version ?? 0;
+            if (replayReadyCutAvailable && replayOriginVersion == currentVersion)
                 return new StateReady { AppliedReliableSequence = replayReadyCut, PresentationOriginVersion = replayOriginVersion };
             if (!store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope cut) || cut.Fence == null)
                 throw Failure("realtime snapshot cut is unavailable");
+            if (cut.Fence.PresentationOriginVersion != currentVersion)
+                return new StateReady { AppliedReliableSequence = store.LastReliableSequence, PresentationOriginVersion = currentVersion };
             return new StateReady { AppliedReliableSequence = cut.ReliableSequence, PresentationOriginVersion = cut.Fence.PresentationOriginVersion };
         }
 
@@ -419,7 +441,8 @@ namespace Unframe.Unity.PresentationRuntime
                     || expectedState.ResponseStream.Current.Connected.ConnectionId != connectionId) throw Failure("realtime state connection mismatch");
                 if (!store.TryValidateRuntimeOwnership(out string ownershipError)) throw Failure(ownershipError);
                 if (prepareResources != null) await prepareResources(token);
-                await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
+                StateReady initialReady = CreateStateReady();
+                await WriteAsync(new ControlClientItem { StateReady = initialReady }, token);
                 token.ThrowIfCancellationRequested();
                 if (disposed || control != expectedControl || state != expectedState)
                     throw new InvalidOperationException("The Control connection changed before State readiness.");
@@ -427,6 +450,8 @@ namespace Unframe.Unity.PresentationRuntime
                 BeginStateStream();
                 // Paused Snapshots are complete display cuts; input synchronization gates Presenter commands separately.
                 ControlReady = true;
+                if (initialReady.PresentationOriginVersion != (store.PresentationOrigin?.Version ?? 0))
+                    await WriteAsync(new ControlClientItem { StateReady = CreateStateReady() }, token);
                 SessionReady = store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Paused;
                 RuntimeChanged?.Invoke();
                 while (await expectedState.ResponseStream.MoveNext(token))
@@ -449,7 +474,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void ReliableDisplayChanged(ControlServerItem item)
         {
-            SetWaitForKeyframe(true);
+            bool originChanged = item.ReliableEvent?.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.PresentationOriginChanged;
+            if (originChanged) inputGeneration++;
+            SetWaitForKeyframe(!originChanged || store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Paused);
             if (ControlReady && item.ReliableEvent?.PayloadCase == ProjectedReliableEvent.PayloadOneofCase.RuntimeViewReplaced
                 && store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Paused)
                 SessionReady = true;
@@ -518,7 +545,7 @@ namespace Unframe.Unity.PresentationRuntime
         public async Task<CommandOutcome> SendConfirmedAsync(ControlClientItem command, TimeSpan timeout, CancellationToken token)
         {
             if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
-            string id = command?.RuntimeControl?.ClientEventId ?? command?.LogicalInput?.ClientEventId
+            string id = command?.PresentationOrigin?.ClientEventId ?? command?.RuntimeControl?.ClientEventId ?? command?.LogicalInput?.ClientEventId
                 ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId;
             if (String.IsNullOrWhiteSpace(id)) throw new ArgumentException("A command event identifier is required.", nameof(command));
             var completion = new TaskCompletionSource<CommandOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -547,7 +574,7 @@ namespace Unframe.Unity.PresentationRuntime
         private bool IsCommandReady(ControlClientItem command)
         {
             if (disposed || command == null) return false;
-            if (command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl)
+            if (command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin)
                 return ControlReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter;
             return SessionReady && InputSynchronization.Ready && store.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running
                 && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter
@@ -568,7 +595,7 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new InvalidOperationException("The runtime input connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 await expectedControl.RequestStream.WriteAsync(command);
-                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId);
+                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId);
             }
             finally { writes.Release(); }
         }
@@ -624,7 +651,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void RequireResidency()
         {
-            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(store.Delivery.Residency.Textures.Textures)
+            if (store.Delivery == null || store.Delivery.Residency.Textures == null || !textures.IsReady(textures.Bindings)
                 || additionalResidency != null && !additionalResidency())
             {
                 ControlReady = false;

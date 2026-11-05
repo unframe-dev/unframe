@@ -24,6 +24,7 @@ public static class PresenterAuthorityTests
         };
         Require(sync.Receive(required), "valid required rejected");
         Require(!sync.Ready && sync.CommandEpoch == 3, "next epoch used before READY");
+        Require(!sync.IsReadyAt(10), "REQUIRED synchronization cannot confirm placement");
         Require(sync.TryCreateAck(9) == null, "ACK preceded reliable cut");
         var ack = sync.TryCreateAck(12);
         Require(ack?.CommandEpoch == 4, "ACK lost next epoch");
@@ -31,7 +32,18 @@ public static class PresenterAuthorityTests
         var ready = required.Clone(); ready.Phase = InputSynchronizationPhase.Ready; ready.CommandEpoch = 4; ready.ClearNextCommandEpoch();
         Require(sync.Receive(ready) && sync.Ready && sync.CommandEpoch == 4, "READY did not activate new epoch");
         Require(!sync.Receive(required), "old REQUIRED replaced READY");
-        var extended = required.Clone();
+        Require(sync.IsReadyAt(10) && !sync.IsReadyAt(11), "READY from an earlier cut confirmed a later placement");
+        var originRequired = ready.Clone();
+        originRequired.Phase = InputSynchronizationPhase.Required;
+        originRequired.SynchronizationRevision++;
+        originRequired.ReliableSequence = 11;
+        originRequired.InputContext.InputEpoch++;
+        Require(sync.Receive(originRequired) && !sync.IsReadyAt(11), "origin change did not require a new synchronization");
+        Require(sync.TryCreateAck(11) != null, "origin synchronization was not acknowledged");
+        var originReady = originRequired.Clone();
+        originReady.Phase = InputSynchronizationPhase.Ready;
+        Require(sync.Receive(originReady) && sync.IsReadyAt(11) && sync.CommandEpoch == 4, "placement synchronization required an unnecessary command epoch rotation");
+        var extended = originRequired.Clone();
         extended.SynchronizationRevision++;
         extended.CommandEpoch = 4;
         extended.NextCommandEpoch = 5;

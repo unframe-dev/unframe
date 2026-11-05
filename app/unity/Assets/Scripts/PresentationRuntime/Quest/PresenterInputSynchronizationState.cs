@@ -14,6 +14,7 @@ namespace Unframe.Unity.PresentationRuntime
         public PresenterRecognitionCatalog Catalog => Ready ? current.RecognitionCatalog.Clone() : null;
         public ulong Revision => current?.SynchronizationRevision ?? 0;
         public event Action Invalidated;
+        public bool IsReadyAt(ulong reliableSequence) => Ready && current.ReliableSequence >= reliableSequence;
 
         public bool Receive(PresenterInputSynchronization value)
         {

@@ -34782,6 +34782,263 @@ export const unframe = ($root.unframe = (() => {
       return TextureResidencyBinding;
     })();
 
+    delivery.TextureResidencyWindow = (function () {
+      /**
+       * Properties of a TextureResidencyWindow.
+       * @typedef {Object} unframe.delivery.TextureResidencyWindow.$Properties
+       * @property {string|null} [groupId] TextureResidencyWindow groupId
+       * @property {Array.<string>|null} [assetIds] TextureResidencyWindow assetIds
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a TextureResidencyWindow.
+       * @memberof unframe.delivery
+       * @interface ITextureResidencyWindow
+       * @augments unframe.delivery.TextureResidencyWindow.$Properties
+       * @deprecated Use unframe.delivery.TextureResidencyWindow.$Properties instead.
+       */
+
+      /**
+       * Shape of a TextureResidencyWindow.
+       * @typedef {unframe.delivery.TextureResidencyWindow.$Properties} unframe.delivery.TextureResidencyWindow.$Shape
+       */
+
+      /**
+       * Constructs a new TextureResidencyWindow.
+       * @memberof unframe.delivery
+       * @classdesc Represents a TextureResidencyWindow.
+       * @constructor
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const TextureResidencyWindow = function TextureResidencyWindow(properties) {
+        this.assetIds = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * TextureResidencyWindow groupId.
+       * @member {string} groupId
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       */
+      TextureResidencyWindow.prototype.groupId = "";
+
+      /**
+       * TextureResidencyWindow assetIds.
+       * @member {Array.<string>} assetIds
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       */
+      TextureResidencyWindow.prototype.assetIds = $util.emptyArray;
+
+      /**
+       * Creates a new TextureResidencyWindow instance using the specified properties.
+       * @function create
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties=} [properties] Properties to set
+       * @returns {unframe.delivery.TextureResidencyWindow} TextureResidencyWindow instance
+       * @type {{
+       *   (properties: unframe.delivery.TextureResidencyWindow.$Shape): unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape;
+       *   (properties?: unframe.delivery.TextureResidencyWindow.$Properties): unframe.delivery.TextureResidencyWindow;
+       * }}
+       */
+      TextureResidencyWindow.create = function (properties) {
+        return new TextureResidencyWindow(properties);
+      };
+
+      /**
+       * Encodes the specified TextureResidencyWindow message. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties} message TextureResidencyWindow message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      TextureResidencyWindow.encode = function TextureResidencyWindow$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.groupId != null && $Object.hasOwnProperty.call(message, "groupId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.groupId);
+        if (message.assetIds != null && message.assetIds.length)
+          for (let i = 0; i < message.assetIds.length; ++i)
+            writer.uint32(/* id 2, wireType 2 =*/ 18).string(message.assetIds[i]);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified TextureResidencyWindow message, length delimited. Does not implicitly {@link unframe.delivery.TextureResidencyWindow.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow.$Properties} message TextureResidencyWindow message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      TextureResidencyWindow.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a TextureResidencyWindow message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      TextureResidencyWindow.decode = function TextureResidencyWindow$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.groupId = reader.string();
+              break;
+            }
+            case 2: {
+              if (!(message.assetIds && message.assetIds.length)) message.assetIds = [];
+              message.assetIds.push(reader.string());
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a TextureResidencyWindow message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.delivery.TextureResidencyWindow & unframe.delivery.TextureResidencyWindow.$Shape} TextureResidencyWindow
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      TextureResidencyWindow.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a TextureResidencyWindow message.
+       * @function verify
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      TextureResidencyWindow.verify = function TextureResidencyWindow$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          if (!$util.isString(message.groupId)) return "groupId: string expected";
+        if (message.assetIds != null && message.hasOwnProperty("assetIds")) {
+          if (!$Array.isArray(message.assetIds)) return "assetIds: array expected";
+          for (let i = 0; i < message.assetIds.length; ++i)
+            if (!$util.isString(message.assetIds[i])) return "assetIds: string[] expected";
+        }
+        return null;
+      };
+
+      /**
+       * Creates a TextureResidencyWindow message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.delivery.TextureResidencyWindow} TextureResidencyWindow
+       */
+      TextureResidencyWindow.fromObject = function TextureResidencyWindow$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.groupId != null) message.groupId = $String(object.groupId);
+        if (object.assetIds) {
+          if (!$Array.isArray(object.assetIds))
+            throw $TypeError(".unframe.delivery.TextureResidencyWindow.assetIds: array expected");
+          message.assetIds = [];
+          for (let i = 0; i < object.assetIds.length; ++i)
+            message.assetIds[i] = $String(object.assetIds[i]);
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a TextureResidencyWindow message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {unframe.delivery.TextureResidencyWindow} message TextureResidencyWindow
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      TextureResidencyWindow.toObject = function TextureResidencyWindow$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.assetIds = [];
+        if (options.defaults) object.groupId = "";
+        if (message.groupId != null && message.hasOwnProperty("groupId"))
+          object.groupId = message.groupId;
+        if (message.assetIds && message.assetIds.length) {
+          object.assetIds = [];
+          for (let j = 0; j < message.assetIds.length; ++j)
+            object.assetIds[j] = message.assetIds[j];
+        }
+        return object;
+      };
+
+      /**
+       * Converts this TextureResidencyWindow to JSON.
+       * @function toJSON
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      TextureResidencyWindow.prototype.toJSON = function () {
+        return TextureResidencyWindow.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for TextureResidencyWindow
+       * @function getTypeUrl
+       * @memberof unframe.delivery.TextureResidencyWindow
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      TextureResidencyWindow.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.delivery.TextureResidencyWindow";
+      };
+
+      return TextureResidencyWindow;
+    })();
+
     delivery.TextureResidencyPlan = (function () {
       /**
        * Properties of a TextureResidencyPlan.
@@ -34790,6 +35047,10 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.delivery.TextureResidencyBinding.$Properties>|null} [textures] TextureResidencyPlan textures
        * @property {number|Long|null} [totalDecodedGpuBytes] TextureResidencyPlan totalDecodedGpuBytes
        * @property {number|Long|null} [maximumPeakLoadCpuBytes] TextureResidencyPlan maximumPeakLoadCpuBytes
+       * @property {string|null} [initialGroupId] TextureResidencyPlan initialGroupId
+       * @property {Array.<unframe.delivery.TextureResidencyWindow.$Properties>|null} [groupWindows] TextureResidencyPlan groupWindows
+       * @property {number|Long|null} [maximumResidentGpuBytes] TextureResidencyPlan maximumResidentGpuBytes
+       * @property {number|Long|null} [maximumResidentTextureBindings] TextureResidencyPlan maximumResidentTextureBindings
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -34816,6 +35077,7 @@ export const unframe = ($root.unframe = (() => {
        */
       const TextureResidencyPlan = function TextureResidencyPlan(properties) {
         this.textures = [];
+        this.groupWindows = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -34855,6 +35117,42 @@ export const unframe = ($root.unframe = (() => {
        * @instance
        */
       TextureResidencyPlan.prototype.maximumPeakLoadCpuBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * TextureResidencyPlan initialGroupId.
+       * @member {string} initialGroupId
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.initialGroupId = "";
+
+      /**
+       * TextureResidencyPlan groupWindows.
+       * @member {Array.<unframe.delivery.TextureResidencyWindow.$Properties>} groupWindows
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.groupWindows = $util.emptyArray;
+
+      /**
+       * TextureResidencyPlan maximumResidentGpuBytes.
+       * @member {number|Long} maximumResidentGpuBytes
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.maximumResidentGpuBytes = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * TextureResidencyPlan maximumResidentTextureBindings.
+       * @member {number|Long} maximumResidentTextureBindings
+       * @memberof unframe.delivery.TextureResidencyPlan
+       * @instance
+       */
+      TextureResidencyPlan.prototype.maximumResidentTextureBindings = $util.Long
         ? $util.Long.fromBits(0, 0, true)
         : 0;
 
@@ -34903,6 +35201,27 @@ export const unframe = ($root.unframe = (() => {
           $Object.hasOwnProperty.call(message, "maximumPeakLoadCpuBytes")
         )
           writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.maximumPeakLoadCpuBytes);
+        if (
+          message.initialGroupId != null &&
+          $Object.hasOwnProperty.call(message, "initialGroupId")
+        )
+          writer.uint32(/* id 5, wireType 2 =*/ 42).string(message.initialGroupId);
+        if (message.groupWindows != null && message.groupWindows.length)
+          for (let i = 0; i < message.groupWindows.length; ++i)
+            $root.unframe.delivery.TextureResidencyWindow.encode(
+              message.groupWindows[i],
+              writer.uint32(/* id 6, wireType 2 =*/ 50).fork(),
+            ).ldelim();
+        if (
+          message.maximumResidentGpuBytes != null &&
+          $Object.hasOwnProperty.call(message, "maximumResidentGpuBytes")
+        )
+          writer.uint32(/* id 7, wireType 0 =*/ 56).uint64(message.maximumResidentGpuBytes);
+        if (
+          message.maximumResidentTextureBindings != null &&
+          $Object.hasOwnProperty.call(message, "maximumResidentTextureBindings")
+        )
+          writer.uint32(/* id 8, wireType 0 =*/ 64).uint64(message.maximumResidentTextureBindings);
         return writer;
       };
 
@@ -34967,6 +35286,30 @@ export const unframe = ($root.unframe = (() => {
             }
             case 4: {
               message.maximumPeakLoadCpuBytes = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.initialGroupId = reader.string();
+              break;
+            }
+            case 6: {
+              if (!(message.groupWindows && message.groupWindows.length)) message.groupWindows = [];
+              message.groupWindows.push(
+                $root.unframe.delivery.TextureResidencyWindow.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 7: {
+              message.maximumResidentGpuBytes = reader.uint64();
+              break;
+            }
+            case 8: {
+              message.maximumResidentTextureBindings = reader.uint64();
               break;
             }
             default:
@@ -35039,6 +35382,44 @@ export const unframe = ($root.unframe = (() => {
             )
           )
             return "maximumPeakLoadCpuBytes: integer|Long expected";
+        if (message.initialGroupId != null && message.hasOwnProperty("initialGroupId"))
+          if (!$util.isString(message.initialGroupId)) return "initialGroupId: string expected";
+        if (message.groupWindows != null && message.hasOwnProperty("groupWindows")) {
+          if (!$Array.isArray(message.groupWindows)) return "groupWindows: array expected";
+          for (let i = 0; i < message.groupWindows.length; ++i) {
+            let error = $root.unframe.delivery.TextureResidencyWindow.verify(
+              message.groupWindows[i],
+              long + 1,
+            );
+            if (error) return "groupWindows." + error;
+          }
+        }
+        if (
+          message.maximumResidentGpuBytes != null &&
+          message.hasOwnProperty("maximumResidentGpuBytes")
+        )
+          if (
+            !$util.isInteger(message.maximumResidentGpuBytes) &&
+            !(
+              message.maximumResidentGpuBytes &&
+              $util.isInteger(message.maximumResidentGpuBytes.low) &&
+              $util.isInteger(message.maximumResidentGpuBytes.high)
+            )
+          )
+            return "maximumResidentGpuBytes: integer|Long expected";
+        if (
+          message.maximumResidentTextureBindings != null &&
+          message.hasOwnProperty("maximumResidentTextureBindings")
+        )
+          if (
+            !$util.isInteger(message.maximumResidentTextureBindings) &&
+            !(
+              message.maximumResidentTextureBindings &&
+              $util.isInteger(message.maximumResidentTextureBindings.low) &&
+              $util.isInteger(message.maximumResidentTextureBindings.high)
+            )
+          )
+            return "maximumResidentTextureBindings: integer|Long expected";
         return null;
       };
 
@@ -35097,6 +35478,53 @@ export const unframe = ($root.unframe = (() => {
               object.maximumPeakLoadCpuBytes.low >>> 0,
               object.maximumPeakLoadCpuBytes.high >>> 0,
             ).toNumber(true);
+        if (object.initialGroupId != null) message.initialGroupId = $String(object.initialGroupId);
+        if (object.groupWindows) {
+          if (!$Array.isArray(object.groupWindows))
+            throw $TypeError(".unframe.delivery.TextureResidencyPlan.groupWindows: array expected");
+          message.groupWindows = [];
+          for (let i = 0; i < object.groupWindows.length; ++i) {
+            if (typeof object.groupWindows[i] !== "object")
+              throw $TypeError(
+                ".unframe.delivery.TextureResidencyPlan.groupWindows: object expected",
+              );
+            message.groupWindows[i] = $root.unframe.delivery.TextureResidencyWindow.fromObject(
+              object.groupWindows[i],
+              long + 1,
+            );
+          }
+        }
+        if (object.maximumResidentGpuBytes != null)
+          if ($util.Long)
+            (message.maximumResidentGpuBytes = $util.Long.fromValue(
+              object.maximumResidentGpuBytes,
+            )).unsigned = true;
+          else if (typeof object.maximumResidentGpuBytes === "string")
+            message.maximumResidentGpuBytes = $parseInt(object.maximumResidentGpuBytes, 10);
+          else if (typeof object.maximumResidentGpuBytes === "number")
+            message.maximumResidentGpuBytes = object.maximumResidentGpuBytes;
+          else if (typeof object.maximumResidentGpuBytes === "object")
+            message.maximumResidentGpuBytes = new $util.LongBits(
+              object.maximumResidentGpuBytes.low >>> 0,
+              object.maximumResidentGpuBytes.high >>> 0,
+            ).toNumber(true);
+        if (object.maximumResidentTextureBindings != null)
+          if ($util.Long)
+            (message.maximumResidentTextureBindings = $util.Long.fromValue(
+              object.maximumResidentTextureBindings,
+            )).unsigned = true;
+          else if (typeof object.maximumResidentTextureBindings === "string")
+            message.maximumResidentTextureBindings = $parseInt(
+              object.maximumResidentTextureBindings,
+              10,
+            );
+          else if (typeof object.maximumResidentTextureBindings === "number")
+            message.maximumResidentTextureBindings = object.maximumResidentTextureBindings;
+          else if (typeof object.maximumResidentTextureBindings === "object")
+            message.maximumResidentTextureBindings = new $util.LongBits(
+              object.maximumResidentTextureBindings.low >>> 0,
+              object.maximumResidentTextureBindings.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -35112,7 +35540,10 @@ export const unframe = ($root.unframe = (() => {
       TextureResidencyPlan.toObject = function TextureResidencyPlan$toObject(message, options) {
         if (!options) options = {};
         let object = {};
-        if (options.arrays || options.defaults) object.textures = [];
+        if (options.arrays || options.defaults) {
+          object.textures = [];
+          object.groupWindows = [];
+        }
         if (options.defaults) {
           object.budgetTierId = "";
           if ($util.Long) {
@@ -35133,6 +35564,25 @@ export const unframe = ($root.unframe = (() => {
                   ? long.toNumber()
                   : long;
           } else object.maximumPeakLoadCpuBytes = options.longs === $String ? "0" : 0;
+          object.initialGroupId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumResidentGpuBytes = options.longs === $String ? "0" : 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.maximumResidentTextureBindings = options.longs === $String ? "0" : 0;
         }
         if (message.budgetTierId != null && message.hasOwnProperty("budgetTierId"))
           object.budgetTierId = message.budgetTierId;
@@ -35179,6 +35629,54 @@ export const unframe = ($root.unframe = (() => {
                       message.maximumPeakLoadCpuBytes.high >>> 0,
                     ).toNumber(true)
                   : message.maximumPeakLoadCpuBytes;
+        if (message.initialGroupId != null && message.hasOwnProperty("initialGroupId"))
+          object.initialGroupId = message.initialGroupId;
+        if (message.groupWindows && message.groupWindows.length) {
+          object.groupWindows = [];
+          for (let j = 0; j < message.groupWindows.length; ++j)
+            object.groupWindows[j] = $root.unframe.delivery.TextureResidencyWindow.toObject(
+              message.groupWindows[j],
+              options,
+            );
+        }
+        if (
+          message.maximumResidentGpuBytes != null &&
+          message.hasOwnProperty("maximumResidentGpuBytes")
+        )
+          if (typeof message.maximumResidentGpuBytes === "number")
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? $String(message.maximumResidentGpuBytes)
+                : message.maximumResidentGpuBytes;
+          else
+            object.maximumResidentGpuBytes =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumResidentGpuBytes)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumResidentGpuBytes.low >>> 0,
+                      message.maximumResidentGpuBytes.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumResidentGpuBytes;
+        if (
+          message.maximumResidentTextureBindings != null &&
+          message.hasOwnProperty("maximumResidentTextureBindings")
+        )
+          if (typeof message.maximumResidentTextureBindings === "number")
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? $String(message.maximumResidentTextureBindings)
+                : message.maximumResidentTextureBindings;
+          else
+            object.maximumResidentTextureBindings =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.maximumResidentTextureBindings)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.maximumResidentTextureBindings.low >>> 0,
+                      message.maximumResidentTextureBindings.high >>> 0,
+                    ).toNumber(true)
+                  : message.maximumResidentTextureBindings;
         return object;
       };
 
@@ -39846,7 +40344,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.GestureInputCommand.$Properties|null} [gestureInput] ControlClientItem gestureInput
        * @property {unframe.realtime.ZoneInputCommand.$Properties|null} [zoneInput] ControlClientItem zoneInput
        * @property {unframe.realtime.InputSynchronizationAck.$Properties|null} [inputSynchronizationAck] ControlClientItem inputSynchronizationAck
-       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"} [item] ControlClientItem item
+       * @property {unframe.realtime.PresentationOriginCommand.$Properties|null} [presentationOrigin] ControlClientItem presentationOrigin
+       * @property {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin"} [item] ControlClientItem item
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -39870,9 +40369,10 @@ export const unframe = ($root.unframe = (() => {
        *   gestureInput?: unframe.realtime.GestureInputCommand.$Shape|null;
        *   zoneInput?: unframe.realtime.ZoneInputCommand.$Shape|null;
        *   inputSynchronizationAck?: unframe.realtime.InputSynchronizationAck.$Shape|null;
+       *   presentationOrigin?: unframe.realtime.PresentationOriginCommand.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape })
+       *   ({ item?: undefined; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "handshake"; handshake: unframe.realtime.ControlHandshake.$Shape; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "replayRequest"; handshake?: null; replayRequest: unframe.realtime.ReplayRequest.$Shape; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "stateReady"; handshake?: null; replayRequest?: null; stateReady: unframe.realtime.StateReady.$Shape; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "logicalInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput: unframe.realtime.LogicalInputCommand.$Shape; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "surfaceInteraction"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction: unframe.realtime.SurfaceInteractionCommand.$Shape; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "runtimeControl"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl: unframe.realtime.RuntimeControlCommand.$Shape; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "gestureInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput: unframe.realtime.GestureInputCommand.$Shape; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "zoneInput"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput: unframe.realtime.ZoneInputCommand.$Shape; inputSynchronizationAck?: null; presentationOrigin?: null }|{ item?: "inputSynchronizationAck"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck: unframe.realtime.InputSynchronizationAck.$Shape; presentationOrigin?: null }|{ item?: "presentationOrigin"; handshake?: null; replayRequest?: null; stateReady?: null; logicalInput?: null; surfaceInteraction?: null; runtimeControl?: null; gestureInput?: null; zoneInput?: null; inputSynchronizationAck?: null; presentationOrigin: unframe.realtime.PresentationOriginCommand.$Shape })
        * )} unframe.realtime.ControlClientItem.$Shape
        */
 
@@ -39963,12 +40463,20 @@ export const unframe = ($root.unframe = (() => {
        */
       ControlClientItem.prototype.inputSynchronizationAck = null;
 
+      /**
+       * ControlClientItem presentationOrigin.
+       * @member {unframe.realtime.PresentationOriginCommand.$Properties|null|undefined} presentationOrigin
+       * @memberof unframe.realtime.ControlClientItem
+       * @instance
+       */
+      ControlClientItem.prototype.presentationOrigin = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
       /**
        * ControlClientItem item.
-       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|undefined} item
+       * @member {"handshake"|"replayRequest"|"stateReady"|"logicalInput"|"surfaceInteraction"|"runtimeControl"|"gestureInput"|"zoneInput"|"inputSynchronizationAck"|"presentationOrigin"|undefined} item
        * @memberof unframe.realtime.ControlClientItem
        * @instance
        */
@@ -39984,6 +40492,7 @@ export const unframe = ($root.unframe = (() => {
             "gestureInput",
             "zoneInput",
             "inputSynchronizationAck",
+            "presentationOrigin",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -40069,6 +40578,14 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.InputSynchronizationAck.encode(
             message.inputSynchronizationAck,
             writer.uint32(/* id 102, wireType 2 =*/ 818).fork(),
+          ).ldelim();
+        if (
+          message.presentationOrigin != null &&
+          $Object.hasOwnProperty.call(message, "presentationOrigin")
+        )
+          $root.unframe.realtime.PresentationOriginCommand.encode(
+            message.presentationOrigin,
+            writer.uint32(/* id 103, wireType 2 =*/ 826).fork(),
           ).ldelim();
         return writer;
       };
@@ -40187,6 +40704,15 @@ export const unframe = ($root.unframe = (() => {
                   $undefined,
                   long + 1,
                 );
+              break;
+            }
+            case 103: {
+              message.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
               break;
             }
             default:
@@ -40317,6 +40843,17 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "inputSynchronizationAck." + error;
           }
         }
+        if (message.presentationOrigin != null && message.hasOwnProperty("presentationOrigin")) {
+          if (properties.item === 1) return "item: multiple values";
+          properties.item = 1;
+          {
+            let error = $root.unframe.realtime.PresentationOriginCommand.verify(
+              message.presentationOrigin,
+              long + 1,
+            );
+            if (error) return "presentationOrigin." + error;
+          }
+        }
         return null;
       };
 
@@ -40410,6 +40947,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
         }
+        if (object.presentationOrigin != null) {
+          if (typeof object.presentationOrigin !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ControlClientItem.presentationOrigin: object expected",
+            );
+          message.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.fromObject(
+            object.presentationOrigin,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -40490,6 +41037,13 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.item = "inputSynchronizationAck";
+        }
+        if (message.presentationOrigin != null && message.hasOwnProperty("presentationOrigin")) {
+          object.presentationOrigin = $root.unframe.realtime.PresentationOriginCommand.toObject(
+            message.presentationOrigin,
+            options,
+          );
+          if (options.oneofs) object.item = "presentationOrigin";
         }
         return object;
       };
@@ -45909,6 +46463,415 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return RuntimeControlCommand;
+    })();
+
+    realtime.PresentationOriginCommand = (function () {
+      /**
+       * Properties of a PresentationOriginCommand.
+       * @typedef {Object} unframe.realtime.PresentationOriginCommand.$Properties
+       * @property {string|null} [clientEventId] PresentationOriginCommand clientEventId
+       * @property {number|Long|null} [expectedPresentationOriginVersion] PresentationOriginCommand expectedPresentationOriginVersion
+       * @property {unframe.presentation.Pose.$Properties|null} [pose] PresentationOriginCommand pose
+       * @property {number|Long|null} [commandEpoch] PresentationOriginCommand commandEpoch
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of a PresentationOriginCommand.
+       * @memberof unframe.realtime
+       * @interface IPresentationOriginCommand
+       * @augments unframe.realtime.PresentationOriginCommand.$Properties
+       * @deprecated Use unframe.realtime.PresentationOriginCommand.$Properties instead.
+       */
+
+      /**
+       * Shape of a PresentationOriginCommand.
+       * @typedef {unframe.realtime.PresentationOriginCommand.$Properties} unframe.realtime.PresentationOriginCommand.$Shape
+       */
+
+      /**
+       * Constructs a new PresentationOriginCommand.
+       * @memberof unframe.realtime
+       * @classdesc Represents a PresentationOriginCommand.
+       * @constructor
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const PresentationOriginCommand = function PresentationOriginCommand(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * PresentationOriginCommand clientEventId.
+       * @member {string} clientEventId
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.clientEventId = "";
+
+      /**
+       * PresentationOriginCommand expectedPresentationOriginVersion.
+       * @member {number|Long} expectedPresentationOriginVersion
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.expectedPresentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * PresentationOriginCommand pose.
+       * @member {unframe.presentation.Pose.$Properties|null|undefined} pose
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.pose = null;
+
+      /**
+       * PresentationOriginCommand commandEpoch.
+       * @member {number|Long} commandEpoch
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       */
+      PresentationOriginCommand.prototype.commandEpoch = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * Creates a new PresentationOriginCommand instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.PresentationOriginCommand} PresentationOriginCommand instance
+       * @type {{
+       *   (properties: unframe.realtime.PresentationOriginCommand.$Shape): unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape;
+       *   (properties?: unframe.realtime.PresentationOriginCommand.$Properties): unframe.realtime.PresentationOriginCommand;
+       * }}
+       */
+      PresentationOriginCommand.create = function (properties) {
+        return new PresentationOriginCommand(properties);
+      };
+
+      /**
+       * Encodes the specified PresentationOriginCommand message. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties} message PresentationOriginCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresentationOriginCommand.encode = function PresentationOriginCommand$encode(
+        message,
+        writer,
+      ) {
+        if (!writer) writer = $Writer.create();
+        if (message.clientEventId != null && $Object.hasOwnProperty.call(message, "clientEventId"))
+          writer.uint32(/* id 1, wireType 2 =*/ 10).string(message.clientEventId);
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "expectedPresentationOriginVersion")
+        )
+          writer
+            .uint32(/* id 2, wireType 0 =*/ 16)
+            .uint64(message.expectedPresentationOriginVersion);
+        if (message.pose != null && $Object.hasOwnProperty.call(message, "pose"))
+          $root.unframe.presentation.Pose.encode(
+            message.pose,
+            writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        if (message.commandEpoch != null && $Object.hasOwnProperty.call(message, "commandEpoch"))
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.commandEpoch);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified PresentationOriginCommand message, length delimited. Does not implicitly {@link unframe.realtime.PresentationOriginCommand.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand.$Properties} message PresentationOriginCommand message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      PresentationOriginCommand.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes a PresentationOriginCommand message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresentationOriginCommand.decode = function PresentationOriginCommand$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.clientEventId = reader.string();
+              break;
+            }
+            case 2: {
+              message.expectedPresentationOriginVersion = reader.uint64();
+              break;
+            }
+            case 3: {
+              message.pose = $root.unframe.presentation.Pose.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 4: {
+              message.commandEpoch = reader.uint64();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes a PresentationOriginCommand message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.PresentationOriginCommand & unframe.realtime.PresentationOriginCommand.$Shape} PresentationOriginCommand
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      PresentationOriginCommand.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies a PresentationOriginCommand message.
+       * @function verify
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      PresentationOriginCommand.verify = function PresentationOriginCommand$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          if (!$util.isString(message.clientEventId)) return "clientEventId: string expected";
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          message.hasOwnProperty("expectedPresentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.expectedPresentationOriginVersion) &&
+            !(
+              message.expectedPresentationOriginVersion &&
+              $util.isInteger(message.expectedPresentationOriginVersion.low) &&
+              $util.isInteger(message.expectedPresentationOriginVersion.high)
+            )
+          )
+            return "expectedPresentationOriginVersion: integer|Long expected";
+        if (message.pose != null && message.hasOwnProperty("pose")) {
+          let error = $root.unframe.presentation.Pose.verify(message.pose, long + 1);
+          if (error) return "pose." + error;
+        }
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (
+            !$util.isInteger(message.commandEpoch) &&
+            !(
+              message.commandEpoch &&
+              $util.isInteger(message.commandEpoch.low) &&
+              $util.isInteger(message.commandEpoch.high)
+            )
+          )
+            return "commandEpoch: integer|Long expected";
+        return null;
+      };
+
+      /**
+       * Creates a PresentationOriginCommand message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.PresentationOriginCommand} PresentationOriginCommand
+       */
+      PresentationOriginCommand.fromObject = function PresentationOriginCommand$fromObject(
+        object,
+        long,
+      ) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.clientEventId != null) message.clientEventId = $String(object.clientEventId);
+        if (object.expectedPresentationOriginVersion != null)
+          if ($util.Long)
+            (message.expectedPresentationOriginVersion = $util.Long.fromValue(
+              object.expectedPresentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.expectedPresentationOriginVersion === "string")
+            message.expectedPresentationOriginVersion = $parseInt(
+              object.expectedPresentationOriginVersion,
+              10,
+            );
+          else if (typeof object.expectedPresentationOriginVersion === "number")
+            message.expectedPresentationOriginVersion = object.expectedPresentationOriginVersion;
+          else if (typeof object.expectedPresentationOriginVersion === "object")
+            message.expectedPresentationOriginVersion = new $util.LongBits(
+              object.expectedPresentationOriginVersion.low >>> 0,
+              object.expectedPresentationOriginVersion.high >>> 0,
+            ).toNumber(true);
+        if (object.pose != null) {
+          if (typeof object.pose !== "object")
+            throw $TypeError(".unframe.realtime.PresentationOriginCommand.pose: object expected");
+          message.pose = $root.unframe.presentation.Pose.fromObject(object.pose, long + 1);
+        }
+        if (object.commandEpoch != null)
+          if ($util.Long)
+            (message.commandEpoch = $util.Long.fromValue(object.commandEpoch)).unsigned = true;
+          else if (typeof object.commandEpoch === "string")
+            message.commandEpoch = $parseInt(object.commandEpoch, 10);
+          else if (typeof object.commandEpoch === "number")
+            message.commandEpoch = object.commandEpoch;
+          else if (typeof object.commandEpoch === "object")
+            message.commandEpoch = new $util.LongBits(
+              object.commandEpoch.low >>> 0,
+              object.commandEpoch.high >>> 0,
+            ).toNumber(true);
+        return message;
+      };
+
+      /**
+       * Creates a plain object from a PresentationOriginCommand message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {unframe.realtime.PresentationOriginCommand} message PresentationOriginCommand
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      PresentationOriginCommand.toObject = function PresentationOriginCommand$toObject(
+        message,
+        options,
+      ) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.clientEventId = "";
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.expectedPresentationOriginVersion = options.longs === $String ? "0" : 0;
+          object.pose = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.commandEpoch =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.commandEpoch = options.longs === $String ? "0" : 0;
+        }
+        if (message.clientEventId != null && message.hasOwnProperty("clientEventId"))
+          object.clientEventId = message.clientEventId;
+        if (
+          message.expectedPresentationOriginVersion != null &&
+          message.hasOwnProperty("expectedPresentationOriginVersion")
+        )
+          if (typeof message.expectedPresentationOriginVersion === "number")
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? $String(message.expectedPresentationOriginVersion)
+                : message.expectedPresentationOriginVersion;
+          else
+            object.expectedPresentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.expectedPresentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.expectedPresentationOriginVersion.low >>> 0,
+                      message.expectedPresentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.expectedPresentationOriginVersion;
+        if (message.pose != null && message.hasOwnProperty("pose"))
+          object.pose = $root.unframe.presentation.Pose.toObject(message.pose, options);
+        if (message.commandEpoch != null && message.hasOwnProperty("commandEpoch"))
+          if (typeof message.commandEpoch === "number")
+            object.commandEpoch =
+              options.longs === $String ? $String(message.commandEpoch) : message.commandEpoch;
+          else
+            object.commandEpoch =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.commandEpoch)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.commandEpoch.low >>> 0,
+                      message.commandEpoch.high >>> 0,
+                    ).toNumber(true)
+                  : message.commandEpoch;
+        return object;
+      };
+
+      /**
+       * Converts this PresentationOriginCommand to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      PresentationOriginCommand.prototype.toJSON = function () {
+        return PresentationOriginCommand.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for PresentationOriginCommand
+       * @function getTypeUrl
+       * @memberof unframe.realtime.PresentationOriginCommand
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      PresentationOriginCommand.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.PresentationOriginCommand";
+      };
+
+      return PresentationOriginCommand;
     })();
 
     realtime.InputContext = (function () {
@@ -87564,6 +88527,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [capturedAtClientMonotonicMs] TrackingFrame capturedAtClientMonotonicMs
        * @property {Array.<unframe.realtime.TrackedPoseSample.$Properties>|null} [samples] TrackingFrame samples
        * @property {unframe.presentation.Pose.$Properties|null} [presentationFromQuestLocal] TrackingFrame presentationFromQuestLocal
+       * @property {number|Long|null} [presentationOriginVersion] TrackingFrame presentationOriginVersion
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -87631,6 +88595,16 @@ export const unframe = ($root.unframe = (() => {
       TrackingFrame.prototype.presentationFromQuestLocal = null;
 
       /**
+       * TrackingFrame presentationOriginVersion.
+       * @member {number|Long} presentationOriginVersion
+       * @memberof unframe.realtime.TrackingFrame
+       * @instance
+       */
+      TrackingFrame.prototype.presentationOriginVersion = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
        * Creates a new TrackingFrame instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.TrackingFrame
@@ -87678,6 +88652,11 @@ export const unframe = ($root.unframe = (() => {
             message.presentationFromQuestLocal,
             writer.uint32(/* id 4, wireType 2 =*/ 34).fork(),
           ).ldelim();
+        if (
+          message.presentationOriginVersion != null &&
+          $Object.hasOwnProperty.call(message, "presentationOriginVersion")
+        )
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.presentationOriginVersion);
         return writer;
       };
 
@@ -87742,6 +88721,10 @@ export const unframe = ($root.unframe = (() => {
                 $undefined,
                 long + 1,
               );
+              break;
+            }
+            case 5: {
+              message.presentationOriginVersion = reader.uint64();
               break;
             }
             default:
@@ -87822,6 +88805,19 @@ export const unframe = ($root.unframe = (() => {
           );
           if (error) return "presentationFromQuestLocal." + error;
         }
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (
+            !$util.isInteger(message.presentationOriginVersion) &&
+            !(
+              message.presentationOriginVersion &&
+              $util.isInteger(message.presentationOriginVersion.low) &&
+              $util.isInteger(message.presentationOriginVersion.high)
+            )
+          )
+            return "presentationOriginVersion: integer|Long expected";
         return null;
       };
 
@@ -87887,6 +88883,20 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.presentationOriginVersion != null)
+          if ($util.Long)
+            (message.presentationOriginVersion = $util.Long.fromValue(
+              object.presentationOriginVersion,
+            )).unsigned = true;
+          else if (typeof object.presentationOriginVersion === "string")
+            message.presentationOriginVersion = $parseInt(object.presentationOriginVersion, 10);
+          else if (typeof object.presentationOriginVersion === "number")
+            message.presentationOriginVersion = object.presentationOriginVersion;
+          else if (typeof object.presentationOriginVersion === "object")
+            message.presentationOriginVersion = new $util.LongBits(
+              object.presentationOriginVersion.low >>> 0,
+              object.presentationOriginVersion.high >>> 0,
+            ).toNumber(true);
         return message;
       };
 
@@ -87923,6 +88933,15 @@ export const unframe = ($root.unframe = (() => {
                   : long;
           } else object.capturedAtClientMonotonicMs = options.longs === $String ? "0" : 0;
           object.presentationFromQuestLocal = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.presentationOriginVersion = options.longs === $String ? "0" : 0;
         }
         if (message.frameSequence != null && message.hasOwnProperty("frameSequence"))
           if (typeof message.frameSequence === "number")
@@ -87973,6 +88992,25 @@ export const unframe = ($root.unframe = (() => {
             message.presentationFromQuestLocal,
             options,
           );
+        if (
+          message.presentationOriginVersion != null &&
+          message.hasOwnProperty("presentationOriginVersion")
+        )
+          if (typeof message.presentationOriginVersion === "number")
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $String(message.presentationOriginVersion)
+                : message.presentationOriginVersion;
+          else
+            object.presentationOriginVersion =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.presentationOriginVersion)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.presentationOriginVersion.low >>> 0,
+                      message.presentationOriginVersion.high >>> 0,
+                    ).toNumber(true)
+                  : message.presentationOriginVersion;
         return object;
       };
 

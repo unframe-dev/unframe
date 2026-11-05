@@ -86,7 +86,7 @@ public sealed class PresentationNativeSurfaceRenderingTests
         surface.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
         delivery = store.Delivery;
         delivery.AssetAccess.Clear();
-        delivery.Residency.Textures = new TextureResidencyPlan();
+        delivery.Residency.Textures = new TextureResidencyPlan { InitialGroupId = "group:local", GroupWindows = { new TextureResidencyWindow { GroupId = "group:local" } } };
         delivery.Residency.Models = new ModelResidencyPlan();
         delivery.Residency.Video = new VideoResidencyPlan();
         delivery.Residency.NativeUi = new NativeUiResidencyPlan { MaximumNodesPerArtifact = 1, MaximumTreeDepth = 1 };

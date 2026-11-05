@@ -213,108 +213,113 @@ namespace Unframe.Delivery {
             "bXMYBiABKAQipgEKF1RleHR1cmVSZXNpZGVuY3lCaW5kaW5nEhAKCGFzc2V0",
             "X2lkGAEgASgJEhAKCGNoZWNrc3VtGAIgASgJEi8KCnBpeGVsX3NpemUYAyAB",
             "KAsyGy51bmZyYW1lLmRlbGl2ZXJ5LlBpeGVsU2l6ZRIZChFkZWNvZGVkX2dw",
-            "dV9ieXRlcxgEIAEoBBIbChNwZWFrX2xvYWRfY3B1X2J5dGVzGAUgASgEIrEB",
-            "ChRUZXh0dXJlUmVzaWRlbmN5UGxhbhIWCg5idWRnZXRfdGllcl9pZBgBIAEo",
-            "CRI7Cgh0ZXh0dXJlcxgCIAMoCzIpLnVuZnJhbWUuZGVsaXZlcnkuVGV4dHVy",
-            "ZVJlc2lkZW5jeUJpbmRpbmcSHwoXdG90YWxfZGVjb2RlZF9ncHVfYnl0ZXMY",
-            "AyABKAQSIwobbWF4aW11bV9wZWFrX2xvYWRfY3B1X2J5dGVzGAQgASgEIocD",
-            "ChVNb2RlbFJlc2lkZW5jeUJpbmRpbmcSEAoIYXNzZXRfaWQYASABKAkSEAoI",
-            "Y2hlY2tzdW0YAiABKAkSGgoSZW5jb2RlZF9zaXplX2J5dGVzGAMgASgEEi0K",
-            "BmZvcm1hdBgEIAEoDjIdLnVuZnJhbWUuZGVsaXZlcnkuTW9kZWxGb3JtYXQS",
-            "OQoRcmVxdWlyZWRfZmVhdHVyZXMYBSADKA4yHi51bmZyYW1lLmRlbGl2ZXJ5",
-            "Lk1vZGVsRmVhdHVyZRISCgpub2RlX2NvdW50GAYgASgEEhcKD3ByaW1pdGl2",
-            "ZV9jb3VudBgHIAEoBBIUCgx2ZXJ0ZXhfY291bnQYCCABKAQSFgoOdHJpYW5n",
-            "bGVfY291bnQYCSABKAQSHgoWbWF4aW11bV9ib25lc19wZXJfc2tpbhgKIAEo",
-            "BBIrCiNtYXhpbXVtX21vcnBoX3RhcmdldHNfcGVyX3ByaW1pdGl2ZRgLIAEo",
-            "BBIcChRhbmltYXRpb25fY2xpcF9jb3VudBgMIAEoBCKAAgoSTW9kZWxSZXNp",
-            "ZGVuY3lQbGFuEhYKDmJ1ZGdldF90aWVyX2lkGAEgASgJEjcKBm1vZGVscxgC",
-            "IAMoCzInLnVuZnJhbWUuZGVsaXZlcnkuTW9kZWxSZXNpZGVuY3lCaW5kaW5n",
-            "EhsKE3RvdGFsX2VuY29kZWRfYnl0ZXMYAyABKAQSFgoOdG90YWxfdmVydGlj",
-            "ZXMYBCABKAQSFwoPdG90YWxfdHJpYW5nbGVzGAUgASgEEhwKFG1vZGVsX2lu",
-            "c3RhbmNlX2NvdW50GAYgASgEEhMKC3RvdGFsX25vZGVzGAcgASgEEhgKEHRv",
-            "dGFsX3ByaW1pdGl2ZXMYCCABKAQisQIKFU5hdGl2ZVVpUmVzaWRlbmN5UGxh",
-            "bhIWCg5idWRnZXRfdGllcl9pZBgBIAEoCRIWCg5mb250X2Fzc2V0X2lkcxgC",
-            "IAMoCRIiChptYXhpbXVtX25vZGVzX3Blcl9hcnRpZmFjdBgFIAEoBBIaChJt",
-            "YXhpbXVtX3RyZWVfZGVwdGgYBiABKAQSJwofbWF4aW11bV90ZXh0X25vZGVz",
-            "X3Blcl9hcnRpZmFjdBgHIAEoBBIzCgZnbHlwaHMYCCADKAsyIy51bmZyYW1l",
-            "LmRlbGl2ZXJ5LkdseXBoUmVzaWRlbmN5S2V5EiQKHG1heGltdW1fY29kZV9w",
-            "b2ludHNfcGVyX3RleHQYCSABKAQSGAoQZm9udF9hc3NldF9jb3VudBgKIAEo",
-            "BEoECAMQBEoECAQQBSJCChFHbHlwaFJlc2lkZW5jeUtleRIVCg1mb250X2No",
-            "ZWNrc3VtGAEgASgJEhYKDnVuaWNvZGVfc2NhbGFyGAIgASgNInQKFVZpZGVv",
-            "UmVzaWRlbmN5QmluZGluZxIQCghhc3NldF9pZBgBIAEoCRIQCghjaGVja3N1",
-            "bRgCIAEoCRIaChJlbmNvZGVkX3NpemVfYnl0ZXMYAyABKAQSGwoTZGVjb2Rl",
-            "ZF9mcmFtZV9ieXRlcxgEIAEoBCLMAQoSVmlkZW9SZXNpZGVuY3lQbGFuEhYK",
-            "DmJ1ZGdldF90aWVyX2lkGAEgASgJEjcKBnZpZGVvcxgCIAMoCzInLnVuZnJh",
-            "bWUuZGVsaXZlcnkuVmlkZW9SZXNpZGVuY3lCaW5kaW5nEhsKE3RvdGFsX2Vu",
-            "Y29kZWRfYnl0ZXMYAyABKAQSIwobbWF4aW11bV9jb25jdXJyZW50X2RlY29k",
-            "ZXJzGAQgASgEEiMKG21heGltdW1fZGVjb2RlZF9mcmFtZV9ieXRlcxgFIAEo",
-            "BCKWAgoNUmVzaWRlbmN5UGxhbhI4Cgh0ZXh0dXJlcxgBIAEoCzImLnVuZnJh",
-            "bWUuZGVsaXZlcnkuVGV4dHVyZVJlc2lkZW5jeVBsYW4SNAoGbW9kZWxzGAIg",
-            "ASgLMiQudW5mcmFtZS5kZWxpdmVyeS5Nb2RlbFJlc2lkZW5jeVBsYW4SOgoJ",
-            "bmF0aXZlX3VpGAMgASgLMicudW5mcmFtZS5kZWxpdmVyeS5OYXRpdmVVaVJl",
-            "c2lkZW5jeVBsYW4SMwoFdmlkZW8YBCABKAsyJC51bmZyYW1lLmRlbGl2ZXJ5",
-            "LlZpZGVvUmVzaWRlbmN5UGxhbhIkChx0b3RhbF9zZWxlY3RlZF9lbmNvZGVk",
-            "X2J5dGVzGAUgASgEIq4EChBEZWxpdmVyeU1hbmlmZXN0EhYKDnNjaGVtYV92",
-            "ZXJzaW9uGAEgASgNEiEKGWRlbGl2ZXJ5X2NvbnRyYWN0X3ZlcnNpb24YAiAB",
-            "KA0SEgoKc2Vzc2lvbl9pZBgDIAEoCRI7CgtwdWJsaWNhdGlvbhgEIAEoCzIm",
-            "LnVuZnJhbWUucHJlc2VudGF0aW9uLlB1YmxpY2F0aW9uRmVuY2USFwoPZGVm",
-            "aW5pdGlvbl9oYXNoGAUgASgJEhoKEnJlbmRlcl9idW5kbGVfaGFzaBgGIAEo",
-            "CRIWCg5hc3NldF9zZXRfaGFzaBgHIAEoCRI/ChJjYXBhYmlsaXR5X3Byb2Zp",
-            "bGUYCCABKAsyIy51bmZyYW1lLmRlbGl2ZXJ5LkNhcGFiaWxpdHlQcm9maWxl",
-            "EkkKEnByb2plY3Rpb25fcHJvZmlsZRgJIAEoCzItLnVuZnJhbWUuZGVsaXZl",
-            "cnkuUHJvamVjdGlvblByb2ZpbGVEZXNjcmlwdG9yEkUKE3Byb2plY3Rpb25f",
-            "aW5zdGFuY2UYCiABKAsyKC51bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0",
-            "aW9uSW5zdGFuY2USOgoMYXNzZXRfYWNjZXNzGAsgAygLMiQudW5mcmFtZS5k",
-            "ZWxpdmVyeS5Bc3NldEFjY2Vzc0JpbmRpbmcSMgoJcmVzaWRlbmN5GAwgASgL",
-            "Mh8udW5mcmFtZS5kZWxpdmVyeS5SZXNpZGVuY3lQbGFuKoABCgxSZW5kZXJl",
-            "cktpbmQSHQoZUkVOREVSRVJfS0lORF9VTlNQRUNJRklFRBAAEhsKF1JFTkRF",
-            "UkVSX0tJTkRfQkFLRURfV0VCEAESGwoXUkVOREVSRVJfS0lORF9OQVRJVkVf",
-            "VUkQAhIXChNSRU5ERVJFUl9LSU5EX1ZJREVPEAMqtQEKD0Jha2VkV2ViRmVh",
-            "dHVyZRIhCh1CQUtFRF9XRUJfRkVBVFVSRV9VTlNQRUNJRklFRBAAEhkKFUJB",
-            "S0VEX1dFQl9GRUFUVVJFX1BORxABEhoKFkJBS0VEX1dFQl9GRUFUVVJFX1NS",
-            "R0IQAhIiCh5CQUtFRF9XRUJfRkVBVFVSRV9BTFBIQV9PUEFRVUUQAxIkCiBC",
-            "QUtFRF9XRUJfRkVBVFVSRV9BTFBIQV9TVFJBSUdIVBAEKp4BCg9OYXRpdmVV",
-            "aUZlYXR1cmUSIQodTkFUSVZFX1VJX0ZFQVRVUkVfVU5TUEVDSUZJRUQQABIa",
-            "ChZOQVRJVkVfVUlfRkVBVFVSRV9DTElQEAESHgoaTkFUSVZFX1VJX0ZFQVRV",
-            "UkVfRUxMSVBTSVMQAhIsCihOQVRJVkVfVUlfRkVBVFVSRV9FWFBMSUNJVF9G",
-            "T05UX0ZBTExCQUNLEAMqpQEKDFZpZGVvRmVhdHVyZRIdChlWSURFT19GRUFU",
-            "VVJFX1VOU1BFQ0lGSUVEEAASFgoSVklERU9fRkVBVFVSRV9IMjY0EAESFQoR",
-            "VklERU9fRkVBVFVSRV9WUDkQAhIVChFWSURFT19GRUFUVVJFX0FWMRADEhcK",
-            "E1ZJREVPX0ZFQVRVUkVfQUxQSEEQBBIXChNWSURFT19GRUFUVVJFX0FVRElP",
-            "EAUqgwIKDE1vZGVsRmVhdHVyZRIdChlNT0RFTF9GRUFUVVJFX1VOU1BFQ0lG",
-            "SUVEEAASGwoXTU9ERUxfRkVBVFVSRV9BTklNQVRJT04QARIWChJNT0RFTF9G",
-            "RUFUVVJFX1NLSU4QAhIfChtNT0RFTF9GRUFUVVJFX01PUlBIX1RBUkdFVFMQ",
-            "AxIdChlNT0RFTF9GRUFUVVJFX0FMUEhBX0JMRU5EEAQSHAoYTU9ERUxfRkVB",
-            "VFVSRV9BTFBIQV9NQVNLEAUSKAokTU9ERUxfRkVBVFVSRV9QQlJfTUVUQUxM",
-            "SUNfUk9VR0hORVNTEAYSFwoTTU9ERUxfRkVBVFVSRV9VTkxJVBAHKkkKC01v",
-            "ZGVsRm9ybWF0EhwKGE1PREVMX0ZPUk1BVF9VTlNQRUNJRklFRBAAEhwKGE1P",
-            "REVMX0ZPUk1BVF9HTFRGX0JJTkFSWRABKnYKEFRleHR1cmVBbHBoYU1vZGUS",
-            "IgoeVEVYVFVSRV9BTFBIQV9NT0RFX1VOU1BFQ0lGSUVEEAASHQoZVEVYVFVS",
-            "RV9BTFBIQV9NT0RFX09QQVFVRRABEh8KG1RFWFRVUkVfQUxQSEFfTU9ERV9T",
-            "VFJBSUdIVBACKooBCg9OYXRpdmVUZXh0QWxpZ24SIQodTkFUSVZFX1RFWFRf",
-            "QUxJR05fVU5TUEVDSUZJRUQQABIbChdOQVRJVkVfVEVYVF9BTElHTl9TVEFS",
-            "VBABEhwKGE5BVElWRV9URVhUX0FMSUdOX0NFTlRFUhACEhkKFU5BVElWRV9U",
-            "RVhUX0FMSUdOX0VORBADKnwKEk5hdGl2ZVRleHRPdmVyZmxvdxIkCiBOQVRJ",
-            "VkVfVEVYVF9PVkVSRkxPV19VTlNQRUNJRklFRBAAEh0KGU5BVElWRV9URVhU",
-            "X09WRVJGTE9XX0NMSVAQARIhCh1OQVRJVkVfVEVYVF9PVkVSRkxPV19FTExJ",
-            "UFNJUxACKl4KC1RpbWVyRm9ybWF0EhwKGFRJTUVSX0ZPUk1BVF9VTlNQRUNJ",
-            "RklFRBAAEhYKElRJTUVSX0ZPUk1BVF9NTV9TUxABEhkKFVRJTUVSX0ZPUk1B",
-            "VF9ISF9NTV9TUxACKnkKEkluYWN0aXZlVGltZXJWYWx1ZRIkCiBJTkFDVElW",
-            "RV9USU1FUl9WQUxVRV9VTlNQRUNJRklFRBAAEh4KGklOQUNUSVZFX1RJTUVS",
-            "X1ZBTFVFX0VNUFRZEAESHQoZSU5BQ1RJVkVfVElNRVJfVkFMVUVfWkVSTxAC",
-            "KmkKClZpZGVvQ29kZWMSGwoXVklERU9fQ09ERUNfVU5TUEVDSUZJRUQQABIU",
-            "ChBWSURFT19DT0RFQ19IMjY0EAESEwoPVklERU9fQ09ERUNfVlA5EAISEwoP",
-            "VklERU9fQ09ERUNfQVYxEAMq1AIKDFNlbWFudGljUm9sZRIdChlTRU1BTlRJ",
-            "Q19ST0xFX1VOU1BFQ0lGSUVEEAASGQoVU0VNQU5USUNfUk9MRV9IRUFESU5H",
-            "EAESGwoXU0VNQU5USUNfUk9MRV9QQVJBR1JBUEgQAhIXChNTRU1BTlRJQ19S",
-            "T0xFX0lNQUdFEAMSGAoUU0VNQU5USUNfUk9MRV9CVVRUT04QBBIWChJTRU1B",
-            "TlRJQ19ST0xFX0xJU1QQBRIbChdTRU1BTlRJQ19ST0xFX0xJU1RfSVRFTRAG",
-            "EhcKE1NFTUFOVElDX1JPTEVfVEFCTEUQBxIVChFTRU1BTlRJQ19ST0xFX1JP",
-            "VxAIEhYKElNFTUFOVElDX1JPTEVfQ0VMTBAJEh8KG1NFTUFOVElDX1JPTEVf",
-            "Q09MVU1OX0hFQURFUhAKEhwKGFNFTUFOVElDX1JPTEVfUk9XX0hFQURFUhAL",
-            "QlNaUWdpdGh1Yi5jb20vdW5mcmFtZS1kZXYvdW5mcmFtZS9hcHAvc2VydmVy",
-            "L3JlYWx0aW1lL2ludGVybmFsL2dlbi9kZWxpdmVyeTtkZWxpdmVyeWIGcHJv",
-            "dG8z"));
+            "dV9ieXRlcxgEIAEoBBIbChNwZWFrX2xvYWRfY3B1X2J5dGVzGAUgASgEIj0K",
+            "FlRleHR1cmVSZXNpZGVuY3lXaW5kb3cSEAoIZ3JvdXBfaWQYASABKAkSEQoJ",
+            "YXNzZXRfaWRzGAIgAygJItsCChRUZXh0dXJlUmVzaWRlbmN5UGxhbhIWCg5i",
+            "dWRnZXRfdGllcl9pZBgBIAEoCRI7Cgh0ZXh0dXJlcxgCIAMoCzIpLnVuZnJh",
+            "bWUuZGVsaXZlcnkuVGV4dHVyZVJlc2lkZW5jeUJpbmRpbmcSHwoXdG90YWxf",
+            "ZGVjb2RlZF9ncHVfYnl0ZXMYAyABKAQSIwobbWF4aW11bV9wZWFrX2xvYWRf",
+            "Y3B1X2J5dGVzGAQgASgEEhgKEGluaXRpYWxfZ3JvdXBfaWQYBSABKAkSPwoN",
+            "Z3JvdXBfd2luZG93cxgGIAMoCzIoLnVuZnJhbWUuZGVsaXZlcnkuVGV4dHVy",
+            "ZVJlc2lkZW5jeVdpbmRvdxIiChptYXhpbXVtX3Jlc2lkZW50X2dwdV9ieXRl",
+            "cxgHIAEoBBIpCiFtYXhpbXVtX3Jlc2lkZW50X3RleHR1cmVfYmluZGluZ3MY",
+            "CCABKAQihwMKFU1vZGVsUmVzaWRlbmN5QmluZGluZxIQCghhc3NldF9pZBgB",
+            "IAEoCRIQCghjaGVja3N1bRgCIAEoCRIaChJlbmNvZGVkX3NpemVfYnl0ZXMY",
+            "AyABKAQSLQoGZm9ybWF0GAQgASgOMh0udW5mcmFtZS5kZWxpdmVyeS5Nb2Rl",
+            "bEZvcm1hdBI5ChFyZXF1aXJlZF9mZWF0dXJlcxgFIAMoDjIeLnVuZnJhbWUu",
+            "ZGVsaXZlcnkuTW9kZWxGZWF0dXJlEhIKCm5vZGVfY291bnQYBiABKAQSFwoP",
+            "cHJpbWl0aXZlX2NvdW50GAcgASgEEhQKDHZlcnRleF9jb3VudBgIIAEoBBIW",
+            "Cg50cmlhbmdsZV9jb3VudBgJIAEoBBIeChZtYXhpbXVtX2JvbmVzX3Blcl9z",
+            "a2luGAogASgEEisKI21heGltdW1fbW9ycGhfdGFyZ2V0c19wZXJfcHJpbWl0",
+            "aXZlGAsgASgEEhwKFGFuaW1hdGlvbl9jbGlwX2NvdW50GAwgASgEIoACChJN",
+            "b2RlbFJlc2lkZW5jeVBsYW4SFgoOYnVkZ2V0X3RpZXJfaWQYASABKAkSNwoG",
+            "bW9kZWxzGAIgAygLMicudW5mcmFtZS5kZWxpdmVyeS5Nb2RlbFJlc2lkZW5j",
+            "eUJpbmRpbmcSGwoTdG90YWxfZW5jb2RlZF9ieXRlcxgDIAEoBBIWCg50b3Rh",
+            "bF92ZXJ0aWNlcxgEIAEoBBIXCg90b3RhbF90cmlhbmdsZXMYBSABKAQSHAoU",
+            "bW9kZWxfaW5zdGFuY2VfY291bnQYBiABKAQSEwoLdG90YWxfbm9kZXMYByAB",
+            "KAQSGAoQdG90YWxfcHJpbWl0aXZlcxgIIAEoBCKxAgoVTmF0aXZlVWlSZXNp",
+            "ZGVuY3lQbGFuEhYKDmJ1ZGdldF90aWVyX2lkGAEgASgJEhYKDmZvbnRfYXNz",
+            "ZXRfaWRzGAIgAygJEiIKGm1heGltdW1fbm9kZXNfcGVyX2FydGlmYWN0GAUg",
+            "ASgEEhoKEm1heGltdW1fdHJlZV9kZXB0aBgGIAEoBBInCh9tYXhpbXVtX3Rl",
+            "eHRfbm9kZXNfcGVyX2FydGlmYWN0GAcgASgEEjMKBmdseXBocxgIIAMoCzIj",
+            "LnVuZnJhbWUuZGVsaXZlcnkuR2x5cGhSZXNpZGVuY3lLZXkSJAocbWF4aW11",
+            "bV9jb2RlX3BvaW50c19wZXJfdGV4dBgJIAEoBBIYChBmb250X2Fzc2V0X2Nv",
+            "dW50GAogASgESgQIAxAESgQIBBAFIkIKEUdseXBoUmVzaWRlbmN5S2V5EhUK",
+            "DWZvbnRfY2hlY2tzdW0YASABKAkSFgoOdW5pY29kZV9zY2FsYXIYAiABKA0i",
+            "dAoVVmlkZW9SZXNpZGVuY3lCaW5kaW5nEhAKCGFzc2V0X2lkGAEgASgJEhAK",
+            "CGNoZWNrc3VtGAIgASgJEhoKEmVuY29kZWRfc2l6ZV9ieXRlcxgDIAEoBBIb",
+            "ChNkZWNvZGVkX2ZyYW1lX2J5dGVzGAQgASgEIswBChJWaWRlb1Jlc2lkZW5j",
+            "eVBsYW4SFgoOYnVkZ2V0X3RpZXJfaWQYASABKAkSNwoGdmlkZW9zGAIgAygL",
+            "MicudW5mcmFtZS5kZWxpdmVyeS5WaWRlb1Jlc2lkZW5jeUJpbmRpbmcSGwoT",
+            "dG90YWxfZW5jb2RlZF9ieXRlcxgDIAEoBBIjChttYXhpbXVtX2NvbmN1cnJl",
+            "bnRfZGVjb2RlcnMYBCABKAQSIwobbWF4aW11bV9kZWNvZGVkX2ZyYW1lX2J5",
+            "dGVzGAUgASgEIpYCCg1SZXNpZGVuY3lQbGFuEjgKCHRleHR1cmVzGAEgASgL",
+            "MiYudW5mcmFtZS5kZWxpdmVyeS5UZXh0dXJlUmVzaWRlbmN5UGxhbhI0CgZt",
+            "b2RlbHMYAiABKAsyJC51bmZyYW1lLmRlbGl2ZXJ5Lk1vZGVsUmVzaWRlbmN5",
+            "UGxhbhI6CgluYXRpdmVfdWkYAyABKAsyJy51bmZyYW1lLmRlbGl2ZXJ5Lk5h",
+            "dGl2ZVVpUmVzaWRlbmN5UGxhbhIzCgV2aWRlbxgEIAEoCzIkLnVuZnJhbWUu",
+            "ZGVsaXZlcnkuVmlkZW9SZXNpZGVuY3lQbGFuEiQKHHRvdGFsX3NlbGVjdGVk",
+            "X2VuY29kZWRfYnl0ZXMYBSABKAQirgQKEERlbGl2ZXJ5TWFuaWZlc3QSFgoO",
+            "c2NoZW1hX3ZlcnNpb24YASABKA0SIQoZZGVsaXZlcnlfY29udHJhY3RfdmVy",
+            "c2lvbhgCIAEoDRISCgpzZXNzaW9uX2lkGAMgASgJEjsKC3B1YmxpY2F0aW9u",
+            "GAQgASgLMiYudW5mcmFtZS5wcmVzZW50YXRpb24uUHVibGljYXRpb25GZW5j",
+            "ZRIXCg9kZWZpbml0aW9uX2hhc2gYBSABKAkSGgoScmVuZGVyX2J1bmRsZV9o",
+            "YXNoGAYgASgJEhYKDmFzc2V0X3NldF9oYXNoGAcgASgJEj8KEmNhcGFiaWxp",
+            "dHlfcHJvZmlsZRgIIAEoCzIjLnVuZnJhbWUuZGVsaXZlcnkuQ2FwYWJpbGl0",
+            "eVByb2ZpbGUSSQoScHJvamVjdGlvbl9wcm9maWxlGAkgASgLMi0udW5mcmFt",
+            "ZS5kZWxpdmVyeS5Qcm9qZWN0aW9uUHJvZmlsZURlc2NyaXB0b3ISRQoTcHJv",
+            "amVjdGlvbl9pbnN0YW5jZRgKIAEoCzIoLnVuZnJhbWUucHJlc2VudGF0aW9u",
+            "LlByb2plY3Rpb25JbnN0YW5jZRI6Cgxhc3NldF9hY2Nlc3MYCyADKAsyJC51",
+            "bmZyYW1lLmRlbGl2ZXJ5LkFzc2V0QWNjZXNzQmluZGluZxIyCglyZXNpZGVu",
+            "Y3kYDCABKAsyHy51bmZyYW1lLmRlbGl2ZXJ5LlJlc2lkZW5jeVBsYW4qgAEK",
+            "DFJlbmRlcmVyS2luZBIdChlSRU5ERVJFUl9LSU5EX1VOU1BFQ0lGSUVEEAAS",
+            "GwoXUkVOREVSRVJfS0lORF9CQUtFRF9XRUIQARIbChdSRU5ERVJFUl9LSU5E",
+            "X05BVElWRV9VSRACEhcKE1JFTkRFUkVSX0tJTkRfVklERU8QAyq1AQoPQmFr",
+            "ZWRXZWJGZWF0dXJlEiEKHUJBS0VEX1dFQl9GRUFUVVJFX1VOU1BFQ0lGSUVE",
+            "EAASGQoVQkFLRURfV0VCX0ZFQVRVUkVfUE5HEAESGgoWQkFLRURfV0VCX0ZF",
+            "QVRVUkVfU1JHQhACEiIKHkJBS0VEX1dFQl9GRUFUVVJFX0FMUEhBX09QQVFV",
+            "RRADEiQKIEJBS0VEX1dFQl9GRUFUVVJFX0FMUEhBX1NUUkFJR0hUEAQqngEK",
+            "D05hdGl2ZVVpRmVhdHVyZRIhCh1OQVRJVkVfVUlfRkVBVFVSRV9VTlNQRUNJ",
+            "RklFRBAAEhoKFk5BVElWRV9VSV9GRUFUVVJFX0NMSVAQARIeChpOQVRJVkVf",
+            "VUlfRkVBVFVSRV9FTExJUFNJUxACEiwKKE5BVElWRV9VSV9GRUFUVVJFX0VY",
+            "UExJQ0lUX0ZPTlRfRkFMTEJBQ0sQAyqlAQoMVmlkZW9GZWF0dXJlEh0KGVZJ",
+            "REVPX0ZFQVRVUkVfVU5TUEVDSUZJRUQQABIWChJWSURFT19GRUFUVVJFX0gy",
+            "NjQQARIVChFWSURFT19GRUFUVVJFX1ZQORACEhUKEVZJREVPX0ZFQVRVUkVf",
+            "QVYxEAMSFwoTVklERU9fRkVBVFVSRV9BTFBIQRAEEhcKE1ZJREVPX0ZFQVRV",
+            "UkVfQVVESU8QBSqDAgoMTW9kZWxGZWF0dXJlEh0KGU1PREVMX0ZFQVRVUkVf",
+            "VU5TUEVDSUZJRUQQABIbChdNT0RFTF9GRUFUVVJFX0FOSU1BVElPThABEhYK",
+            "Ek1PREVMX0ZFQVRVUkVfU0tJThACEh8KG01PREVMX0ZFQVRVUkVfTU9SUEhf",
+            "VEFSR0VUUxADEh0KGU1PREVMX0ZFQVRVUkVfQUxQSEFfQkxFTkQQBBIcChhN",
+            "T0RFTF9GRUFUVVJFX0FMUEhBX01BU0sQBRIoCiRNT0RFTF9GRUFUVVJFX1BC",
+            "Ul9NRVRBTExJQ19ST1VHSE5FU1MQBhIXChNNT0RFTF9GRUFUVVJFX1VOTElU",
+            "EAcqSQoLTW9kZWxGb3JtYXQSHAoYTU9ERUxfRk9STUFUX1VOU1BFQ0lGSUVE",
+            "EAASHAoYTU9ERUxfRk9STUFUX0dMVEZfQklOQVJZEAEqdgoQVGV4dHVyZUFs",
+            "cGhhTW9kZRIiCh5URVhUVVJFX0FMUEhBX01PREVfVU5TUEVDSUZJRUQQABId",
+            "ChlURVhUVVJFX0FMUEhBX01PREVfT1BBUVVFEAESHwobVEVYVFVSRV9BTFBI",
+            "QV9NT0RFX1NUUkFJR0hUEAIqigEKD05hdGl2ZVRleHRBbGlnbhIhCh1OQVRJ",
+            "VkVfVEVYVF9BTElHTl9VTlNQRUNJRklFRBAAEhsKF05BVElWRV9URVhUX0FM",
+            "SUdOX1NUQVJUEAESHAoYTkFUSVZFX1RFWFRfQUxJR05fQ0VOVEVSEAISGQoV",
+            "TkFUSVZFX1RFWFRfQUxJR05fRU5EEAMqfAoSTmF0aXZlVGV4dE92ZXJmbG93",
+            "EiQKIE5BVElWRV9URVhUX09WRVJGTE9XX1VOU1BFQ0lGSUVEEAASHQoZTkFU",
+            "SVZFX1RFWFRfT1ZFUkZMT1dfQ0xJUBABEiEKHU5BVElWRV9URVhUX09WRVJG",
+            "TE9XX0VMTElQU0lTEAIqXgoLVGltZXJGb3JtYXQSHAoYVElNRVJfRk9STUFU",
+            "X1VOU1BFQ0lGSUVEEAASFgoSVElNRVJfRk9STUFUX01NX1NTEAESGQoVVElN",
+            "RVJfRk9STUFUX0hIX01NX1NTEAIqeQoSSW5hY3RpdmVUaW1lclZhbHVlEiQK",
+            "IElOQUNUSVZFX1RJTUVSX1ZBTFVFX1VOU1BFQ0lGSUVEEAASHgoaSU5BQ1RJ",
+            "VkVfVElNRVJfVkFMVUVfRU1QVFkQARIdChlJTkFDVElWRV9USU1FUl9WQUxV",
+            "RV9aRVJPEAIqaQoKVmlkZW9Db2RlYxIbChdWSURFT19DT0RFQ19VTlNQRUNJ",
+            "RklFRBAAEhQKEFZJREVPX0NPREVDX0gyNjQQARITCg9WSURFT19DT0RFQ19W",
+            "UDkQAhITCg9WSURFT19DT0RFQ19BVjEQAyrUAgoMU2VtYW50aWNSb2xlEh0K",
+            "GVNFTUFOVElDX1JPTEVfVU5TUEVDSUZJRUQQABIZChVTRU1BTlRJQ19ST0xF",
+            "X0hFQURJTkcQARIbChdTRU1BTlRJQ19ST0xFX1BBUkFHUkFQSBACEhcKE1NF",
+            "TUFOVElDX1JPTEVfSU1BR0UQAxIYChRTRU1BTlRJQ19ST0xFX0JVVFRPThAE",
+            "EhYKElNFTUFOVElDX1JPTEVfTElTVBAFEhsKF1NFTUFOVElDX1JPTEVfTElT",
+            "VF9JVEVNEAYSFwoTU0VNQU5USUNfUk9MRV9UQUJMRRAHEhUKEVNFTUFOVElD",
+            "X1JPTEVfUk9XEAgSFgoSU0VNQU5USUNfUk9MRV9DRUxMEAkSHwobU0VNQU5U",
+            "SUNfUk9MRV9DT0xVTU5fSEVBREVSEAoSHAoYU0VNQU5USUNfUk9MRV9ST1df",
+            "SEVBREVSEAtCU1pRZ2l0aHViLmNvbS91bmZyYW1lLWRldi91bmZyYW1lL2Fw",
+            "cC9zZXJ2ZXIvcmVhbHRpbWUvaW50ZXJuYWwvZ2VuL2RlbGl2ZXJ5O2RlbGl2",
+            "ZXJ5YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Unframe.Presentation.RuntimeReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Delivery.RendererKind), typeof(global::Unframe.Delivery.BakedWebFeature), typeof(global::Unframe.Delivery.NativeUiFeature), typeof(global::Unframe.Delivery.VideoFeature), typeof(global::Unframe.Delivery.ModelFeature), typeof(global::Unframe.Delivery.ModelFormat), typeof(global::Unframe.Delivery.TextureAlphaMode), typeof(global::Unframe.Delivery.NativeTextAlign), typeof(global::Unframe.Delivery.NativeTextOverflow), typeof(global::Unframe.Delivery.TimerFormat), typeof(global::Unframe.Delivery.InactiveTimerValue), typeof(global::Unframe.Delivery.VideoCodec), typeof(global::Unframe.Delivery.SemanticRole), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -365,7 +370,8 @@ namespace Unframe.Delivery {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.ProjectionProfileDescriptor), global::Unframe.Delivery.ProjectionProfileDescriptor.Parser, new[]{ "ProjectionProfileId", "Key", "VisibleNodeIds", "VisibleSurfaceIds", "VisibleVariableIds", "RenderSurfaces", "SemanticSurfaces", "LocalOverlays", "RequiredRuntimeCapabilities", "RuntimeCatalog" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.AssetAccessBinding), global::Unframe.Delivery.AssetAccessBinding.Parser, new[]{ "AssetId", "Checksum", "MediaType", "EncodedSizeBytes", "Url", "ExpiresAtUnixMs" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.TextureResidencyBinding), global::Unframe.Delivery.TextureResidencyBinding.Parser, new[]{ "AssetId", "Checksum", "PixelSize", "DecodedGpuBytes", "PeakLoadCpuBytes" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.TextureResidencyPlan), global::Unframe.Delivery.TextureResidencyPlan.Parser, new[]{ "BudgetTierId", "Textures", "TotalDecodedGpuBytes", "MaximumPeakLoadCpuBytes" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.TextureResidencyWindow), global::Unframe.Delivery.TextureResidencyWindow.Parser, new[]{ "GroupId", "AssetIds" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.TextureResidencyPlan), global::Unframe.Delivery.TextureResidencyPlan.Parser, new[]{ "BudgetTierId", "Textures", "TotalDecodedGpuBytes", "MaximumPeakLoadCpuBytes", "InitialGroupId", "GroupWindows", "MaximumResidentGpuBytes", "MaximumResidentTextureBindings" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.ModelResidencyBinding), global::Unframe.Delivery.ModelResidencyBinding.Parser, new[]{ "AssetId", "Checksum", "EncodedSizeBytes", "Format", "RequiredFeatures", "NodeCount", "PrimitiveCount", "VertexCount", "TriangleCount", "MaximumBonesPerSkin", "MaximumMorphTargetsPerPrimitive", "AnimationClipCount" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.ModelResidencyPlan), global::Unframe.Delivery.ModelResidencyPlan.Parser, new[]{ "BudgetTierId", "Models", "TotalEncodedBytes", "TotalVertices", "TotalTriangles", "ModelInstanceCount", "TotalNodes", "TotalPrimitives" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Delivery.NativeUiResidencyPlan), global::Unframe.Delivery.NativeUiResidencyPlan.Parser, new[]{ "BudgetTierId", "FontAssetIds", "MaximumNodesPerArtifact", "MaximumTreeDepth", "MaximumTextNodesPerArtifact", "Glyphs", "MaximumCodePointsPerText", "FontAssetCount" }, null, null, null, null),
@@ -16410,6 +16416,230 @@ namespace Unframe.Delivery {
   }
 
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class TextureResidencyWindow : pb::IMessage<TextureResidencyWindow>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<TextureResidencyWindow> _parser = new pb::MessageParser<TextureResidencyWindow>(() => new TextureResidencyWindow());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<TextureResidencyWindow> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[47]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TextureResidencyWindow() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TextureResidencyWindow(TextureResidencyWindow other) : this() {
+      groupId_ = other.groupId_;
+      assetIds_ = other.assetIds_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public TextureResidencyWindow Clone() {
+      return new TextureResidencyWindow(this);
+    }
+
+    /// <summary>Field number for the "group_id" field.</summary>
+    public const int GroupIdFieldNumber = 1;
+    private string groupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string GroupId {
+      get { return groupId_; }
+      set {
+        groupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "asset_ids" field.</summary>
+    public const int AssetIdsFieldNumber = 2;
+    private static readonly pb::FieldCodec<string> _repeated_assetIds_codec
+        = pb::FieldCodec.ForString(18);
+    private readonly pbc::RepeatedField<string> assetIds_ = new pbc::RepeatedField<string>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<string> AssetIds {
+      get { return assetIds_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as TextureResidencyWindow);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(TextureResidencyWindow other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (GroupId != other.GroupId) return false;
+      if(!assetIds_.Equals(other.assetIds_)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (GroupId.Length != 0) hash ^= GroupId.GetHashCode();
+      hash ^= assetIds_.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (GroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(GroupId);
+      }
+      assetIds_.WriteTo(output, _repeated_assetIds_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (GroupId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(GroupId);
+      }
+      assetIds_.WriteTo(ref output, _repeated_assetIds_codec);
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (GroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(GroupId);
+      }
+      size += assetIds_.CalculateSize(_repeated_assetIds_codec);
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(TextureResidencyWindow other) {
+      if (other == null) {
+        return;
+      }
+      if (other.GroupId.Length != 0) {
+        GroupId = other.GroupId;
+      }
+      assetIds_.Add(other.assetIds_);
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            GroupId = input.ReadString();
+            break;
+          }
+          case 18: {
+            assetIds_.AddEntriesFrom(input, _repeated_assetIds_codec);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            GroupId = input.ReadString();
+            break;
+          }
+          case 18: {
+            assetIds_.AddEntriesFrom(ref input, _repeated_assetIds_codec);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class TextureResidencyPlan : pb::IMessage<TextureResidencyPlan>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
@@ -16424,7 +16654,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[47]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[48]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -16448,6 +16678,10 @@ namespace Unframe.Delivery {
       textures_ = other.textures_.Clone();
       totalDecodedGpuBytes_ = other.totalDecodedGpuBytes_;
       maximumPeakLoadCpuBytes_ = other.maximumPeakLoadCpuBytes_;
+      initialGroupId_ = other.initialGroupId_;
+      groupWindows_ = other.groupWindows_.Clone();
+      maximumResidentGpuBytes_ = other.maximumResidentGpuBytes_;
+      maximumResidentTextureBindings_ = other.maximumResidentTextureBindings_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -16504,6 +16738,53 @@ namespace Unframe.Delivery {
       }
     }
 
+    /// <summary>Field number for the "initial_group_id" field.</summary>
+    public const int InitialGroupIdFieldNumber = 5;
+    private string initialGroupId_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string InitialGroupId {
+      get { return initialGroupId_; }
+      set {
+        initialGroupId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "group_windows" field.</summary>
+    public const int GroupWindowsFieldNumber = 6;
+    private static readonly pb::FieldCodec<global::Unframe.Delivery.TextureResidencyWindow> _repeated_groupWindows_codec
+        = pb::FieldCodec.ForMessage(50, global::Unframe.Delivery.TextureResidencyWindow.Parser);
+    private readonly pbc::RepeatedField<global::Unframe.Delivery.TextureResidencyWindow> groupWindows_ = new pbc::RepeatedField<global::Unframe.Delivery.TextureResidencyWindow>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Unframe.Delivery.TextureResidencyWindow> GroupWindows {
+      get { return groupWindows_; }
+    }
+
+    /// <summary>Field number for the "maximum_resident_gpu_bytes" field.</summary>
+    public const int MaximumResidentGpuBytesFieldNumber = 7;
+    private ulong maximumResidentGpuBytes_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong MaximumResidentGpuBytes {
+      get { return maximumResidentGpuBytes_; }
+      set {
+        maximumResidentGpuBytes_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "maximum_resident_texture_bindings" field.</summary>
+    public const int MaximumResidentTextureBindingsFieldNumber = 8;
+    private ulong maximumResidentTextureBindings_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ulong MaximumResidentTextureBindings {
+      get { return maximumResidentTextureBindings_; }
+      set {
+        maximumResidentTextureBindings_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -16523,6 +16804,10 @@ namespace Unframe.Delivery {
       if(!textures_.Equals(other.textures_)) return false;
       if (TotalDecodedGpuBytes != other.TotalDecodedGpuBytes) return false;
       if (MaximumPeakLoadCpuBytes != other.MaximumPeakLoadCpuBytes) return false;
+      if (InitialGroupId != other.InitialGroupId) return false;
+      if(!groupWindows_.Equals(other.groupWindows_)) return false;
+      if (MaximumResidentGpuBytes != other.MaximumResidentGpuBytes) return false;
+      if (MaximumResidentTextureBindings != other.MaximumResidentTextureBindings) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -16534,6 +16819,10 @@ namespace Unframe.Delivery {
       hash ^= textures_.GetHashCode();
       if (TotalDecodedGpuBytes != 0UL) hash ^= TotalDecodedGpuBytes.GetHashCode();
       if (MaximumPeakLoadCpuBytes != 0UL) hash ^= MaximumPeakLoadCpuBytes.GetHashCode();
+      if (InitialGroupId.Length != 0) hash ^= InitialGroupId.GetHashCode();
+      hash ^= groupWindows_.GetHashCode();
+      if (MaximumResidentGpuBytes != 0UL) hash ^= MaximumResidentGpuBytes.GetHashCode();
+      if (MaximumResidentTextureBindings != 0UL) hash ^= MaximumResidentTextureBindings.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -16565,6 +16854,19 @@ namespace Unframe.Delivery {
         output.WriteRawTag(32);
         output.WriteUInt64(MaximumPeakLoadCpuBytes);
       }
+      if (InitialGroupId.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(InitialGroupId);
+      }
+      groupWindows_.WriteTo(output, _repeated_groupWindows_codec);
+      if (MaximumResidentGpuBytes != 0UL) {
+        output.WriteRawTag(56);
+        output.WriteUInt64(MaximumResidentGpuBytes);
+      }
+      if (MaximumResidentTextureBindings != 0UL) {
+        output.WriteRawTag(64);
+        output.WriteUInt64(MaximumResidentTextureBindings);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -16588,6 +16890,19 @@ namespace Unframe.Delivery {
         output.WriteRawTag(32);
         output.WriteUInt64(MaximumPeakLoadCpuBytes);
       }
+      if (InitialGroupId.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(InitialGroupId);
+      }
+      groupWindows_.WriteTo(ref output, _repeated_groupWindows_codec);
+      if (MaximumResidentGpuBytes != 0UL) {
+        output.WriteRawTag(56);
+        output.WriteUInt64(MaximumResidentGpuBytes);
+      }
+      if (MaximumResidentTextureBindings != 0UL) {
+        output.WriteRawTag(64);
+        output.WriteUInt64(MaximumResidentTextureBindings);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -16607,6 +16922,16 @@ namespace Unframe.Delivery {
       }
       if (MaximumPeakLoadCpuBytes != 0UL) {
         size += 1 + pb::CodedOutputStream.ComputeUInt64Size(MaximumPeakLoadCpuBytes);
+      }
+      if (InitialGroupId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(InitialGroupId);
+      }
+      size += groupWindows_.CalculateSize(_repeated_groupWindows_codec);
+      if (MaximumResidentGpuBytes != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(MaximumResidentGpuBytes);
+      }
+      if (MaximumResidentTextureBindings != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(MaximumResidentTextureBindings);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -16629,6 +16954,16 @@ namespace Unframe.Delivery {
       }
       if (other.MaximumPeakLoadCpuBytes != 0UL) {
         MaximumPeakLoadCpuBytes = other.MaximumPeakLoadCpuBytes;
+      }
+      if (other.InitialGroupId.Length != 0) {
+        InitialGroupId = other.InitialGroupId;
+      }
+      groupWindows_.Add(other.groupWindows_);
+      if (other.MaximumResidentGpuBytes != 0UL) {
+        MaximumResidentGpuBytes = other.MaximumResidentGpuBytes;
+      }
+      if (other.MaximumResidentTextureBindings != 0UL) {
+        MaximumResidentTextureBindings = other.MaximumResidentTextureBindings;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -16663,6 +16998,22 @@ namespace Unframe.Delivery {
           }
           case 32: {
             MaximumPeakLoadCpuBytes = input.ReadUInt64();
+            break;
+          }
+          case 42: {
+            InitialGroupId = input.ReadString();
+            break;
+          }
+          case 50: {
+            groupWindows_.AddEntriesFrom(input, _repeated_groupWindows_codec);
+            break;
+          }
+          case 56: {
+            MaximumResidentGpuBytes = input.ReadUInt64();
+            break;
+          }
+          case 64: {
+            MaximumResidentTextureBindings = input.ReadUInt64();
             break;
           }
         }
@@ -16700,6 +17051,22 @@ namespace Unframe.Delivery {
             MaximumPeakLoadCpuBytes = input.ReadUInt64();
             break;
           }
+          case 42: {
+            InitialGroupId = input.ReadString();
+            break;
+          }
+          case 50: {
+            groupWindows_.AddEntriesFrom(ref input, _repeated_groupWindows_codec);
+            break;
+          }
+          case 56: {
+            MaximumResidentGpuBytes = input.ReadUInt64();
+            break;
+          }
+          case 64: {
+            MaximumResidentTextureBindings = input.ReadUInt64();
+            break;
+          }
         }
       }
     }
@@ -16722,7 +17089,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[48]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[49]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17318,7 +17685,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[49]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[50]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -17764,7 +18131,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[50]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[51]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18199,7 +18566,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[51]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[52]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18434,7 +18801,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[52]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[53]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -18743,7 +19110,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[53]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[54]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19078,7 +19445,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[54]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[55]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -19460,7 +19827,7 @@ namespace Unframe.Delivery {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[55]; }
+      get { return global::Unframe.Delivery.DeliveryReflection.Descriptor.MessageTypes[56]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

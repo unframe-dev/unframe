@@ -1,6 +1,9 @@
 import { Camera, Group, Texture } from "three";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
+import {
+  participantRuntimeViewSchema,
+  type DeliveryManifestWire,
+} from "@unframe-dev/contracts/presentation";
 import { createPresentation } from "../../rendering/presentation";
 import { createPresentationSession } from "../presentation-session";
 import { createPngTexturePool } from "../../assets/png-texture-pool";
@@ -13,6 +16,8 @@ vi.mock("../../rendering/presentation", () => ({
 }));
 vi.mock("../../assets/png-texture-pool", () => ({ createPngTexturePool: vi.fn() }));
 vi.mock("../../runtime/playback", () => ({ createRuntimePlayback: vi.fn() }));
+import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
+const view = participantRuntimeViewSchema.parse(runtimeFixture);
 const delivery = {} as DeliveryManifestWire;
 const host = { contentRoot: new Group() } as never;
 function loaded() {
@@ -20,6 +25,7 @@ function loaded() {
     root: new Group(),
     dispose: vi.fn(),
     applyView: vi.fn(() => false),
+    updatePngTextures: vi.fn(),
     prepareRender: vi.fn(),
     applyAnimationFrame: vi.fn(),
     setPlaybackEnabled: vi.fn(),
@@ -41,6 +47,9 @@ beforeEach(() => {
   vi.mocked(createPngTexturePool).mockReset();
   vi.mocked(createPngTexturePool).mockImplementation(async () => ({
     assets: [],
+    residentAssets: [],
+    canAcquire: vi.fn(() => true),
+    acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
     retainedCpuBytes: 0,
     gpuBytes: 0,
     dispose: vi.fn(),
@@ -57,48 +66,15 @@ beforeEach(() => {
   );
 });
 describe("presentation session resources", () => {
-  it.each(["maxGpuBytes", "maxTextureBindings"] as const)(
-    "rejects replacement PNG pools before decoding when retained resources exceed %s",
-    async (limit) => {
-      vi.mocked(createPngTexturePool).mockResolvedValueOnce({
-        assets: [{ checksum: "old" }],
-        retainedCpuBytes: 0,
-        gpuBytes: 400,
-        dispose: vi.fn(),
-        getTexture: vi.fn(),
-        loadTexture: vi.fn(),
-      } as never);
-      const previous = loaded();
-      vi.mocked(createPresentation).mockResolvedValue(previous);
-      const { session } = setup();
-      await session.present(delivery, {});
-      const nextDelivery = {
-        residency: { textures: { textures: [{ checksum: "next", decodedGpuBytes: "600" }] } },
-        capabilityProfile: {
-          limits: {
-            texture: {
-              maxGpuBytes: limit === "maxGpuBytes" ? "1000" : "2000",
-              maxTextureBindings: limit === "maxTextureBindings" ? "2" : "3",
-            },
-          },
-        },
-      } as DeliveryManifestWire;
-      await expect(session.present(nextDelivery, {})).rejects.toThrow(/budget/);
-      expect(createPngTexturePool).toHaveBeenCalledOnce();
-      expect(createPresentation).toHaveBeenCalledOnce();
-      expect(previous.dispose).not.toHaveBeenCalled();
-      session.dispose();
-    },
-  );
   it("requires an attached XR host and rejects use after disposal", async () => {
     const { session } = setup();
     session.detachScene(host);
-    await expect(session.present(delivery, {})).rejects.toThrow("scene");
+    await expect(session.present(delivery, view)).rejects.toThrow("scene");
     session.dispose();
     expect(() => session.attachScene(host, { resetState() {}, initTexture() {} })).toThrow(
       "disposed",
     );
-    await expect(session.present(delivery, {})).rejects.toThrow("scene");
+    await expect(session.present(delivery, view)).rejects.toThrow("scene");
   });
   it("keeps the old PNG while loading and accounts for its retained memory", async () => {
     const previous = loaded();
@@ -106,8 +82,8 @@ describe("presentation session resources", () => {
       .mockResolvedValueOnce(previous)
       .mockRejectedValueOnce(new Error("budget"));
     const { session } = setup();
-    await session.present(delivery, {});
-    await expect(session.present(delivery, {})).rejects.toThrow("budget");
+    await session.present(delivery, view);
+    await expect(session.present(delivery, view)).rejects.toThrow("budget");
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentCpuBytes).toBe(4096);
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentResources).toEqual({
       gpuBytes: 100,
@@ -121,6 +97,9 @@ describe("presentation session resources", () => {
   it("counts a shared resident PNG pool once while preparing replacement media", async () => {
     vi.mocked(createPngTexturePool).mockResolvedValueOnce({
       assets: [{ checksum: "shared" }],
+      residentAssets: [{ checksum: "shared" }],
+      canAcquire: vi.fn(() => true),
+      acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
       retainedCpuBytes: 0,
       gpuBytes: 400,
       dispose: vi.fn(),
@@ -129,8 +108,8 @@ describe("presentation session resources", () => {
     } as never);
     vi.mocked(createPresentation).mockResolvedValue(loaded());
     const { session } = setup();
-    await session.present(delivery, {});
-    await session.present(delivery, {});
+    await session.present(delivery, view);
+    await session.present(delivery, view);
     expect(createPngTexturePool).toHaveBeenCalledOnce();
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentResources).toEqual({
       gpuBytes: 100,
@@ -154,9 +133,9 @@ describe("presentation session resources", () => {
     renderer.resetState.mockImplementation(() => {
       events.push("reset");
     });
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     events.length = 0;
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     expect(events).toEqual(["reset", "apply"]);
     events.length = 0;
     session.detachScene(host);
@@ -175,13 +154,13 @@ describe("presentation session resources", () => {
       )
       .mockResolvedValueOnce(next);
     const { session } = setup();
-    const pending = session.present(delivery, {});
+    const pending = session.present(delivery, view);
     await vi.waitFor(() => expect(createPresentation).toHaveBeenCalledOnce());
     session.detachScene(host);
     expect(vi.mocked(createPresentation).mock.calls[0]![0].signal?.aborted).toBe(true);
     const nextHost = {} as never;
     session.attachScene(nextHost, { resetState() {}, initTexture() {} });
-    const replacement = session.present(delivery, {});
+    const replacement = session.present(delivery, view);
     await Promise.resolve();
     expect(createPresentation).toHaveBeenCalledOnce();
     finish(discarded);
@@ -200,10 +179,10 @@ describe("presentation session resources", () => {
         return next;
       });
     const { session } = setup();
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     await session.present(
       { projectionProfile: { renderSurfaces: [{ rendererKind: 3 }] } } as never,
-      {},
+      view,
     );
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentCpuBytes).toBe(4096);
     expect(previous.dispose).toHaveBeenCalledOnce();
@@ -213,7 +192,7 @@ describe("presentation session resources", () => {
     const current = loaded();
     vi.mocked(createPresentation).mockResolvedValue(current);
     const { session } = setup();
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     const camera = new Camera();
     session.prepareRender(camera);
     expect(current.prepareRender).toHaveBeenCalledWith(camera);
@@ -234,7 +213,7 @@ describe("presentation session resources", () => {
     const current = loaded();
     vi.mocked(createPresentation).mockResolvedValue(current);
     const runtime = session.openRuntime(delivery);
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
     frame({ effectRuns: [], clock: { lifecycle: { kind: "running" } } } as never, 1200, {});
     expect(current.setPlaybackEnabled).toHaveBeenLastCalledWith(false);
@@ -253,13 +232,65 @@ describe("presentation session resources", () => {
     expect(current.dispose).toHaveBeenCalledOnce();
     session.dispose();
   });
+  it("releases active effects before a budget-driven replacement starts loading", async () => {
+    const current = loaded();
+    const target = new Group();
+    target.name = "effect-target";
+    current.root.add(target);
+    vi.mocked(createPresentation).mockResolvedValueOnce(current);
+    const { session } = setup();
+    session.openRuntime(delivery);
+    await session.present(delivery, view);
+    const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
+    frame(
+      {
+        ...view,
+        effectRuns: [
+          {
+            runId: { assignmentEpoch: 1, runSequence: 1 },
+            owner: { kind: "presentation" },
+            cause: {
+              cueId: "wave",
+              causeEventId: "event",
+              groupId: "intro",
+              groupEntryEpoch: 1,
+              stepId: "start",
+              stepEntryEpoch: 1,
+            },
+            startedAtRuntimeTimeMilliseconds: 0,
+            effectId: "wave",
+            nodeId: target.name,
+            seed: 1,
+            status: "active",
+            effect: {
+              kind: "wave",
+              size: 1,
+              color: { red: 1, green: 1, blue: 1, alpha: 1 },
+              speed: 1,
+              durationMilliseconds: 1000,
+              waveCycles: 1,
+            },
+          },
+        ],
+      },
+      100,
+      {},
+    );
+    expect(target.children).toHaveLength(1);
+    const pool = await vi.mocked(createPngTexturePool).mock.results[0]!.value;
+    vi.mocked(pool.canAcquire).mockReturnValue(false);
+    vi.mocked(pool.acquire).mockRejectedValueOnce(new Error("decode"));
+    await expect(session.present(delivery, view)).rejects.toThrow("decode");
+    expect(target.children).toHaveLength(0);
+    session.dispose();
+  });
   it("does not detach a newer scene when an old scene finishes cleanup", async () => {
     const { session } = setup();
     const nextHost = {} as never;
     session.attachScene(nextHost, { resetState() {}, initTexture() {} });
     session.detachScene(host);
     vi.mocked(createPresentation).mockResolvedValue(loaded());
-    await session.present(delivery, {});
+    await session.present(delivery, view);
     expect(vi.mocked(createPresentation).mock.calls[0]![0].host).toBe(nextHost);
     session.dispose();
   });
@@ -268,6 +299,9 @@ describe("presentation session resources", () => {
 it("waits for PNG residency, reuses it for the same delivery and releases it with the session", async () => {
   const pool = {
     assets: [],
+    residentAssets: [],
+    canAcquire: vi.fn(() => true),
+    acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
     retainedCpuBytes: 0,
     gpuBytes: 8192,
     dispose: vi.fn(),
@@ -285,14 +319,14 @@ it("waits for PNG residency, reuses it for the same delivery and releases it wit
   vi.mocked(current.applyView).mockReturnValue(true);
   vi.mocked(createPresentation).mockResolvedValue(current);
   const { session } = setup();
-  const pending = session.present(delivery, {});
+  const pending = session.present(delivery, view);
   await vi.waitFor(() => expect(createPngTexturePool).toHaveBeenCalledOnce());
   expect(createPresentation).not.toHaveBeenCalled();
   finishPreload(pool);
   await pending;
   expect(createPresentation).toHaveBeenCalledOnce();
   expect(vi.mocked(createPresentation).mock.calls[0]![0].pngTexturePool).toBe(pool);
-  await session.present(delivery, {});
+  await session.present(delivery, view);
   expect(createPngTexturePool).toHaveBeenCalledOnce();
   expect(current.applyView).toHaveBeenCalledOnce();
   expect(pool.dispose).not.toHaveBeenCalled();
@@ -317,8 +351,8 @@ it("releases the old decoder without disposing its frame before preparing replac
       return next;
     });
   const { session } = setup();
-  await session.present(delivery, {});
-  await session.present(delivery, {});
+  await session.present(delivery, view);
+  await session.present(delivery, view);
   expect(previous.dispose).toHaveBeenCalledOnce();
   session.dispose();
 });
@@ -328,7 +362,7 @@ it("uploads each PNG with the active renderer and resets the shared GL state aft
   const texture = new Texture();
   vi.mocked(createPresentation).mockResolvedValue(current);
   const { session, renderer } = setup();
-  await session.present(delivery, {});
+  await session.present(delivery, view);
   const upload = vi.mocked(createPngTexturePool).mock.calls[0]![0].uploadTexture;
   const events: string[] = [];
   renderer.initTexture.mockImplementation(() => {

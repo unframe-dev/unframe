@@ -153,3 +153,7 @@ trigger: {
 ```
 
 Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture / Zone と Presenter Anchor を拒否する。
+
+Group ごとの場面素材は `owner: group`、プレゼン全体で保持する素材は `owner: presentation` とする。PNG の GPU 常駐窓は現在 Group と直接の次候補 Group、および presentation 共通素材の和で計画する。モデル内 Texture は全常駐として各窓の予算へ加算する。[ADR-0030](../decisions/0030-group-texture-residency.md) を参照。
+
+React / Model の Scene 宣言も `owner: { kind: "group", groupId }` を指定できる。`flow.timelines[].owner` は省略時に presentation 所有となる。Group 内で動かす Timeline は同じ Group の owner を指定し、退出時に完了・解除する。

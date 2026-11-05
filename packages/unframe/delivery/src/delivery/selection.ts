@@ -11,6 +11,8 @@ import {
 } from "./input.js";
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
+import { planTextureResidencyWindows } from "./residency-windows.js";
+
 type Artifact = RenderBundle["surfaces"][string]["renderSurfaces"][string]["artifacts"][string];
 type SelectedState = { stateId: string; artifact: Artifact | null };
 export type SelectedRenderSurface = {
@@ -36,6 +38,10 @@ export type DeliverySelection = {
       peakLoadCpuBytes: number;
     }[];
     totalTextureGpuBytes: number;
+    initialGroupId: string;
+    groupWindows: { groupId: string; assetIds: string[] }[];
+    maximumResidentGpuBytes: number;
+    maximumResidentTextureBindings: number;
     maximumTextureLoadCpuBytes: number;
     videos: { assetId: string; checksum: string; decodedFrameBytes: number }[];
     maximumConcurrentDecoders: number;
@@ -395,13 +401,14 @@ export const selectDeliveryArtifactsParsed = (
       "Model texture GPU bytes",
     );
   }
+  const windows = planTextureResidencyWindows(definition, selected, textures);
   const combinedGpuBytes = checkedAdd(
-    totalTextureGpuBytes,
+    windows.maximumResidentGpuBytes,
     modelTextureGpuBytes,
     "Texture GPU bytes",
   );
   within(
-    checkedAdd(textures.length, modelTextureBindings, "Texture bindings"),
+    checkedAdd(windows.maximumResidentTextureBindings, modelTextureBindings, "Texture bindings"),
     capability.limits.texture.maxTextureBindings,
     "Texture bindings",
   );
@@ -560,6 +567,7 @@ export const selectDeliveryArtifactsParsed = (
     renderSurfaces: selected,
     assets: assetList,
     residency: {
+      ...windows,
       textures,
       totalTextureGpuBytes,
       maximumTextureLoadCpuBytes,

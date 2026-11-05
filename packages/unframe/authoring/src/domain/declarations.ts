@@ -631,6 +631,7 @@ export type GestureTrigger = {
     | "circle";
 };
 export type SceneTimelineDeclaration = Omit<ComponentTimelineDeclaration, "tracks"> & {
+  owner?: ResourceOwner;
   tracks: readonly (Omit<ComponentTimelineDeclaration["tracks"][number], "target"> & {
     target: {
       kind: "instance";

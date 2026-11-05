@@ -80,6 +80,7 @@ namespace Unframe.Unity.PresentationRuntime
                     || !view.TryGetNodeState(partition.HostNodeId, out NodeRuntimeState node))
                 {
                     partition.Renderer.enabled = false;
+                    partition.Renderer.SetPropertyBlock(null);
                     continue;
                 }
                 string fromState = state.StateId;
@@ -183,6 +184,13 @@ namespace Unframe.Unity.PresentationRuntime
                 case Easing.CubicInOut: return progress < 0.5f ? 4f * progress * progress * progress : 1f - Mathf.Pow(2f - 2f * progress, 3f) / 2f;
                 default: return progress;
             }
+        }
+
+        public void DetachTextures()
+        {
+            Disable();
+            foreach (Partition partition in partitions)
+                if (partition.Renderer != null) partition.Renderer.SetPropertyBlock(null);
         }
 
         public void Disable()

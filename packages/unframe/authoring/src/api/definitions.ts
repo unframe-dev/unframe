@@ -837,6 +837,7 @@ const componentStructureSchema = z.union([
   }),
 ]);
 const sceneTimelineSchema = componentTimelineSchema.extend({
+  owner: resourceOwnerSchema.optional(),
   tracks: z
     .array(
       componentTimelineSchema.shape.tracks.element.extend({

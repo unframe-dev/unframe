@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare:logo": "node scripts/prepare-logo.mjs",
-    "prepare:cube": "node scripts/prepare-cube.mjs",
+    "prepare:logo": "node src/scripts/prepare-logo.mjs",
+    "prepare:cube": "node src/scripts/prepare-cube.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "bun test ./test/opening.test.mjs ./test/original.test.mjs"
+    "test": "bun test ./src/test/opening.test.mjs ./src/test/original.test.mjs ./src/test/show.test.mjs"
   },
   "dependencies": {
     "@unframe-dev/authoring": "workspace:*",

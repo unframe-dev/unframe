@@ -32,7 +32,7 @@ namespace Unframe.Unity.PresentationRuntime
         private Task stopTask = Task.CompletedTask;
         private string message = "", roomCode = "";
         private Text inputText;
-        private bool CalibrationComplete => calibration?.Calibration?.IsValid == true;
+        private bool CalibrationComplete => calibration?.Calibration?.IsValid == true && (entry?.PlacementReady ?? true);
         private bool CameraPermissionRequired => calibration?.CameraPreview?.NeedsCameraPermission == true;
         private int SelectedMarkerSize => calibration?.MarkerSizeMillimeters ?? 150;
         public bool IsComplete { get; private set; }
@@ -267,7 +267,7 @@ namespace Unframe.Unity.PresentationRuntime
                     Button("Permission", CameraPermissionRequired ? "カメラを許可" : "カメラを再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
                     Button("Aligned", "位置合わせを確認して次へ", 0, -175, 820, () =>
                     {
-                        if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
+                        if (!QuestOnboardingStart.CanAdvance(flow.Role, CalibrationComplete,
                             entry?.ControlReady == true, entry?.SessionReady == true))
                         { message = "位置合わせとサーバーの準備完了を待っています"; Draw(); return; }
                         flow.GoTo(QuestOnboardingPage.Ready); Draw();
@@ -281,7 +281,7 @@ namespace Unframe.Unity.PresentationRuntime
                     {
                         Run(async token =>
                         {
-                            if (!QuestOnboardingStart.CanAdvance(flow.Role, calibration?.Calibration?.IsValid == true,
+                            if (!QuestOnboardingStart.CanAdvance(flow.Role, CalibrationComplete,
                                 entry?.ControlReady == true, entry?.SessionReady == true)) throw new InvalidOperationException("not-ready");
                             if (flow.Role == QuestOnboardingRole.Presenter)
                             {
@@ -480,7 +480,7 @@ namespace Unframe.Unity.PresentationRuntime
             world = ray.GetPoint(distance); local = rect.InverseTransformPoint(world); return rect.rect.Contains(new Vector2(local.x, local.y));
         }
         private bool CanAdvance => QuestOnboardingStart.CanAdvance(flow.Role,
-            calibration?.Calibration?.IsValid == true, entry?.ControlReady == true, entry?.SessionReady == true);
+            CalibrationComplete, entry?.ControlReady == true, entry?.SessionReady == true);
 
         private void Update()
         {

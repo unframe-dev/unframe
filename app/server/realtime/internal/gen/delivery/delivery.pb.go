@@ -4297,19 +4297,75 @@ func (x *TextureResidencyBinding) GetPeakLoadCpuBytes() uint64 {
 	return 0
 }
 
+type TextureResidencyWindow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	AssetIds      []string               `protobuf:"bytes,2,rep,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TextureResidencyWindow) Reset() {
+	*x = TextureResidencyWindow{}
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TextureResidencyWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TextureResidencyWindow) ProtoMessage() {}
+
+func (x *TextureResidencyWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TextureResidencyWindow.ProtoReflect.Descriptor instead.
+func (*TextureResidencyWindow) Descriptor() ([]byte, []int) {
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *TextureResidencyWindow) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *TextureResidencyWindow) GetAssetIds() []string {
+	if x != nil {
+		return x.AssetIds
+	}
+	return nil
+}
+
 type TextureResidencyPlan struct {
-	state                   protoimpl.MessageState     `protogen:"open.v1"`
-	BudgetTierId            string                     `protobuf:"bytes,1,opt,name=budget_tier_id,json=budgetTierId,proto3" json:"budget_tier_id,omitempty"`
-	Textures                []*TextureResidencyBinding `protobuf:"bytes,2,rep,name=textures,proto3" json:"textures,omitempty"`
-	TotalDecodedGpuBytes    uint64                     `protobuf:"varint,3,opt,name=total_decoded_gpu_bytes,json=totalDecodedGpuBytes,proto3" json:"total_decoded_gpu_bytes,omitempty"`
-	MaximumPeakLoadCpuBytes uint64                     `protobuf:"varint,4,opt,name=maximum_peak_load_cpu_bytes,json=maximumPeakLoadCpuBytes,proto3" json:"maximum_peak_load_cpu_bytes,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                          protoimpl.MessageState     `protogen:"open.v1"`
+	BudgetTierId                   string                     `protobuf:"bytes,1,opt,name=budget_tier_id,json=budgetTierId,proto3" json:"budget_tier_id,omitempty"`
+	Textures                       []*TextureResidencyBinding `protobuf:"bytes,2,rep,name=textures,proto3" json:"textures,omitempty"`
+	TotalDecodedGpuBytes           uint64                     `protobuf:"varint,3,opt,name=total_decoded_gpu_bytes,json=totalDecodedGpuBytes,proto3" json:"total_decoded_gpu_bytes,omitempty"`
+	MaximumPeakLoadCpuBytes        uint64                     `protobuf:"varint,4,opt,name=maximum_peak_load_cpu_bytes,json=maximumPeakLoadCpuBytes,proto3" json:"maximum_peak_load_cpu_bytes,omitempty"`
+	InitialGroupId                 string                     `protobuf:"bytes,5,opt,name=initial_group_id,json=initialGroupId,proto3" json:"initial_group_id,omitempty"`
+	GroupWindows                   []*TextureResidencyWindow  `protobuf:"bytes,6,rep,name=group_windows,json=groupWindows,proto3" json:"group_windows,omitempty"`
+	MaximumResidentGpuBytes        uint64                     `protobuf:"varint,7,opt,name=maximum_resident_gpu_bytes,json=maximumResidentGpuBytes,proto3" json:"maximum_resident_gpu_bytes,omitempty"`
+	MaximumResidentTextureBindings uint64                     `protobuf:"varint,8,opt,name=maximum_resident_texture_bindings,json=maximumResidentTextureBindings,proto3" json:"maximum_resident_texture_bindings,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *TextureResidencyPlan) Reset() {
 	*x = TextureResidencyPlan{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[47]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4321,7 +4377,7 @@ func (x *TextureResidencyPlan) String() string {
 func (*TextureResidencyPlan) ProtoMessage() {}
 
 func (x *TextureResidencyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[47]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4334,7 +4390,7 @@ func (x *TextureResidencyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextureResidencyPlan.ProtoReflect.Descriptor instead.
 func (*TextureResidencyPlan) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{47}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *TextureResidencyPlan) GetBudgetTierId() string {
@@ -4365,6 +4421,34 @@ func (x *TextureResidencyPlan) GetMaximumPeakLoadCpuBytes() uint64 {
 	return 0
 }
 
+func (x *TextureResidencyPlan) GetInitialGroupId() string {
+	if x != nil {
+		return x.InitialGroupId
+	}
+	return ""
+}
+
+func (x *TextureResidencyPlan) GetGroupWindows() []*TextureResidencyWindow {
+	if x != nil {
+		return x.GroupWindows
+	}
+	return nil
+}
+
+func (x *TextureResidencyPlan) GetMaximumResidentGpuBytes() uint64 {
+	if x != nil {
+		return x.MaximumResidentGpuBytes
+	}
+	return 0
+}
+
+func (x *TextureResidencyPlan) GetMaximumResidentTextureBindings() uint64 {
+	if x != nil {
+		return x.MaximumResidentTextureBindings
+	}
+	return 0
+}
+
 type ModelResidencyBinding struct {
 	state                           protoimpl.MessageState `protogen:"open.v1"`
 	AssetId                         string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
@@ -4385,7 +4469,7 @@ type ModelResidencyBinding struct {
 
 func (x *ModelResidencyBinding) Reset() {
 	*x = ModelResidencyBinding{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[48]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4397,7 +4481,7 @@ func (x *ModelResidencyBinding) String() string {
 func (*ModelResidencyBinding) ProtoMessage() {}
 
 func (x *ModelResidencyBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[48]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4410,7 +4494,7 @@ func (x *ModelResidencyBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelResidencyBinding.ProtoReflect.Descriptor instead.
 func (*ModelResidencyBinding) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{48}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ModelResidencyBinding) GetAssetId() string {
@@ -4513,7 +4597,7 @@ type ModelResidencyPlan struct {
 
 func (x *ModelResidencyPlan) Reset() {
 	*x = ModelResidencyPlan{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[49]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4525,7 +4609,7 @@ func (x *ModelResidencyPlan) String() string {
 func (*ModelResidencyPlan) ProtoMessage() {}
 
 func (x *ModelResidencyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[49]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4538,7 +4622,7 @@ func (x *ModelResidencyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelResidencyPlan.ProtoReflect.Descriptor instead.
 func (*ModelResidencyPlan) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{49}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ModelResidencyPlan) GetBudgetTierId() string {
@@ -4613,7 +4697,7 @@ type NativeUiResidencyPlan struct {
 
 func (x *NativeUiResidencyPlan) Reset() {
 	*x = NativeUiResidencyPlan{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[50]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4625,7 +4709,7 @@ func (x *NativeUiResidencyPlan) String() string {
 func (*NativeUiResidencyPlan) ProtoMessage() {}
 
 func (x *NativeUiResidencyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[50]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4638,7 +4722,7 @@ func (x *NativeUiResidencyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NativeUiResidencyPlan.ProtoReflect.Descriptor instead.
 func (*NativeUiResidencyPlan) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{50}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *NativeUiResidencyPlan) GetBudgetTierId() string {
@@ -4707,7 +4791,7 @@ type GlyphResidencyKey struct {
 
 func (x *GlyphResidencyKey) Reset() {
 	*x = GlyphResidencyKey{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[51]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4719,7 +4803,7 @@ func (x *GlyphResidencyKey) String() string {
 func (*GlyphResidencyKey) ProtoMessage() {}
 
 func (x *GlyphResidencyKey) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[51]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4732,7 +4816,7 @@ func (x *GlyphResidencyKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlyphResidencyKey.ProtoReflect.Descriptor instead.
 func (*GlyphResidencyKey) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{51}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *GlyphResidencyKey) GetFontChecksum() string {
@@ -4761,7 +4845,7 @@ type VideoResidencyBinding struct {
 
 func (x *VideoResidencyBinding) Reset() {
 	*x = VideoResidencyBinding{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[52]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4773,7 +4857,7 @@ func (x *VideoResidencyBinding) String() string {
 func (*VideoResidencyBinding) ProtoMessage() {}
 
 func (x *VideoResidencyBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[52]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4786,7 +4870,7 @@ func (x *VideoResidencyBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoResidencyBinding.ProtoReflect.Descriptor instead.
 func (*VideoResidencyBinding) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{52}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *VideoResidencyBinding) GetAssetId() string {
@@ -4830,7 +4914,7 @@ type VideoResidencyPlan struct {
 
 func (x *VideoResidencyPlan) Reset() {
 	*x = VideoResidencyPlan{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[53]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4842,7 +4926,7 @@ func (x *VideoResidencyPlan) String() string {
 func (*VideoResidencyPlan) ProtoMessage() {}
 
 func (x *VideoResidencyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[53]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4855,7 +4939,7 @@ func (x *VideoResidencyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoResidencyPlan.ProtoReflect.Descriptor instead.
 func (*VideoResidencyPlan) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{53}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *VideoResidencyPlan) GetBudgetTierId() string {
@@ -4906,7 +4990,7 @@ type ResidencyPlan struct {
 
 func (x *ResidencyPlan) Reset() {
 	*x = ResidencyPlan{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[54]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4918,7 +5002,7 @@ func (x *ResidencyPlan) String() string {
 func (*ResidencyPlan) ProtoMessage() {}
 
 func (x *ResidencyPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[54]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4931,7 +5015,7 @@ func (x *ResidencyPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResidencyPlan.ProtoReflect.Descriptor instead.
 func (*ResidencyPlan) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{54}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ResidencyPlan) GetTextures() *TextureResidencyPlan {
@@ -4989,7 +5073,7 @@ type DeliveryManifest struct {
 
 func (x *DeliveryManifest) Reset() {
 	*x = DeliveryManifest{}
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[55]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5001,7 +5085,7 @@ func (x *DeliveryManifest) String() string {
 func (*DeliveryManifest) ProtoMessage() {}
 
 func (x *DeliveryManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_unframe_delivery_delivery_proto_msgTypes[55]
+	mi := &file_unframe_delivery_delivery_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5014,7 +5098,7 @@ func (x *DeliveryManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeliveryManifest.ProtoReflect.Descriptor instead.
 func (*DeliveryManifest) Descriptor() ([]byte, []int) {
-	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{55}
+	return file_unframe_delivery_delivery_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *DeliveryManifest) GetSchemaVersion() uint32 {
@@ -5415,12 +5499,19 @@ const file_unframe_delivery_delivery_proto_rawDesc = "" +
 	"\n" +
 	"pixel_size\x18\x03 \x01(\v2\x1b.unframe.delivery.PixelSizeR\tpixelSize\x12*\n" +
 	"\x11decoded_gpu_bytes\x18\x04 \x01(\x04R\x0fdecodedGpuBytes\x12-\n" +
-	"\x13peak_load_cpu_bytes\x18\x05 \x01(\x04R\x10peakLoadCpuBytes\"\xf8\x01\n" +
+	"\x13peak_load_cpu_bytes\x18\x05 \x01(\x04R\x10peakLoadCpuBytes\"P\n" +
+	"\x16TextureResidencyWindow\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x1b\n" +
+	"\tasset_ids\x18\x02 \x03(\tR\bassetIds\"\xf9\x03\n" +
 	"\x14TextureResidencyPlan\x12$\n" +
 	"\x0ebudget_tier_id\x18\x01 \x01(\tR\fbudgetTierId\x12E\n" +
 	"\btextures\x18\x02 \x03(\v2).unframe.delivery.TextureResidencyBindingR\btextures\x125\n" +
 	"\x17total_decoded_gpu_bytes\x18\x03 \x01(\x04R\x14totalDecodedGpuBytes\x12<\n" +
-	"\x1bmaximum_peak_load_cpu_bytes\x18\x04 \x01(\x04R\x17maximumPeakLoadCpuBytes\"\xc7\x04\n" +
+	"\x1bmaximum_peak_load_cpu_bytes\x18\x04 \x01(\x04R\x17maximumPeakLoadCpuBytes\x12(\n" +
+	"\x10initial_group_id\x18\x05 \x01(\tR\x0einitialGroupId\x12M\n" +
+	"\rgroup_windows\x18\x06 \x03(\v2(.unframe.delivery.TextureResidencyWindowR\fgroupWindows\x12;\n" +
+	"\x1amaximum_resident_gpu_bytes\x18\a \x01(\x04R\x17maximumResidentGpuBytes\x12I\n" +
+	"!maximum_resident_texture_bindings\x18\b \x01(\x04R\x1emaximumResidentTextureBindings\"\xc7\x04\n" +
 	"\x15ModelResidencyBinding\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1a\n" +
 	"\bchecksum\x18\x02 \x01(\tR\bchecksum\x12,\n" +
@@ -5581,7 +5672,7 @@ func file_unframe_delivery_delivery_proto_rawDescGZIP() []byte {
 }
 
 var file_unframe_delivery_delivery_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
-var file_unframe_delivery_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_unframe_delivery_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_unframe_delivery_delivery_proto_goTypes = []any{
 	(RendererKind)(0),                            // 0: unframe.delivery.RendererKind
 	(BakedWebFeature)(0),                         // 1: unframe.delivery.BakedWebFeature
@@ -5643,23 +5734,24 @@ var file_unframe_delivery_delivery_proto_goTypes = []any{
 	(*ProjectionProfileDescriptor)(nil),          // 57: unframe.delivery.ProjectionProfileDescriptor
 	(*AssetAccessBinding)(nil),                   // 58: unframe.delivery.AssetAccessBinding
 	(*TextureResidencyBinding)(nil),              // 59: unframe.delivery.TextureResidencyBinding
-	(*TextureResidencyPlan)(nil),                 // 60: unframe.delivery.TextureResidencyPlan
-	(*ModelResidencyBinding)(nil),                // 61: unframe.delivery.ModelResidencyBinding
-	(*ModelResidencyPlan)(nil),                   // 62: unframe.delivery.ModelResidencyPlan
-	(*NativeUiResidencyPlan)(nil),                // 63: unframe.delivery.NativeUiResidencyPlan
-	(*GlyphResidencyKey)(nil),                    // 64: unframe.delivery.GlyphResidencyKey
-	(*VideoResidencyBinding)(nil),                // 65: unframe.delivery.VideoResidencyBinding
-	(*VideoResidencyPlan)(nil),                   // 66: unframe.delivery.VideoResidencyPlan
-	(*ResidencyPlan)(nil),                        // 67: unframe.delivery.ResidencyPlan
-	(*DeliveryManifest)(nil),                     // 68: unframe.delivery.DeliveryManifest
-	(*presentation.PublicationFence)(nil),        // 69: unframe.presentation.PublicationFence
-	(presentation.SessionRole)(0),                // 70: unframe.presentation.SessionRole
-	(presentation.SurfaceFit)(0),                 // 71: unframe.presentation.SurfaceFit
-	(presentation.AnchorTarget)(0),               // 72: unframe.presentation.AnchorTarget
-	(*presentation.Transform)(nil),               // 73: unframe.presentation.Transform
-	(presentation.RuntimeCapability)(0),          // 74: unframe.presentation.RuntimeCapability
-	(*presentation.ProjectedRuntimeCatalog)(nil), // 75: unframe.presentation.ProjectedRuntimeCatalog
-	(*presentation.ProjectionInstance)(nil),      // 76: unframe.presentation.ProjectionInstance
+	(*TextureResidencyWindow)(nil),               // 60: unframe.delivery.TextureResidencyWindow
+	(*TextureResidencyPlan)(nil),                 // 61: unframe.delivery.TextureResidencyPlan
+	(*ModelResidencyBinding)(nil),                // 62: unframe.delivery.ModelResidencyBinding
+	(*ModelResidencyPlan)(nil),                   // 63: unframe.delivery.ModelResidencyPlan
+	(*NativeUiResidencyPlan)(nil),                // 64: unframe.delivery.NativeUiResidencyPlan
+	(*GlyphResidencyKey)(nil),                    // 65: unframe.delivery.GlyphResidencyKey
+	(*VideoResidencyBinding)(nil),                // 66: unframe.delivery.VideoResidencyBinding
+	(*VideoResidencyPlan)(nil),                   // 67: unframe.delivery.VideoResidencyPlan
+	(*ResidencyPlan)(nil),                        // 68: unframe.delivery.ResidencyPlan
+	(*DeliveryManifest)(nil),                     // 69: unframe.delivery.DeliveryManifest
+	(*presentation.PublicationFence)(nil),        // 70: unframe.presentation.PublicationFence
+	(presentation.SessionRole)(0),                // 71: unframe.presentation.SessionRole
+	(presentation.SurfaceFit)(0),                 // 72: unframe.presentation.SurfaceFit
+	(presentation.AnchorTarget)(0),               // 73: unframe.presentation.AnchorTarget
+	(*presentation.Transform)(nil),               // 74: unframe.presentation.Transform
+	(presentation.RuntimeCapability)(0),          // 75: unframe.presentation.RuntimeCapability
+	(*presentation.ProjectedRuntimeCatalog)(nil), // 76: unframe.presentation.ProjectedRuntimeCatalog
+	(*presentation.ProjectionInstance)(nil),      // 77: unframe.presentation.ProjectionInstance
 }
 var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	1,  // 0: unframe.delivery.TextureCapability.features:type_name -> unframe.delivery.BakedWebFeature
@@ -5678,8 +5770,8 @@ var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	18, // 13: unframe.delivery.CapabilityProfile.renderers:type_name -> unframe.delivery.RendererCapabilities
 	16, // 14: unframe.delivery.CapabilityProfile.model:type_name -> unframe.delivery.ModelCapability
 	23, // 15: unframe.delivery.CapabilityProfile.limits:type_name -> unframe.delivery.CapabilityLimits
-	69, // 16: unframe.delivery.ProjectionProfileKey.publication:type_name -> unframe.presentation.PublicationFence
-	70, // 17: unframe.delivery.ProjectionProfileKey.role:type_name -> unframe.presentation.SessionRole
+	70, // 16: unframe.delivery.ProjectionProfileKey.publication:type_name -> unframe.presentation.PublicationFence
+	71, // 17: unframe.delivery.ProjectionProfileKey.role:type_name -> unframe.presentation.SessionRole
 	28, // 18: unframe.delivery.DeliveredStateBinding.empty:type_name -> unframe.delivery.EmptyStateBinding
 	29, // 19: unframe.delivery.DeliveredStateBinding.artifact:type_name -> unframe.delivery.ArtifactStateBinding
 	27, // 20: unframe.delivery.TextureArtifact.pixel_size:type_name -> unframe.delivery.PixelSize
@@ -5712,7 +5804,7 @@ var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	3,  // 47: unframe.delivery.VideoArtifact.required_features:type_name -> unframe.delivery.VideoFeature
 	27, // 48: unframe.delivery.VideoArtifact.pixel_size:type_name -> unframe.delivery.PixelSize
 	11, // 49: unframe.delivery.VideoArtifact.codec:type_name -> unframe.delivery.VideoCodec
-	71, // 50: unframe.delivery.VideoArtifact.fit:type_name -> unframe.presentation.SurfaceFit
+	72, // 50: unframe.delivery.VideoArtifact.fit:type_name -> unframe.presentation.SurfaceFit
 	33, // 51: unframe.delivery.DeliveredArtifact.baked_web:type_name -> unframe.delivery.BakedWebArtifact
 	47, // 52: unframe.delivery.DeliveredArtifact.native_ui:type_name -> unframe.delivery.NativeUiArtifact
 	48, // 53: unframe.delivery.DeliveredArtifact.video:type_name -> unframe.delivery.VideoArtifact
@@ -5726,36 +5818,37 @@ var file_unframe_delivery_delivery_proto_depIdxs = []int32{
 	52, // 61: unframe.delivery.SurfaceSemanticState.semantic_tree:type_name -> unframe.delivery.ProjectedSemanticTree
 	53, // 62: unframe.delivery.SurfaceSemanticState.interactive_regions:type_name -> unframe.delivery.InteractiveRegion
 	54, // 63: unframe.delivery.ProjectedSemanticSurface.states:type_name -> unframe.delivery.SurfaceSemanticState
-	72, // 64: unframe.delivery.LocalOverlayDefinition.self_anchor:type_name -> unframe.presentation.AnchorTarget
-	73, // 65: unframe.delivery.LocalOverlayDefinition.transform:type_name -> unframe.presentation.Transform
+	73, // 64: unframe.delivery.LocalOverlayDefinition.self_anchor:type_name -> unframe.presentation.AnchorTarget
+	74, // 65: unframe.delivery.LocalOverlayDefinition.transform:type_name -> unframe.presentation.Transform
 	25, // 66: unframe.delivery.ProjectionProfileDescriptor.key:type_name -> unframe.delivery.ProjectionProfileKey
 	50, // 67: unframe.delivery.ProjectionProfileDescriptor.render_surfaces:type_name -> unframe.delivery.DeliveredRenderSurface
 	55, // 68: unframe.delivery.ProjectionProfileDescriptor.semantic_surfaces:type_name -> unframe.delivery.ProjectedSemanticSurface
 	56, // 69: unframe.delivery.ProjectionProfileDescriptor.local_overlays:type_name -> unframe.delivery.LocalOverlayDefinition
-	74, // 70: unframe.delivery.ProjectionProfileDescriptor.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
-	75, // 71: unframe.delivery.ProjectionProfileDescriptor.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
+	75, // 70: unframe.delivery.ProjectionProfileDescriptor.required_runtime_capabilities:type_name -> unframe.presentation.RuntimeCapability
+	76, // 71: unframe.delivery.ProjectionProfileDescriptor.runtime_catalog:type_name -> unframe.presentation.ProjectedRuntimeCatalog
 	27, // 72: unframe.delivery.TextureResidencyBinding.pixel_size:type_name -> unframe.delivery.PixelSize
 	59, // 73: unframe.delivery.TextureResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyBinding
-	5,  // 74: unframe.delivery.ModelResidencyBinding.format:type_name -> unframe.delivery.ModelFormat
-	4,  // 75: unframe.delivery.ModelResidencyBinding.required_features:type_name -> unframe.delivery.ModelFeature
-	61, // 76: unframe.delivery.ModelResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyBinding
-	64, // 77: unframe.delivery.NativeUiResidencyPlan.glyphs:type_name -> unframe.delivery.GlyphResidencyKey
-	65, // 78: unframe.delivery.VideoResidencyPlan.videos:type_name -> unframe.delivery.VideoResidencyBinding
-	60, // 79: unframe.delivery.ResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyPlan
-	62, // 80: unframe.delivery.ResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyPlan
-	63, // 81: unframe.delivery.ResidencyPlan.native_ui:type_name -> unframe.delivery.NativeUiResidencyPlan
-	66, // 82: unframe.delivery.ResidencyPlan.video:type_name -> unframe.delivery.VideoResidencyPlan
-	69, // 83: unframe.delivery.DeliveryManifest.publication:type_name -> unframe.presentation.PublicationFence
-	24, // 84: unframe.delivery.DeliveryManifest.capability_profile:type_name -> unframe.delivery.CapabilityProfile
-	57, // 85: unframe.delivery.DeliveryManifest.projection_profile:type_name -> unframe.delivery.ProjectionProfileDescriptor
-	76, // 86: unframe.delivery.DeliveryManifest.projection_instance:type_name -> unframe.presentation.ProjectionInstance
-	58, // 87: unframe.delivery.DeliveryManifest.asset_access:type_name -> unframe.delivery.AssetAccessBinding
-	67, // 88: unframe.delivery.DeliveryManifest.residency:type_name -> unframe.delivery.ResidencyPlan
-	89, // [89:89] is the sub-list for method output_type
-	89, // [89:89] is the sub-list for method input_type
-	89, // [89:89] is the sub-list for extension type_name
-	89, // [89:89] is the sub-list for extension extendee
-	0,  // [0:89] is the sub-list for field type_name
+	60, // 74: unframe.delivery.TextureResidencyPlan.group_windows:type_name -> unframe.delivery.TextureResidencyWindow
+	5,  // 75: unframe.delivery.ModelResidencyBinding.format:type_name -> unframe.delivery.ModelFormat
+	4,  // 76: unframe.delivery.ModelResidencyBinding.required_features:type_name -> unframe.delivery.ModelFeature
+	62, // 77: unframe.delivery.ModelResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyBinding
+	65, // 78: unframe.delivery.NativeUiResidencyPlan.glyphs:type_name -> unframe.delivery.GlyphResidencyKey
+	66, // 79: unframe.delivery.VideoResidencyPlan.videos:type_name -> unframe.delivery.VideoResidencyBinding
+	61, // 80: unframe.delivery.ResidencyPlan.textures:type_name -> unframe.delivery.TextureResidencyPlan
+	63, // 81: unframe.delivery.ResidencyPlan.models:type_name -> unframe.delivery.ModelResidencyPlan
+	64, // 82: unframe.delivery.ResidencyPlan.native_ui:type_name -> unframe.delivery.NativeUiResidencyPlan
+	67, // 83: unframe.delivery.ResidencyPlan.video:type_name -> unframe.delivery.VideoResidencyPlan
+	70, // 84: unframe.delivery.DeliveryManifest.publication:type_name -> unframe.presentation.PublicationFence
+	24, // 85: unframe.delivery.DeliveryManifest.capability_profile:type_name -> unframe.delivery.CapabilityProfile
+	57, // 86: unframe.delivery.DeliveryManifest.projection_profile:type_name -> unframe.delivery.ProjectionProfileDescriptor
+	77, // 87: unframe.delivery.DeliveryManifest.projection_instance:type_name -> unframe.presentation.ProjectionInstance
+	58, // 88: unframe.delivery.DeliveryManifest.asset_access:type_name -> unframe.delivery.AssetAccessBinding
+	68, // 89: unframe.delivery.DeliveryManifest.residency:type_name -> unframe.delivery.ResidencyPlan
+	90, // [90:90] is the sub-list for method output_type
+	90, // [90:90] is the sub-list for method input_type
+	90, // [90:90] is the sub-list for extension type_name
+	90, // [90:90] is the sub-list for extension extendee
+	0,  // [0:90] is the sub-list for field type_name
 }
 
 func init() { file_unframe_delivery_delivery_proto_init() }
@@ -5790,7 +5883,7 @@ func file_unframe_delivery_delivery_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unframe_delivery_delivery_proto_rawDesc), len(file_unframe_delivery_delivery_proto_rawDesc)),
 			NumEnums:      13,
-			NumMessages:   56,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

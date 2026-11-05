@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { reactResourceId } from "@unframe-dev/compiler";
 import { advanceCueClock, evaluateTimelineTrack } from "@unframe-dev/playback";
-import config from "../unframe.config.ts";
+import config from "../../unframe.config.ts";
 import { definition, initialState } from "./project.mjs";
 
 const brandId = reactResourceId("host", "brand");
@@ -37,11 +37,11 @@ test("ロゴは画像 Surface ではなく icon.glb の Model として配置す
   assert.ok(logo, "ロゴを描画する Model が必要");
   assert.equal(logo.assetId, "logo-model");
   assert.equal(config.assets[logo.assetId].mediaType, "model/gltf-binary");
-  const bytes = await readFile(new URL("../assets/icon.glb", import.meta.url));
+  const bytes = await readFile(new URL("../../assets/icon.glb", import.meta.url));
   const jsonLength = bytes.readUInt32LE(12);
   const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
   assert.equal(gltf.animations?.length ?? 0, 0);
-  const original = await readFile(new URL("../../assets/icon.glb", import.meta.url));
+  const original = await readFile(new URL("../../../assets/icon.glb", import.meta.url));
   const originalJsonLength = original.readUInt32LE(12);
   const originalGltf = JSON.parse(original.subarray(20, 20 + originalJsonLength).toString("utf8"));
   const imageViews = new Set(gltf.images.map((image) => image.bufferView));
@@ -72,7 +72,7 @@ test("ロゴは画像 Surface ではなく icon.glb の Model として配置す
 });
 
 test("ロゴの埋め込み画像は Preview の GPU 予算内に収まる 1024px に縮小する", async () => {
-  const bytes = await readFile(new URL("../assets/icon.glb", import.meta.url));
+  const bytes = await readFile(new URL("../../assets/icon.glb", import.meta.url));
   const jsonLength = bytes.readUInt32LE(12);
   const gltf = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString("utf8"));
   assert.equal(gltf.images.length, 1);

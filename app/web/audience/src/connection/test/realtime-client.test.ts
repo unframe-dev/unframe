@@ -42,13 +42,13 @@ function setup() {
     },
     delivery: { projectionProfile: { requiredRuntimeCapabilities: [1, 8, 9, 10] } },
   } as PreparedConnection;
-  let ready = false;
+  let ready: { reliableSequence: string; presentationOriginVersion: string } | null = null;
   const input = {
     applyControl: vi.fn(),
     applyState: vi.fn(),
     disconnected: vi.fn(),
     restartState: vi.fn(),
-    getReadiness: () => (ready ? { reliableSequence: "5", presentationOriginVersion: "1" } : null),
+    getReadiness: () => ready,
   } as RuntimeInput;
   const restart = vi.fn(() => null);
   const client = createAudienceRealtime({
@@ -71,8 +71,8 @@ function setup() {
     client,
     cleanup,
     restart,
-    setReady: () => {
-      ready = true;
+    setReady: (reliableSequence = "5", presentationOriginVersion = "1") => {
+      ready = { reliableSequence, presentationOriginVersion };
     },
   };
 }
@@ -250,4 +250,53 @@ it("旧socketの診断は新Sessionに混ざらず資格やendpointを含めな�
   expect(events.every((e) => e.sessionId === "old-session")).toBe(true);
   expect(JSON.stringify(events)).not.toMatch(/private-token|https:|runtime.example/);
   h.cleanup();
+});
+
+it("acknowledges the rendered origin update before continuing State at its new version", async () => {
+  const h = setup();
+  try {
+    const control = h.sockets[0]!;
+    control.open();
+    control.receive("unframe.realtime.ControlServerItem", {
+      connectionSnapshot: {
+        schemaVersion: 1,
+        connectionId: "connection",
+        reliableSequence: "5",
+        fence: { presentationOriginVersion: "1" },
+      },
+    });
+    control.receive("unframe.realtime.ControlServerItem", {
+      stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+    });
+    const state = h.sockets[1]!;
+    state.open();
+    state.receive("unframe.realtime.StateServerItem", {
+      connected: { connectionId: "connection", nextStateFrameSequence: "1" },
+    });
+    h.setReady();
+    await vi.advanceTimersByTimeAsync(100);
+    const sentBeforeUpdate = control.sent.length;
+    control.receive("unframe.realtime.ControlServerItem", {
+      reliableEvent: {
+        sequence: "6",
+        eventId: "origin-update",
+        fence: { presentationOriginVersion: "1" },
+        presentationOriginChanged: {
+          origin: { version: "2", pose: { position: { y: 1.3 }, rotation: { w: 1 } } },
+        },
+      },
+    });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(control.sent).toHaveLength(sentBeforeUpdate);
+    h.setReady("6", "2");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(
+      decodeWireMessage("unframe.realtime.ControlClientItem", control.sent.at(-1) as Uint8Array),
+    ).toEqual({ stateReady: { appliedReliableSequence: "6", presentationOriginVersion: "2" } });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(control.sent).toHaveLength(sentBeforeUpdate + 1);
+    expect(h.input.disconnected).not.toHaveBeenCalled();
+  } finally {
+    h.cleanup();
+  }
 });

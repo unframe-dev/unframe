@@ -183,3 +183,24 @@ it("samples only a prepared view and fails closed on a frame renderer error", as
   expect(frame).toHaveBeenCalledTimes(2);
   playback.dispose();
 });
+
+it("retains the last prepared display when replacement assets fail and recovers on a new snapshot", async () => {
+  const present = vi
+    .fn()
+    .mockResolvedValueOnce(undefined)
+    .mockRejectedValueOnce(new Error("decode"))
+    .mockResolvedValue(undefined);
+  const clear = vi.fn();
+  const playback = createRuntimePlayback({ delivery: {} as never, present, clear });
+  playback.applyControl({} as never);
+  await playback.waitForIdle();
+  snapshot.view!.nodeStates["node-baked"]!.transform.position[0] = 2;
+  playback.applyState({} as never);
+  await playback.waitForIdle();
+  expect(playback.getSnapshot().rendering).toBe("error");
+  expect(clear).not.toHaveBeenCalled();
+  playback.applyControl({ connectionSnapshot: {} } as never);
+  await playback.waitForIdle();
+  expect(playback.getSnapshot().rendering).toBe("ready");
+  playback.dispose();
+});

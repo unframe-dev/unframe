@@ -11,6 +11,16 @@ export const readRegularFile = async (path: string): Promise<Uint8Array | undefi
   }
 };
 
+export const hashRegularFile = async (path: string): Promise<`sha256:${string}` | undefined> => {
+  try {
+    return await withNativeFilesystem((filesystem) =>
+      filesystem.checkedHash(path, Number.MAX_SAFE_INTEGER),
+    );
+  } catch {
+    return undefined;
+  }
+};
+
 export const readBoundedRegularFile = async (
   path: string,
   maxBytes: number,

@@ -30,7 +30,7 @@ const fixtures = [
     typeName: "unframe.delivery.DeliveryManifest",
     value: {
       schemaVersion: 1,
-      deliveryContractVersion: 3,
+      deliveryContractVersion: 4,
       sessionId: "session-1",
       publication: {
         presentationId: "presentation-1",
@@ -39,7 +39,7 @@ const fixtures = [
       },
       projectionProfile: {
         projectionProfileId: "profile-1",
-        key: { projectionContractVersion: 2 },
+        key: { projectionContractVersion: 3 },
       },
       projectionInstance: {
         projectionProfileId: "profile-1",

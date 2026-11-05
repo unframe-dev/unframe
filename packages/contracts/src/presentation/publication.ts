@@ -12,10 +12,10 @@ export const contractVersionsSchema = z.strictObject({
   definition: z.literal(1),
   renderBundle: z.literal(1),
   assetSet: z.literal(1),
-  delivery: z.literal(3),
+  delivery: z.literal(4),
   runtime: z.literal(3),
   progression: z.literal(2),
-  projection: z.literal(2),
+  projection: z.literal(3),
 });
 export const publicationFenceSchema = z.strictObject({
   presentationId: idSchema,

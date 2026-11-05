@@ -3,6 +3,7 @@ package runtimecore
 import (
 	"context"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
+	protocolv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/protocol/v2"
 	"github.com/unframe-dev/unframe/app/server/realtime/internal/session"
 	"google.golang.org/protobuf/proto"
 	"time"
@@ -22,6 +23,25 @@ func (s *V2Session) AcceptTracking(ctx context.Context, identity session.Identit
 
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return nil, nil, ErrV2RuntimeDefinition
+	}
+	if frame != nil && frame.PresentationOriginVersion != s.snapshot.PresentationOrigin.Version {
+		if frame.PresentationOriginVersion < s.snapshot.PresentationOrigin.Version {
+			return nil, nil, nil
+		}
+		return nil, nil, ErrV2OriginMismatch
+	}
+	// Tracking arrives in marker coordinates; Anchor patches are local to the shared Stage.
+	if frame != nil && frame.PresentationFromQuestLocal != nil {
+		if err := protocolv2.ValidateMessage(frame.PresentationFromQuestLocal); err != nil {
+			return nil, nil, err
+		}
+		origin := s.snapshot.PresentationOrigin.Pose
+		calibration, err := v2TrackingComposePose(v2TrackingInversePose(origin), &realtimev2.TrackedPoseSample{QuestLocalPose: frame.PresentationFromQuestLocal, PositionAvailable: true, RotationAvailable: true})
+		if err != nil {
+			return nil, nil, err
+		}
+		frame = proto.Clone(frame).(*realtimev2.TrackingFrame)
+		frame.PresentationFromQuestLocal = calibration
 	}
 	previousTracking := s.tracking.Clone()
 	samples, _, err := s.tracking.Accept(frame, receivedAt, observedAtMs, v2TrackingDefinition{}, s.snapshot.PresentationOrigin.Version)

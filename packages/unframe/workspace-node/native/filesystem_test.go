@@ -504,3 +504,75 @@ func TestRenameNoReplaceRejectsUnsafePaths(t *testing.T) {
 		t.Fatalf("symlink was changed: %q, %v", link, err)
 	}
 }
+
+func TestHashCheckedReturnsContentDigestAndObservesChangedBytes(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "input")
+	if err := os.WriteFile(path, []byte("abc"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{handles: make(map[int]*directory)}
+	defer s.close()
+	value, err := s.execute(request{Op: "hashChecked", Path: path, Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" {
+		t.Fatalf("incorrect content digest: %v", value)
+	}
+	if err := os.WriteFile(path, []byte("abd"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := s.execute(request{Op: "hashChecked", Path: path, Limit: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == value {
+		t.Fatal("same-size content change did not change digest")
+	}
+}
+
+func TestHashCheckedRejectsUnsafeAndUnboundedInputs(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "input")
+	if err := os.WriteFile(path, []byte("abc"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(path, filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(root, filepath.Join(root, "directory-link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(root, "fifo"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{handles: make(map[int]*directory)}
+	defer s.close()
+	expected := int64(2)
+	for _, tc := range []struct {
+		name, path string
+		limit      int64
+		expected   *int64
+	}{
+		{"symlink", filepath.Join(root, "link"), 3, nil},
+		{"ancestor symlink", filepath.Join(root, "directory-link", "input"), 3, nil},
+		{"directory", root, 3, nil},
+		{"fifo", filepath.Join(root, "fifo"), 3, nil},
+		{"relative", "input", 3, nil},
+		{"size limit", path, 2, nil},
+		{"expected size", path, 3, &expected},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := s.execute(request{Op: "hashChecked", Path: tc.path, Limit: tc.limit, Expected: tc.expected}); err == nil {
+				t.Fatal("accepted unsafe input")
+			}
+		})
+	}
+}

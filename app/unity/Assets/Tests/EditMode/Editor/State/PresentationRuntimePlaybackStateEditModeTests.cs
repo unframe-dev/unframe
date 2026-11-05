@@ -311,7 +311,7 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
         DeliveryManifest delivery = new DeliveryManifest
         {
             SchemaVersion = 1,
-            DeliveryContractVersion = 3,
+            DeliveryContractVersion = 4,
             SessionId = "session:main",
             Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
             DefinitionHash = "sha256:" + new string('b', 64),
@@ -321,7 +321,7 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
             {
                 SchemaVersion = 1,
                 CapabilityProfileId = "capability:quest",
-                ContractVersions = new ContractVersions { Delivery = 3, Runtime = 3, Progression = 2, Projection = 2 },
+                ContractVersions = new ContractVersions { Delivery = 4, Runtime = 3, Progression = 2, Projection = 3 },
                 Renderers = new RendererCapabilities { NativeUi = new NativeUiCapability { Supported = true, ContractVersion = 1 } },
             },
             ProjectionProfile = new ProjectionProfileDescriptor
@@ -330,14 +330,14 @@ public sealed class PresentationRuntimePlaybackStateEditModeTests
                 Key = new ProjectionProfileKey
                 {
                     Publication = new PublicationFence { PresentationId = "presentation:main", PublicationEpoch = 1, PublicationManifestHash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
-                    ProjectionContractVersion = 2,
+                    ProjectionContractVersion = 3,
                     Role = SessionRole.Presenter,
                     CapabilityProfileId = "capability:quest",
                 },
                 RuntimeCatalog = catalog,
             },
             ProjectionInstance = new ProjectionInstance { ProjectionProfileId = "profile:quest", ParticipantId = "participant:quest", AssignmentEpoch = 7 },
-            Residency = new ResidencyPlan { Models = new ModelResidencyPlan(), Video = new VideoResidencyPlan() },
+            Residency = new ResidencyPlan { Textures = new TextureResidencyPlan { InitialGroupId = "group:main", GroupWindows = { new TextureResidencyWindow { GroupId = "group:main" } } }, Models = new ModelResidencyPlan(), Video = new VideoResidencyPlan() },
         };
         delivery.AssetAccess.Add(new AssetAccessBinding { AssetId = "asset:model" });
         delivery.Residency.Models.Models.Add(new ModelResidencyBinding { AssetId = "asset:model" });

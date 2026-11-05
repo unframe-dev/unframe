@@ -15,15 +15,18 @@ test("Audience profile identity covers its complete capability and resource poli
 test("Audience advertises its implemented renderers and bounded browser policy", () => {
   const profile = createAudienceWebCapabilityProfile();
   assert.deepEqual(profile.contractVersions, {
-    delivery: 3,
+    delivery: 4,
     runtime: 3,
     progression: 2,
-    projection: 2,
+    projection: 3,
   });
   assert.deepEqual(profile.renderers.video.features, ["h264", "audio"]);
   assert.equal(profile.renderers.nativeUi.supported, false);
   assert.equal(profile.localOverlaySupported, false);
-  assert.equal(profile.limits.texture.maxTextureBindings, 8);
+  assert.equal(profile.limits.texture.maxTextureBindings, 32);
+  assert.equal(profile.limits.texture.maxGpuBytes, 192 * 1024 * 1024);
+  assert.equal(profile.limits.texture.maxEncodedCacheBytes, 192 * 1024 * 1024);
+  assert.equal(profile.limits.texture.maxSerialLoadCpuBytes, 64 * 1024 * 1024);
   assert.equal(profile.limits.video.maxConcurrentDecoders, 1);
   assert.ok(profile.model.features.includes("skin"));
 });
@@ -34,6 +37,6 @@ test("callers cannot change the shared profile through a returned capability", (
   profile.limits.texture.maxTextureBindings = 1;
   const next = createAudienceWebCapabilityProfile();
   assert.ok(next.model.features.includes("skin"));
-  assert.equal(next.limits.texture.maxTextureBindings, 8);
+  assert.equal(next.limits.texture.maxTextureBindings, 32);
   assert.equal(next.capabilityProfileId, profile.capabilityProfileId);
 });

@@ -19,7 +19,7 @@ public sealed class PresentationPreviewTransactionEditModeTests
     }
 
     [TestCase("envelope", 0)]
-    [TestCase("envelope", 2)]
+    [TestCase("envelope", 1)]
     [TestCase("envelope", 3)]
     [TestCase("build", 0)]
     [TestCase("build", 2)]

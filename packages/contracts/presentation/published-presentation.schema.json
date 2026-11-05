@@ -57,7 +57,7 @@
         },
         "delivery": {
           "type": "number",
-          "const": 3
+          "const": 4
         },
         "runtime": {
           "type": "number",
@@ -69,7 +69,7 @@
         },
         "projection": {
           "type": "number",
-          "const": 2
+          "const": 3
         }
       },
       "required": [

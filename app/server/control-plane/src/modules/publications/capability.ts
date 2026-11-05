@@ -33,9 +33,9 @@ const bakedWebQuestProfile = capabilityProfileSchema.parse({
       maxTextureHeight: 2048,
       maxTexturePixels: 4194304,
       maxTextureBindings: 16,
-      maxGpuBytes: 67108864,
+      maxGpuBytes: 201326592,
       maxSerialLoadCpuBytes: 33554432,
-      maxEncodedCacheBytes: 67108864,
+      maxEncodedCacheBytes: 201326592,
       encodedCacheReserveBytes: 1048576,
     },
     nativeUi: {

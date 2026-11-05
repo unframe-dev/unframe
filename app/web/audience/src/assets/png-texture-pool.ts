@@ -13,6 +13,27 @@ function uint(value: string | undefined, zero = false): number {
     ? parsed
     : fail("invalid residency integer");
 }
+type PngTextureDescriptor = Omit<PngTextureAsset, "url" | "expiresAtUnixMs">;
+
+function withCurrentAccess(
+  delivery: DeliveryManifestWire,
+  asset: PngTextureDescriptor,
+): PngTextureAsset {
+  const access = delivery.assetAccess?.filter((entry) => entry.assetId === asset.assetId);
+  if (
+    access?.length !== 1 ||
+    access[0]!.checksum !== asset.checksum ||
+    access[0]!.encodedSizeBytes !== String(asset.encodedSizeBytes) ||
+    access[0]!.mediaType !== "image/png"
+  )
+    fail("selected texture descriptor mismatch");
+  return {
+    ...asset,
+    url: access[0]!.url ?? fail("missing asset URL"),
+    expiresAtUnixMs: uint(access[0]!.expiresAtUnixMs),
+  };
+}
+
 function identity(asset: PngTextureAsset) {
   return JSON.stringify([asset.checksum, asset.encodedSizeBytes, asset.pixelSize, asset.alphaMode]);
 }
@@ -35,24 +56,14 @@ function selectedTextures(delivery: DeliveryManifestWire): PngTextureAsset[] {
       const texture = artifact.states?.find((state) => state.stateId === binding.stateId)?.texture;
       if (!texture?.assetId || !texture.checksum || texture.mipCount !== 1)
         fail("invalid selected texture descriptor");
-      const access = delivery.assetAccess?.filter((entry) => entry.assetId === texture.assetId);
-      if (
-        access?.length !== 1 ||
-        access[0]!.checksum !== texture.checksum ||
-        access[0]!.encodedSizeBytes !== texture.encodedSizeBytes ||
-        access[0]!.mediaType !== "image/png"
-      )
-        fail("selected texture descriptor mismatch");
       if (texture.alphaMode !== 1 && texture.alphaMode !== 2) fail("invalid alpha mode");
-      const asset: PngTextureAsset = {
+      const asset = withCurrentAccess(delivery, {
         assetId: texture.assetId,
         checksum: texture.checksum,
         encodedSizeBytes: uint(texture.encodedSizeBytes),
         pixelSize: [uint(texture.pixelSize?.width), uint(texture.pixelSize?.height)],
         alphaMode: texture.alphaMode === 1 ? "opaque" : "straight",
-        url: access[0]!.url ?? fail("missing asset URL"),
-        expiresAtUnixMs: uint(access[0]!.expiresAtUnixMs),
-      };
+      });
       if (uint(texture.decodedGpuBytes) !== asset.pixelSize[0] * asset.pixelSize[1] * 4)
         fail("selected texture residency mismatch");
       const previous = assets.get(asset.assetId);
@@ -61,15 +72,21 @@ function selectedTextures(delivery: DeliveryManifestWire): PngTextureAsset[] {
       assets.set(asset.assetId, asset);
     }
   }
+  const unique = new Map<string, PngTextureAsset>();
+  for (const asset of assets.values()) {
+    const previous = unique.get(asset.checksum);
+    if (previous && identity(previous) !== identity(asset)) fail("conflicting texture descriptor");
+    unique.set(asset.checksum, asset);
+  }
   const residency = delivery.residency?.textures;
-  if ((residency?.textures?.length ?? 0) !== assets.size) fail("texture residency mismatch");
+  if ((residency?.textures?.length ?? 0) !== unique.size) fail("texture residency mismatch");
   const matched = new Set<string>();
   let maximumPeak = 0;
   for (const binding of residency?.textures ?? []) {
     const asset = assets.get(binding.assetId ?? "");
     if (
       !asset ||
-      matched.has(asset.assetId) ||
+      matched.has(asset.checksum) ||
       binding.checksum !== asset.checksum ||
       uint(binding.pixelSize?.width) !== asset.pixelSize[0] ||
       uint(binding.pixelSize?.height) !== asset.pixelSize[1] ||
@@ -80,13 +97,7 @@ function selectedTextures(delivery: DeliveryManifestWire): PngTextureAsset[] {
     if (peak !== asset.pixelSize[0] * asset.pixelSize[1] * 8 + asset.encodedSizeBytes)
       fail("texture residency peak mismatch");
     maximumPeak = Math.max(maximumPeak, peak);
-    matched.add(asset.assetId);
-  }
-  const unique = new Map<string, PngTextureAsset>();
-  for (const asset of assets.values()) {
-    const previous = unique.get(asset.checksum);
-    if (previous && identity(previous) !== identity(asset)) fail("conflicting texture descriptor");
-    unique.set(asset.checksum, asset);
+    matched.add(asset.checksum);
   }
   const decoded = [...unique.values()].reduce(
     (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
@@ -101,99 +112,240 @@ function selectedTextures(delivery: DeliveryManifestWire): PngTextureAsset[] {
   return [...assets.values()];
 }
 
+export interface PngTextureLease {
+  assets: readonly PngTextureAsset[];
+  release(): void;
+}
+
 export async function createPngTexturePool(options: {
   delivery: DeliveryManifestWire;
-  signal?: AbortSignal;
   fetcher?: typeof fetch;
   residentCpuBytes?: number;
   loadTexture?: typeof loadPngTexture;
   uploadTexture(texture: Texture): void;
 }) {
   const assets = selectedTextures(options.delivery);
-  const unique = [...new Map(assets.map((asset) => [asset.checksum, asset])).values()];
+  const byId = new Map(assets.map((asset) => [asset.assetId, asset]));
   const limits = options.delivery.capabilityProfile?.limits?.texture;
-  let gpuBytes = 0;
-  if (unique.length) {
-    const decoded = unique.reduce(
-      (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
-      0,
+  const residency = options.delivery.residency?.textures;
+  const windows = new Map<string, PngTextureAsset[]>();
+  let maximumGpu = 0;
+  let maximumBindings = 0;
+  for (const window of residency?.groupWindows ?? []) {
+    if (!window.groupId || windows.has(window.groupId)) fail("invalid group window");
+    const selected = (window.assetIds ?? []).map((assetId) => {
+      return byId.get(assetId) ?? fail("unknown window texture");
+    });
+    const unique = [...new Map(selected.map((asset) => [asset.checksum, asset])).values()];
+    if (unique.length !== selected.length) fail("duplicate window texture");
+    maximumGpu = Math.max(
+      maximumGpu,
+      unique.reduce((sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4, 0),
     );
-    const encoded = unique.reduce((sum, asset) => sum + asset.encodedSizeBytes, 0);
+    maximumBindings = Math.max(maximumBindings, unique.length);
+    windows.set(window.groupId, unique);
+  }
+  if (!residency?.initialGroupId || !windows.has(residency.initialGroupId))
+    fail("missing group residency windows");
+  if (
+    uint(residency.maximumResidentGpuBytes, true) !== maximumGpu ||
+    uint(residency.maximumResidentTextureBindings, true) !== maximumBindings
+  )
+    fail("window residency aggregate mismatch");
+  if (maximumGpu > uint(limits?.maxGpuBytes) || maximumBindings > uint(limits?.maxTextureBindings))
+    fail("texture budget exceeded");
+  for (const asset of assets) {
     if (
-      !Number.isSafeInteger(decoded) ||
-      !Number.isSafeInteger(encoded) ||
-      unique.length > uint(limits?.maxTextureBindings) ||
-      decoded > uint(limits?.maxGpuBytes) ||
-      encoded > uint(limits?.maxEncodedCacheBytes) - uint(limits?.encodedCacheReserveBytes, true) ||
-      unique.some(
-        (asset) =>
-          asset.pixelSize[0] > uint(limits?.maxTextureWidth) ||
-          asset.pixelSize[1] > uint(limits?.maxTextureHeight) ||
-          asset.pixelSize[0] * asset.pixelSize[1] > uint(limits?.maxTexturePixels),
-      )
+      asset.pixelSize[0] > uint(limits?.maxTextureWidth) ||
+      asset.pixelSize[1] > uint(limits?.maxTextureHeight) ||
+      asset.pixelSize[0] * asset.pixelSize[1] > uint(limits?.maxTexturePixels)
     )
       fail("texture budget exceeded");
-    for (const asset of unique) {
-      admitPngMemory([asset], options.residentCpuBytes ?? 0, uint(limits?.maxSerialLoadCpuBytes));
-    }
-    gpuBytes = decoded;
+    admitPngMemory([asset], options.residentCpuBytes ?? 0, uint(limits?.maxSerialLoadCpuBytes));
   }
-  const loaded = new Map<string, Awaited<ReturnType<typeof loadPngTexture>>>();
+  const loaded = new Map<
+    string,
+    { asset: PngTextureAsset; item: Awaited<ReturnType<typeof loadPngTexture>>; pins: number }
+  >();
+  const encoded = new Map<string, Uint8Array<ArrayBuffer>>();
+  const encodedLimit =
+    uint(limits?.maxEncodedCacheBytes) - uint(limits?.encodedCacheReserveBytes, true);
+  if (encodedLimit < 0) fail("invalid encoded cache budget");
+  let encodedBytes = 0;
   let disposed = false;
-  function dispose() {
-    if (disposed) return;
-    disposed = true;
-    for (const texture of loaded.values()) texture.dispose();
-    loaded.clear();
+  let work: Promise<unknown> = Promise.resolve();
+  function cache(checksum: string, bytes: Uint8Array<ArrayBuffer>) {
+    const previous = encoded.get(checksum);
+    if (previous) encodedBytes -= previous.byteLength;
+    encoded.delete(checksum);
+    if (bytes.byteLength > encodedLimit) return;
+    while (encodedBytes + bytes.byteLength > encodedLimit) {
+      const oldest = encoded.keys().next().value!;
+      encodedBytes -= encoded.get(oldest)!.byteLength;
+      encoded.delete(oldest);
+    }
+    encoded.set(checksum, bytes);
+    encodedBytes += bytes.byteLength;
+  }
+  function release(checksums: readonly string[]) {
+    for (const checksum of checksums) {
+      const entry = loaded.get(checksum);
+      if (!entry || --entry.pins > 0) continue;
+      entry.item.dispose();
+      loaded.delete(checksum);
+    }
   }
   function getTexture(asset: PngTextureAsset) {
     if (disposed) return fail("pool disposed");
-    const selected = assets.find((candidate) => candidate.assetId === asset.assetId);
-    const item = loaded.get(asset.checksum);
-    if (!selected || identity(selected) !== identity(asset) || !item)
-      return fail("texture descriptor not preloaded");
-    return { texture: item.texture, dispose() {} };
+    const selected = byId.get(asset.assetId);
+    const entry = loaded.get(asset.checksum);
+    if (!selected || identity(selected) !== identity(asset) || !entry)
+      return fail("texture descriptor not resident");
+    return { texture: entry.item.texture, dispose() {} };
   }
-  try {
-    for (const asset of unique) {
-      if (options.signal?.aborted) fail("preload cancelled");
-      const item = await (options.loadTexture ?? loadPngTexture)(asset, {
-        ...(options.signal ? { signal: options.signal } : {}),
-        ...(options.fetcher ? { fetcher: options.fetcher } : {}),
-      });
-      loaded.set(asset.checksum, item);
-      if (options.signal?.aborted) fail("preload cancelled");
-      const previousUpdate = item.texture.onUpdate;
-      let uploaded = false;
-      item.texture.onUpdate = (texture) => {
-        previousUpdate?.(texture);
-        uploaded = true;
+  function canAcquire(groupId: string, resident = { gpuBytes: 0, bindings: 0 }) {
+    if (disposed) fail("pool disposed");
+    const required = windows.get(groupId) ?? fail("unknown group window");
+    const union = new Map([...loaded].map(([key, value]) => [key, value.asset]));
+    for (const asset of required) union.set(asset.checksum, asset);
+    const gpu = [...union.values()].reduce(
+      (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
+      0,
+    );
+    return (
+      gpu + resident.gpuBytes <= uint(limits?.maxGpuBytes) &&
+      union.size + resident.bindings <= uint(limits?.maxTextureBindings)
+    );
+  }
+  async function acquire(
+    groupId: string,
+    request: {
+      signal?: AbortSignal;
+      residentCpuBytes?: number;
+      residentResources?: { gpuBytes: number; bindings: number };
+    } = {},
+  ): Promise<PngTextureLease> {
+    const previous = work;
+    const pending = (async () => {
+      await previous.catch(() => undefined);
+      const check = () => {
+        if (disposed) fail("pool disposed");
+        if (request.signal?.aborted) fail("load cancelled");
       };
+      check();
+      const required = windows.get(groupId) ?? fail("unknown group window");
+      const union = new Map([...loaded].map(([key, value]) => [key, value.asset]));
+      for (const asset of required) union.set(asset.checksum, asset);
+      const gpu = [...union.values()].reduce(
+        (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
+        0,
+      );
+      const resident = request.residentResources ?? { gpuBytes: 0, bindings: 0 };
+      if (
+        !Number.isSafeInteger(resident.gpuBytes) ||
+        resident.gpuBytes < 0 ||
+        !Number.isSafeInteger(resident.bindings) ||
+        resident.bindings < 0 ||
+        gpu + resident.gpuBytes > uint(limits?.maxGpuBytes) ||
+        union.size + resident.bindings > uint(limits?.maxTextureBindings)
+      )
+        fail("texture replacement budget exceeded");
+      const acquired: string[] = [];
       try {
-        options.uploadTexture(item.texture);
-        if (!uploaded) fail("texture upload did not complete");
-        item.releaseCpuCopy();
-      } finally {
-        item.texture.onUpdate = previousUpdate;
+        for (const asset of required) {
+          check();
+          const existing = loaded.get(asset.checksum);
+          if (existing) {
+            existing.pins++;
+            acquired.push(asset.checksum);
+            continue;
+          }
+          const residentCpu = request.residentCpuBytes ?? options.residentCpuBytes ?? 0;
+          const peakCpu = asset.pixelSize[0] * asset.pixelSize[1] * 8 + asset.encodedSizeBytes;
+          while (
+            encoded.size &&
+            residentCpu + encodedBytes + peakCpu > uint(limits?.maxSerialLoadCpuBytes)
+          ) {
+            const oldest = encoded.keys().next().value!;
+            encodedBytes -= encoded.get(oldest)!.byteLength;
+            encoded.delete(oldest);
+          }
+          admitPngMemory([asset], residentCpu + encodedBytes, uint(limits?.maxSerialLoadCpuBytes));
+          let bytes = encoded.get(asset.checksum);
+          if (bytes) cache(asset.checksum, bytes);
+          const currentAsset = withCurrentAccess(options.delivery, asset);
+          const item = await (options.loadTexture ?? loadPngTexture)(currentAsset, {
+            ...(request.signal ? { signal: request.signal } : {}),
+            ...(options.fetcher ? { fetcher: options.fetcher } : {}),
+            ...(bytes ? { encodedBytes: bytes } : {}),
+            onEncodedBytes(value) {
+              bytes = value;
+            },
+          });
+          loaded.set(asset.checksum, { asset, item, pins: 1 });
+          acquired.push(asset.checksum);
+          check();
+          const previousUpdate = item.texture.onUpdate;
+          let uploaded = false;
+          item.texture.onUpdate = (texture) => {
+            previousUpdate?.(texture);
+            uploaded = true;
+          };
+          try {
+            options.uploadTexture(item.texture);
+            if (!uploaded) fail("texture upload did not complete");
+            item.releaseCpuCopy();
+          } finally {
+            item.texture.onUpdate = previousUpdate;
+          }
+          check();
+          if (bytes) cache(asset.checksum, bytes);
+        }
+        let released = false;
+        return {
+          assets: required,
+          release() {
+            if (!released) {
+              released = true;
+              release(acquired);
+            }
+          },
+        };
+      } catch (error) {
+        release(acquired);
+        throw error;
       }
-      if (options.signal?.aborted) fail("preload cancelled");
-    }
-  } catch (error) {
-    dispose();
-    throw error;
+    })();
+    work = pending;
+    return pending;
   }
   return {
     assets,
+    get residentAssets() {
+      return [...loaded.values()].map((entry) => entry.asset);
+    },
     get retainedCpuBytes() {
-      return 0;
+      return encodedBytes;
     },
     get gpuBytes() {
-      return disposed ? 0 : gpuBytes;
+      return [...loaded.values()].reduce(
+        (sum, entry) => sum + entry.asset.pixelSize[0] * entry.asset.pixelSize[1] * 4,
+        0,
+      );
     },
     getTexture,
     async loadTexture(asset: PngTextureAsset) {
       return getTexture(asset);
     },
-    dispose,
+    acquire,
+    canAcquire,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      for (const entry of loaded.values()) entry.item.dispose();
+      loaded.clear();
+      encoded.clear();
+      encodedBytes = 0;
+    },
   };
 }

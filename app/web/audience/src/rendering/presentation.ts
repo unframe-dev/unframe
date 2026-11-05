@@ -11,7 +11,7 @@ import { buildVideoPlan } from "./video-plan";
 import { createVideoPresentation } from "./video-presentation";
 import { createModelPresentation } from "./model-presentation";
 import { evaluateAnimationView } from "../runtime/animation-view";
-import { loadPngTexture } from "../assets/png-texture";
+import { loadPngTexture, type PngTextureAsset } from "../assets/png-texture";
 import { loadVideoAsset } from "../assets/video-asset";
 import { loadModelAsset } from "../assets/model-asset";
 import { admitPngMemory } from "./png-memory";
@@ -70,13 +70,18 @@ export async function createPresentation(options: {
   signal?: AbortSignal;
   residentCpuBytes?: number;
   fetcher?: typeof fetch;
+  pngTextureAssets?: readonly PngTextureAsset[];
   pngTexturePool?: Awaited<ReturnType<typeof createPngTexturePool>>;
   residentResources?: PresentationResourceUsage;
 }) {
   const fetcher = options.fetcher ?? globalThis.fetch;
   const pool = options.pngTexturePool;
-  const preloadedTextures =
-    pool?.assets.map((asset) => ({ asset, loaded: pool.getTexture(asset) })) ?? [];
+  const preloadedTextures = pool
+    ? (options.pngTextureAssets ?? pool.residentAssets).map((asset) => ({
+        asset,
+        loaded: pool.getTexture(asset),
+      }))
+    : [];
   const residentCpuBytes = (options.residentCpuBytes ?? 0) + (pool?.retainedCpuBytes ?? 0);
   const resident = options.residentResources ?? { gpuBytes: 0, bindings: 0, videoDecoders: 0 };
   if (Object.values(resident).some((value) => !Number.isSafeInteger(value) || value < 0))
@@ -95,7 +100,7 @@ export async function createPresentation(options: {
   }
   if (!hasMediaResources(options.delivery)) {
     const assets =
-      pool?.assets ??
+      pool?.residentAssets ??
       buildPngPlan(options.delivery, participantRuntimeViewSchema.parse(options.view)).assets;
     const unique = [...new Map(assets.map((asset) => [asset.checksum, asset])).values()];
     const gpuBytes = unique.reduce(
@@ -107,7 +112,9 @@ export async function createPresentation(options: {
       ...options,
       residentCpuBytes,
       preloadedTextures,
-      loadTexture: (asset, loadOptions) => loadPngTexture(asset, { ...loadOptions, fetcher }),
+      loadTexture: pool
+        ? pool.loadTexture
+        : (asset, loadOptions) => loadPngTexture(asset, { ...loadOptions, fetcher }),
     });
     let disposed = false;
     return {
@@ -121,6 +128,12 @@ export async function createPresentation(options: {
           bindings: disposed || pool ? 0 : unique.length,
           videoDecoders: 0,
         };
+      },
+      updatePngTextures(assets: readonly PngTextureAsset[]) {
+        if (pool)
+          png.updatePreloadedTextures(
+            assets.map((asset) => ({ asset, loaded: pool.getTexture(asset) })),
+          );
       },
       applyView: png.applyView,
       applyAnimationFrame(view: ParticipantRuntimeView, time: number) {
@@ -146,7 +159,7 @@ export async function createPresentation(options: {
     pool?.gpuBytes ??
     pngAssets.reduce((sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4, 0);
   const pngBindings = pool
-    ? new Set(pool.assets.map((asset) => asset.checksum)).size
+    ? new Set(pool.residentAssets.map((asset) => asset.checksum)).size
     : new Set(pngAssets.map((asset) => asset.checksum)).size;
   const videoAssets = buildVideoPlan(options.delivery, view).assets;
   let video: Awaited<ReturnType<typeof createVideoPresentation>> | null = null;
@@ -215,7 +228,10 @@ export async function createPresentation(options: {
           (surface) => surface.surfaceId === surfaceId && surface.hasVideo,
         ) || !!nextView.mediaStates[surfaceId],
       async loadTexture(asset, loadOptions) {
-        if (!asset.textureKey) return loadPngTexture(asset, { ...loadOptions, fetcher });
+        if (!asset.textureKey)
+          return pool
+            ? pool.loadTexture(asset)
+            : loadPngTexture(asset, { ...loadOptions, fetcher });
         const loaded = video!.getLoadedAssets().get(asset.assetId);
         if (!loaded) throw new Error("Video texture missing");
         return { texture: loaded.texture, dispose() {} };
@@ -245,6 +261,12 @@ export async function createPresentation(options: {
           bindings: (pool ? 0 : pngBindings) + model!.resourceUsage.bindings + videos.bindings,
           videoDecoders: videos.videoDecoders,
         };
+      },
+      updatePngTextures(assets: readonly PngTextureAsset[]) {
+        if (pool)
+          surfaces!.updatePreloadedTextures(
+            assets.map((asset) => ({ asset, loaded: pool.getTexture(asset) })),
+          );
       },
       applyView(input: unknown) {
         if (disposed) return false;

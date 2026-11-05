@@ -3,7 +3,8 @@ import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 const temporaryDirectory = () => realpathSync(tmpdir());
 import { join } from "node:path";
-import { afterEach, expect, it } from "vite-plus/test";
+import { afterEach, expect, it, vi } from "vite-plus/test";
+import { NativeFilesystem } from "../src/native-filesystem.js";
 import {
   readLinkedWorkspaceInputs,
   readInstalledDependencyInputs,
@@ -275,6 +276,7 @@ it("excludes a more specific null wildcard from a broad exported pattern", () =>
 
 const directories: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(
     directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
@@ -625,4 +627,23 @@ it("keeps transitive peer contexts distinct when symlink packages share physical
       .map((pkg) => pkg.version)
       .sort(),
   ).toEqual(["1.0.0", "2.0.0"]);
+});
+
+it.each([
+  ["browser graph", snapshotInstalledPackages, "checkedRead"],
+  ["installed input identity", readInstalledDependencyInputs, "checkedHash"],
+] as const)("reads shared package bytes once per %s capture", async (_name, capture, operation) => {
+  const root = await project({ dependencies: { first: "*", second: "*" } });
+  for (const name of ["first", "second"])
+    await install(join(root, "node_modules", name), { name, dependencies: { shared: "*" } });
+  const shared = join(root, "node_modules/shared");
+  await install(shared, { name: "shared" }, "export const value = 1;");
+  const reads = vi.spyOn(NativeFilesystem.prototype, operation);
+  const first = await capture(root);
+  expect(reads.mock.calls.filter(([path]) => path === join(shared, "index.js"))).toHaveLength(1);
+  await writeFile(join(shared, "index.js"), "export const value = 2;");
+  reads.mockClear();
+  const changed = await capture(root);
+  expect(changed.dependencyHash).not.toBe(first.dependencyHash);
+  expect(reads.mock.calls.filter(([path]) => path === join(shared, "index.js"))).toHaveLength(1);
 });

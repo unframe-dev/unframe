@@ -1,3 +1,5 @@
+import filesystem from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { gzipSync } from "node:zlib";
 import { validateNodeTransformSnapshot } from "@unframe-dev/workspace";
 import { execFileSync } from "node:child_process";
@@ -5,7 +7,7 @@ import { mkdtemp, rm, writeFile, mkdir, symlink, readFile, chmod, stat } from "n
 import { temporaryDirectory } from "../src/temporary-directory.js";
 import { join } from "node:path";
 import { createRequire } from "node:module";
-import { afterEach, expect, it } from "vite-plus/test";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import {
   snapshotNodeRuntime,
   snapshotNodeTransformInputs,
@@ -14,6 +16,8 @@ import {
 } from "../src/node-snapshot.js";
 const roots: string[] = [];
 afterEach(async () => {
+  vi.restoreAllMocks();
+  syncBuiltinESMExports();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 const temporary = async () => {
@@ -639,4 +643,36 @@ it("materializes shared symlink packages with their transitive consumer peer con
   const require = createRequire(join(placed.projectRoot, "package.json"));
   expect(require("first")).toBe("1");
   expect(require("second")).toBe("2");
+});
+
+it("reads shared Node package bytes once per capture and refreshes them for the next capture", async () => {
+  const root = await temporary();
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({ dependencies: { first: "*", second: "*" } }),
+  );
+  for (const name of ["first", "second", "shared"]) {
+    const directory = join(root, "node_modules", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "package.json"),
+      JSON.stringify({
+        name,
+        version: "1.0.0",
+        main: "index.cjs",
+        ...(name === "shared" ? {} : { dependencies: { shared: "*" } }),
+      }),
+    );
+    await writeFile(join(directory, "index.cjs"), "module.exports = 1;");
+  }
+  const shared = join(root, "node_modules/shared/index.cjs");
+  const reads = vi.spyOn(filesystem, "readFile");
+  syncBuiltinESMExports();
+  const first = await snapshotNodeTransformInputs(root);
+  expect(reads.mock.calls.filter(([path]) => path === shared)).toHaveLength(1);
+  await writeFile(shared, "module.exports = 2;");
+  reads.mockClear();
+  const changed = await snapshotNodeTransformInputs(root);
+  expect(changed.identity).not.toBe(first.identity);
+  expect(reads.mock.calls.filter(([path]) => path === shared)).toHaveLength(1);
 });

@@ -8,15 +8,18 @@ import {
 } from "@unframe-dev/authoring";
 import { createCueState } from "@unframe-dev/playback";
 import presentation from "../presentation.unframe.tsx";
-import { OpeningBrand } from "../opening.component.tsx";
-import { OriginalPanel } from "../original-panel.component.tsx";
-import { RejectionMark } from "../rejection.component.tsx";
-import config from "../unframe.config.ts";
+import { OpeningBrand } from "../component/opening.component.tsx";
+import { OriginalPanel } from "../component/original-panel.component.tsx";
+import { RejectionMark } from "../component/rejection.component.tsx";
+import { SpatialWord } from "../component/spatial-word.component.tsx";
+import { GestureDrawing } from "../component/gesture-drawing.component.tsx";
+import { TechnologyLinks } from "../component/technology-links.component.tsx";
+import config from "../../unframe.config.ts";
 
 const assets = Object.fromEntries(
   await Promise.all(
     Object.entries(config.assets).map(async ([id, asset]) => {
-      const bytes = await readFile(new URL(`../${asset.path}`, import.meta.url));
+      const bytes = await readFile(new URL(`../../${asset.path}`, import.meta.url));
       return [
         id,
         {
@@ -31,9 +34,12 @@ const assets = Object.fromEntries(
 );
 const components = await Promise.all(
   [
-    ["opening.component.tsx", OpeningBrand],
-    ["original-panel.component.tsx", OriginalPanel],
-    ["rejection.component.tsx", RejectionMark],
+    ["src/component/opening.component.tsx", OpeningBrand],
+    ["src/component/spatial-word.component.tsx", SpatialWord],
+    ["src/component/technology-links.component.tsx", TechnologyLinks],
+    ["src/component/gesture-drawing.component.tsx", GestureDrawing],
+    ["src/component/original-panel.component.tsx", OriginalPanel],
+    ["src/component/rejection.component.tsx", RejectionMark],
   ].map(async ([file, component]) => {
     const metadata = validateRuntimeReactComponent(component);
     const manifest = buildOpaqueComponentManifest(metadata, `${file}#render`);
@@ -41,7 +47,7 @@ const components = await Promise.all(
       manifest,
       metadata,
       rendererEntry: `${file}#render`,
-      rendererSource: await readFile(new URL(`../${file}`, import.meta.url), "utf8"),
+      rendererSource: await readFile(new URL(`../../${file}`, import.meta.url), "utf8"),
       lock: {
         mode: "opaque",
         origin: { kind: "local", entryFile: file, files: [], sourceHash: "sha256:source" },

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 
-const source = await readFile(new URL("../../assets/icon.glb", import.meta.url));
+const source = await readFile(new URL("../../../assets/icon.glb", import.meta.url));
 assert.equal(source.readUInt32LE(0), 0x46546c67);
 assert.equal(source.readUInt32LE(4), 2);
 assert.equal(source.readUInt32LE(16), 0x4e4f534a);
@@ -71,4 +71,4 @@ json.copy(result, 20);
 result.writeUInt32LE(paddedBinaryLength, 20 + paddedLength);
 result.writeUInt32LE(0x004e4942, 24 + paddedLength);
 binary.copy(result, 28 + paddedLength);
-await writeFile(new URL("../assets/icon.glb", import.meta.url), result);
+await writeFile(new URL("../../assets/icon.glb", import.meta.url), result);

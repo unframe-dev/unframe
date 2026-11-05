@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateTextureResidencyPlan } from "./texture-residency";
 
 export const runtimeAuthorityVersions = Object.freeze({
   definition: 1,
@@ -7,15 +8,15 @@ export const runtimeAuthorityVersions = Object.freeze({
   buildManifest: 1,
   publication: 1,
   capability: 1,
-  delivery: 3,
+  delivery: 4,
   protocol: "v3",
   runtime: 3,
   progression: 2,
-  projection: 2,
+  projection: 3,
   catalog: 3,
   snapshot: 1,
   checkpoint: 1,
-  localPreview: 1,
+  localPreview: 2,
 } as const);
 
 export const runtimeAuthorityLimits = Object.freeze({
@@ -70,6 +71,7 @@ function inputContext(value: unknown): void {
 
 export function validateAuthorityWireValue(typeName: string, value: Record<string, unknown>): void {
   const name = typeName.split(".").at(-1);
+  if (name === "TextureResidencyPlan") validateTextureResidencyPlan(value);
   if (
     name === "RuntimeCapacityFault" &&
     !["stepStartStateBytes", "stepStartHistoryBytes", "canonicalSnapshotBytes"].every((field) =>
@@ -111,10 +113,11 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
     DurableCheckpointEnvelope: 1,
     CapabilityProfile: 1,
     DeliveryManifest: 1,
+    LocalPreviewEnvelope: 2,
   };
   if (name && schemaMajors[name] !== undefined && value["schemaVersion"] !== schemaMajors[name])
     throw new TypeError(`${name} schema major is incompatible`);
-  if (name === "DeliveryManifest" && value["deliveryContractVersion"] !== 3)
+  if (name === "DeliveryManifest" && value["deliveryContractVersion"] !== 4)
     throw new TypeError("Delivery contract major is incompatible");
   if (name === "ProjectedRuntimeCatalog" && value["catalogContractVersion"] !== 3)
     throw new TypeError("Runtime catalog contract major is incompatible");
@@ -128,14 +131,14 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
       !positiveInteger(value["stepEntryEpoch"]))
   )
     throw new TypeError("Step start state requires group and step identities and entry epochs");
-  if (name === "ProjectionProfileKey" && value["projectionContractVersion"] !== 2)
+  if (name === "ProjectionProfileKey" && value["projectionContractVersion"] !== 3)
     throw new TypeError("Projection contract major is incompatible");
   if (
     name === "ContractVersions" &&
-    (value["delivery"] !== 3 ||
+    (value["delivery"] !== 4 ||
       value["runtime"] !== 3 ||
       value["progression"] !== 2 ||
-      value["projection"] !== 2)
+      value["projection"] !== 3)
   )
     throw new TypeError("Delivery contract version combination is incompatible");
   if (name && (normalCommands.has(name) || name === "RuntimeControlCommand")) {

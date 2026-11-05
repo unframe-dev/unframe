@@ -2,6 +2,7 @@ import type { SceneTimelineDeclaration } from "@unframe-dev/authoring";
 
 export const rejectionTimeline = {
   id: "original-reject",
+  owner: { kind: "group", groupId: "demo" },
   durationMilliseconds: 2120,
   tracks: [
     {

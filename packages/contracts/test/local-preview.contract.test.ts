@@ -44,7 +44,7 @@ test("Preview reuses the catalog and state messages without a publication or ses
     ],
   );
   const input = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     requestId: "a".repeat(32),
     buildManifest: "{}",
     assetSet: "{}",

@@ -35,7 +35,7 @@ public static class PresentationPreviewTestFixture
         };
         var envelope = new LocalPreviewEnvelope
         {
-            SchemaVersion = 1,
+            SchemaVersion = 2,
             RequestId = new string(request, 32),
             BuildManifest = "{\"schemaVersion\":1,\"buildId\":\"build:" + request + "\"}",
             AssetSet = "{\"schemaVersion\":1,\"assets\":{}}",
@@ -46,7 +46,7 @@ public static class PresentationPreviewTestFixture
                 VisibleSurfaceIds = { "surface:one" },
                 RenderSurfaces = { render },
                 SemanticSurfaces = { new ProjectedSemanticSurface { SemanticSurfaceId = "surface:one", RenderSurfaceIds = { "render:one" }, States = { new SurfaceSemanticState { StateId = "state:first" } } } },
-                TextureResidency = new TextureResidencyPlan { BudgetTierId = "local-web-preview" },
+                TextureResidency = new TextureResidencyPlan { BudgetTierId = "local-web-preview", InitialGroupId = "group:first", GroupWindows = { new TextureResidencyWindow { GroupId = "group:first" }, new TextureResidencyWindow { GroupId = "group:second" } } },
             },
             InitialState = new LocalPreviewInitialState
             {
@@ -72,6 +72,9 @@ public static class PresentationPreviewTestFixture
             });
             envelope.Projection.TextureResidency.Textures.Add(binding);
             envelope.Projection.TextureResidency.TotalDecodedGpuBytes = 4;
+            envelope.Projection.TextureResidency.MaximumResidentGpuBytes = 4;
+            envelope.Projection.TextureResidency.MaximumResidentTextureBindings = 1;
+            envelope.Projection.TextureResidency.GroupWindows[0].AssetIds.Add("asset:one");
             envelope.Projection.TextureResidency.MaximumPeakLoadCpuBytes = 94;
             envelope.AssetSet = "{\"schemaVersion\":1,\"assets\":{\"asset:one\":{\"checksum\":\"" + hash + "\",\"mediaType\":\"image/png\",\"encodedSizeBytes\":86}}}";
             envelope.Assets.Add(new LocalPreviewAsset { AssetId = "asset:one", Reference = "opaque-asset-one" });

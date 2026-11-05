@@ -9,5 +9,5 @@
     "jsxImportSource": "react",
     "skipLibCheck": true
   },
-  "include": ["*.ts", "*.tsx"]
+  "include": ["unframe.config.ts", "src/**/*.ts", "src/**/*.tsx"]
 }
