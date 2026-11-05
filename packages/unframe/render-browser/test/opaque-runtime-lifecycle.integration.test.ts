@@ -1,4 +1,8 @@
 import { expect, it, vi } from "vite-plus/test";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { chromium } from "playwright-core";
 import { openOpaqueCaptureRuntime } from "../src/opaque/capture/runtime.js";
 
 const boundary = vi.hoisted(() => ({
@@ -6,6 +10,7 @@ const boundary = vi.hoisted(() => ({
   failStderrOnBootstrap: false,
   resets: 0,
   stderrFailures: 0,
+  onBootstrap: undefined as (() => void) | undefined,
 }));
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -14,6 +19,9 @@ vi.mock("node:child_process", async (importOriginal) => {
     ...actual,
     spawn: (...args: Parameters<typeof actual.spawn>) => {
       const child = actual.spawn(...args);
+      child.stdout?.on("data", (chunk: Buffer) => {
+        if (chunk.includes('"bootstrap"')) boundary.onBootstrap?.();
+      });
       if (boundary.resetBarrierOnExit)
         child.once("exit", () => {
           boundary.resets++;
@@ -49,6 +57,50 @@ const request = {
   colorScheme: "light" as const,
 };
 
+it("does not stage capture resources when only its fingerprint is used", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "unframe-lazy-runtime-"));
+  vi.stubEnv("TMPDIR", directory);
+  let runtime: Awaited<ReturnType<typeof openOpaqueCaptureRuntime>> | undefined;
+  try {
+    runtime = await openOpaqueCaptureRuntime();
+    expect(runtime.fingerprint).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(await readdir(directory)).toEqual([]);
+    await runtime.close();
+    expect(await readdir(directory)).toEqual([]);
+  } finally {
+    await runtime?.close();
+    vi.unstubAllEnvs();
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 120_000);
+
+it("rejects changed runtime bytes before executing a deferred capture", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "unframe-runtime-identity-"));
+  const browser = join(
+    directory,
+    "chromium_headless_shell-1234",
+    process.platform === "darwin"
+      ? "chrome-headless-shell-mac-arm64"
+      : "chrome-headless-shell-linux64",
+  );
+  await mkdir(browser, { recursive: true });
+  const executable = join(browser, "chrome-headless-shell");
+  await writeFile(executable, "original runtime");
+  const path = vi
+    .spyOn(chromium, "executablePath")
+    .mockReturnValue(join(directory, "chromium-1234", "chrome-linux64", "chrome"));
+  let runtime: Awaited<ReturnType<typeof openOpaqueCaptureRuntime>> | undefined;
+  try {
+    runtime = await openOpaqueCaptureRuntime();
+    await writeFile(executable, "modified runtime");
+    await expect(runtime.capture(request)).rejects.toThrow("Opaque runtime changed");
+  } finally {
+    await runtime?.close();
+    path.mockRestore();
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 120_000);
+
 it("close waits for the active worker and rejects later capture as cancelled", async () => {
   const runtime = await openOpaqueCaptureRuntime();
   let settled = false;
@@ -83,14 +135,18 @@ it("fails capture when worker stderr fails before the result", async () => {
 it("handles a late barrier reset when closing an active worker", async () => {
   boundary.resetBarrierOnExit = true;
   boundary.resets = 0;
+  const bootstrapped = Promise.withResolvers<void>();
+  boundary.onBootstrap = () => bootstrapped.resolve();
   const runtime = await openOpaqueCaptureRuntime();
   try {
     const active = runtime.capture(request);
+    await Promise.race([bootstrapped.promise, active]);
     await runtime.close();
     await expect(active).rejects.toMatchObject({ code: "opaque-capture-cancelled" });
     expect(boundary.resets).toBeGreaterThan(0);
   } finally {
     boundary.resetBarrierOnExit = false;
+    boundary.onBootstrap = undefined;
     await runtime.close();
   }
 }, 120_000);

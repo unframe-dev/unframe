@@ -576,3 +576,69 @@ func TestHashCheckedRejectsUnsafeAndUnboundedInputs(t *testing.T) {
 		})
 	}
 }
+
+func TestIdentitiesCheckedCapturesSelectedContentsLinksAndPermissions(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "input"), []byte("abc"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "nested"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("input", filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(root, "ignored"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{handles: make(map[int]*directory)}
+	defer s.close()
+	value, err := s.execute(request{Op: "identitiesChecked", Path: root, Names: []string{"input", "nested", "link"}, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := value.([]fileIdentity)
+	if len(entries) != 3 || entries[0].Hash != "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" || !entries[0].Executable || entries[1].Kind != "directory" || entries[2].Link != "input" {
+		t.Fatalf("unexpected identities: %#v", value)
+	}
+	if err := os.WriteFile(filepath.Join(root, "input"), []byte("abd"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(root, "input"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	changed, err := s.execute(request{Op: "identitiesChecked", Path: root, Names: []string{"input"}, Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.([]fileIdentity)[0].Hash == entries[0].Hash || changed.([]fileIdentity)[0].Executable {
+		t.Fatal("content or executable change was missed")
+	}
+}
+func TestIdentitiesCheckedRejectsUnsafeEntries(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "input"), []byte("abc"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(root, "fifo"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{handles: make(map[int]*directory)}
+	defer s.close()
+	for _, name := range []string{"../input", ".", "nested/input", "fifo"} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := s.execute(request{Op: "identitiesChecked", Path: root, Names: []string{name}, Limit: 100}); err == nil {
+				t.Fatal("accepted unsafe entry")
+			}
+		})
+	}
+	if _, err := s.execute(request{Op: "identitiesChecked", Path: root, Names: []string{"input"}, Limit: 2}); err == nil {
+		t.Fatal("accepted oversized file")
+	}
+}

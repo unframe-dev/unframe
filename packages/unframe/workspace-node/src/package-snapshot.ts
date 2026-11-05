@@ -1,10 +1,10 @@
 import { mediaTypeFor } from "@unframe-dev/workspace";
 import { withNativeFilesystem } from "./native-filesystem.js";
 import { createHash } from "node:crypto";
-import { lstat, readlink, realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { dirname, join, posix, relative, sep } from "node:path";
 import { parseStrictJson } from "@unframe-dev/artifacts";
-import { hashRegularFile, readDirectoryNames, readRegularFile } from "./path-policy.js";
+import { readDirectoryNames, readRegularFile } from "./path-policy.js";
 import {
   hashPackageLocator,
   hashLockedPackageContent,
@@ -639,23 +639,19 @@ const packageFileIdentities = async (root: string, workspace: boolean) => {
   const visit = async (path: string): Promise<void> => {
     const names = await readDirectoryNames(path ? join(root, path) : root);
     if (!names) throw new Error("Package directory is unsafe.");
-    for (const name of names) {
-      if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) continue;
+    const selected = names.filter((name) => {
+      if (["node_modules", ".git", ".unframe", ".cache"].includes(name)) return false;
       const relative = path ? `${path}/${name}` : name;
-      if (roots && !isWorkspacePackageSnapshotPath(relative, roots)) continue;
-      const full = join(root, relative);
-      const stat = await lstat(full);
-      if (stat.isSymbolicLink()) files.push({ path: relative, link: await readlink(full) });
-      else if (stat.isDirectory()) await visit(relative);
-      else {
-        const hash = await hashRegularFile(full);
-        if (!hash) throw new Error("Package contains an unsafe file.");
-        files.push({
-          path: relative,
-          hash,
-          executable: (stat.mode & 0o111) !== 0,
-        });
-      }
+      return !roots || isWorkspacePackageSnapshotPath(relative, roots);
+    });
+    const entries = await withNativeFilesystem((filesystem) =>
+      filesystem.checkedIdentities(path ? join(root, path) : root, selected),
+    );
+    for (const entry of entries) {
+      const relative = path ? `${path}/${entry.name}` : entry.name;
+      if (entry.kind === "directory") await visit(relative);
+      else if (entry.kind === "symlink") files.push({ path: relative, link: entry.link });
+      else files.push({ path: relative, hash: entry.hash, executable: entry.executable });
     }
   };
   await visit("");

@@ -5,7 +5,7 @@ import {
   type OutputChannel,
   type PublishAtomicArtifactsInput,
 } from "./atomic-output.js";
-import { discoverPresentationProjectFiles } from "./discover-project.js";
+import { readPresentationProjectRevision } from "./discover-project.js";
 import { readBuildGeneration } from "./read-build-generation.js";
 
 export const readExpectedBuildGeneration = async (directory: string, channel: OutputChannel) => {
@@ -38,7 +38,7 @@ export const publishProjectBuild = async (
     ...(input.signal ? { signal: input.signal } : {}),
     ...(input.waitTimeoutMs !== undefined ? { waitTimeoutMs: input.waitTimeoutMs } : {}),
     isCurrentRevision: async () => {
-      const current = await discoverPresentationProjectFiles(input.projectDirectory, {
+      const current = await readPresentationProjectRevision(input.projectDirectory, {
         sourceLeaseHeld: true,
       });
       return current.ok && current.revision === input.revision;

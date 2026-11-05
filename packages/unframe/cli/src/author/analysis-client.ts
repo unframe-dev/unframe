@@ -31,7 +31,10 @@ const results = {
     z.strictObject({ ok: z.literal(true), value: z.unknown() }),
     z.object({ ok: z.literal(false), code: z.string(), message: z.string() }).passthrough(),
   ]),
-  project: projectSnapshotSchema,
+  project: z.strictObject({
+    snapshot: projectSnapshotSchema,
+    preparedInputs: z.unknown().optional(),
+  }),
   save: z.strictObject({
     afterSource: z.instanceof(Uint8Array),
     saved: savedCommandSchema,

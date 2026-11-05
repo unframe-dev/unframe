@@ -42,10 +42,6 @@ export class AuthorArtifactCache {
     this.#current.set(channel, key);
   }
 
-  hasGeneration(channel: Channel, generationId: string): boolean {
-    return this.#entries.has(`${channel}:${generationId}`);
-  }
-
   get(channel: Channel, generationId: string, assetId: string) {
     return this.#entries.get(`${channel}:${generationId}`)?.assets.get(assetId);
   }

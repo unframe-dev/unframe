@@ -31,6 +31,7 @@ export const createFilesystemBuildCache = (
   options: {
     readonly signal?: AbortSignal;
     readonly maxEntries?: number;
+    readonly maxBytes?: number;
     readonly onStaged?: () => void | Promise<void>;
     readonly onError?: (error: unknown) => void;
   } = {},
@@ -38,6 +39,9 @@ export const createFilesystemBuildCache = (
   const maxEntries = options.maxEntries ?? 16;
   if (!Number.isSafeInteger(maxEntries) || maxEntries < 1)
     throw new TypeError("Invalid cache entry limit");
+  const maxBytes = options.maxBytes ?? 512 * 1024 * 1024;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0)
+    throw new TypeError("Invalid cache byte limit");
   const withRoot = async <T>(
     create: boolean,
     action: (
@@ -46,6 +50,7 @@ export const createFilesystemBuildCache = (
         directory: (path: string) => Promise<CacheHandle>;
         anchor: (handle: NativeDirectory) => string;
         read: (path: string, limit: number) => Promise<Uint8Array>;
+        size: (path: string) => Promise<number>;
         write: (path: string, bytes: Uint8Array) => Promise<unknown>;
         mkdir: (
           path: string,
@@ -84,6 +89,11 @@ export const createFilesystemBuildCache = (
         directory: directoryOpen,
         anchor: anchored,
         read: (path, limit) => filesystem.read(path, limit),
+        size: async (path) => {
+          const stat = await filesystem.lstat(path);
+          if (!stat.isFile()) throw new Error("Cache entry contains an unsafe file");
+          return stat.size;
+        },
         write: (path, bytes) => filesystem.write(path, bytes),
         mkdir: (path, options) => filesystem.mkdir(path, options),
         rename: (path, target) => filesystem.rename(path, target),
@@ -138,7 +148,7 @@ export const createFilesystemBuildCache = (
       if (!keyPattern.test(key)) return;
       await withRoot(
         true,
-        async (base, { directory, anchor, write, mkdir, rename, rm, readdir }) => {
+        async (base, { directory, anchor, size, write, mkdir, rename, rm, readdir }) => {
           const name = `.staging-${randomUUID()}`;
           const staging = join(base, name);
           await mkdir(staging, { mode: 0o700 });
@@ -168,6 +178,7 @@ export const createFilesystemBuildCache = (
             }
             const json = new TextEncoder().encode(JSON.stringify({ version: 1, value: metadata }));
             if (json.length > 64 * 1024 * 1024) throw new Error("Cache metadata exceeded limit");
+            if (total + json.length > maxBytes) return;
             await write(join(anchor(handle), "entry.json"), json);
             await options.onStaged?.();
             if (options.signal?.aborted) return;
@@ -186,22 +197,38 @@ export const createFilesystemBuildCache = (
             const completed = entries.filter(
               (entry) => entry.isDirectory() && digest.test(entry.name),
             );
-            if (completed.length > maxEntries) {
-              const ranked = await Promise.all(
-                completed
-                  .filter((entry) => entry.name !== key.slice(7))
-                  .map(async (item) => {
-                    const owned = await directory(join(base, item.name));
-                    try {
-                      return { name: item.name, time: (await owned.stat()).mtimeMs };
-                    } finally {
-                      await owned.close();
-                    }
-                  }),
-              );
-              ranked.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
-              for (const stale of ranked.slice(0, completed.length - maxEntries))
-                await rm(join(base, stale.name), { recursive: true, force: true });
+            const ranked = await Promise.all(
+              completed.map(async (item) => {
+                let owned: CacheHandle | undefined;
+                try {
+                  owned = await directory(join(base, item.name));
+                  const current = owned;
+                  const contents = await readdir(anchor(current));
+                  const sizes = await Promise.all(
+                    contents.map(({ name }) => size(join(anchor(current), name))),
+                  );
+                  return {
+                    name: item.name,
+                    time: (await current.stat()).mtimeMs,
+                    bytes: sizes.reduce((total, value) => total + value, 0),
+                    invalid: false,
+                  };
+                } catch {
+                  return { name: item.name, time: 0, bytes: 0, invalid: true };
+                } finally {
+                  await owned?.close();
+                }
+              }),
+            );
+            let bytes = ranked.reduce((total, entry) => total + entry.bytes, 0);
+            let count = ranked.length;
+            ranked.sort((a, b) => a.time - b.time || a.name.localeCompare(b.name));
+            for (const stale of ranked) {
+              if (!stale.invalid && count <= maxEntries && bytes <= maxBytes) continue;
+              if (stale.name === key.slice(7)) continue;
+              await rm(join(base, stale.name));
+              count -= 1;
+              bytes -= stale.bytes;
             }
           } finally {
             try {

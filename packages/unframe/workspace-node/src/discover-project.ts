@@ -47,7 +47,11 @@ export type DiscoveredProjectFiles =
     }
   | { readonly ok: false; readonly code: ProjectFailureCode; readonly message: string };
 
-const failure = (code: ProjectFailureCode, message: string): DiscoveredProjectFiles => ({
+type ProjectFailure = Extract<DiscoveredProjectFiles, { ok: false }>;
+type CapturedSource = Omit<Extract<DiscoveredProjectFiles, { ok: true }>, "dependencyGraph">;
+type CaptureOptions = { sourceLeaseHeld?: boolean; waitTimeoutMs?: number; signal?: AbortSignal };
+
+const failure = (code: ProjectFailureCode, message: string): ProjectFailure => ({
   ok: false,
   code,
   message,
@@ -147,7 +151,17 @@ const scanAuthoringSources = async (
 };
 
 /** Captures source and installed dependencies without running project code. */
-const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjectFiles> => {
+const captureWithoutLease = async <T extends object>(
+  directory: string,
+  captureDependencies: (
+    root: string,
+    source: {
+      entryFile: string;
+      files: readonly ProjectSourceFile[];
+      localFiles: readonly LocalFileSnapshot[];
+    },
+  ) => Promise<T>,
+): Promise<(CapturedSource & T) | ProjectFailure> => {
   const root = await projectDirectory(directory);
   if (!root)
     return failure(
@@ -186,13 +200,11 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
       "cli-project-discovery-invalid-entry-file",
       "Project entryFile must name a regular non-symbolic-link file within the project root.",
     );
-  let dependencyGraph: Awaited<ReturnType<typeof snapshotInstalledPackages>>;
+  let dependencies: T;
   let dependencyHash: string;
   try {
     const before = await readInstalledDependencyInputs(root);
-    dependencyGraph = await snapshotInstalledPackages(root, {
-      rootSpecifiers: authoringPackageRoots({ entryFile, ...snapshot }),
-    });
+    dependencies = await captureDependencies(root, { entryFile, ...snapshot });
     const after = await readInstalledDependencyInputs(root);
     if (before.dependencyHash !== after.dependencyHash)
       throw new Error("Installed dependencies changed while capturing project inputs.");
@@ -214,18 +226,19 @@ const discoverWithoutLease = async (directory: string): Promise<DiscoveredProjec
     entryFile,
     assetSources,
     revision,
-    dependencyGraph,
+    ...dependencies,
     dependencyHash,
     configBytes: config.slice(),
     ...snapshot,
   };
 };
 
-const discoverPresentationProjectFilesWithinScope = async (
+const withProjectLease = async <T>(
   directory: string,
-  options: { sourceLeaseHeld?: boolean; waitTimeoutMs?: number; signal?: AbortSignal } = {},
-): Promise<DiscoveredProjectFiles> => {
-  if (options.sourceLeaseHeld) return discoverWithoutLease(directory);
+  options: CaptureOptions,
+  capture: (root: string) => Promise<T | ProjectFailure>,
+): Promise<T | ProjectFailure> => {
+  if (options.sourceLeaseHeld) return capture(directory);
   const root = await projectDirectory(directory);
   if (!root)
     return failure(
@@ -235,11 +248,34 @@ const discoverPresentationProjectFilesWithinScope = async (
   const lease = await acquireSourceLock(root, options);
   if (!lease.ok) return failure(lease.code, "Source is being saved or requires recovery.");
   try {
-    return await discoverWithoutLease(root);
+    return await capture(root);
   } finally {
     await lease.value.release();
   }
 };
 
-export const discoverPresentationProjectFiles: typeof discoverPresentationProjectFilesWithinScope =
-  (...args) => withNativeFilesystem(() => discoverPresentationProjectFilesWithinScope(...args));
+export const discoverPresentationProjectFiles = (
+  directory: string,
+  options: CaptureOptions = {},
+): Promise<DiscoveredProjectFiles> =>
+  withNativeFilesystem(() =>
+    withProjectLease(directory, options, (root) =>
+      captureWithoutLease(root, async (directory, source) => ({
+        dependencyGraph: await snapshotInstalledPackages(directory, {
+          rootSpecifiers: authoringPackageRoots(source),
+        }),
+      })),
+    ),
+  );
+
+/** Revalidates input identity; dependency export resolution belongs to full discovery. */
+export const readPresentationProjectRevision = (
+  directory: string,
+  options: CaptureOptions = {},
+): Promise<{ readonly ok: true; readonly revision: string } | ProjectFailure> =>
+  withNativeFilesystem(async () => {
+    const captured = await withProjectLease(directory, options, (root) =>
+      captureWithoutLease(root, async () => ({})),
+    );
+    return captured.ok ? { ok: true, revision: captured.revision } : captured;
+  });
