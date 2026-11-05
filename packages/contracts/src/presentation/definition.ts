@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { effectStartActionSchema, effectStopActionSchema } from "./effects";
 
 import {
   actionValueSchema,
@@ -324,6 +325,8 @@ const triggerSchema = z.union([
       "pullBackward",
       "spreadHands",
       "closeHands",
+      "throw",
+      "circle",
     ]),
   }),
   z.strictObject({ kind: z.literal("timer"), afterMilliseconds: positiveSafeUIntSchema }),
@@ -381,6 +384,8 @@ const nodePatchSchema = z.strictObject({
   transform: transformSchema.optional(),
 });
 const actionSchema = z.discriminatedUnion("kind", [
+  effectStartActionSchema,
+  effectStopActionSchema,
   z.strictObject({
     kind: z.literal("surface.setState"),
     surfaceId: idSchema,

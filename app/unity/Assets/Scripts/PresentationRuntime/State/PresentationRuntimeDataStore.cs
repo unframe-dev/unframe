@@ -32,6 +32,7 @@ namespace Unframe.Unity.PresentationRuntime
         public IEnumerable<ProjectedParticipantPresence> Participants { get { return runtime.Participants; } }
         public RuntimeClockSnapshot RuntimeClock { get { return runtime.RuntimeClock; } }
         public ProgressionRuntimeState Progression { get { return runtime.Progression; } }
+        public IEnumerable<EffectRunSnapshot> EffectRuns => runtime.EffectRuns;
         public IEnumerable<RuntimeRunSnapshot> ActiveRuns { get { return runtime.ActiveRuns; } }
         public IEnumerable<ProjectedNodeDefinition> Nodes { get { return delivery.Nodes; } }
 

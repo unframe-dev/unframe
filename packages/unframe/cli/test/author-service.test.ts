@@ -386,7 +386,7 @@ describe("author service with frozen React source", () => {
       },
     });
     expect(await readFile(sourcePath, "utf8")).toBe(before);
-  }, 30000);
+  });
   it("overrides a transform inherited from a scene spread and restores it", async () => {
     const directory = await createProject();
     const sourcePath = join(directory, "presentation.unframe.tsx");

@@ -201,6 +201,18 @@ export const lowerCues = (
             });
             continue;
           }
+          if (invocation.kind === "effect.start" || invocation.kind === "effect.stop") {
+            if (invocation.kind === "effect.start") {
+              const host = presentation.scene.components.find(
+                (item) => item.spatialNodeId === invocation.nodeId,
+              );
+              actions.push({
+                ...invocation,
+                nodeId: host ? resourceId(host.id, invocation.nodeId) : invocation.nodeId,
+              });
+            } else actions.push(invocation);
+            continue;
+          }
           const target = resolve(invocation.componentInstanceId, actionPath);
           const declaration = target?.entry.manifest.actions[invocation.actionId];
           if (!declaration) {

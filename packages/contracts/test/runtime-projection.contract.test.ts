@@ -6,6 +6,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import * as z from "zod";
 
 import {
+  effectConfigurationSchema,
   canonicalRuntimeSnapshotSchema,
   m3dCueParticipantRuntimeViewSchema,
   m3dCueRuntimeSnapshotSchema,
@@ -127,6 +128,7 @@ test("step start history stores nonrecursive resources with their original run e
     mediaStates: {},
     modelClipStates: {},
     variables: { counter: 4 },
+    effectRuns: [],
     activeRuns: [
       {
         kind: "timeline",
@@ -194,6 +196,83 @@ test("participant views exclude input synchronization history and outcomes", asy
       const invalid = { ...view, ...extra };
       assert.equal(schema.safeParse(invalid).success, false);
       assert.equal(validate(invalid), false);
+    }
+  }
+});
+
+test("effect snapshot preserves identity, deterministic settings and retained Wave state", async () => {
+  const snapshot = await readJson("fixtures/m3d-cue-runtime-snapshot.json");
+  const run = {
+    runId: { assignmentEpoch: 1, runSequence: 1 },
+    owner: { kind: "presentation" },
+    cause: {
+      cueId: "wave",
+      causeEventId: "input",
+      groupId: "intro",
+      groupEntryEpoch: 1,
+      stepId: "start",
+      stepEntryEpoch: 1,
+    },
+    startedAtRuntimeTimeMilliseconds: 120,
+    effectId: "wave",
+    nodeId: "model",
+    seed: 42,
+    status: "retained",
+    effect: {
+      kind: "wave",
+      size: 2,
+      speed: 1,
+      durationMilliseconds: 500,
+      waveCycles: 3,
+      color: { red: 1, green: 0.5, blue: 0, alpha: 1 },
+    },
+  };
+  const value = { ...snapshot, effectRuns: [run] };
+  const parsed = canonicalRuntimeSnapshotSchema.parse(value);
+  assert.deepEqual(parsed.effectRuns, [run]);
+  assert.equal(
+    canonicalRuntimeSnapshotSchema.safeParse({ ...value, effectRuns: Array(33).fill(run) }).success,
+    false,
+  );
+  const validate = new Ajv2020({ allErrors: true, strict: true }).compile(
+    await readJson("canonical-runtime-snapshot.schema.json"),
+  );
+  assert.equal(validate(value), true);
+  assert.equal(
+    canonicalRuntimeSnapshotSchema.safeParse({
+      ...value,
+      effectRuns: [{ ...run, effect: { ...run.effect, kind: "handGlow" } }],
+    }).success,
+    false,
+  );
+  assert.equal(
+    canonicalRuntimeSnapshotSchema.safeParse({ ...value, effectRuns: [{ ...run, seed: -1 }] })
+      .success,
+    false,
+  );
+});
+
+test("effect size and speed remain positive finite float32 values across portable contracts", () => {
+  const validate = new Ajv2020({ allErrors: true, strict: true }).compile(
+    portableSchema(effectConfigurationSchema),
+  );
+  const effect = {
+    kind: "dissolve",
+    size: 1,
+    speed: 1,
+    durationMilliseconds: 100,
+    color: { red: 1, green: 1, blue: 1, alpha: 1 },
+  };
+  for (const field of ["size", "speed"]) {
+    for (const value of [0, 2 ** -150, 1e300]) {
+      const input = { ...effect, [field]: value };
+      assert.equal(effectConfigurationSchema.safeParse(input).success, false, `${field}=${value}`);
+      assert.equal(validate(input), false, `${field}=${value}`);
+    }
+    for (const value of [2 ** -149, 1, 3.4028234663852886e38]) {
+      const input = { ...effect, [field]: value };
+      assert.equal(effectConfigurationSchema.safeParse(input).success, true, `${field}=${value}`);
+      assert.equal(validate(input), true, `${field}=${value}`);
     }
   }
 });

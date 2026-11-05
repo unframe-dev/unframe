@@ -176,6 +176,33 @@ export function validateRuntimeView(
       );
     } else throw new Error("unsupported-runtime-run");
   }
+  for (const run of view.effectRuns ?? []) {
+    const key = runKey(run.runId);
+    requireValue(!runIds.has(key));
+    runIds.add(key);
+    id(run.effectId);
+    id(run.nodeId);
+    requireValue(view.nodeStates?.some((node) => node.nodeId === run.nodeId));
+    requireValue(uint(run.startedAtRuntimeTimeMs) <= uint(view.clock?.runtimeTimeMs));
+    requireValue(
+      run.owner &&
+        (run.owner.presentation !== undefined ||
+          (run.owner.group?.groupId === view.progression.currentGroupId &&
+            uint(run.owner.group.groupEntryEpoch) === uint(view.progression.groupEntryEpoch))),
+    );
+    const cause = run.cause;
+    requireValue(cause);
+    id(cause.cueId);
+    id(cause.causeEventId);
+    id(cause.groupId);
+    id(cause.stepId);
+    requireValue(
+      uint(cause.groupEntryEpoch) > 0 &&
+        uint(cause.stepEntryEpoch) > 0 &&
+        uint(cause.groupEntryEpoch) <= uint(view.progression.groupEntryEpoch) &&
+        uint(cause.stepEntryEpoch) <= uint(view.progression.stepEntryEpoch),
+    );
+  }
   timelineProperties(catalog, view);
   if (view.progression.transitioning) {
     const blocking = view.progression.transitioning.blockingRunIds ?? [];
@@ -194,6 +221,18 @@ export function validateRuntimeView(
   const owned = (owner: { group?: { groupId?: string }; presentation?: object } | undefined) =>
     owner?.presentation !== undefined || owner?.group?.groupId === currentGroup;
   const nodes = (catalog.nodes ?? []).filter((node) => owned(node.owner));
+  const frozenIds = new Set<string>();
+  for (const frozen of view.frozenAnchors ?? []) {
+    id(frozen.nodeId);
+    const anchor = nodes.find((node) => node.nodeId === frozen.nodeId)?.parent?.presenterAnchor;
+    requireValue(
+      anchor &&
+        !frozenIds.has(frozen.nodeId) &&
+        (!anchor.followPosition || frozen.position) &&
+        (!anchor.followRotation || frozen.rotation),
+    );
+    frozenIds.add(frozen.nodeId);
+  }
   const surfaces = (catalog.surfaces ?? []).filter((surface) => owned(surface.owner));
   const variableIds = new Set<string>();
   for (const definition of catalog.variables ?? []) {
@@ -211,7 +250,14 @@ export function validateRuntimeView(
     view.variables,
     (catalog.variables ?? []).filter((variable) => owned(variable.owner)),
   );
-  requireValue(!nodes.some((node) => node.parent?.presenterAnchor !== undefined));
+  for (const node of nodes) {
+    const anchor = node.parent?.presenterAnchor;
+    if (anchor)
+      requireValue(
+        [1, 2, 3, 4].includes(anchor.target ?? 0) &&
+          (anchor.followPosition || anchor.followRotation),
+      );
+  }
   requireValue(
     (view.nodeStates?.length ?? 0) === nodes.length &&
       (view.surfaceStates?.length ?? 0) === surfaces.length,

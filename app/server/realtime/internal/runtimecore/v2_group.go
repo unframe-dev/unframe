@@ -45,7 +45,12 @@ func (s *V2Session) enterV2Group(targetID string) ([]*realtimev2.ProjectedReliab
 	}
 	oldID := s.snapshot.Progression.CurrentGroupId
 	oldEpoch := s.snapshot.Progression.GroupEntryEpoch
+	originalEffects := len(s.snapshot.EffectRuns)
+	s.snapshot.EffectRuns = filterV2Slice(s.snapshot.EffectRuns, func(run *realtimev2.EffectRunSnapshot) bool { return run.Owner.GetGroup().GetGroupId() != oldID })
 	var events []*realtimev2.ProjectedReliableEvent
+	if len(s.snapshot.EffectRuns) != originalEffects {
+		events = append(events, effectRunsEvent(s.snapshot))
+	}
 	originalRuns := append([]*realtimev2.RuntimeRunSnapshot(nil), s.snapshot.ActiveRuns...)
 	cancellations := make(map[uint64]*realtimev2.ProjectedReliableEvent)
 	timelineCommits := make(map[uint64][]*realtimev2.ProjectedReliableEvent)

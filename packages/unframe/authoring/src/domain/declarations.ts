@@ -1,3 +1,4 @@
+import type { EffectStartAction, EffectStopAction } from "@unframe-dev/presentation";
 import type { Diagnostic } from "@unframe-dev/presentation";
 
 export type Json =
@@ -625,7 +626,9 @@ export type GestureTrigger = {
     | "pushForward"
     | "pullBackward"
     | "spreadHands"
-    | "closeHands";
+    | "closeHands"
+    | "throw"
+    | "circle";
 };
 export type SceneTimelineDeclaration = Omit<ComponentTimelineDeclaration, "tracks"> & {
   tracks: readonly (Omit<ComponentTimelineDeclaration["tracks"][number], "target"> & {
@@ -666,6 +669,8 @@ export type CueDeclaration = StableDeclaration & {
   trigger: CueTrigger;
   actions: readonly (
     | ComponentActionInvocation
+    | EffectStartAction
+    | EffectStopAction
     | { kind: "timeline.play"; timelineId: string; completion: "blocking" | "nonBlocking" }
   )[];
   priority?: number;

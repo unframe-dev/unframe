@@ -23,9 +23,10 @@ runtime="$root/app/unity/Assets/Scripts/PresentationRuntime"
 for directory in Animation Delivery Generated Persistence Rendering State Transport Preview; do
   cp -R "$runtime/$directory" "$assets/Unframe/Scripts/"
 done
+cp -R "$root/app/unity/Assets/Scripts/VisualEffects" "$assets/Unframe/Scripts/"
 cp "$runtime/PresentationBakedRuntime.cs" "$assets/Unframe/Scripts/"
 mkdir -p "$assets/Unframe/Scripts/Quest"
-for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking QuestPresentationInput PresenterInputSynchronizationState PresenterRecognition; do
+for file in PresentationCalibrationState PresentationCalibrationMath QuestPresentationTracking QuestPresentationInput PresenterInputSynchronizationState PresenterRecognition QuestGestureRecognition; do
   cp "$runtime/Quest/$file.cs" "$assets/Unframe/Scripts/Quest/"
 done
 cp "$root/app/unity/Assets/Scripts/MR/Session/QuestOnboardingFlow.cs" "$assets/Unframe/Scripts/Quest/"
@@ -34,6 +35,7 @@ cp "$root/app/unity/Assets/Resources/BakedSurface.shader" "$root/app/unity/Asset
 mkdir -p "$assets/Tests/EditMode/Editor"
 cp -R "$root/app/unity/Assets/Tests/EditMode/Editor/FixturesData" "$assets/Tests/EditMode/Editor/"
 cp "$root/app/unity/Assets/Tests/EditMode/Editor/Support/"*.cs "$assets/Tests/Editor/"
+cp -R "$root/app/unity/Assets/Resources/VisualEffects" "$assets/Unframe/Resources/"
 cp -R "$root/app/unity/Assets/Resources/PresentationModelShaders" "$assets/Unframe/Resources/"
 cp -R "$root/app/unity/Assets/Resources/PresentationMaterials" "$assets/Unframe/Resources/"
 mkdir -p "$assets/TextMesh Pro/Fonts"
@@ -48,7 +50,7 @@ if [[ "$mode" == regression ]]; then
   cp "$root/app/unity/Assets/Tests/EditMode/Editor/Rendering/PresentationBakedRenderingEditModeTests.cs" "$assets/Tests/Editor/"
 fi
 cat > "$assets/Unframe/UnframeNativeRuntime.asmdef" <<'JSON'
-{"name":"UnframeNativeRuntime","references":["Cysharp.Net.Http.YetAnotherHttpHandler","Unity.InputSystem","Unity.ugui","Unity.TextMeshPro","glTFast"]}
+{"name":"UnframeNativeRuntime","references":["Unframe.Unity.VisualEffects","Cysharp.Net.Http.YetAnotherHttpHandler","Unity.InputSystem","Unity.ugui","Unity.TextMeshPro","glTFast"]}
 JSON
 bun "$root/scripts/unity/prepare-native-editor.ts" "$root" "$project"
 cp "$root/app/unity/ProjectSettings/ProjectVersion.txt" "$project/ProjectSettings/"

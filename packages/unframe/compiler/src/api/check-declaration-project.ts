@@ -212,8 +212,9 @@ const checkDeclarationProjectUnchecked = (
                       ) {
                         const belongsToReact = cue.actions.some(
                           (action) =>
-                            action.kind === "component.action" &&
-                            reactIds.has(action.componentInstanceId),
+                            (action.kind === "component.action" &&
+                              reactIds.has(action.componentInstanceId)) ||
+                            (action.kind === "effect.start" && reactIds.has(action.nodeId)),
                         );
                         return belongsToReact === react;
                       }

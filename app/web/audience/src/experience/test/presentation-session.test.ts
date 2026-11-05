@@ -14,7 +14,7 @@ vi.mock("../../rendering/presentation", () => ({
 vi.mock("../../assets/png-texture-pool", () => ({ createPngTexturePool: vi.fn() }));
 vi.mock("../../runtime/playback", () => ({ createRuntimePlayback: vi.fn() }));
 const delivery = {} as DeliveryManifestWire;
-const host = { presentationRoot: new Group() } as never;
+const host = { contentRoot: new Group() } as never;
 function loaded() {
   return {
     root: new Group(),
@@ -236,11 +236,14 @@ describe("presentation session resources", () => {
     const runtime = session.openRuntime(delivery);
     await session.present(delivery, {});
     const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
-    frame({} as never, 1200);
+    frame({ effectRuns: [], clock: { lifecycle: { kind: "running" } } } as never, 1200, {});
     expect(current.setPlaybackEnabled).toHaveBeenLastCalledWith(false);
-    expect(current.applyAnimationFrame).toHaveBeenCalledWith({}, 1200);
+    expect(current.applyAnimationFrame).toHaveBeenCalledWith(
+      { effectRuns: [], clock: { lifecycle: { kind: "running" } } },
+      1200,
+    );
     canPlay = true;
-    frame({} as never, 1400);
+    frame({ effectRuns: [], clock: { lifecycle: { kind: "running" } } } as never, 1400, {});
     expect(current.setPlaybackEnabled).toHaveBeenLastCalledWith(true);
     expect(blocked).toHaveBeenLastCalledWith(false);
     session.prepareRender(new Camera());

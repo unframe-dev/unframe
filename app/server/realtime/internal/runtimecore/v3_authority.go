@@ -17,7 +17,7 @@ import (
 )
 
 func v3Gesture(name string) presentationv2.GestureKind {
-	return map[string]presentationv2.GestureKind{"swipeLeft": 1, "swipeRight": 2, "swipeDown": 3, "swipeUp": 4, "pushForward": 5, "pullBackward": 6, "spreadHands": 7, "closeHands": 8}[name]
+	return map[string]presentationv2.GestureKind{"swipeLeft": 1, "swipeRight": 2, "swipeDown": 3, "swipeUp": 4, "pushForward": 5, "pullBackward": 6, "spreadHands": 7, "closeHands": 8, "throw": 9, "circle": 10}[name]
 }
 func v3ZoneEdge(name string) presentationv2.ZoneEdge {
 	return map[string]presentationv2.ZoneEdge{"enter": 1, "exit": 2}[name]

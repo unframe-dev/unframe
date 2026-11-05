@@ -14,6 +14,8 @@ const gestureLabels: Record<Gesture, string> = {
   pullBackward: "手前へ引く",
   spreadHands: "両手を広げる",
   closeHands: "両手を閉じる",
+  throw: "投げる",
+  circle: "円を描く",
 };
 
 export function SimulationControls() {

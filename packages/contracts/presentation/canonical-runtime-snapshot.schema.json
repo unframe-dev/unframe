@@ -39,6 +39,327 @@
             "minimum": 0,
             "maximum": 9007199254740991
           },
+          "effectRuns": {
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "object",
+                  "properties": {
+                    "assignmentEpoch": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "runSequence": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": ["assignmentEpoch", "runSequence"],
+                  "additionalProperties": false
+                },
+                "owner": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "presentation"
+                        }
+                      },
+                      "required": ["kind"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "group"
+                        },
+                        "groupId": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                        },
+                        "groupEntryEpoch": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": ["kind", "groupId", "groupEntryEpoch"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "cause": {
+                  "type": "object",
+                  "properties": {
+                    "cueId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
+                    "causeEventId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
+                    "groupId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
+                    "groupEntryEpoch": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "stepId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
+                    "stepEntryEpoch": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "cueId",
+                    "causeEventId",
+                    "groupId",
+                    "groupEntryEpoch",
+                    "stepId",
+                    "stepEntryEpoch"
+                  ],
+                  "additionalProperties": false
+                },
+                "startedAtRuntimeTimeMilliseconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "effectId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                },
+                "nodeId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                },
+                "effect": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "size": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "color": {
+                          "type": "object",
+                          "properties": {
+                            "red": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "green": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "blue": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "alpha": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": ["red", "green", "blue", "alpha"],
+                          "additionalProperties": false
+                        },
+                        "speed": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "durationMilliseconds": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "wave"
+                        },
+                        "waveCycles": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 6
+                        }
+                      },
+                      "required": [
+                        "size",
+                        "color",
+                        "speed",
+                        "durationMilliseconds",
+                        "kind",
+                        "waveCycles"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "size": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "color": {
+                          "type": "object",
+                          "properties": {
+                            "red": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "green": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "blue": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "alpha": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": ["red", "green", "blue", "alpha"],
+                          "additionalProperties": false
+                        },
+                        "speed": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "durationMilliseconds": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "handGlow"
+                        },
+                        "hand": {
+                          "type": "string",
+                          "enum": ["left", "right"]
+                        }
+                      },
+                      "required": [
+                        "size",
+                        "color",
+                        "speed",
+                        "durationMilliseconds",
+                        "kind",
+                        "hand"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "size": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "color": {
+                          "type": "object",
+                          "properties": {
+                            "red": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "green": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "blue": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "alpha": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          },
+                          "required": ["red", "green", "blue", "alpha"],
+                          "additionalProperties": false
+                        },
+                        "speed": {
+                          "type": "number",
+                          "minimum": 1.401298464324817e-45,
+                          "maximum": 3.4028234663852886e38
+                        },
+                        "durationMilliseconds": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "dissolve"
+                        }
+                      },
+                      "required": ["size", "color", "speed", "durationMilliseconds", "kind"],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "seed": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4294967295
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["active", "retained"]
+                }
+              },
+              "required": [
+                "runId",
+                "owner",
+                "cause",
+                "startedAtRuntimeTimeMilliseconds",
+                "effectId",
+                "nodeId",
+                "effect",
+                "seed",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          },
           "surfaceStates": {
             "type": "object",
             "propertyNames": {
@@ -1259,6 +1580,7 @@
           "groupEntryEpoch",
           "stepEntryEpoch",
           "capturedAtRuntimeTimeMilliseconds",
+          "effectRuns",
           "surfaceStates",
           "nodeStates",
           "mediaStates",
@@ -1556,6 +1878,320 @@
       },
       "required": ["stepEntryEpoch", "consumedCueIds", "timerStates"],
       "additionalProperties": false
+    },
+    "effectRuns": {
+      "maxItems": 32,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "object",
+            "properties": {
+              "assignmentEpoch": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "runSequence": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": ["assignmentEpoch", "runSequence"],
+            "additionalProperties": false
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "presentation"
+                  }
+                },
+                "required": ["kind"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "group"
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                  },
+                  "groupEntryEpoch": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["kind", "groupId", "groupEntryEpoch"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "cause": {
+            "type": "object",
+            "properties": {
+              "cueId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "causeEventId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "groupId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "groupEntryEpoch": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "stepId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+              },
+              "stepEntryEpoch": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "cueId",
+              "causeEventId",
+              "groupId",
+              "groupEntryEpoch",
+              "stepId",
+              "stepEntryEpoch"
+            ],
+            "additionalProperties": false
+          },
+          "startedAtRuntimeTimeMilliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "effectId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+          },
+          "nodeId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+          },
+          "effect": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "size": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "color": {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "green": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "blue": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "alpha": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    },
+                    "required": ["red", "green", "blue", "alpha"],
+                    "additionalProperties": false
+                  },
+                  "speed": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "durationMilliseconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "wave"
+                  },
+                  "waveCycles": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 6
+                  }
+                },
+                "required": [
+                  "size",
+                  "color",
+                  "speed",
+                  "durationMilliseconds",
+                  "kind",
+                  "waveCycles"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "size": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "color": {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "green": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "blue": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "alpha": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    },
+                    "required": ["red", "green", "blue", "alpha"],
+                    "additionalProperties": false
+                  },
+                  "speed": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "durationMilliseconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "handGlow"
+                  },
+                  "hand": {
+                    "type": "string",
+                    "enum": ["left", "right"]
+                  }
+                },
+                "required": ["size", "color", "speed", "durationMilliseconds", "kind", "hand"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "size": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "color": {
+                    "type": "object",
+                    "properties": {
+                      "red": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "green": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "blue": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "alpha": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    },
+                    "required": ["red", "green", "blue", "alpha"],
+                    "additionalProperties": false
+                  },
+                  "speed": {
+                    "type": "number",
+                    "minimum": 1.401298464324817e-45,
+                    "maximum": 3.4028234663852886e38
+                  },
+                  "durationMilliseconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "dissolve"
+                  }
+                },
+                "required": ["size", "color", "speed", "durationMilliseconds", "kind"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "retained"]
+          }
+        },
+        "required": [
+          "runId",
+          "owner",
+          "cause",
+          "startedAtRuntimeTimeMilliseconds",
+          "effectId",
+          "nodeId",
+          "effect",
+          "seed",
+          "status"
+        ],
+        "additionalProperties": false
+      }
     },
     "surfaceStates": {
       "type": "object",
@@ -2940,6 +3576,7 @@
     "clock",
     "progression",
     "stepExecution",
+    "effectRuns",
     "surfaceStates",
     "nodeStates",
     "mediaStates",

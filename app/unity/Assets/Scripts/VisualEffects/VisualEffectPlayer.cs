@@ -110,11 +110,12 @@ namespace Unframe.Unity.VisualEffects
             private readonly List<double> times = new List<double>();
             private double? endedAt;
             private double lastPoseTime = -1;
-            internal HandRun(EffectOptions options)
+            internal HandRun(EffectOptions options, Transform parent)
             {
                 Options = options;
                 material = CreateLineMaterial();
                 root = new GameObject("Visual hand glow");
+                root.transform.SetParent(parent, false);
                 trail = CreateLine(root.transform, material, 0, options.Size * 0.025f);
                 halo = CreateLine(root.transform, material, 25, options.Size * 0.012f);
                 root.SetActive(false);
@@ -168,13 +169,15 @@ namespace Unframe.Unity.VisualEffects
         private sealed class DissolveRun : Run
         {
             internal readonly MeshRenderer Target;
+            internal readonly bool RetainTerminalPose;
             private readonly Material[] originals;
             private readonly Material[] materials;
-            internal DissolveRun(EffectOptions options, MeshRenderer target, Shader shader)
+            internal DissolveRun(EffectOptions options, MeshRenderer target, Shader shader, bool retainTerminalPose)
             {
                 if (!target) throw new ArgumentNullException(nameof(target));
                 if (!shader) throw new ArgumentNullException(nameof(shader));
                 Options = options;
+                RetainTerminalPose = retainTerminalPose;
                 Target = target;
                 originals = target.sharedMaterials;
                 if (originals.Length == 0) throw new ArgumentException("The target has no material.", nameof(target));
@@ -207,7 +210,7 @@ namespace Unframe.Unity.VisualEffects
                 Handle.Progress = progress;
                 if (Target) Target.sharedMaterials = now < Options.StartedAtRuntimeMs ? originals : materials;
                 foreach (var material in materials) material.SetFloat("_Progress", progress);
-                return progress >= 1;
+                return progress >= 1 && !RetainTerminalPose;
             }
             internal override void Release()
             {
@@ -218,16 +221,26 @@ namespace Unframe.Unity.VisualEffects
 
         private readonly Dictionary<string, Run> runs = new Dictionary<string, Run>();
         private bool disposed;
+        private readonly int capacity;
+        public VisualEffectPlayer(int capacity = 32)
+        {
+            if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+            this.capacity = capacity;
+        }
         public int ActiveCount => runs.Count;
         public EffectHandle PlayWave(EffectOptions options, Transform parent) => Add(options, () => new WaveRun(options, parent), typeof(WaveRun), parent);
-        public EffectHandle BeginHandGlow(EffectOptions options) => Add(options, () => new HandRun(options), typeof(HandRun), null);
-        public EffectHandle PlayDissolve(EffectOptions options, MeshRenderer target, Shader shader)
+        public EffectHandle BeginHandGlow(EffectOptions options, Transform parent = null) => Add(options, () => new HandRun(options, parent), typeof(HandRun), parent);
+        public EffectHandle PlayDissolve(EffectOptions options, MeshRenderer target, Shader shader, bool retainTerminalPose = false)
         {
-            if (options != null && runs.ContainsKey(options.RunId))
-                return Add(options, () => new DissolveRun(options, target, shader), typeof(DissolveRun), target, shader);
+            if (options != null && runs.TryGetValue(options.RunId, out var existing))
+            {
+                if (existing is DissolveRun dissolve && dissolve.RetainTerminalPose != retainTerminalPose)
+                    throw new InvalidOperationException("The run ID has different parameters.");
+                return Add(options, () => new DissolveRun(options, target, shader, retainTerminalPose), typeof(DissolveRun), target, shader);
+            }
             foreach (var run in runs.Values)
                 if (run is DissolveRun dissolve && dissolve.Target == target) throw new InvalidOperationException("The target already has a dissolve effect.");
-            return Add(options, () => new DissolveRun(options, target, shader), typeof(DissolveRun), target, shader);
+            return Add(options, () => new DissolveRun(options, target, shader, retainTerminalPose), typeof(DissolveRun), target, shader);
         }
         public void UpdatePose(string runId, Vector3 position, double runtimeMs) => Hand(runId).Pose(position, runtimeMs);
         public void EndHandGlow(string runId, double runtimeMs) => Hand(runId).End(runtimeMs);
@@ -249,7 +262,7 @@ namespace Unframe.Unity.VisualEffects
                     throw new InvalidOperationException("The run ID has different parameters.");
                 return existing.Handle;
             }
-            if (runs.Count >= 32) throw new InvalidOperationException("The effect capacity is 32.");
+            if (runs.Count >= capacity) throw new InvalidOperationException("The effect capacity is " + capacity + ".");
             var run = create();
             run.TargetKey = target;
             run.ShaderKey = shader;

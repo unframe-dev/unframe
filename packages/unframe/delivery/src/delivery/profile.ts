@@ -375,6 +375,8 @@ const runtimeCatalog = (
     pullBackward: 6,
     spreadHands: 7,
     closeHands: 8,
+    throw: 9,
+    circle: 10,
   };
   const triggers = Object.values(definition.flow.groups).flatMap((group) =>
     Object.values(group.steps).flatMap((step) => step.cues.map((cue) => cue.trigger)),
@@ -512,6 +514,19 @@ const buildProjection = (
   )
     capabilities.push(7);
   capabilities.push(8, 9, 10);
+  const visibleNodes = new Set(selection.visibleNodeIds);
+  if (
+    Object.values(definition.flow.groups).some((group) =>
+      Object.values(group.steps).some((step) =>
+        step.cues.some((cue) =>
+          cue.actions.some(
+            (action) => action.kind === "effect.start" && visibleNodes.has(action.nodeId),
+          ),
+        ),
+      ),
+    )
+  )
+    capabilities.push(11);
   const projection: RuntimeProjection = {
     visibleNodeIds: selection.visibleNodeIds,
     visibleSurfaceIds: selection.visibleSurfaceIds,

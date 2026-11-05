@@ -160,7 +160,8 @@ export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): 
       state = view.nodeStates[id] ?? fail("missing node state");
     canonical(state.transform.rotation);
     const parentId =
-      def.parent?.node?.nodeId ?? (def.parent?.stage ? null : fail("unsupported parent"));
+      def.parent?.node?.nodeId ??
+      (def.parent?.stage || def.parent?.presenterAnchor ? null : fail("unsupported parent"));
     if (parentId !== null) visit(parentId);
     const parent = parentId === null ? { visible: true, opacity: 1 } : effective.get(parentId)!;
     effective.set(id, {

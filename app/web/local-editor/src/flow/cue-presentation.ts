@@ -43,6 +43,44 @@ export function actionPresentation(action: Action): {
   tone: "state" | "animation";
 } {
   switch (action.kind) {
+    case "effect.start":
+      return {
+        title: "演出を開始",
+        tone: "animation",
+        rows: [
+          ["Effect", action.effectId],
+          ["Node", action.nodeId],
+          [
+            "演出",
+            { wave: "Wave", handGlow: "HandGlow", dissolve: "Dissolve" }[action.effect.kind],
+          ],
+          ...(action.effect.kind === "wave"
+            ? ([["波の周期数", String(action.effect.waveCycles)]] satisfies DetailRow[])
+            : []),
+          ...(action.effect.kind === "handGlow"
+            ? ([["手", action.effect.hand === "left" ? "左手" : "右手"]] satisfies DetailRow[])
+            : []),
+          ["サイズ", String(action.effect.size)],
+          [
+            "色 (r, g, b, a)",
+            [
+              action.effect.color.red,
+              action.effect.color.green,
+              action.effect.color.blue,
+              action.effect.color.alpha,
+            ].join(", "),
+          ],
+          ["速度", String(action.effect.speed)],
+          ["基準時間", `${action.effect.durationMilliseconds} ms`],
+          [
+            "所有者",
+            action.owner.kind === "group" ? `Group ${action.owner.groupId}` : "Presentation",
+          ],
+          ["Seed", String(action.seed)],
+        ],
+      };
+    case "effect.stop":
+      return { title: "演出を停止", tone: "animation", rows: [["Effect", action.effectId]] };
     case "surface.setState":
       return {
         title: "Surface の状態を切り替え",

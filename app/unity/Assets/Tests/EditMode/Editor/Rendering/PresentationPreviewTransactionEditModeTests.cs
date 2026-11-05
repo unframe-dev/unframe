@@ -3,6 +3,9 @@ using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Google.Protobuf;
+using Unframe.Presentation;
+using Unframe.Preview;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -34,6 +37,16 @@ public sealed class PresentationPreviewTransactionEditModeTests
 
         Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out _, out error), Is.False);
         Assert.That(error, Is.EqualTo("preview.envelope-invalid"));
+    }
+
+    [Test]
+    public void PreviewAcceptsEffectPlaybackCapabilityFromTheWireEnvelope()
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        envelope.Projection.RequiredRuntimeCapabilities.Add(RuntimeCapability.EffectPlayback);
+        var decoded = LocalPreviewEnvelope.Parser.ParseFrom(envelope.ToByteArray());
+        Assert.That(PresentationLocalPreviewAdapter.TryCreate(decoded, out var input, out string error), Is.True, error);
+        Assert.That(input, Is.Not.Null);
     }
 
     [UnityTest]

@@ -85,7 +85,7 @@ namespace Unframe.Unity.PresentationRuntime
         private bool leftTriggerHeld, rightTriggerHeld;
         private double lastTrackingAt;
 
-        private readonly PresenterRecognition recognition = new PresenterRecognition();
+        private readonly QuestGestureRecognition recognition = new QuestGestureRecognition();
         private ulong recognitionRevision;
         private bool recalibrationPending;
         private ulong calibrationRevision;
@@ -265,12 +265,13 @@ namespace Unframe.Unity.PresentationRuntime
             uiButtons.Sample(nextLeft, nextRight, false, true, out bool uiLeft, out bool uiRight, out _);
             bool leftConsumed = uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay);
             bool rightConsumed = uiRight && TryControllerRay(XRNode.RightHand, out Ray rightUiRay) && TryUseUiRay(rightUiRay);
+            if (leftConsumed || rightConsumed) ResetRecognition();
             if (leftConsumed) leftRayPressed = false;
             if (rightConsumed) rightRayPressed = false;
             gestureTriggers.Sample(nextLeft, nextRight, runtime.CanSendInput && PresentationInputEnabled,
                 leftConsumed, rightConsumed, out bool leftGestureHeld, out bool rightGestureHeld);
             if (!runtime.CanSendInput || !PresentationInputEnabled)
-                recognition.SampleHands(Time.realtimeSinceStartupAsDouble, null, null, null, leftGestureHeld, rightGestureHeld);
+                recognition.SampleHands(Time.realtimeSinceStartupAsDouble, null, null, null, leftGestureHeld, rightGestureHeld, null);
             if (lifetime == null || lifetime.IsCancellationRequested) return;
             TrySendRecalibration();
             if (!runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
@@ -329,7 +330,7 @@ namespace Unframe.Unity.PresentationRuntime
             Vector3 direction = fromLocal.rotation * head.Rotation * Vector3.forward;
             var result = recognition.SampleHands(Time.realtimeSinceStartupAsDouble, position(left), position(right), head.Available
                 ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null,
-                leftTriggerHeld, rightTriggerHeld);
+                leftTriggerHeld, rightTriggerHeld, position(head));
             if (result != null) _ = SendInputAsync(QuestPresentationInput.CreateRecognition(result, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
             Unframe.Presentation.Vector3 waist = null;
             if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion _))

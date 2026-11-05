@@ -26,7 +26,8 @@
                 "RUNTIME_CAPABILITY_PRESENTER_RECOGNITION": 7,
                 "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION": 8,
                 "RUNTIME_CAPABILITY_FROZEN_ANCHORS": 9,
-                "RUNTIME_CAPABILITY_STEP_RESTORE": 10
+                "RUNTIME_CAPABILITY_STEP_RESTORE": 10,
+                "RUNTIME_CAPABILITY_EFFECT_PLAYBACK": 11
               }
             },
             "PublicationFence": {
@@ -826,7 +827,9 @@
                 "GESTURE_KIND_PUSH_FORWARD": 5,
                 "GESTURE_KIND_PULL_BACKWARD": 6,
                 "GESTURE_KIND_SPREAD_HANDS": 7,
-                "GESTURE_KIND_CLOSE_HANDS": 8
+                "GESTURE_KIND_CLOSE_HANDS": 8,
+                "GESTURE_KIND_THROW": 9,
+                "GESTURE_KIND_CIRCLE": 10
               }
             },
             "ZoneEdge": {
@@ -899,6 +902,53 @@
                 }
               },
               "reserved": [[7, 7], "motion_guides"]
+            },
+            "EffectKind": {
+              "values": {
+                "EFFECT_KIND_UNSPECIFIED": 0,
+                "EFFECT_KIND_WAVE": 1,
+                "EFFECT_KIND_HAND_GLOW": 2,
+                "EFFECT_KIND_DISSOLVE": 3
+              }
+            },
+            "EffectHand": {
+              "values": {
+                "EFFECT_HAND_UNSPECIFIED": 0,
+                "EFFECT_HAND_LEFT": 1,
+                "EFFECT_HAND_RIGHT": 2
+              }
+            },
+            "EffectConfiguration": {
+              "fields": {
+                "kind": {
+                  "type": "EffectKind",
+                  "id": 1
+                },
+                "size": {
+                  "type": "double",
+                  "id": 2
+                },
+                "color": {
+                  "type": "SrgbaColor",
+                  "id": 3
+                },
+                "speed": {
+                  "type": "double",
+                  "id": 4
+                },
+                "durationMs": {
+                  "type": "uint64",
+                  "id": 5
+                },
+                "waveCycles": {
+                  "type": "double",
+                  "id": 6
+                },
+                "hand": {
+                  "type": "EffectHand",
+                  "id": 7
+                }
+              }
             }
           }
         },
@@ -3329,7 +3379,8 @@
                     "mediaStoppedSeeked",
                     "gestureInputAccepted",
                     "zoneInputAccepted",
-                    "runtimeViewReplaced"
+                    "runtimeViewReplaced",
+                    "effectRunsChanged"
                   ]
                 }
               },
@@ -3504,6 +3555,10 @@
                 "runtimeViewReplaced": {
                   "type": "RuntimeViewReplaced",
                   "id": 1003
+                },
+                "effectRunsChanged": {
+                  "type": "EffectRunsChanged",
+                  "id": 1004
                 }
               },
               "reserved": [
@@ -4836,6 +4891,11 @@
                   "rule": "repeated",
                   "type": "StepStartState",
                   "id": 18
+                },
+                "effectRuns": {
+                  "rule": "repeated",
+                  "type": "EffectRunSnapshot",
+                  "id": 19
                 }
               },
               "reserved": [[14, 14], "recent_event_ids"]
@@ -4921,6 +4981,11 @@
                   "rule": "repeated",
                   "type": "ModelClipRuntimeState",
                   "id": 11
+                },
+                "effectRuns": {
+                  "rule": "repeated",
+                  "type": "EffectRunSnapshot",
+                  "id": 12
                 }
               }
             },
@@ -5084,6 +5149,11 @@
                   "rule": "repeated",
                   "type": "FrozenAnchorDisplayState",
                   "id": 14
+                },
+                "effectRuns": {
+                  "rule": "repeated",
+                  "type": "EffectRunSnapshot",
+                  "id": 15
                 }
               }
             },
@@ -5560,6 +5630,62 @@
                   "id": 9
                 }
               }
+            },
+            "EffectRunStatus": {
+              "values": {
+                "EFFECT_RUN_STATUS_UNSPECIFIED": 0,
+                "EFFECT_RUN_STATUS_ACTIVE": 1,
+                "EFFECT_RUN_STATUS_RETAINED": 2
+              }
+            },
+            "EffectRunSnapshot": {
+              "fields": {
+                "runId": {
+                  "type": "unframe.presentation.RuntimeRunId",
+                  "id": 1
+                },
+                "owner": {
+                  "type": "unframe.presentation.RuntimeRunOwner",
+                  "id": 2
+                },
+                "cause": {
+                  "type": "unframe.presentation.RuntimeRunCause",
+                  "id": 3
+                },
+                "startedAtRuntimeTimeMs": {
+                  "type": "uint64",
+                  "id": 4
+                },
+                "effectId": {
+                  "type": "string",
+                  "id": 5
+                },
+                "nodeId": {
+                  "type": "string",
+                  "id": 6
+                },
+                "configuration": {
+                  "type": "unframe.presentation.EffectConfiguration",
+                  "id": 7
+                },
+                "seed": {
+                  "type": "uint32",
+                  "id": 8
+                },
+                "status": {
+                  "type": "EffectRunStatus",
+                  "id": 9
+                }
+              }
+            },
+            "EffectRunsChanged": {
+              "fields": {
+                "effectRuns": {
+                  "rule": "repeated",
+                  "type": "EffectRunSnapshot",
+                  "id": 1
+                }
+              }
             }
           }
         },
@@ -5748,6 +5874,11 @@
                   "rule": "repeated",
                   "type": "unframe.realtime.VariableState",
                   "id": 10
+                },
+                "effectRuns": {
+                  "rule": "repeated",
+                  "type": "unframe.realtime.EffectRunSnapshot",
+                  "id": 11
                 }
               }
             },

@@ -2,6 +2,7 @@
   "name": "Unframe.Unity.PresentationRuntime",
   "rootNamespace": "Unframe.Unity.PresentationRuntime",
   "references": [
+    "Unframe.Unity.VisualEffects",
     "Unity.InputSystem",
     "Unity.ugui",
     "Unity.TextMeshPro",

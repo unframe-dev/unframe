@@ -166,7 +166,9 @@
       "variables": {
         "counter": 0
       },
-      "activeRuns": []
+      "activeRuns": [],
+      "effectRuns": []
     }
-  ]
+  ],
+  "effectRuns": []
 }

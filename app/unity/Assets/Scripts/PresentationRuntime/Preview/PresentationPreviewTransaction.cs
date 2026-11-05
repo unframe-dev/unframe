@@ -34,6 +34,7 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly PresentationVideoResidency Videos;
             internal readonly PresentationModelResidency Models = new PresentationModelResidency();
             internal readonly PresentationPlaybackPlayer Playback = new PresentationPlaybackPlayer();
+            internal readonly PresentationEffectPlayer Effects = new PresentationEffectPlayer();
             internal RuntimeClockSnapshot Clock;
             internal double ClockReceivedAt;
             internal ulong Sequence;
@@ -54,6 +55,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (disposed) return;
                 disposed = true;
                 if (Root != null) Root.SetActive(false);
+                Effects.Dispose();
                 Playback.Clear();
                 Renderer?.Dispose();
                 Native.Dispose();
@@ -256,9 +258,10 @@ namespace Unframe.Unity.PresentationRuntime
                 current.Sequence = state.Sequence;
                 current.Clock = state.Clock.Clone();
                 current.ClockReceivedAt = now;
-                if (restoring) current.Playback.Clear();
+                if (restoring) { current.Playback.Clear(); current.Effects.Clear(); }
                 if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, (double time, out string refreshError) => Refresh(current, time, out refreshError),
-                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
+                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
+                    || !current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, current.Clock.RuntimeTimeMs, out error))
                 {
                     if (error == "video-user-activation-required")
                     {
@@ -291,7 +294,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
                 if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error,
-                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)) return true;
+                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
+                    && current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, time, out error)) return true;
                 if (error == "video-user-activation-required")
                 {
                     current.Videos.Pause();
@@ -344,6 +348,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void StopPlayback()
         {
             current.Faulted = true;
+            current.Effects.Clear();
             current.Videos.Pause();
             if (current.Root != null) current.Root.SetActive(false);
         }
@@ -361,6 +366,7 @@ namespace Unframe.Unity.PresentationRuntime
             CheckAccess();
             generation++;
             current?.Videos.Pause();
+            current?.Effects.Clear();
             playbackRequestId = null;
             latestRequestId = null;
             cancellation?.Cancel();

@@ -118,6 +118,7 @@ namespace Unframe.Unity.PresentationRuntime
                     && required != RuntimeCapability.ModelClip && required != RuntimeCapability.VideoPlayback
                     && required != RuntimeCapability.PresenterRecognition && required != RuntimeCapability.InputSynchronization
                     && required != RuntimeCapability.FrozenAnchors && required != RuntimeCapability.StepRestore
+                    && required != RuntimeCapability.EffectPlayback
                     || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);

@@ -67,6 +67,7 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION=8 RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION value
      * @property {number} RUNTIME_CAPABILITY_FROZEN_ANCHORS=9 RUNTIME_CAPABILITY_FROZEN_ANCHORS value
      * @property {number} RUNTIME_CAPABILITY_STEP_RESTORE=10 RUNTIME_CAPABILITY_STEP_RESTORE value
+     * @property {number} RUNTIME_CAPABILITY_EFFECT_PLAYBACK=11 RUNTIME_CAPABILITY_EFFECT_PLAYBACK value
      */
     presentation.RuntimeCapability = (function () {
       const valuesById = $Object.create(null),
@@ -82,6 +83,7 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[8] = "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION")] = 8;
       values[(valuesById[9] = "RUNTIME_CAPABILITY_FROZEN_ANCHORS")] = 9;
       values[(valuesById[10] = "RUNTIME_CAPABILITY_STEP_RESTORE")] = 10;
+      values[(valuesById[11] = "RUNTIME_CAPABILITY_EFFECT_PLAYBACK")] = 11;
       return values;
     })();
 
@@ -14137,6 +14139,8 @@ export const unframe = ($root.unframe = (() => {
      * @property {number} GESTURE_KIND_PULL_BACKWARD=6 GESTURE_KIND_PULL_BACKWARD value
      * @property {number} GESTURE_KIND_SPREAD_HANDS=7 GESTURE_KIND_SPREAD_HANDS value
      * @property {number} GESTURE_KIND_CLOSE_HANDS=8 GESTURE_KIND_CLOSE_HANDS value
+     * @property {number} GESTURE_KIND_THROW=9 GESTURE_KIND_THROW value
+     * @property {number} GESTURE_KIND_CIRCLE=10 GESTURE_KIND_CIRCLE value
      */
     presentation.GestureKind = (function () {
       const valuesById = $Object.create(null),
@@ -14150,6 +14154,8 @@ export const unframe = ($root.unframe = (() => {
       values[(valuesById[6] = "GESTURE_KIND_PULL_BACKWARD")] = 6;
       values[(valuesById[7] = "GESTURE_KIND_SPREAD_HANDS")] = 7;
       values[(valuesById[8] = "GESTURE_KIND_CLOSE_HANDS")] = 8;
+      values[(valuesById[9] = "GESTURE_KIND_THROW")] = 9;
+      values[(valuesById[10] = "GESTURE_KIND_CIRCLE")] = 10;
       return values;
     })();
 
@@ -14647,6 +14653,8 @@ export const unframe = ($root.unframe = (() => {
               case 6:
               case 7:
               case 8:
+              case 9:
+              case 10:
                 break;
             }
         }
@@ -14727,6 +14735,14 @@ export const unframe = ($root.unframe = (() => {
               case "GESTURE_KIND_CLOSE_HANDS":
               case 8:
                 message.gestures[i] = 8;
+                break;
+              case "GESTURE_KIND_THROW":
+              case 9:
+                message.gestures[i] = 9;
+                break;
+              case "GESTURE_KIND_CIRCLE":
+              case 10:
+                message.gestures[i] = 10;
                 break;
             }
         }
@@ -15442,6 +15458,515 @@ export const unframe = ($root.unframe = (() => {
       };
 
       return ProjectedRuntimeCatalog;
+    })();
+
+    /**
+     * EffectKind enum.
+     * @name unframe.presentation.EffectKind
+     * @enum {number}
+     * @property {number} EFFECT_KIND_UNSPECIFIED=0 EFFECT_KIND_UNSPECIFIED value
+     * @property {number} EFFECT_KIND_WAVE=1 EFFECT_KIND_WAVE value
+     * @property {number} EFFECT_KIND_HAND_GLOW=2 EFFECT_KIND_HAND_GLOW value
+     * @property {number} EFFECT_KIND_DISSOLVE=3 EFFECT_KIND_DISSOLVE value
+     */
+    presentation.EffectKind = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "EFFECT_KIND_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "EFFECT_KIND_WAVE")] = 1;
+      values[(valuesById[2] = "EFFECT_KIND_HAND_GLOW")] = 2;
+      values[(valuesById[3] = "EFFECT_KIND_DISSOLVE")] = 3;
+      return values;
+    })();
+
+    /**
+     * EffectHand enum.
+     * @name unframe.presentation.EffectHand
+     * @enum {number}
+     * @property {number} EFFECT_HAND_UNSPECIFIED=0 EFFECT_HAND_UNSPECIFIED value
+     * @property {number} EFFECT_HAND_LEFT=1 EFFECT_HAND_LEFT value
+     * @property {number} EFFECT_HAND_RIGHT=2 EFFECT_HAND_RIGHT value
+     */
+    presentation.EffectHand = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "EFFECT_HAND_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "EFFECT_HAND_LEFT")] = 1;
+      values[(valuesById[2] = "EFFECT_HAND_RIGHT")] = 2;
+      return values;
+    })();
+
+    presentation.EffectConfiguration = (function () {
+      /**
+       * Properties of an EffectConfiguration.
+       * @typedef {Object} unframe.presentation.EffectConfiguration.$Properties
+       * @property {unframe.presentation.EffectKind|null} [kind] EffectConfiguration kind
+       * @property {number|null} [size] EffectConfiguration size
+       * @property {unframe.presentation.SrgbaColor.$Properties|null} [color] EffectConfiguration color
+       * @property {number|null} [speed] EffectConfiguration speed
+       * @property {number|Long|null} [durationMs] EffectConfiguration durationMs
+       * @property {number|null} [waveCycles] EffectConfiguration waveCycles
+       * @property {unframe.presentation.EffectHand|null} [hand] EffectConfiguration hand
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of an EffectConfiguration.
+       * @memberof unframe.presentation
+       * @interface IEffectConfiguration
+       * @augments unframe.presentation.EffectConfiguration.$Properties
+       * @deprecated Use unframe.presentation.EffectConfiguration.$Properties instead.
+       */
+
+      /**
+       * Shape of an EffectConfiguration.
+       * @typedef {unframe.presentation.EffectConfiguration.$Properties} unframe.presentation.EffectConfiguration.$Shape
+       */
+
+      /**
+       * Constructs a new EffectConfiguration.
+       * @memberof unframe.presentation
+       * @classdesc Represents an EffectConfiguration.
+       * @constructor
+       * @param {unframe.presentation.EffectConfiguration.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const EffectConfiguration = function EffectConfiguration(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * EffectConfiguration kind.
+       * @member {unframe.presentation.EffectKind} kind
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.kind = 0;
+
+      /**
+       * EffectConfiguration size.
+       * @member {number} size
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.size = 0;
+
+      /**
+       * EffectConfiguration color.
+       * @member {unframe.presentation.SrgbaColor.$Properties|null|undefined} color
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.color = null;
+
+      /**
+       * EffectConfiguration speed.
+       * @member {number} speed
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.speed = 0;
+
+      /**
+       * EffectConfiguration durationMs.
+       * @member {number|Long} durationMs
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.durationMs = $util.Long ? $util.Long.fromBits(0, 0, true) : 0;
+
+      /**
+       * EffectConfiguration waveCycles.
+       * @member {number} waveCycles
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.waveCycles = 0;
+
+      /**
+       * EffectConfiguration hand.
+       * @member {unframe.presentation.EffectHand} hand
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       */
+      EffectConfiguration.prototype.hand = 0;
+
+      /**
+       * Creates a new EffectConfiguration instance using the specified properties.
+       * @function create
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {unframe.presentation.EffectConfiguration.$Properties=} [properties] Properties to set
+       * @returns {unframe.presentation.EffectConfiguration} EffectConfiguration instance
+       * @type {{
+       *   (properties: unframe.presentation.EffectConfiguration.$Shape): unframe.presentation.EffectConfiguration & unframe.presentation.EffectConfiguration.$Shape;
+       *   (properties?: unframe.presentation.EffectConfiguration.$Properties): unframe.presentation.EffectConfiguration;
+       * }}
+       */
+      EffectConfiguration.create = function (properties) {
+        return new EffectConfiguration(properties);
+      };
+
+      /**
+       * Encodes the specified EffectConfiguration message. Does not implicitly {@link unframe.presentation.EffectConfiguration.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {unframe.presentation.EffectConfiguration.$Properties} message EffectConfiguration message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectConfiguration.encode = function EffectConfiguration$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.kind != null && $Object.hasOwnProperty.call(message, "kind"))
+          writer.uint32(/* id 1, wireType 0 =*/ 8).int32(message.kind);
+        if (message.size != null && $Object.hasOwnProperty.call(message, "size"))
+          writer.uint32(/* id 2, wireType 1 =*/ 17).double(message.size);
+        if (message.color != null && $Object.hasOwnProperty.call(message, "color"))
+          $root.unframe.presentation.SrgbaColor.encode(
+            message.color,
+            writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        if (message.speed != null && $Object.hasOwnProperty.call(message, "speed"))
+          writer.uint32(/* id 4, wireType 1 =*/ 33).double(message.speed);
+        if (message.durationMs != null && $Object.hasOwnProperty.call(message, "durationMs"))
+          writer.uint32(/* id 5, wireType 0 =*/ 40).uint64(message.durationMs);
+        if (message.waveCycles != null && $Object.hasOwnProperty.call(message, "waveCycles"))
+          writer.uint32(/* id 6, wireType 1 =*/ 49).double(message.waveCycles);
+        if (message.hand != null && $Object.hasOwnProperty.call(message, "hand"))
+          writer.uint32(/* id 7, wireType 0 =*/ 56).int32(message.hand);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified EffectConfiguration message, length delimited. Does not implicitly {@link unframe.presentation.EffectConfiguration.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {unframe.presentation.EffectConfiguration.$Properties} message EffectConfiguration message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectConfiguration.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes an EffectConfiguration message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.presentation.EffectConfiguration & unframe.presentation.EffectConfiguration.$Shape} EffectConfiguration
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectConfiguration.decode = function EffectConfiguration$decode(
+        reader,
+        length,
+        error,
+        long,
+      ) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.kind = reader.int32();
+              break;
+            }
+            case 2: {
+              message.size = reader.double();
+              break;
+            }
+            case 3: {
+              message.color = $root.unframe.presentation.SrgbaColor.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 4: {
+              message.speed = reader.double();
+              break;
+            }
+            case 5: {
+              message.durationMs = reader.uint64();
+              break;
+            }
+            case 6: {
+              message.waveCycles = reader.double();
+              break;
+            }
+            case 7: {
+              message.hand = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes an EffectConfiguration message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.presentation.EffectConfiguration & unframe.presentation.EffectConfiguration.$Shape} EffectConfiguration
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectConfiguration.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies an EffectConfiguration message.
+       * @function verify
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      EffectConfiguration.verify = function EffectConfiguration$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.kind != null && message.hasOwnProperty("kind"))
+          switch (message.kind) {
+            default:
+              return "kind: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+              break;
+          }
+        if (message.size != null && message.hasOwnProperty("size"))
+          if (typeof message.size !== "number") return "size: number expected";
+        if (message.color != null && message.hasOwnProperty("color")) {
+          let error = $root.unframe.presentation.SrgbaColor.verify(message.color, long + 1);
+          if (error) return "color." + error;
+        }
+        if (message.speed != null && message.hasOwnProperty("speed"))
+          if (typeof message.speed !== "number") return "speed: number expected";
+        if (message.durationMs != null && message.hasOwnProperty("durationMs"))
+          if (
+            !$util.isInteger(message.durationMs) &&
+            !(
+              message.durationMs &&
+              $util.isInteger(message.durationMs.low) &&
+              $util.isInteger(message.durationMs.high)
+            )
+          )
+            return "durationMs: integer|Long expected";
+        if (message.waveCycles != null && message.hasOwnProperty("waveCycles"))
+          if (typeof message.waveCycles !== "number") return "waveCycles: number expected";
+        if (message.hand != null && message.hasOwnProperty("hand"))
+          switch (message.hand) {
+            default:
+              return "hand: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates an EffectConfiguration message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.presentation.EffectConfiguration} EffectConfiguration
+       */
+      EffectConfiguration.fromObject = function EffectConfiguration$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        switch (object.kind) {
+          default:
+            if (typeof object.kind === "number") {
+              message.kind = object.kind;
+              break;
+            }
+            break;
+          case "EFFECT_KIND_UNSPECIFIED":
+          case 0:
+            message.kind = 0;
+            break;
+          case "EFFECT_KIND_WAVE":
+          case 1:
+            message.kind = 1;
+            break;
+          case "EFFECT_KIND_HAND_GLOW":
+          case 2:
+            message.kind = 2;
+            break;
+          case "EFFECT_KIND_DISSOLVE":
+          case 3:
+            message.kind = 3;
+            break;
+        }
+        if (object.size != null) message.size = $Number(object.size);
+        if (object.color != null) {
+          if (typeof object.color !== "object")
+            throw $TypeError(".unframe.presentation.EffectConfiguration.color: object expected");
+          message.color = $root.unframe.presentation.SrgbaColor.fromObject(object.color, long + 1);
+        }
+        if (object.speed != null) message.speed = $Number(object.speed);
+        if (object.durationMs != null)
+          if ($util.Long)
+            (message.durationMs = $util.Long.fromValue(object.durationMs)).unsigned = true;
+          else if (typeof object.durationMs === "string")
+            message.durationMs = $parseInt(object.durationMs, 10);
+          else if (typeof object.durationMs === "number") message.durationMs = object.durationMs;
+          else if (typeof object.durationMs === "object")
+            message.durationMs = new $util.LongBits(
+              object.durationMs.low >>> 0,
+              object.durationMs.high >>> 0,
+            ).toNumber(true);
+        if (object.waveCycles != null) message.waveCycles = $Number(object.waveCycles);
+        switch (object.hand) {
+          default:
+            if (typeof object.hand === "number") {
+              message.hand = object.hand;
+              break;
+            }
+            break;
+          case "EFFECT_HAND_UNSPECIFIED":
+          case 0:
+            message.hand = 0;
+            break;
+          case "EFFECT_HAND_LEFT":
+          case 1:
+            message.hand = 1;
+            break;
+          case "EFFECT_HAND_RIGHT":
+          case 2:
+            message.hand = 2;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from an EffectConfiguration message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {unframe.presentation.EffectConfiguration} message EffectConfiguration
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      EffectConfiguration.toObject = function EffectConfiguration$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.kind = options.enums === $String ? "EFFECT_KIND_UNSPECIFIED" : 0;
+          object.size = 0;
+          object.color = null;
+          object.speed = 0;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.durationMs =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.durationMs = options.longs === $String ? "0" : 0;
+          object.waveCycles = 0;
+          object.hand = options.enums === $String ? "EFFECT_HAND_UNSPECIFIED" : 0;
+        }
+        if (message.kind != null && message.hasOwnProperty("kind"))
+          object.kind =
+            options.enums === $String
+              ? $root.unframe.presentation.EffectKind[message.kind] === $undefined
+                ? message.kind
+                : $root.unframe.presentation.EffectKind[message.kind]
+              : message.kind;
+        if (message.size != null && message.hasOwnProperty("size"))
+          object.size =
+            options.json && !$isFinite(message.size) ? $String(message.size) : message.size;
+        if (message.color != null && message.hasOwnProperty("color"))
+          object.color = $root.unframe.presentation.SrgbaColor.toObject(message.color, options);
+        if (message.speed != null && message.hasOwnProperty("speed"))
+          object.speed =
+            options.json && !$isFinite(message.speed) ? $String(message.speed) : message.speed;
+        if (message.durationMs != null && message.hasOwnProperty("durationMs"))
+          if (typeof message.durationMs === "number")
+            object.durationMs =
+              options.longs === $String ? $String(message.durationMs) : message.durationMs;
+          else
+            object.durationMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.durationMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.durationMs.low >>> 0,
+                      message.durationMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.durationMs;
+        if (message.waveCycles != null && message.hasOwnProperty("waveCycles"))
+          object.waveCycles =
+            options.json && !$isFinite(message.waveCycles)
+              ? $String(message.waveCycles)
+              : message.waveCycles;
+        if (message.hand != null && message.hasOwnProperty("hand"))
+          object.hand =
+            options.enums === $String
+              ? $root.unframe.presentation.EffectHand[message.hand] === $undefined
+                ? message.hand
+                : $root.unframe.presentation.EffectHand[message.hand]
+              : message.hand;
+        return object;
+      };
+
+      /**
+       * Converts this EffectConfiguration to JSON.
+       * @function toJSON
+       * @memberof unframe.presentation.EffectConfiguration
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      EffectConfiguration.prototype.toJSON = function () {
+        return EffectConfiguration.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for EffectConfiguration
+       * @function getTypeUrl
+       * @memberof unframe.presentation.EffectConfiguration
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      EffectConfiguration.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.presentation.EffectConfiguration";
+      };
+
+      return EffectConfiguration;
     })();
 
     return presentation;
@@ -33099,6 +33624,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -33273,6 +33799,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredRuntimeCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredRuntimeCapabilities[i] = 11;
                 break;
             }
         }
@@ -40248,6 +40778,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -40334,6 +40865,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.supportedCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.supportedCapabilities[i] = 11;
                 break;
             }
         }
@@ -42778,6 +43313,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -42870,6 +43406,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredCapabilities[i] = 11;
                 break;
             }
         }
@@ -46110,6 +46650,8 @@ export const unframe = ($root.unframe = (() => {
             case 6:
             case 7:
             case 8:
+            case 9:
+            case 10:
               break;
           }
         return null;
@@ -46219,6 +46761,14 @@ export const unframe = ($root.unframe = (() => {
           case "GESTURE_KIND_CLOSE_HANDS":
           case 8:
             message.gesture = 8;
+            break;
+          case "GESTURE_KIND_THROW":
+          case 9:
+            message.gesture = 9;
+            break;
+          case "GESTURE_KIND_CIRCLE":
+          case 10:
+            message.gesture = 10;
             break;
         }
         return message;
@@ -51663,7 +52213,8 @@ export const unframe = ($root.unframe = (() => {
        * @property {unframe.realtime.GestureInputAccepted.$Properties|null} [gestureInputAccepted] ProjectedReliableEvent gestureInputAccepted
        * @property {unframe.realtime.ZoneInputAccepted.$Properties|null} [zoneInputAccepted] ProjectedReliableEvent zoneInputAccepted
        * @property {unframe.realtime.RuntimeViewReplaced.$Properties|null} [runtimeViewReplaced] ProjectedReliableEvent runtimeViewReplaced
-       * @property {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"} [payload] ProjectedReliableEvent payload
+       * @property {unframe.realtime.EffectRunsChanged.$Properties|null} [effectRunsChanged] ProjectedReliableEvent effectRunsChanged
+       * @property {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"|"effectRunsChanged"} [payload] ProjectedReliableEvent payload
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -51720,9 +52271,10 @@ export const unframe = ($root.unframe = (() => {
        *   gestureInputAccepted?: unframe.realtime.GestureInputAccepted.$Shape|null;
        *   zoneInputAccepted?: unframe.realtime.ZoneInputAccepted.$Shape|null;
        *   runtimeViewReplaced?: unframe.realtime.RuntimeViewReplaced.$Shape|null;
+       *   effectRunsChanged?: unframe.realtime.EffectRunsChanged.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * } & (
-       *   ({ payload?: undefined; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "runtimeStatusChanged"; runtimeStatusChanged: unframe.realtime.RuntimeStatusChanged.$Shape; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "presentationOriginChanged"; runtimeStatusChanged?: null; presentationOriginChanged: unframe.realtime.PresentationOriginChanged.$Shape; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "groupEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered: unframe.realtime.GroupEntered.$Shape; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "groupExited"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited: unframe.realtime.GroupExited.$Shape; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "stepEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered: unframe.realtime.StepEntered.$Shape; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "cueAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted: unframe.realtime.CueAccepted.$Shape; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "presentationEnded"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded: unframe.realtime.PresentationEnded.$Shape; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "logicalInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted: unframe.realtime.LogicalInputAccepted.$Shape; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceInteractionAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted: unframe.realtime.SurfaceInteractionAccepted.$Shape; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceStateChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged: unframe.realtime.SurfaceStateChanged.$Shape; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceTransitionStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted: unframe.realtime.SurfaceTransitionStarted.$Shape; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "surfaceTransitionCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted: unframe.realtime.SurfaceTransitionCompleted.$Shape; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "nodeStateCommitted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted: unframe.realtime.NodeStateCommitted.$Shape; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "variableChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged: unframe.realtime.VariableChanged.$Shape; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted: unframe.realtime.TimelineStarted.$Shape; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted: unframe.realtime.TimelineCompleted.$Shape; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "timelineCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled: unframe.realtime.TimelineCanceled.$Shape; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted: unframe.realtime.MediaStarted.$Shape; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused: unframe.realtime.MediaPaused.$Shape; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed: unframe.realtime.MediaResumed.$Shape; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked: unframe.realtime.MediaSeeked.$Shape; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted: unframe.realtime.MediaCompleted.$Shape; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled: unframe.realtime.MediaCanceled.$Shape; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped: unframe.realtime.MediaStopped.$Shape; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted: unframe.realtime.ModelClipStarted.$Shape; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused: unframe.realtime.ModelClipPaused.$Shape; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed: unframe.realtime.ModelClipResumed.$Shape; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped: unframe.realtime.ModelClipStopped.$Shape; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted: unframe.realtime.ModelClipCompleted.$Shape; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCrossfadeStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted: unframe.realtime.ModelClipCrossfadeStarted.$Shape; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCrossfadeCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted: unframe.realtime.ModelClipCrossfadeCompleted.$Shape; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "modelClipCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled: unframe.realtime.ModelClipCanceled.$Shape; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "participantPresenceChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged: unframe.realtime.ParticipantPresenceChanged.$Shape; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "mediaStoppedSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked: unframe.realtime.MediaStoppedSeeked.$Shape; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "gestureInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted: unframe.realtime.GestureInputAccepted.$Shape; zoneInputAccepted?: null; runtimeViewReplaced?: null }|{ payload?: "zoneInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted: unframe.realtime.ZoneInputAccepted.$Shape; runtimeViewReplaced?: null }|{ payload?: "runtimeViewReplaced"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced: unframe.realtime.RuntimeViewReplaced.$Shape })
+       *   ({ payload?: undefined; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "runtimeStatusChanged"; runtimeStatusChanged: unframe.realtime.RuntimeStatusChanged.$Shape; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "presentationOriginChanged"; runtimeStatusChanged?: null; presentationOriginChanged: unframe.realtime.PresentationOriginChanged.$Shape; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "groupEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered: unframe.realtime.GroupEntered.$Shape; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "groupExited"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited: unframe.realtime.GroupExited.$Shape; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "stepEntered"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered: unframe.realtime.StepEntered.$Shape; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "cueAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted: unframe.realtime.CueAccepted.$Shape; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "presentationEnded"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded: unframe.realtime.PresentationEnded.$Shape; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "logicalInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted: unframe.realtime.LogicalInputAccepted.$Shape; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "surfaceInteractionAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted: unframe.realtime.SurfaceInteractionAccepted.$Shape; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "surfaceStateChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged: unframe.realtime.SurfaceStateChanged.$Shape; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "surfaceTransitionStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted: unframe.realtime.SurfaceTransitionStarted.$Shape; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "surfaceTransitionCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted: unframe.realtime.SurfaceTransitionCompleted.$Shape; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "nodeStateCommitted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted: unframe.realtime.NodeStateCommitted.$Shape; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "variableChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged: unframe.realtime.VariableChanged.$Shape; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "timelineStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted: unframe.realtime.TimelineStarted.$Shape; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "timelineCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted: unframe.realtime.TimelineCompleted.$Shape; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "timelineCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled: unframe.realtime.TimelineCanceled.$Shape; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted: unframe.realtime.MediaStarted.$Shape; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused: unframe.realtime.MediaPaused.$Shape; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed: unframe.realtime.MediaResumed.$Shape; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked: unframe.realtime.MediaSeeked.$Shape; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted: unframe.realtime.MediaCompleted.$Shape; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled: unframe.realtime.MediaCanceled.$Shape; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped: unframe.realtime.MediaStopped.$Shape; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted: unframe.realtime.ModelClipStarted.$Shape; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipPaused"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused: unframe.realtime.ModelClipPaused.$Shape; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipResumed"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed: unframe.realtime.ModelClipResumed.$Shape; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipStopped"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped: unframe.realtime.ModelClipStopped.$Shape; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted: unframe.realtime.ModelClipCompleted.$Shape; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipCrossfadeStarted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted: unframe.realtime.ModelClipCrossfadeStarted.$Shape; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipCrossfadeCompleted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted: unframe.realtime.ModelClipCrossfadeCompleted.$Shape; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "modelClipCanceled"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled: unframe.realtime.ModelClipCanceled.$Shape; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "participantPresenceChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged: unframe.realtime.ParticipantPresenceChanged.$Shape; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "mediaStoppedSeeked"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked: unframe.realtime.MediaStoppedSeeked.$Shape; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "gestureInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted: unframe.realtime.GestureInputAccepted.$Shape; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "zoneInputAccepted"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted: unframe.realtime.ZoneInputAccepted.$Shape; runtimeViewReplaced?: null; effectRunsChanged?: null }|{ payload?: "runtimeViewReplaced"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced: unframe.realtime.RuntimeViewReplaced.$Shape; effectRunsChanged?: null }|{ payload?: "effectRunsChanged"; runtimeStatusChanged?: null; presentationOriginChanged?: null; groupEntered?: null; groupExited?: null; stepEntered?: null; cueAccepted?: null; presentationEnded?: null; logicalInputAccepted?: null; surfaceInteractionAccepted?: null; surfaceStateChanged?: null; surfaceTransitionStarted?: null; surfaceTransitionCompleted?: null; nodeStateCommitted?: null; variableChanged?: null; timelineStarted?: null; timelineCompleted?: null; timelineCanceled?: null; mediaStarted?: null; mediaPaused?: null; mediaResumed?: null; mediaSeeked?: null; mediaCompleted?: null; mediaCanceled?: null; mediaStopped?: null; modelClipStarted?: null; modelClipPaused?: null; modelClipResumed?: null; modelClipStopped?: null; modelClipCompleted?: null; modelClipCrossfadeStarted?: null; modelClipCrossfadeCompleted?: null; modelClipCanceled?: null; participantPresenceChanged?: null; mediaStoppedSeeked?: null; gestureInputAccepted?: null; zoneInputAccepted?: null; runtimeViewReplaced?: null; effectRunsChanged: unframe.realtime.EffectRunsChanged.$Shape })
        * )} unframe.realtime.ProjectedReliableEvent.$Shape
        */
 
@@ -52079,6 +52631,14 @@ export const unframe = ($root.unframe = (() => {
        */
       ProjectedReliableEvent.prototype.runtimeViewReplaced = null;
 
+      /**
+       * ProjectedReliableEvent effectRunsChanged.
+       * @member {unframe.realtime.EffectRunsChanged.$Properties|null|undefined} effectRunsChanged
+       * @memberof unframe.realtime.ProjectedReliableEvent
+       * @instance
+       */
+      ProjectedReliableEvent.prototype.effectRunsChanged = null;
+
       // OneOf field names bound to virtual getters and setters
       let $oneOfFields;
 
@@ -52090,7 +52650,7 @@ export const unframe = ($root.unframe = (() => {
 
       /**
        * ProjectedReliableEvent payload.
-       * @member {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"|undefined} payload
+       * @member {"runtimeStatusChanged"|"presentationOriginChanged"|"groupEntered"|"groupExited"|"stepEntered"|"cueAccepted"|"presentationEnded"|"logicalInputAccepted"|"surfaceInteractionAccepted"|"surfaceStateChanged"|"surfaceTransitionStarted"|"surfaceTransitionCompleted"|"nodeStateCommitted"|"variableChanged"|"timelineStarted"|"timelineCompleted"|"timelineCanceled"|"mediaStarted"|"mediaPaused"|"mediaResumed"|"mediaSeeked"|"mediaCompleted"|"mediaCanceled"|"mediaStopped"|"modelClipStarted"|"modelClipPaused"|"modelClipResumed"|"modelClipStopped"|"modelClipCompleted"|"modelClipCrossfadeStarted"|"modelClipCrossfadeCompleted"|"modelClipCanceled"|"participantPresenceChanged"|"mediaStoppedSeeked"|"gestureInputAccepted"|"zoneInputAccepted"|"runtimeViewReplaced"|"effectRunsChanged"|undefined} payload
        * @memberof unframe.realtime.ProjectedReliableEvent
        * @instance
        */
@@ -52134,6 +52694,7 @@ export const unframe = ($root.unframe = (() => {
             "gestureInputAccepted",
             "zoneInputAccepted",
             "runtimeViewReplaced",
+            "effectRunsChanged",
           ]),
         ),
         set: $util.oneOfSetter($oneOfFields),
@@ -52447,6 +53008,14 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.realtime.RuntimeViewReplaced.encode(
             message.runtimeViewReplaced,
             writer.uint32(/* id 1003, wireType 2 =*/ 8026).fork(),
+          ).ldelim();
+        if (
+          message.effectRunsChanged != null &&
+          $Object.hasOwnProperty.call(message, "effectRunsChanged")
+        )
+          $root.unframe.realtime.EffectRunsChanged.encode(
+            message.effectRunsChanged,
+            writer.uint32(/* id 1004, wireType 2 =*/ 8034).fork(),
           ).ldelim();
         return writer;
       };
@@ -52848,6 +53417,15 @@ export const unframe = ($root.unframe = (() => {
             }
             case 1003: {
               message.runtimeViewReplaced = $root.unframe.realtime.RuntimeViewReplaced.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 1004: {
+              message.effectRunsChanged = $root.unframe.realtime.EffectRunsChanged.decode(
                 reader,
                 reader.uint32(),
                 $undefined,
@@ -53336,6 +53914,17 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "runtimeViewReplaced." + error;
           }
         }
+        if (message.effectRunsChanged != null && message.hasOwnProperty("effectRunsChanged")) {
+          if (properties.payload === 1) return "payload: multiple values";
+          properties.payload = 1;
+          {
+            let error = $root.unframe.realtime.EffectRunsChanged.verify(
+              message.effectRunsChanged,
+              long + 1,
+            );
+            if (error) return "effectRunsChanged." + error;
+          }
+        }
         return null;
       };
 
@@ -53764,6 +54353,16 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
         }
+        if (object.effectRunsChanged != null) {
+          if (typeof object.effectRunsChanged !== "object")
+            throw $TypeError(
+              ".unframe.realtime.ProjectedReliableEvent.effectRunsChanged: object expected",
+            );
+          message.effectRunsChanged = $root.unframe.realtime.EffectRunsChanged.fromObject(
+            object.effectRunsChanged,
+            long + 1,
+          );
+        }
         return message;
       };
 
@@ -54140,6 +54739,13 @@ export const unframe = ($root.unframe = (() => {
             options,
           );
           if (options.oneofs) object.payload = "runtimeViewReplaced";
+        }
+        if (message.effectRunsChanged != null && message.hasOwnProperty("effectRunsChanged")) {
+          object.effectRunsChanged = $root.unframe.realtime.EffectRunsChanged.toObject(
+            message.effectRunsChanged,
+            options,
+          );
+          if (options.oneofs) object.payload = "effectRunsChanged";
         }
         return object;
       };
@@ -58185,6 +58791,8 @@ export const unframe = ($root.unframe = (() => {
             case 6:
             case 7:
             case 8:
+            case 9:
+            case 10:
               break;
           }
         return null;
@@ -58245,6 +58853,14 @@ export const unframe = ($root.unframe = (() => {
           case "GESTURE_KIND_CLOSE_HANDS":
           case 8:
             message.gesture = 8;
+            break;
+          case "GESTURE_KIND_THROW":
+          case 9:
+            message.gesture = 9;
+            break;
+          case "GESTURE_KIND_CIRCLE":
+          case 10:
+            message.gesture = 10;
             break;
         }
         return message;
@@ -77624,6 +78240,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {number|Long|null} [inputEpoch] CanonicalRuntimeSnapshot inputEpoch
        * @property {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>|null} [frozenAnchors] CanonicalRuntimeSnapshot frozenAnchors
        * @property {Array.<unframe.realtime.StepStartState.$Properties>|null} [stepStartHistory] CanonicalRuntimeSnapshot stepStartHistory
+       * @property {Array.<unframe.realtime.EffectRunSnapshot.$Properties>|null} [effectRuns] CanonicalRuntimeSnapshot effectRuns
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -77655,6 +78272,7 @@ export const unframe = ($root.unframe = (() => {
        *   inputEpoch?: number|Long|null;
        *   frozenAnchors?: Array.<unframe.realtime.FrozenAnchorDisplayState.$Shape>|null;
        *   stepStartHistory?: Array.<unframe.realtime.StepStartState.$Shape>|null;
+       *   effectRuns?: Array.<unframe.realtime.EffectRunSnapshot.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.CanonicalRuntimeSnapshot.$Shape
        */
@@ -77676,6 +78294,7 @@ export const unframe = ($root.unframe = (() => {
         this.modelClipStates = [];
         this.frozenAnchors = [];
         this.stepStartHistory = [];
+        this.effectRuns = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -77827,6 +78446,14 @@ export const unframe = ($root.unframe = (() => {
       CanonicalRuntimeSnapshot.prototype.stepStartHistory = $util.emptyArray;
 
       /**
+       * CanonicalRuntimeSnapshot effectRuns.
+       * @member {Array.<unframe.realtime.EffectRunSnapshot.$Properties>} effectRuns
+       * @memberof unframe.realtime.CanonicalRuntimeSnapshot
+       * @instance
+       */
+      CanonicalRuntimeSnapshot.prototype.effectRuns = $util.emptyArray;
+
+      /**
        * Creates a new CanonicalRuntimeSnapshot instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.CanonicalRuntimeSnapshot
@@ -77942,6 +78569,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.StepStartState.encode(
               message.stepStartHistory[i],
               writer.uint32(/* id 18, wireType 2 =*/ 146).fork(),
+            ).ldelim();
+        if (message.effectRuns != null && message.effectRuns.length)
+          for (let i = 0; i < message.effectRuns.length; ++i)
+            $root.unframe.realtime.EffectRunSnapshot.encode(
+              message.effectRuns[i],
+              writer.uint32(/* id 19, wireType 2 =*/ 154).fork(),
             ).ldelim();
         return writer;
       };
@@ -78141,6 +78774,18 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 19: {
+              if (!(message.effectRuns && message.effectRuns.length)) message.effectRuns = [];
+              message.effectRuns.push(
+                $root.unframe.realtime.EffectRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -78321,6 +78966,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "stepStartHistory." + error;
+          }
+        }
+        if (message.effectRuns != null && message.hasOwnProperty("effectRuns")) {
+          if (!$Array.isArray(message.effectRuns)) return "effectRuns: array expected";
+          for (let i = 0; i < message.effectRuns.length; ++i) {
+            let error = $root.unframe.realtime.EffectRunSnapshot.verify(
+              message.effectRuns[i],
+              long + 1,
+            );
+            if (error) return "effectRuns." + error;
           }
         }
         return null;
@@ -78569,6 +79224,23 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.effectRuns) {
+          if (!$Array.isArray(object.effectRuns))
+            throw $TypeError(
+              ".unframe.realtime.CanonicalRuntimeSnapshot.effectRuns: array expected",
+            );
+          message.effectRuns = [];
+          for (let i = 0; i < object.effectRuns.length; ++i) {
+            if (typeof object.effectRuns[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.CanonicalRuntimeSnapshot.effectRuns: object expected",
+              );
+            message.effectRuns[i] = $root.unframe.realtime.EffectRunSnapshot.fromObject(
+              object.effectRuns[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -78596,6 +79268,7 @@ export const unframe = ($root.unframe = (() => {
           object.modelClipStates = [];
           object.frozenAnchors = [];
           object.stepStartHistory = [];
+          object.effectRuns = [];
         }
         if (options.defaults) {
           object.schemaVersion = 0;
@@ -78788,6 +79461,14 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.stepStartHistory.length; ++j)
             object.stepStartHistory[j] = $root.unframe.realtime.StepStartState.toObject(
               message.stepStartHistory[j],
+              options,
+            );
+        }
+        if (message.effectRuns && message.effectRuns.length) {
+          object.effectRuns = [];
+          for (let j = 0; j < message.effectRuns.length; ++j)
+            object.effectRuns[j] = $root.unframe.realtime.EffectRunSnapshot.toObject(
+              message.effectRuns[j],
               options,
             );
         }
@@ -79170,6 +79851,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.realtime.VariableState.$Properties>|null} [variables] StepStartState variables
        * @property {Array.<unframe.realtime.RuntimeRunSnapshot.$Properties>|null} [activeRuns] StepStartState activeRuns
        * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] StepStartState modelClipStates
+       * @property {Array.<unframe.realtime.EffectRunSnapshot.$Properties>|null} [effectRuns] StepStartState effectRuns
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -79195,6 +79877,7 @@ export const unframe = ($root.unframe = (() => {
        *   variables?: Array.<unframe.realtime.VariableState.$Shape>|null;
        *   activeRuns?: Array.<unframe.realtime.RuntimeRunSnapshot.$Shape>|null;
        *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
+       *   effectRuns?: Array.<unframe.realtime.EffectRunSnapshot.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.StepStartState.$Shape
        */
@@ -79214,6 +79897,7 @@ export const unframe = ($root.unframe = (() => {
         this.variables = [];
         this.activeRuns = [];
         this.modelClipStates = [];
+        this.effectRuns = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -79311,6 +79995,14 @@ export const unframe = ($root.unframe = (() => {
       StepStartState.prototype.modelClipStates = $util.emptyArray;
 
       /**
+       * StepStartState effectRuns.
+       * @member {Array.<unframe.realtime.EffectRunSnapshot.$Properties>} effectRuns
+       * @memberof unframe.realtime.StepStartState
+       * @instance
+       */
+      StepStartState.prototype.effectRuns = $util.emptyArray;
+
+      /**
        * Creates a new StepStartState instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.StepStartState
@@ -79391,6 +80083,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.ModelClipRuntimeState.encode(
               message.modelClipStates[i],
               writer.uint32(/* id 11, wireType 2 =*/ 90).fork(),
+            ).ldelim();
+        if (message.effectRuns != null && message.effectRuns.length)
+          for (let i = 0; i < message.effectRuns.length; ++i)
+            $root.unframe.realtime.EffectRunSnapshot.encode(
+              message.effectRuns[i],
+              writer.uint32(/* id 12, wireType 2 =*/ 98).fork(),
             ).ldelim();
         return writer;
       };
@@ -79515,6 +80213,18 @@ export const unframe = ($root.unframe = (() => {
                 message.modelClipStates = [];
               message.modelClipStates.push(
                 $root.unframe.realtime.ModelClipRuntimeState.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            case 12: {
+              if (!(message.effectRuns && message.effectRuns.length)) message.effectRuns = [];
+              message.effectRuns.push(
+                $root.unframe.realtime.EffectRunSnapshot.decode(
                   reader,
                   reader.uint32(),
                   $undefined,
@@ -79652,6 +80362,16 @@ export const unframe = ($root.unframe = (() => {
             if (error) return "modelClipStates." + error;
           }
         }
+        if (message.effectRuns != null && message.hasOwnProperty("effectRuns")) {
+          if (!$Array.isArray(message.effectRuns)) return "effectRuns: array expected";
+          for (let i = 0; i < message.effectRuns.length; ++i) {
+            let error = $root.unframe.realtime.EffectRunSnapshot.verify(
+              message.effectRuns[i],
+              long + 1,
+            );
+            if (error) return "effectRuns." + error;
+          }
+        }
         return null;
       };
 
@@ -79787,6 +80507,19 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.effectRuns) {
+          if (!$Array.isArray(object.effectRuns))
+            throw $TypeError(".unframe.realtime.StepStartState.effectRuns: array expected");
+          message.effectRuns = [];
+          for (let i = 0; i < object.effectRuns.length; ++i) {
+            if (typeof object.effectRuns[i] !== "object")
+              throw $TypeError(".unframe.realtime.StepStartState.effectRuns: object expected");
+            message.effectRuns[i] = $root.unframe.realtime.EffectRunSnapshot.fromObject(
+              object.effectRuns[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -79809,6 +80542,7 @@ export const unframe = ($root.unframe = (() => {
           object.variables = [];
           object.activeRuns = [];
           object.modelClipStates = [];
+          object.effectRuns = [];
         }
         if (options.defaults) {
           object.groupId = "";
@@ -79939,6 +80673,14 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.modelClipStates.length; ++j)
             object.modelClipStates[j] = $root.unframe.realtime.ModelClipRuntimeState.toObject(
               message.modelClipStates[j],
+              options,
+            );
+        }
+        if (message.effectRuns && message.effectRuns.length) {
+          object.effectRuns = [];
+          for (let j = 0; j < message.effectRuns.length; ++j)
+            object.effectRuns[j] = $root.unframe.realtime.EffectRunSnapshot.toObject(
+              message.effectRuns[j],
               options,
             );
         }
@@ -81630,6 +82372,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<string>|null} [enabledLogicalInputs] ParticipantRuntimeView enabledLogicalInputs
        * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] ParticipantRuntimeView modelClipStates
        * @property {Array.<unframe.realtime.FrozenAnchorDisplayState.$Properties>|null} [frozenAnchors] ParticipantRuntimeView frozenAnchors
+       * @property {Array.<unframe.realtime.EffectRunSnapshot.$Properties>|null} [effectRuns] ParticipantRuntimeView effectRuns
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -81658,6 +82401,7 @@ export const unframe = ($root.unframe = (() => {
        *   enabledLogicalInputs?: Array.<string>|null;
        *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
        *   frozenAnchors?: Array.<unframe.realtime.FrozenAnchorDisplayState.$Shape>|null;
+       *   effectRuns?: Array.<unframe.realtime.EffectRunSnapshot.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.realtime.ParticipantRuntimeView.$Shape
        */
@@ -81679,6 +82423,7 @@ export const unframe = ($root.unframe = (() => {
         this.enabledLogicalInputs = [];
         this.modelClipStates = [];
         this.frozenAnchors = [];
+        this.effectRuns = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -81802,6 +82547,14 @@ export const unframe = ($root.unframe = (() => {
       ParticipantRuntimeView.prototype.frozenAnchors = $util.emptyArray;
 
       /**
+       * ParticipantRuntimeView effectRuns.
+       * @member {Array.<unframe.realtime.EffectRunSnapshot.$Properties>} effectRuns
+       * @memberof unframe.realtime.ParticipantRuntimeView
+       * @instance
+       */
+      ParticipantRuntimeView.prototype.effectRuns = $util.emptyArray;
+
+      /**
        * Creates a new ParticipantRuntimeView instance using the specified properties.
        * @function create
        * @memberof unframe.realtime.ParticipantRuntimeView
@@ -81905,6 +82658,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.FrozenAnchorDisplayState.encode(
               message.frozenAnchors[i],
               writer.uint32(/* id 14, wireType 2 =*/ 114).fork(),
+            ).ldelim();
+        if (message.effectRuns != null && message.effectRuns.length)
+          for (let i = 0; i < message.effectRuns.length; ++i)
+            $root.unframe.realtime.EffectRunSnapshot.encode(
+              message.effectRuns[i],
+              writer.uint32(/* id 15, wireType 2 =*/ 122).fork(),
             ).ldelim();
         return writer;
       };
@@ -82080,6 +82839,18 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 15: {
+              if (!(message.effectRuns && message.effectRuns.length)) message.effectRuns = [];
+              message.effectRuns.push(
+                $root.unframe.realtime.EffectRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -82231,6 +83002,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "frozenAnchors." + error;
+          }
+        }
+        if (message.effectRuns != null && message.hasOwnProperty("effectRuns")) {
+          if (!$Array.isArray(message.effectRuns)) return "effectRuns: array expected";
+          for (let i = 0; i < message.effectRuns.length; ++i) {
+            let error = $root.unframe.realtime.EffectRunSnapshot.verify(
+              message.effectRuns[i],
+              long + 1,
+            );
+            if (error) return "effectRuns." + error;
           }
         }
         return null;
@@ -82428,6 +83209,21 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.effectRuns) {
+          if (!$Array.isArray(object.effectRuns))
+            throw $TypeError(".unframe.realtime.ParticipantRuntimeView.effectRuns: array expected");
+          message.effectRuns = [];
+          for (let i = 0; i < object.effectRuns.length; ++i) {
+            if (typeof object.effectRuns[i] !== "object")
+              throw $TypeError(
+                ".unframe.realtime.ParticipantRuntimeView.effectRuns: object expected",
+              );
+            message.effectRuns[i] = $root.unframe.realtime.EffectRunSnapshot.fromObject(
+              object.effectRuns[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -82452,6 +83248,7 @@ export const unframe = ($root.unframe = (() => {
           object.enabledLogicalInputs = [];
           object.modelClipStates = [];
           object.frozenAnchors = [];
+          object.effectRuns = [];
         }
         if (options.defaults) {
           object.projectionProfileId = "";
@@ -82584,6 +83381,14 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.frozenAnchors.length; ++j)
             object.frozenAnchors[j] = $root.unframe.realtime.FrozenAnchorDisplayState.toObject(
               message.frozenAnchors[j],
+              options,
+            );
+        }
+        if (message.effectRuns && message.effectRuns.length) {
+          object.effectRuns = [];
+          for (let j = 0; j < message.effectRuns.length; ++j)
+            object.effectRuns[j] = $root.unframe.realtime.EffectRunSnapshot.toObject(
+              message.effectRuns[j],
               options,
             );
         }
@@ -85884,6 +86689,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -85974,6 +86780,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.supportedCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.supportedCapabilities[i] = 11;
                 break;
             }
         }
@@ -89992,6 +90802,842 @@ export const unframe = ($root.unframe = (() => {
       return ElementStateFrame;
     })();
 
+    /**
+     * EffectRunStatus enum.
+     * @name unframe.realtime.EffectRunStatus
+     * @enum {number}
+     * @property {number} EFFECT_RUN_STATUS_UNSPECIFIED=0 EFFECT_RUN_STATUS_UNSPECIFIED value
+     * @property {number} EFFECT_RUN_STATUS_ACTIVE=1 EFFECT_RUN_STATUS_ACTIVE value
+     * @property {number} EFFECT_RUN_STATUS_RETAINED=2 EFFECT_RUN_STATUS_RETAINED value
+     */
+    realtime.EffectRunStatus = (function () {
+      const valuesById = $Object.create(null),
+        values = $Object.create(valuesById);
+      values[(valuesById[0] = "EFFECT_RUN_STATUS_UNSPECIFIED")] = 0;
+      values[(valuesById[1] = "EFFECT_RUN_STATUS_ACTIVE")] = 1;
+      values[(valuesById[2] = "EFFECT_RUN_STATUS_RETAINED")] = 2;
+      return values;
+    })();
+
+    realtime.EffectRunSnapshot = (function () {
+      /**
+       * Properties of an EffectRunSnapshot.
+       * @typedef {Object} unframe.realtime.EffectRunSnapshot.$Properties
+       * @property {unframe.presentation.RuntimeRunId.$Properties|null} [runId] EffectRunSnapshot runId
+       * @property {unframe.presentation.RuntimeRunOwner.$Properties|null} [owner] EffectRunSnapshot owner
+       * @property {unframe.presentation.RuntimeRunCause.$Properties|null} [cause] EffectRunSnapshot cause
+       * @property {number|Long|null} [startedAtRuntimeTimeMs] EffectRunSnapshot startedAtRuntimeTimeMs
+       * @property {string|null} [effectId] EffectRunSnapshot effectId
+       * @property {string|null} [nodeId] EffectRunSnapshot nodeId
+       * @property {unframe.presentation.EffectConfiguration.$Properties|null} [configuration] EffectRunSnapshot configuration
+       * @property {number|null} [seed] EffectRunSnapshot seed
+       * @property {unframe.realtime.EffectRunStatus|null} [status] EffectRunSnapshot status
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of an EffectRunSnapshot.
+       * @memberof unframe.realtime
+       * @interface IEffectRunSnapshot
+       * @augments unframe.realtime.EffectRunSnapshot.$Properties
+       * @deprecated Use unframe.realtime.EffectRunSnapshot.$Properties instead.
+       */
+
+      /**
+       * Shape of an EffectRunSnapshot.
+       * @typedef {{
+       *   runId?: unframe.presentation.RuntimeRunId.$Shape|null;
+       *   owner?: unframe.presentation.RuntimeRunOwner.$Shape|null;
+       *   cause?: unframe.presentation.RuntimeRunCause.$Shape|null;
+       *   startedAtRuntimeTimeMs?: number|Long|null;
+       *   effectId?: string|null;
+       *   nodeId?: string|null;
+       *   configuration?: unframe.presentation.EffectConfiguration.$Shape|null;
+       *   seed?: number|null;
+       *   status?: unframe.realtime.EffectRunStatus|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.realtime.EffectRunSnapshot.$Shape
+       */
+
+      /**
+       * Constructs a new EffectRunSnapshot.
+       * @memberof unframe.realtime
+       * @classdesc Represents an EffectRunSnapshot.
+       * @constructor
+       * @param {unframe.realtime.EffectRunSnapshot.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const EffectRunSnapshot = function EffectRunSnapshot(properties) {
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * EffectRunSnapshot runId.
+       * @member {unframe.presentation.RuntimeRunId.$Properties|null|undefined} runId
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.runId = null;
+
+      /**
+       * EffectRunSnapshot owner.
+       * @member {unframe.presentation.RuntimeRunOwner.$Properties|null|undefined} owner
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.owner = null;
+
+      /**
+       * EffectRunSnapshot cause.
+       * @member {unframe.presentation.RuntimeRunCause.$Properties|null|undefined} cause
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.cause = null;
+
+      /**
+       * EffectRunSnapshot startedAtRuntimeTimeMs.
+       * @member {number|Long} startedAtRuntimeTimeMs
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.startedAtRuntimeTimeMs = $util.Long
+        ? $util.Long.fromBits(0, 0, true)
+        : 0;
+
+      /**
+       * EffectRunSnapshot effectId.
+       * @member {string} effectId
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.effectId = "";
+
+      /**
+       * EffectRunSnapshot nodeId.
+       * @member {string} nodeId
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.nodeId = "";
+
+      /**
+       * EffectRunSnapshot configuration.
+       * @member {unframe.presentation.EffectConfiguration.$Properties|null|undefined} configuration
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.configuration = null;
+
+      /**
+       * EffectRunSnapshot seed.
+       * @member {number} seed
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.seed = 0;
+
+      /**
+       * EffectRunSnapshot status.
+       * @member {unframe.realtime.EffectRunStatus} status
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       */
+      EffectRunSnapshot.prototype.status = 0;
+
+      /**
+       * Creates a new EffectRunSnapshot instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {unframe.realtime.EffectRunSnapshot.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.EffectRunSnapshot} EffectRunSnapshot instance
+       * @type {{
+       *   (properties: unframe.realtime.EffectRunSnapshot.$Shape): unframe.realtime.EffectRunSnapshot & unframe.realtime.EffectRunSnapshot.$Shape;
+       *   (properties?: unframe.realtime.EffectRunSnapshot.$Properties): unframe.realtime.EffectRunSnapshot;
+       * }}
+       */
+      EffectRunSnapshot.create = function (properties) {
+        return new EffectRunSnapshot(properties);
+      };
+
+      /**
+       * Encodes the specified EffectRunSnapshot message. Does not implicitly {@link unframe.realtime.EffectRunSnapshot.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {unframe.realtime.EffectRunSnapshot.$Properties} message EffectRunSnapshot message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectRunSnapshot.encode = function EffectRunSnapshot$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.runId != null && $Object.hasOwnProperty.call(message, "runId"))
+          $root.unframe.presentation.RuntimeRunId.encode(
+            message.runId,
+            writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+          ).ldelim();
+        if (message.owner != null && $Object.hasOwnProperty.call(message, "owner"))
+          $root.unframe.presentation.RuntimeRunOwner.encode(
+            message.owner,
+            writer.uint32(/* id 2, wireType 2 =*/ 18).fork(),
+          ).ldelim();
+        if (message.cause != null && $Object.hasOwnProperty.call(message, "cause"))
+          $root.unframe.presentation.RuntimeRunCause.encode(
+            message.cause,
+            writer.uint32(/* id 3, wireType 2 =*/ 26).fork(),
+          ).ldelim();
+        if (
+          message.startedAtRuntimeTimeMs != null &&
+          $Object.hasOwnProperty.call(message, "startedAtRuntimeTimeMs")
+        )
+          writer.uint32(/* id 4, wireType 0 =*/ 32).uint64(message.startedAtRuntimeTimeMs);
+        if (message.effectId != null && $Object.hasOwnProperty.call(message, "effectId"))
+          writer.uint32(/* id 5, wireType 2 =*/ 42).string(message.effectId);
+        if (message.nodeId != null && $Object.hasOwnProperty.call(message, "nodeId"))
+          writer.uint32(/* id 6, wireType 2 =*/ 50).string(message.nodeId);
+        if (message.configuration != null && $Object.hasOwnProperty.call(message, "configuration"))
+          $root.unframe.presentation.EffectConfiguration.encode(
+            message.configuration,
+            writer.uint32(/* id 7, wireType 2 =*/ 58).fork(),
+          ).ldelim();
+        if (message.seed != null && $Object.hasOwnProperty.call(message, "seed"))
+          writer.uint32(/* id 8, wireType 0 =*/ 64).uint32(message.seed);
+        if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+          writer.uint32(/* id 9, wireType 0 =*/ 72).int32(message.status);
+        return writer;
+      };
+
+      /**
+       * Encodes the specified EffectRunSnapshot message, length delimited. Does not implicitly {@link unframe.realtime.EffectRunSnapshot.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {unframe.realtime.EffectRunSnapshot.$Properties} message EffectRunSnapshot message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectRunSnapshot.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes an EffectRunSnapshot message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.EffectRunSnapshot & unframe.realtime.EffectRunSnapshot.$Shape} EffectRunSnapshot
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectRunSnapshot.decode = function EffectRunSnapshot$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              message.runId = $root.unframe.presentation.RuntimeRunId.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 2: {
+              message.owner = $root.unframe.presentation.RuntimeRunOwner.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 3: {
+              message.cause = $root.unframe.presentation.RuntimeRunCause.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 4: {
+              message.startedAtRuntimeTimeMs = reader.uint64();
+              break;
+            }
+            case 5: {
+              message.effectId = reader.string();
+              break;
+            }
+            case 6: {
+              message.nodeId = reader.string();
+              break;
+            }
+            case 7: {
+              message.configuration = $root.unframe.presentation.EffectConfiguration.decode(
+                reader,
+                reader.uint32(),
+                $undefined,
+                long + 1,
+              );
+              break;
+            }
+            case 8: {
+              message.seed = reader.uint32();
+              break;
+            }
+            case 9: {
+              message.status = reader.int32();
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes an EffectRunSnapshot message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.EffectRunSnapshot & unframe.realtime.EffectRunSnapshot.$Shape} EffectRunSnapshot
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectRunSnapshot.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies an EffectRunSnapshot message.
+       * @function verify
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      EffectRunSnapshot.verify = function EffectRunSnapshot$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.runId != null && message.hasOwnProperty("runId")) {
+          let error = $root.unframe.presentation.RuntimeRunId.verify(message.runId, long + 1);
+          if (error) return "runId." + error;
+        }
+        if (message.owner != null && message.hasOwnProperty("owner")) {
+          let error = $root.unframe.presentation.RuntimeRunOwner.verify(message.owner, long + 1);
+          if (error) return "owner." + error;
+        }
+        if (message.cause != null && message.hasOwnProperty("cause")) {
+          let error = $root.unframe.presentation.RuntimeRunCause.verify(message.cause, long + 1);
+          if (error) return "cause." + error;
+        }
+        if (
+          message.startedAtRuntimeTimeMs != null &&
+          message.hasOwnProperty("startedAtRuntimeTimeMs")
+        )
+          if (
+            !$util.isInteger(message.startedAtRuntimeTimeMs) &&
+            !(
+              message.startedAtRuntimeTimeMs &&
+              $util.isInteger(message.startedAtRuntimeTimeMs.low) &&
+              $util.isInteger(message.startedAtRuntimeTimeMs.high)
+            )
+          )
+            return "startedAtRuntimeTimeMs: integer|Long expected";
+        if (message.effectId != null && message.hasOwnProperty("effectId"))
+          if (!$util.isString(message.effectId)) return "effectId: string expected";
+        if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+          if (!$util.isString(message.nodeId)) return "nodeId: string expected";
+        if (message.configuration != null && message.hasOwnProperty("configuration")) {
+          let error = $root.unframe.presentation.EffectConfiguration.verify(
+            message.configuration,
+            long + 1,
+          );
+          if (error) return "configuration." + error;
+        }
+        if (message.seed != null && message.hasOwnProperty("seed"))
+          if (!$util.isInteger(message.seed)) return "seed: integer expected";
+        if (message.status != null && message.hasOwnProperty("status"))
+          switch (message.status) {
+            default:
+              return "status: enum value expected";
+            case 0:
+            case 1:
+            case 2:
+              break;
+          }
+        return null;
+      };
+
+      /**
+       * Creates an EffectRunSnapshot message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.EffectRunSnapshot} EffectRunSnapshot
+       */
+      EffectRunSnapshot.fromObject = function EffectRunSnapshot$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.runId != null) {
+          if (typeof object.runId !== "object")
+            throw $TypeError(".unframe.realtime.EffectRunSnapshot.runId: object expected");
+          message.runId = $root.unframe.presentation.RuntimeRunId.fromObject(
+            object.runId,
+            long + 1,
+          );
+        }
+        if (object.owner != null) {
+          if (typeof object.owner !== "object")
+            throw $TypeError(".unframe.realtime.EffectRunSnapshot.owner: object expected");
+          message.owner = $root.unframe.presentation.RuntimeRunOwner.fromObject(
+            object.owner,
+            long + 1,
+          );
+        }
+        if (object.cause != null) {
+          if (typeof object.cause !== "object")
+            throw $TypeError(".unframe.realtime.EffectRunSnapshot.cause: object expected");
+          message.cause = $root.unframe.presentation.RuntimeRunCause.fromObject(
+            object.cause,
+            long + 1,
+          );
+        }
+        if (object.startedAtRuntimeTimeMs != null)
+          if ($util.Long)
+            (message.startedAtRuntimeTimeMs = $util.Long.fromValue(
+              object.startedAtRuntimeTimeMs,
+            )).unsigned = true;
+          else if (typeof object.startedAtRuntimeTimeMs === "string")
+            message.startedAtRuntimeTimeMs = $parseInt(object.startedAtRuntimeTimeMs, 10);
+          else if (typeof object.startedAtRuntimeTimeMs === "number")
+            message.startedAtRuntimeTimeMs = object.startedAtRuntimeTimeMs;
+          else if (typeof object.startedAtRuntimeTimeMs === "object")
+            message.startedAtRuntimeTimeMs = new $util.LongBits(
+              object.startedAtRuntimeTimeMs.low >>> 0,
+              object.startedAtRuntimeTimeMs.high >>> 0,
+            ).toNumber(true);
+        if (object.effectId != null) message.effectId = $String(object.effectId);
+        if (object.nodeId != null) message.nodeId = $String(object.nodeId);
+        if (object.configuration != null) {
+          if (typeof object.configuration !== "object")
+            throw $TypeError(".unframe.realtime.EffectRunSnapshot.configuration: object expected");
+          message.configuration = $root.unframe.presentation.EffectConfiguration.fromObject(
+            object.configuration,
+            long + 1,
+          );
+        }
+        if (object.seed != null) message.seed = object.seed >>> 0;
+        switch (object.status) {
+          default:
+            if (typeof object.status === "number") {
+              message.status = object.status;
+              break;
+            }
+            break;
+          case "EFFECT_RUN_STATUS_UNSPECIFIED":
+          case 0:
+            message.status = 0;
+            break;
+          case "EFFECT_RUN_STATUS_ACTIVE":
+          case 1:
+            message.status = 1;
+            break;
+          case "EFFECT_RUN_STATUS_RETAINED":
+          case 2:
+            message.status = 2;
+            break;
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from an EffectRunSnapshot message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {unframe.realtime.EffectRunSnapshot} message EffectRunSnapshot
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      EffectRunSnapshot.toObject = function EffectRunSnapshot$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.defaults) {
+          object.runId = null;
+          object.owner = null;
+          object.cause = null;
+          if ($util.Long) {
+            let long = new $util.Long(0, 0, true);
+            object.startedAtRuntimeTimeMs =
+              options.longs === $String
+                ? long.toString()
+                : options.longs === $Number
+                  ? long.toNumber()
+                  : long;
+          } else object.startedAtRuntimeTimeMs = options.longs === $String ? "0" : 0;
+          object.effectId = "";
+          object.nodeId = "";
+          object.configuration = null;
+          object.seed = 0;
+          object.status = options.enums === $String ? "EFFECT_RUN_STATUS_UNSPECIFIED" : 0;
+        }
+        if (message.runId != null && message.hasOwnProperty("runId"))
+          object.runId = $root.unframe.presentation.RuntimeRunId.toObject(message.runId, options);
+        if (message.owner != null && message.hasOwnProperty("owner"))
+          object.owner = $root.unframe.presentation.RuntimeRunOwner.toObject(
+            message.owner,
+            options,
+          );
+        if (message.cause != null && message.hasOwnProperty("cause"))
+          object.cause = $root.unframe.presentation.RuntimeRunCause.toObject(
+            message.cause,
+            options,
+          );
+        if (
+          message.startedAtRuntimeTimeMs != null &&
+          message.hasOwnProperty("startedAtRuntimeTimeMs")
+        )
+          if (typeof message.startedAtRuntimeTimeMs === "number")
+            object.startedAtRuntimeTimeMs =
+              options.longs === $String
+                ? $String(message.startedAtRuntimeTimeMs)
+                : message.startedAtRuntimeTimeMs;
+          else
+            object.startedAtRuntimeTimeMs =
+              options.longs === $String
+                ? $util.Long.prototype.toString.call(message.startedAtRuntimeTimeMs)
+                : options.longs === $Number
+                  ? new $util.LongBits(
+                      message.startedAtRuntimeTimeMs.low >>> 0,
+                      message.startedAtRuntimeTimeMs.high >>> 0,
+                    ).toNumber(true)
+                  : message.startedAtRuntimeTimeMs;
+        if (message.effectId != null && message.hasOwnProperty("effectId"))
+          object.effectId = message.effectId;
+        if (message.nodeId != null && message.hasOwnProperty("nodeId"))
+          object.nodeId = message.nodeId;
+        if (message.configuration != null && message.hasOwnProperty("configuration"))
+          object.configuration = $root.unframe.presentation.EffectConfiguration.toObject(
+            message.configuration,
+            options,
+          );
+        if (message.seed != null && message.hasOwnProperty("seed")) object.seed = message.seed;
+        if (message.status != null && message.hasOwnProperty("status"))
+          object.status =
+            options.enums === $String
+              ? $root.unframe.realtime.EffectRunStatus[message.status] === $undefined
+                ? message.status
+                : $root.unframe.realtime.EffectRunStatus[message.status]
+              : message.status;
+        return object;
+      };
+
+      /**
+       * Converts this EffectRunSnapshot to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      EffectRunSnapshot.prototype.toJSON = function () {
+        return EffectRunSnapshot.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for EffectRunSnapshot
+       * @function getTypeUrl
+       * @memberof unframe.realtime.EffectRunSnapshot
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      EffectRunSnapshot.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.EffectRunSnapshot";
+      };
+
+      return EffectRunSnapshot;
+    })();
+
+    realtime.EffectRunsChanged = (function () {
+      /**
+       * Properties of an EffectRunsChanged.
+       * @typedef {Object} unframe.realtime.EffectRunsChanged.$Properties
+       * @property {Array.<unframe.realtime.EffectRunSnapshot.$Properties>|null} [effectRuns] EffectRunsChanged effectRuns
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+
+      /**
+       * Properties of an EffectRunsChanged.
+       * @memberof unframe.realtime
+       * @interface IEffectRunsChanged
+       * @augments unframe.realtime.EffectRunsChanged.$Properties
+       * @deprecated Use unframe.realtime.EffectRunsChanged.$Properties instead.
+       */
+
+      /**
+       * Shape of an EffectRunsChanged.
+       * @typedef {{
+       *   effectRuns?: Array.<unframe.realtime.EffectRunSnapshot.$Shape>|null;
+       *   $unknowns?: Array.<Uint8Array>;
+       * }} unframe.realtime.EffectRunsChanged.$Shape
+       */
+
+      /**
+       * Constructs a new EffectRunsChanged.
+       * @memberof unframe.realtime
+       * @classdesc Represents an EffectRunsChanged.
+       * @constructor
+       * @param {unframe.realtime.EffectRunsChanged.$Properties=} [properties] Properties to set
+       * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+       */
+      const EffectRunsChanged = function EffectRunsChanged(properties) {
+        this.effectRuns = [];
+        if (properties)
+          for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+              this[keys[i]] = properties[keys[i]];
+      };
+
+      /**
+       * EffectRunsChanged effectRuns.
+       * @member {Array.<unframe.realtime.EffectRunSnapshot.$Properties>} effectRuns
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @instance
+       */
+      EffectRunsChanged.prototype.effectRuns = $util.emptyArray;
+
+      /**
+       * Creates a new EffectRunsChanged instance using the specified properties.
+       * @function create
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {unframe.realtime.EffectRunsChanged.$Properties=} [properties] Properties to set
+       * @returns {unframe.realtime.EffectRunsChanged} EffectRunsChanged instance
+       * @type {{
+       *   (properties: unframe.realtime.EffectRunsChanged.$Shape): unframe.realtime.EffectRunsChanged & unframe.realtime.EffectRunsChanged.$Shape;
+       *   (properties?: unframe.realtime.EffectRunsChanged.$Properties): unframe.realtime.EffectRunsChanged;
+       * }}
+       */
+      EffectRunsChanged.create = function (properties) {
+        return new EffectRunsChanged(properties);
+      };
+
+      /**
+       * Encodes the specified EffectRunsChanged message. Does not implicitly {@link unframe.realtime.EffectRunsChanged.verify|verify} messages.
+       * @function encode
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {unframe.realtime.EffectRunsChanged.$Properties} message EffectRunsChanged message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectRunsChanged.encode = function EffectRunsChanged$encode(message, writer) {
+        if (!writer) writer = $Writer.create();
+        if (message.effectRuns != null && message.effectRuns.length)
+          for (let i = 0; i < message.effectRuns.length; ++i)
+            $root.unframe.realtime.EffectRunSnapshot.encode(
+              message.effectRuns[i],
+              writer.uint32(/* id 1, wireType 2 =*/ 10).fork(),
+            ).ldelim();
+        return writer;
+      };
+
+      /**
+       * Encodes the specified EffectRunsChanged message, length delimited. Does not implicitly {@link unframe.realtime.EffectRunsChanged.verify|verify} messages.
+       * @function encodeDelimited
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {unframe.realtime.EffectRunsChanged.$Properties} message EffectRunsChanged message or plain object to encode
+       * @param {$protobuf.Writer} [writer] Writer to encode to
+       * @returns {$protobuf.Writer} Writer
+       */
+      EffectRunsChanged.encodeDelimited = function (message, writer) {
+        return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+      };
+
+      /**
+       * Decodes an EffectRunsChanged message from the specified reader or buffer.
+       * @function decode
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @param {number} [length] Message length if known beforehand
+       * @returns {unframe.realtime.EffectRunsChanged & unframe.realtime.EffectRunsChanged.$Shape} EffectRunsChanged
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectRunsChanged.decode = function EffectRunsChanged$decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader)) reader = $Reader.create(reader);
+        if (long === $undefined) long = 0;
+        if (long > $Reader.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let end = length === $undefined ? reader.len : reader.pos + length,
+          message = new this.ctor();
+        while (reader.pos < end) {
+          let tag = reader.uint32();
+          if (tag === error) break;
+          switch (tag >>> 3) {
+            case 1: {
+              if (!(message.effectRuns && message.effectRuns.length)) message.effectRuns = [];
+              message.effectRuns.push(
+                $root.unframe.realtime.EffectRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
+            default:
+              reader.skipType(tag & 7, long);
+              break;
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Decodes an EffectRunsChanged message from the specified reader or buffer, length delimited.
+       * @function decodeDelimited
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+       * @returns {unframe.realtime.EffectRunsChanged & unframe.realtime.EffectRunsChanged.$Shape} EffectRunsChanged
+       * @throws {Error} If the payload is not a reader or valid buffer
+       * @throws {$protobuf.util.ProtocolError} If required fields are missing
+       */
+      EffectRunsChanged.decodeDelimited = function (reader) {
+        if (!(reader instanceof $Reader)) reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+      };
+
+      /**
+       * Verifies an EffectRunsChanged message.
+       * @function verify
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {Object.<string,*>} message Plain object to verify
+       * @returns {string|null} `null` if valid, otherwise the reason why it is not
+       */
+      EffectRunsChanged.verify = function EffectRunsChanged$verify(message, long) {
+        if (typeof message !== "object" || message === null) return "object expected";
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
+        if (message.effectRuns != null && message.hasOwnProperty("effectRuns")) {
+          if (!$Array.isArray(message.effectRuns)) return "effectRuns: array expected";
+          for (let i = 0; i < message.effectRuns.length; ++i) {
+            let error = $root.unframe.realtime.EffectRunSnapshot.verify(
+              message.effectRuns[i],
+              long + 1,
+            );
+            if (error) return "effectRuns." + error;
+          }
+        }
+        return null;
+      };
+
+      /**
+       * Creates an EffectRunsChanged message from a plain object. Also converts values to their respective internal types.
+       * @function fromObject
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {Object.<string,*>} object Plain object
+       * @returns {unframe.realtime.EffectRunsChanged} EffectRunsChanged
+       */
+      EffectRunsChanged.fromObject = function EffectRunsChanged$fromObject(object, long) {
+        if (object instanceof this.ctor) return object;
+        if (long === $undefined) long = 0;
+        if (long > $util.recursionLimit) throw $Error("maximum nesting depth exceeded");
+        let message = new this.ctor();
+        if (object.effectRuns) {
+          if (!$Array.isArray(object.effectRuns))
+            throw $TypeError(".unframe.realtime.EffectRunsChanged.effectRuns: array expected");
+          message.effectRuns = [];
+          for (let i = 0; i < object.effectRuns.length; ++i) {
+            if (typeof object.effectRuns[i] !== "object")
+              throw $TypeError(".unframe.realtime.EffectRunsChanged.effectRuns: object expected");
+            message.effectRuns[i] = $root.unframe.realtime.EffectRunSnapshot.fromObject(
+              object.effectRuns[i],
+              long + 1,
+            );
+          }
+        }
+        return message;
+      };
+
+      /**
+       * Creates a plain object from an EffectRunsChanged message. Also converts values to other types if specified.
+       * @function toObject
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {unframe.realtime.EffectRunsChanged} message EffectRunsChanged
+       * @param {$protobuf.IConversionOptions} [options] Conversion options
+       * @returns {Object.<string,*>} Plain object
+       */
+      EffectRunsChanged.toObject = function EffectRunsChanged$toObject(message, options) {
+        if (!options) options = {};
+        let object = {};
+        if (options.arrays || options.defaults) object.effectRuns = [];
+        if (message.effectRuns && message.effectRuns.length) {
+          object.effectRuns = [];
+          for (let j = 0; j < message.effectRuns.length; ++j)
+            object.effectRuns[j] = $root.unframe.realtime.EffectRunSnapshot.toObject(
+              message.effectRuns[j],
+              options,
+            );
+        }
+        return object;
+      };
+
+      /**
+       * Converts this EffectRunsChanged to JSON.
+       * @function toJSON
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @instance
+       * @returns {Object.<string,*>} JSON object
+       */
+      EffectRunsChanged.prototype.toJSON = function () {
+        return EffectRunsChanged.toObject(this, $protobuf.util.toJSONOptions);
+      };
+
+      /**
+       * Gets the type url for EffectRunsChanged
+       * @function getTypeUrl
+       * @memberof unframe.realtime.EffectRunsChanged
+       * @static
+       * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+       * @returns {string} The type url
+       */
+      EffectRunsChanged.getTypeUrl = function (prefix) {
+        if (prefix === $undefined) prefix = "type.googleapis.com";
+        return prefix + "/unframe.realtime.EffectRunsChanged";
+      };
+
+      return EffectRunsChanged;
+    })();
+
     return realtime;
   })();
 
@@ -91009,6 +92655,7 @@ export const unframe = ($root.unframe = (() => {
               case 8:
               case 9:
               case 10:
+              case 11:
                 break;
             }
         }
@@ -91198,6 +92845,10 @@ export const unframe = ($root.unframe = (() => {
               case "RUNTIME_CAPABILITY_STEP_RESTORE":
               case 10:
                 message.requiredRuntimeCapabilities[i] = 10;
+                break;
+              case "RUNTIME_CAPABILITY_EFFECT_PLAYBACK":
+              case 11:
+                message.requiredRuntimeCapabilities[i] = 11;
                 break;
             }
         }
@@ -91942,6 +93593,7 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.realtime.MediaRuntimeState.$Properties>|null} [mediaStates] LocalPreviewPlaybackState mediaStates
        * @property {Array.<unframe.realtime.ModelClipRuntimeState.$Properties>|null} [modelClipStates] LocalPreviewPlaybackState modelClipStates
        * @property {Array.<unframe.realtime.VariableState.$Properties>|null} [variableStates] LocalPreviewPlaybackState variableStates
+       * @property {Array.<unframe.realtime.EffectRunSnapshot.$Properties>|null} [effectRuns] LocalPreviewPlaybackState effectRuns
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -91966,6 +93618,7 @@ export const unframe = ($root.unframe = (() => {
        *   mediaStates?: Array.<unframe.realtime.MediaRuntimeState.$Shape>|null;
        *   modelClipStates?: Array.<unframe.realtime.ModelClipRuntimeState.$Shape>|null;
        *   variableStates?: Array.<unframe.realtime.VariableState.$Shape>|null;
+       *   effectRuns?: Array.<unframe.realtime.EffectRunSnapshot.$Shape>|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.preview.LocalPreviewPlaybackState.$Shape
        */
@@ -91985,6 +93638,7 @@ export const unframe = ($root.unframe = (() => {
         this.mediaStates = [];
         this.modelClipStates = [];
         this.variableStates = [];
+        this.effectRuns = [];
         if (properties)
           for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
             if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -92074,6 +93728,14 @@ export const unframe = ($root.unframe = (() => {
       LocalPreviewPlaybackState.prototype.variableStates = $util.emptyArray;
 
       /**
+       * LocalPreviewPlaybackState effectRuns.
+       * @member {Array.<unframe.realtime.EffectRunSnapshot.$Properties>} effectRuns
+       * @memberof unframe.preview.LocalPreviewPlaybackState
+       * @instance
+       */
+      LocalPreviewPlaybackState.prototype.effectRuns = $util.emptyArray;
+
+      /**
        * Creates a new LocalPreviewPlaybackState instance using the specified properties.
        * @function create
        * @memberof unframe.preview.LocalPreviewPlaybackState
@@ -92152,6 +93814,12 @@ export const unframe = ($root.unframe = (() => {
             $root.unframe.realtime.VariableState.encode(
               message.variableStates[i],
               writer.uint32(/* id 10, wireType 2 =*/ 82).fork(),
+            ).ldelim();
+        if (message.effectRuns != null && message.effectRuns.length)
+          for (let i = 0; i < message.effectRuns.length; ++i)
+            $root.unframe.realtime.EffectRunSnapshot.encode(
+              message.effectRuns[i],
+              writer.uint32(/* id 11, wireType 2 =*/ 90).fork(),
             ).ldelim();
         return writer;
       };
@@ -92291,6 +93959,18 @@ export const unframe = ($root.unframe = (() => {
               );
               break;
             }
+            case 11: {
+              if (!(message.effectRuns && message.effectRuns.length)) message.effectRuns = [];
+              message.effectRuns.push(
+                $root.unframe.realtime.EffectRunSnapshot.decode(
+                  reader,
+                  reader.uint32(),
+                  $undefined,
+                  long + 1,
+                ),
+              );
+              break;
+            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -92402,6 +94082,16 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
             if (error) return "variableStates." + error;
+          }
+        }
+        if (message.effectRuns != null && message.hasOwnProperty("effectRuns")) {
+          if (!$Array.isArray(message.effectRuns)) return "effectRuns: array expected";
+          for (let i = 0; i < message.effectRuns.length; ++i) {
+            let error = $root.unframe.realtime.EffectRunSnapshot.verify(
+              message.effectRuns[i],
+              long + 1,
+            );
+            if (error) return "effectRuns." + error;
           }
         }
         return null;
@@ -92546,6 +94236,23 @@ export const unframe = ($root.unframe = (() => {
             );
           }
         }
+        if (object.effectRuns) {
+          if (!$Array.isArray(object.effectRuns))
+            throw $TypeError(
+              ".unframe.preview.LocalPreviewPlaybackState.effectRuns: array expected",
+            );
+          message.effectRuns = [];
+          for (let i = 0; i < object.effectRuns.length; ++i) {
+            if (typeof object.effectRuns[i] !== "object")
+              throw $TypeError(
+                ".unframe.preview.LocalPreviewPlaybackState.effectRuns: object expected",
+              );
+            message.effectRuns[i] = $root.unframe.realtime.EffectRunSnapshot.fromObject(
+              object.effectRuns[i],
+              long + 1,
+            );
+          }
+        }
         return message;
       };
 
@@ -92571,6 +94278,7 @@ export const unframe = ($root.unframe = (() => {
           object.mediaStates = [];
           object.modelClipStates = [];
           object.variableStates = [];
+          object.effectRuns = [];
         }
         if (options.defaults) {
           object.requestId = "";
@@ -92654,6 +94362,14 @@ export const unframe = ($root.unframe = (() => {
           for (let j = 0; j < message.variableStates.length; ++j)
             object.variableStates[j] = $root.unframe.realtime.VariableState.toObject(
               message.variableStates[j],
+              options,
+            );
+        }
+        if (message.effectRuns && message.effectRuns.length) {
+          object.effectRuns = [];
+          for (let j = 0; j < message.effectRuns.length; ++j)
+            object.effectRuns[j] = $root.unframe.realtime.EffectRunSnapshot.toObject(
+              message.effectRuns[j],
               options,
             );
         }

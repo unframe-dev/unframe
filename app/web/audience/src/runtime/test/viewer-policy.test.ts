@@ -25,9 +25,9 @@ it("keeps Viewer logical inputs disabled and rejects Presenter input state", () 
 });
 
 it("advertises only Viewer runtime capabilities, including mandatory v3 replacement support", () => {
-  expect(viewerRuntimeCapabilities).toEqual([1, 2, 3, 4, 5, 8, 9, 10]);
-  expect(() => assertViewerRuntimeCapabilities([1, 4, 5, 8, 9, 10])).not.toThrow();
+  expect(viewerRuntimeCapabilities).toEqual([1, 2, 3, 4, 5, 8, 9, 10, 11]);
+  expect(() => assertViewerRuntimeCapabilities([1, 4, 5, 8, 9, 10, 11])).not.toThrow();
 });
-it.each([0, 6, 7, 11])("rejects unsupported required runtime capability %s", (capability) => {
+it.each([0, 6, 7, 12])("rejects unsupported required runtime capability %s", (capability) => {
   expect(() => assertViewerRuntimeCapabilities([capability])).toThrow(/unsupported/);
 });

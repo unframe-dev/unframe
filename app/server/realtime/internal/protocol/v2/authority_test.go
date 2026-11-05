@@ -25,7 +25,7 @@ func TestNormalCommandBindsContextAndEpoch(t *testing.T) {
 		func(c *realtime.GestureInputCommand) { c.CommandEpoch = 2 },
 		func(c *realtime.GestureInputCommand) { c.ClientEventId = "01:550e8400-e29b-41d4-a716-446655440000" },
 		func(c *realtime.GestureInputCommand) { c.ClientEventId = "1:550E8400-e29b-41d4-a716-446655440000" },
-		func(c *realtime.GestureInputCommand) { c.Gesture = 9 },
+		func(c *realtime.GestureInputCommand) { c.Gesture = 11 },
 	} {
 		c := proto.Clone(command).(*realtime.GestureInputCommand)
 		mutate(c)

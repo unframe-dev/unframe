@@ -9,3 +9,5 @@ export {
   validateM3dCueRuntimeSnapshot,
   validateRuntimeVisibilitySelection,
 } from "./runtime/projection.js";
+
+export { effectRuntimeDuration } from "./runtime/effects.js";
