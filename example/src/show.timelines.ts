@@ -2,78 +2,136 @@ import type { SceneTimelineDeclaration } from "@unframe-dev/authoring";
 
 export const showTimelines = [
   {
-    id: "expression",
-    owner: { kind: "group", groupId: "expression" },
-    durationMilliseconds: 2400,
+    id: "expression-draw",
+    owner: {
+      kind: "group",
+      groupId: "expression",
+    },
+    durationMilliseconds: 1200,
     tracks: [
       {
-        target: { kind: "instance", instanceId: "word-speak", property: "opacity" },
+        target: {
+          kind: "instance",
+          instanceId: "expression-cube",
+          property: "opacity",
+        },
         keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "cubicOut" },
-          { timeMilliseconds: 600, value: 1, easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: 1 },
+          {
+            timeMilliseconds: 0,
+            value: 0,
+            easingToNext: "linear",
+          },
+          {
+            timeMilliseconds: 650,
+            value: 0,
+            easingToNext: "cubicOut",
+          },
+          {
+            timeMilliseconds: 1200,
+            value: 1,
+          },
         ],
       },
       {
-        target: { kind: "instance", instanceId: "word-speak", property: "transform.position" },
+        target: {
+          kind: "instance",
+          instanceId: "expression-cube",
+          property: "transform.scale",
+        },
         keyframes: [
-          { timeMilliseconds: 0, value: [-0.3, 1.4, -2], easingToNext: "cubicOut" },
-          { timeMilliseconds: 900, value: [-1, 1.8, -2], easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: [-1, 1.8, -2] },
+          {
+            timeMilliseconds: 0,
+            value: [0.1, 0.1, 0.1],
+            easingToNext: "linear",
+          },
+          {
+            timeMilliseconds: 650,
+            value: [0.1, 0.1, 0.1],
+            easingToNext: "cubicOut",
+          },
+          {
+            timeMilliseconds: 1200,
+            value: [0.4, 0.4, 0.4],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "expression-move",
+    owner: {
+      kind: "group",
+      groupId: "expression",
+    },
+    durationMilliseconds: 1800,
+    tracks: [
+      {
+        target: {
+          kind: "instance",
+          instanceId: "expression-cube",
+          property: "transform.position",
+        },
+        keyframes: [
+          {
+            timeMilliseconds: 0,
+            value: [-0.7, 1.3, -2],
+            easingToNext: "cubicInOut",
+          },
+          {
+            timeMilliseconds: 1100,
+            value: [0.75, 1.65, -2],
+            easingToNext: "linear",
+          },
+          {
+            timeMilliseconds: 1800,
+            value: [0.75, 1.65, -2],
+          },
         ],
       },
       {
-        target: { kind: "instance", instanceId: "word-move", property: "opacity" },
+        target: {
+          kind: "instance",
+          instanceId: "expression-cube",
+          property: "transform.rotation",
+        },
         keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 450, value: 0, easingToNext: "cubicOut" },
-          { timeMilliseconds: 1050, value: 1, easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: 1 },
+          {
+            timeMilliseconds: 0,
+            value: [0, 0, 0, 1],
+            easingToNext: "cubicInOut",
+          },
+          {
+            timeMilliseconds: 1100,
+            value: [0, 0.7071067811865476, 0, 0.7071067811865476],
+            easingToNext: "linear",
+          },
+          {
+            timeMilliseconds: 1800,
+            value: [0, 0.7071067811865476, 0, 0.7071067811865476],
+          },
         ],
       },
       {
-        target: { kind: "instance", instanceId: "word-move", property: "transform.position" },
+        target: {
+          kind: "instance",
+          instanceId: "expression-message",
+          property: "opacity",
+        },
         keyframes: [
-          { timeMilliseconds: 0, value: [0.3, 1.4, -2.3], easingToNext: "linear" },
-          { timeMilliseconds: 450, value: [0.3, 1.4, -2.3], easingToNext: "cubicOut" },
-          { timeMilliseconds: 1350, value: [1, 1.8, -2.3], easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: [1, 1.8, -2.3] },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "word-space", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 900, value: 0, easingToNext: "cubicOut" },
-          { timeMilliseconds: 1500, value: 1, easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: 1 },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "word-space", property: "transform.position" },
-        keyframes: [
-          { timeMilliseconds: 0, value: [0.0, 1.4, -1.8], easingToNext: "linear" },
-          { timeMilliseconds: 900, value: [0.0, 1.4, -1.8], easingToNext: "cubicOut" },
-          { timeMilliseconds: 1800, value: [0, 0.8, -1.8], easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: [0, 0.8, -1.8] },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "gesture-drawing", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 1350, value: 0, easingToNext: "cubicOut" },
-          { timeMilliseconds: 1950, value: 1, easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: 1 },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "gesture-drawing", property: "transform.position" },
-        keyframes: [
-          { timeMilliseconds: 0, value: [0.0, 1.4, -2.1], easingToNext: "linear" },
-          { timeMilliseconds: 1350, value: [0.0, 1.4, -2.1], easingToNext: "cubicOut" },
-          { timeMilliseconds: 2250, value: [0, 1.5, -2.1], easingToNext: "linear" },
-          { timeMilliseconds: 2400, value: [0, 1.5, -2.1] },
+          {
+            timeMilliseconds: 0,
+            value: 0,
+            easingToNext: "linear",
+          },
+          {
+            timeMilliseconds: 1100,
+            value: 0,
+            easingToNext: "cubicOut",
+          },
+          {
+            timeMilliseconds: 1800,
+            value: 1,
+          },
         ],
       },
     ],
@@ -83,38 +141,6 @@ export const showTimelines = [
     owner: { kind: "group", groupId: "journey" },
     durationMilliseconds: 1200,
     tracks: [
-      {
-        target: { kind: "instance", instanceId: "word-speak", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "cubicIn" },
-          { timeMilliseconds: 350, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 1200, value: 0 },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "word-move", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "cubicIn" },
-          { timeMilliseconds: 350, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 1200, value: 0 },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "word-space", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "cubicIn" },
-          { timeMilliseconds: 350, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 1200, value: 0 },
-        ],
-      },
-      {
-        target: { kind: "instance", instanceId: "gesture-drawing", property: "opacity" },
-        keyframes: [
-          { timeMilliseconds: 0, value: 1, easingToNext: "cubicIn" },
-          { timeMilliseconds: 350, value: 0, easingToNext: "linear" },
-          { timeMilliseconds: 1200, value: 0 },
-        ],
-      },
       {
         target: { kind: "instance", instanceId: "goal-before", property: "opacity" },
         keyframes: [

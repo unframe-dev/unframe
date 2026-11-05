@@ -27,25 +27,34 @@ const dismissed = () => {
 };
 const node = (state, id) => state.nodes[reactResourceId("host", id)];
 
-test("当初案の退場後、次の操作で空間に言葉と図版を広げて待機する", () => {
-  const before = dismissed();
-  const start = input(before);
-  assert.equal(start.outcome.kind, "accepted");
-  assert.equal(input(start.state).outcome.kind, "none");
-  const shown = tick(start.state, 2401);
-  assert.equal(shown.currentStepId, "expression-ready");
-  for (const id of ["word-speak", "word-move", "word-space", "gesture-drawing"]) {
-    assert.equal(node(shown, id).opacity, 1, id);
-  }
-  for (const id of ["brand", "logo"]) {
-    const key =
-      id === "logo"
-        ? Object.values(definition.scene.nodes).find(
-            (n) => n.kind === "model" && n.assetId === "logo-model",
-          ).id
-        : reactResourceId("host", id);
-    assert.deepEqual(shown.nodes[key], before.nodes[key]);
-  }
+test("空の空間で待機し、操作ごとに描画と移動を進めて言葉を残す", () => {
+  const start = input(dismissed()).state;
+  assert.equal(start.currentStepId, "expression");
+  const waiting = tick(start, 3000);
+  assert.equal(waiting.activeRuns.length, 0);
+  assert.equal(node(waiting, "expression-message").opacity, 0);
+  const drawing = input(waiting).state;
+  assert.equal(input(drawing).outcome.kind, "none");
+  const drawn = tick(drawing, 1201);
+  assert.equal(drawn.currentStepId, "expression-drawn");
+  assert.equal(drawn.effectRuns.length, 1);
+  assert.equal(node(drawn, "expression-message").opacity, 0);
+  assert.equal(node(drawn, "expression-cube").opacity, 1);
+  const drawnPosition = node(drawn, "expression-cube").transform.position;
+  assert.equal(tick(drawn, 3000).currentStepId, "expression-drawn");
+  const moving = input(drawn).state;
+  assert.equal(input(moving).outcome.kind, "none");
+  const ready = tick(moving, 1801);
+  assert.equal(ready.currentStepId, "expression-ready");
+  assert.equal(node(ready, "expression-message").opacity, 1);
+  assert.notDeepEqual(node(ready, "expression-cube").transform.position, drawnPosition);
+  assert.equal(ready.effectRuns.length, 0);
+  for (const id of ["word-speak", "word-move", "word-space", "gesture-drawing"])
+    assert.equal(node(ready, id).opacity, 0, id);
+  const next = tick(input(ready).state, 1201);
+  assert.equal(next.currentStepId, "journey-goal-ready");
+  assert.equal(node(next, "expression-message"), undefined);
+  assert.equal(next.effectRuns.length, 0);
 });
 
 const enter = (state, step, duration) => {
@@ -58,7 +67,11 @@ const enter = (state, step, duration) => {
   assert.equal(ready.activeRuns.length, 0);
   return ready;
 };
-const expression = () => enter(dismissed(), "expression", 2400);
+const expression = () => {
+  let state = input(dismissed()).state;
+  state = tick(input(state).state, 1201);
+  return tick(input(state).state, 1801);
+};
 const technology = () => {
   let state = expression();
   for (const [step, duration, visible, hidden] of [
@@ -299,7 +312,7 @@ test("画像の所有範囲を分け、共有・現在・次候補を合わせ�
   const owners = surfaces.flatMap((surface) =>
     Object.values(surface.states).map(() => definition.scene.nodes[surface.hostNodeId].owner),
   );
-  assert.equal(owners.length, 23);
+  assert.equal(owners.length, 24);
   assert.equal(owners.filter((owner) => owner.kind === "presentation").length, 5);
   const windows = Object.values(definition.flow.groups).map((group) => {
     const next = new Set(

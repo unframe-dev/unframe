@@ -27,24 +27,116 @@ export const showGroups = {
         id: "expression",
         cues: [
           {
-            id: "expression-start",
+            id: "expression-draw-next",
+            trigger: {
+              kind: "logicalInput",
+              action: "presenter.next",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "expression-draw",
+            },
+          },
+        ],
+      },
+      "expression-draw": {
+        id: "expression-draw",
+        cues: [
+          {
+            id: "expression-draw-start",
             trigger: {
               kind: "timer",
               afterMilliseconds: 1,
             },
             actions: [
               {
+                kind: "effect.start",
+                owner: {
+                  kind: "group",
+                  groupId: "expression",
+                },
+                effectId: "expression-wave",
+                nodeId: "expression-wave",
+                seed: 0,
+                effect: {
+                  kind: "wave",
+                  size: 0.45,
+                  color: {
+                    red: 0.7,
+                    green: 0.75,
+                    blue: 1,
+                    alpha: 0.9,
+                  },
+                  speed: 1,
+                  durationMilliseconds: 1200,
+                  waveCycles: 1,
+                },
+              },
+              {
                 kind: "timeline.play",
-                timelineId: "expression",
+                timelineId: "expression-draw",
                 completion: "nonBlocking",
               },
             ],
           },
           {
-            id: "expression-complete",
+            id: "expression-draw-complete",
             trigger: {
               kind: "timelineCompleted",
-              timelineId: "expression",
+              timelineId: "expression-draw",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "expression-drawn",
+            },
+          },
+        ],
+      },
+      "expression-drawn": {
+        id: "expression-drawn",
+        cues: [
+          {
+            id: "expression-move-next",
+            trigger: {
+              kind: "logicalInput",
+              action: "presenter.next",
+            },
+            actions: [],
+            next: {
+              kind: "step",
+              stepId: "expression-move",
+            },
+          },
+        ],
+      },
+      "expression-move": {
+        id: "expression-move",
+        cues: [
+          {
+            id: "expression-move-start",
+            trigger: {
+              kind: "timer",
+              afterMilliseconds: 1,
+            },
+            actions: [
+              {
+                kind: "effect.stop",
+                effectId: "expression-wave",
+              },
+              {
+                kind: "timeline.play",
+                timelineId: "expression-move",
+                completion: "nonBlocking",
+              },
+            ],
+          },
+          {
+            id: "expression-move-complete",
+            trigger: {
+              kind: "timelineCompleted",
+              timelineId: "expression-move",
             },
             actions: [],
             next: {

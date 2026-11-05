@@ -26,6 +26,77 @@ export default definePresentation({
   ],
   scene: [
     {
+      id: "expression-cube",
+      model: {
+        kind: "asset-ref",
+        assetId: "demo-cube",
+      },
+      owner: {
+        kind: "group",
+        groupId: "expression",
+      },
+      audience: {
+        kind: "all",
+      },
+      parent: {
+        kind: "stage",
+      },
+      opacity: 0,
+      transform: {
+        position: [-0.7, 1.3, -2],
+        rotation: [0, 0, 0, 1],
+        scale: [0.4, 0.4, 0.4],
+      },
+    },
+    {
+      id: "expression-wave",
+      model: {
+        kind: "asset-ref",
+        assetId: "wave-anchor",
+      },
+      owner: {
+        kind: "group",
+        groupId: "expression",
+      },
+      audience: {
+        kind: "all",
+      },
+      parent: {
+        kind: "stage",
+      },
+      opacity: 1,
+      transform: {
+        position: [-0.7, 1.3, -2],
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      },
+    },
+    {
+      id: "expression-message",
+      component: SpatialWord,
+      props: {
+        text: "動きも、表現になる。",
+      },
+      owner: {
+        kind: "group",
+        groupId: "expression",
+      },
+      audience: {
+        kind: "all",
+      },
+      parent: {
+        kind: "stage",
+      },
+      physicalSizeMeters: [2.6, 0.7222],
+      fit: "contain",
+      opacity: 0,
+      transform: {
+        position: [0, 0.85, -2],
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      },
+    },
+    {
       id: "rejection-mark",
       component: RejectionMark,
       props: {},

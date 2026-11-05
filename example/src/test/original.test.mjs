@@ -7,9 +7,7 @@ import { definition, initialState } from "./project.mjs";
 const panelId = reactResourceId("host", "original-panel");
 const surfaceId = reactResourceId("surface", "original-panel");
 const brandId = reactResourceId("host", "brand");
-const cubeId = Object.values(definition.scene.nodes).find(
-  (node) => node.kind === "model" && node.assetId === "demo-cube",
-).id;
+const cubeId = reactResourceId("host", "demo-cube");
 const logoId = Object.values(definition.scene.nodes).find(
   (node) => node.kind === "model" && node.assetId === "logo-model",
 ).id;
