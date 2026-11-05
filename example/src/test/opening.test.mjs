@@ -29,8 +29,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
   const started = advanceCueClock(definition, initial, 1).state;
   assert.equal(started.effectRuns.length, 2);
   const directions = {
-    "opening-wave-bottom-left": { position: [-1.8, 0.4, -2.2], direction: [1, 0, 0] },
-    "opening-wave-top-right": { position: [1.8, 2.8, -2.2], direction: [-1, 0, 0] },
+    "opening-wave-bottom-left": { position: [-2.1, 0.4, -2.2], direction: [1, 0, 0] },
+    "opening-wave-top-right": { position: [2.1, 2.8, -2.2], direction: [-1, 0, 0] },
   };
   assert.deepEqual(
     new Set(started.effectRuns.map((run) => run.effectId)),
