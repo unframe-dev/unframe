@@ -10,15 +10,17 @@ namespace Unframe.Unity.VisualEffects.Gestures
     [Serializable]
     public sealed class GestureRecognitionSettings
     {
-        public float WindupSideDistance = .15f;
         public float WindupBackDistance = .12f;
+        public float WindupMaxAngleDegrees = 35;
         public float ThrowMinSpeed = 1.2f;
         public float ThrowMinDistance = .2f;
+        public float ThrowStartDistance = .01f;
+        public float ThrowSpeedWindowSeconds = .12f;
         public float ThrowMaxAngleDegrees = 35;
-        public float MaxVerticalRatio = .45f;
         public float CircleMinRadius = .08f;
         public float CircleMaxRadius = .6f;
         public float CircleMaxRadialError = .22f;
+        public float CircleMaxAspectRatio = 2;
         public float CircleClosureRatio = .4f;
         public float CircleMinAngleDegrees = 320;
         public float CircleMaxReverseRatio = .1f;
@@ -39,8 +41,8 @@ namespace Unframe.Unity.VisualEffects.Gestures
                         throw new ArgumentOutOfRangeException(field.Name);
                 }
             if (CircleMinSamples < 8 || CircleMinSamples > 256 || CircleMaxRadius < CircleMinRadius
-                || MaximumDurationSeconds < MinimumDurationSeconds || ThrowMaxAngleDegrees >= 90
-                || CircleMinAngleDegrees > 360 || MaxVerticalRatio > 1 || CircleMaxReverseRatio >= 1)
+                || MaximumDurationSeconds < MinimumDurationSeconds || ThrowMaxAngleDegrees >= 90 || WindupMaxAngleDegrees >= 90
+                || CircleMinAngleDegrees > 360 || CircleMaxReverseRatio >= 1 || CircleMaxAspectRatio < 1)
                 throw new ArgumentException("Invalid gesture recognition limits.");
             return copy;
         }
@@ -70,6 +72,7 @@ namespace Unframe.Unity.VisualEffects.Gestures
         public Vector3 Direction { get; internal set; }
         public float ForwardSpeed { get; internal set; }
         public float CircleRadius { get; internal set; }
+        public IReadOnlyList<Vector3> WorldPath { get; internal set; } = Array.AsReadOnly(Array.Empty<Vector3>());
     }
 
     public sealed class VisualGestureRecognizer
@@ -77,11 +80,14 @@ namespace Unframe.Unity.VisualEffects.Gestures
         private readonly GestureRecognitionSettings settings;
         private GestureRecognitionSettings active;
         private readonly List<Vector3> points = new List<Vector3>();
+        private readonly List<Vector3> worldPoints = new List<Vector3>();
         private VisualGesture kind;
         private GestureHand hand;
         private Vector3 forward, right, start, previous, windup;
-        private double startedAt, previousAt, windupAt;
-        private bool woundUp;
+        private double startedAt, previousAt, swingStartedAt;
+        private bool woundUp, swinging;
+        private readonly List<double> speedTimes = new List<double>();
+        private readonly List<Vector3> speedPositions = new List<Vector3>();
         public bool IsCapturing { get; private set; }
 
         public VisualGestureRecognizer(GestureRecognitionSettings settings = null)
@@ -104,6 +110,7 @@ namespace Unframe.Unity.VisualEffects.Gestures
             start = previous = Local(sample);
             startedAt = previousAt = sample.TimeSeconds;
             points.Add(start);
+            if (kind == VisualGesture.Circle) worldPoints.Add(sample.HandPosition);
             IsCapturing = true;
             return true;
         }
@@ -113,40 +120,50 @@ namespace Unframe.Unity.VisualEffects.Gestures
             if (!IsCapturing) return null;
             double elapsed = sample.TimeSeconds - startedAt;
             double dt = sample.TimeSeconds - previousAt;
-            if (!Valid(sample) || dt <= 0 || dt > active.MaximumSampleGapSeconds || elapsed > active.MaximumDurationSeconds)
-            { Cancel(); return null; }
+            if (!Valid(sample)) { Stop(); return null; }
+            if (dt <= 0 || dt > active.MaximumSampleGapSeconds) { Stop(); return null; }
+            if (elapsed > active.MaximumDurationSeconds) { Stop(); return null; }
             Vector3 point = Local(sample);
             float speed = 0, radius = 0;
             bool recognized = false;
             if (kind == VisualGesture.Throw)
             {
                 Vector3 fromStart = point - start;
-                if (!woundUp && Mathf.Abs(fromStart.x) >= active.WindupSideDistance && fromStart.z <= -active.WindupBackDistance
-                    && Mathf.Abs(fromStart.y) <= fromStart.magnitude * active.MaxVerticalRatio)
-                { woundUp = true; windup = point; windupAt = sample.TimeSeconds; }
-                if (woundUp && sample.TimeSeconds > windupAt)
+                if (!woundUp && fromStart.z <= -active.WindupBackDistance
+                    && -fromStart.z >= fromStart.magnitude * Mathf.Cos(active.WindupMaxAngleDegrees * Mathf.Deg2Rad))
+                { woundUp = true; windup = point; }
+                if (woundUp && !swinging && point.z < windup.z) windup = point;
+                if (woundUp)
                 {
                     Vector3 movement = point - windup;
-                    if (movement.magnitude >= active.ThrowMinDistance && Mathf.Abs(movement.y) > movement.magnitude * active.MaxVerticalRatio)
-                    { Cancel(); return null; }
-                    speed = movement.z / (float)(sample.TimeSeconds - windupAt);
-                    float horizontal = new Vector2(movement.x, movement.z).magnitude;
-                    recognized = elapsed >= active.MinimumDurationSeconds && speed >= active.ThrowMinSpeed
+                    if (!swinging && movement.z >= active.ThrowStartDistance)
+                    {
+                        swinging = true;
+                        swingStartedAt = previousAt;
+                        speedTimes.Add(swingStartedAt);
+                        speedPositions.Add(previous);
+                    }
+                    Vector3 velocity = swinging ? SampleThrowVelocity(point, sample.TimeSeconds) : Vector3.zero;
+                    if (!IsCapturing) return null;
+                    speed = velocity.z;
+                    bool forwardDirection = velocity.z >= velocity.magnitude * Mathf.Cos(active.ThrowMaxAngleDegrees * Mathf.Deg2Rad);
+                    recognized = swinging && elapsed >= active.MinimumDurationSeconds && speed >= active.ThrowMinSpeed
                         && movement.z >= active.ThrowMinDistance
-                        && movement.z >= horizontal * Mathf.Cos(active.ThrowMaxAngleDegrees * Mathf.Deg2Rad)
-                        && Mathf.Abs(movement.y) <= movement.magnitude * active.MaxVerticalRatio;
+                        && forwardDirection;
                 }
             }
             else
             {
                 if (Vector3.Distance(previous, point) > .002f)
                 {
-                    if (points.Count >= 512) { Cancel(); return null; }
+                    if (points.Count >= 512) { Stop(); return null; }
                     points.Add(point);
+                    worldPoints.Add(sample.HandPosition);
                     previous = point;
                 }
                 recognized = elapsed >= active.MinimumDurationSeconds && Circle(out radius);
             }
+            if (kind == VisualGesture.Throw) previous = point;
             previousAt = sample.TimeSeconds;
             if (!recognized) return null;
             var result = new GestureRecognition
@@ -159,14 +176,34 @@ namespace Unframe.Unity.VisualEffects.Gestures
                 Direction = forward,
                 ForwardSpeed = speed,
                 CircleRadius = radius,
+                WorldPath = Array.AsReadOnly(worldPoints.ToArray()),
             };
-            Cancel();
+            Stop();
             return result;
         }
 
-        public void Cancel()
+        public void Cancel() => Stop();
+
+        private void Stop()
         {
-            IsCapturing = false; woundUp = false; points.Clear();
+            IsCapturing = false; woundUp = false; swinging = false; points.Clear(); worldPoints.Clear();
+            speedTimes.Clear(); speedPositions.Clear();
+        }
+
+        private Vector3 SampleThrowVelocity(Vector3 position, double time)
+        {
+            speedTimes.Add(time);
+            speedPositions.Add(position);
+            double cutoff = Math.Max(swingStartedAt, time - active.ThrowSpeedWindowSeconds);
+            while (speedTimes.Count > 2 && speedTimes[1] <= cutoff)
+            { speedTimes.RemoveAt(0); speedPositions.RemoveAt(0); }
+            if (speedTimes.Count > 512) { Stop(); return Vector3.zero; }
+            double firstTime = Math.Max(cutoff, speedTimes[0]);
+            Vector3 firstPosition = speedPositions[0];
+            if (firstTime > speedTimes[0])
+                firstPosition = Vector3.Lerp(speedPositions[0], speedPositions[1],
+                    (float)((firstTime - speedTimes[0]) / (speedTimes[1] - speedTimes[0])));
+            return (position - firstPosition) / (float)(time - firstTime);
         }
 
         private Vector3 Local(GestureSample sample)
@@ -197,23 +234,58 @@ namespace Unframe.Unity.VisualEffects.Gestures
             Vector3 center = Vector3.zero;
             foreach (var p in samples) center += p;
             center /= samples.Length;
+            float covarianceXX = 0, covarianceXY = 0, covarianceYY = 0;
+            foreach (var p in samples)
+            {
+                Vector3 d = p - center;
+                covarianceXX += d.x * d.x;
+                covarianceXY += d.x * d.y;
+                covarianceYY += d.y * d.y;
+            }
+            float axisAngle = .5f * Mathf.Atan2(2 * covarianceXY, covarianceXX - covarianceYY);
+            Vector2 axis = new Vector2(Mathf.Cos(axisAngle), Mathf.Sin(axisAngle));
+            Vector2 perpendicular = new Vector2(-axis.y, axis.x);
+            Vector2 minimum = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+            Vector2 maximum = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+            foreach (var p in samples)
+            {
+                Vector3 d = p - center;
+                var projected = new Vector2(d.x * axis.x + d.y * axis.y, d.x * perpendicular.x + d.y * perpendicular.y);
+                minimum = Vector2.Min(minimum, projected);
+                maximum = Vector2.Max(maximum, projected);
+            }
+            Vector2 halfAxes = (maximum - minimum) * .5f;
+            Vector2 axisCenter = (maximum + minimum) * .5f;
+            center.x += axis.x * axisCenter.x + perpendicular.x * axisCenter.y;
+            center.y += axis.y * axisCenter.x + perpendicular.y * axisCenter.y;
+            float major = Mathf.Max(halfAxes.x, halfAxes.y);
+            float minor = Mathf.Min(halfAxes.x, halfAxes.y);
+            float aspectRatio = major / Mathf.Max(minor, .000001f);
+            // Polygon samples can miss the minor-axis extremum and slightly overestimate the ratio.
+            bool aspectAllowed = minor > .000001f && aspectRatio <= active.CircleMaxAspectRatio * 1.01f;
             foreach (var p in samples) radius += new Vector2(p.x - center.x, p.y - center.y).magnitude;
             radius /= samples.Length;
-            if (radius < active.CircleMinRadius || radius > active.CircleMaxRadius
-                || Vector3.Distance(samples[0], samples[samples.Length - 1]) > radius * active.CircleClosureRatio) return false;
             float totalAngle = 0, absoluteAngle = 0;
+            float maxRadialError = 0, maxDepth = 0;
             for (int i = 0; i < samples.Length; i++)
             {
                 Vector3 d = samples[i] - center;
-                if (Mathf.Abs(new Vector2(d.x, d.y).magnitude - radius) > radius * active.CircleMaxRadialError
-                    || Mathf.Abs(d.z) > active.CircleMaxDepth) return false;
+                var normalized = new Vector2(
+                    (d.x * axis.x + d.y * axis.y) / Mathf.Max(halfAxes.x, .000001f),
+                    (d.x * perpendicular.x + d.y * perpendicular.y) / Mathf.Max(halfAxes.y, .000001f));
+                maxRadialError = Mathf.Max(maxRadialError, Mathf.Abs(normalized.magnitude - 1));
+                maxDepth = Mathf.Max(maxDepth, Mathf.Abs(d.z));
                 if (i == 0) continue;
                 Vector3 previousDelta = samples[i - 1] - center;
                 float angle = Mathf.Atan2(previousDelta.x * d.y - previousDelta.y * d.x,
                     previousDelta.x * d.x + previousDelta.y * d.y) * Mathf.Rad2Deg;
                 totalAngle += angle; absoluteAngle += Mathf.Abs(angle);
             }
-            return Mathf.Abs(totalAngle) >= active.CircleMinAngleDegrees
+            return radius >= active.CircleMinRadius && radius <= active.CircleMaxRadius
+                && aspectAllowed
+                && Vector3.Distance(samples[0], samples[samples.Length - 1]) <= radius * active.CircleClosureRatio
+                && maxRadialError <= active.CircleMaxRadialError && maxDepth <= active.CircleMaxDepth
+                && Mathf.Abs(totalAngle) >= active.CircleMinAngleDegrees
                 && (absoluteAngle - Mathf.Abs(totalAngle)) / Mathf.Max(absoluteAngle * 2, .001f) <= active.CircleMaxReverseRatio;
         }
 

@@ -10,11 +10,13 @@ namespace Unframe.Unity.VisualEffects.Gestures
         public event Action<GestureRecognition> Recognized;
         public bool Begin(VisualGesture kind, GestureHand hand, GestureSample sample)
         {
+            if (!isActiveAndEnabled) return false;
             recognizer ??= new VisualGestureRecognizer(settings);
             return recognizer.Begin(kind, hand, sample);
         }
         public void PushSample(GestureSample sample)
         {
+            if (!isActiveAndEnabled) return;
             var result = recognizer?.Update(sample);
             if (result != null) Recognized?.Invoke(result);
         }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unframe.Presentation;
 using Unframe.Realtime;
@@ -7,8 +8,30 @@ using UnityVector = UnityEngine.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {
+    public sealed class PresenterGesturePositionSample
+    {
+        private readonly InputContext context;
+        public InputContext Context => context.Clone();
+        public GesturePositionSample Sample { get; }
+
+        internal PresenterGesturePositionSample(InputContext context, GesturePositionSample sample)
+        {
+            this.context = context.Clone();
+            Sample = sample;
+        }
+    }
+
     public sealed class QuestGestureRecognition
     {
+        private static readonly GestureKind[] PositionGestureKinds = { GestureKind.Throw, GestureKind.Circle };
+        private static readonly GestureHand[] PositionHands = { GestureHand.Left, GestureHand.Right };
+        private readonly GesturePositionSampler positionSampler = new GesturePositionSampler();
+        public event Action<PresenterGesturePositionSample> PositionSampleReady;
+        public double PositionSampleIntervalSeconds
+        {
+            get => positionSampler.IntervalSeconds;
+            set => positionSampler.IntervalSeconds = value;
+        }
         private readonly PresenterRecognition legacy = new PresenterRecognition();
         private readonly List<VisualGestureRecognizer> candidates = new List<VisualGestureRecognizer>();
         private InputContext context;
@@ -19,6 +42,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Reset(InputContext nextContext, PresenterRecognitionCatalog nextCatalog)
         {
+            positionSampler.Reset();
             Cancel();
             context = nextContext?.Clone();
             catalog = nextCatalog?.Clone();
@@ -36,6 +60,7 @@ namespace Unframe.Unity.PresentationRuntime
         public PresenterRecognitionResult SampleHands(double time, ProtoVector left, ProtoVector right, ProtoVector headForward,
             bool leftTrigger, bool rightTrigger, ProtoVector headPosition)
         {
+            SamplePositions(time, left, right, headPosition, headForward);
             bool pressed = leftTrigger && !previousLeft || rightTrigger && !previousRight;
             previousLeft = leftTrigger;
             previousRight = rightTrigger;
@@ -98,6 +123,21 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public List<PresenterRecognitionResult> SampleWaist(ProtoVector waist) => legacy.SampleWaist(waist);
+
+        private void SamplePositions(double time, ProtoVector left, ProtoVector right, ProtoVector head, ProtoVector forward)
+        {
+            if (PositionSampleReady == null || context == null || catalog == null) { positionSampler.Reset(); return; }
+            foreach (var kind in PositionGestureKinds)
+            {
+                if (!catalog.Gestures.Contains(kind)) continue;
+                var gesture = kind == GestureKind.Throw ? VisualGesture.Throw : VisualGesture.Circle;
+                foreach (var hand in PositionHands)
+                {
+                    var sample = positionSampler.Sample(gesture, hand, Sample(time, hand == GestureHand.Left ? left : right, head, forward));
+                    if (sample.HasValue) PositionSampleReady?.Invoke(new PresenterGesturePositionSample(context, sample.Value));
+                }
+            }
+        }
 
         private static GestureSample Sample(double time, ProtoVector hand, ProtoVector head, ProtoVector forward) =>
             new GestureSample(time, ToUnity(hand), ToUnity(head), ToUnity(forward), hand != null && head != null && forward != null);
