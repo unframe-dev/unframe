@@ -148,7 +148,7 @@ Unity は decoded dimensions と texture metadata の一致も検証する。loc
 
 ### Dev の入力生成
 
-Dev は導入済み `node_modules` と保存済み Source・素材から毎回入力を生成する。依存の導入・更新はプロジェクトのパッケージマネージャーが所有する。workspace・symlink・peer dependency を含む取得済み graph と local files を revision に含め、公開前に再検証する。Compiler と隔離 worker は取得済み入力を使う。永続 lock の更新は行わず、publish は生成済み Dist を検証する。
+Dev は導入済み `node_modules` と保存済み Source・素材を検証し、同一 Host 内で revision が一致する場合は取得済み graph と成功した解析の準備済み入力を再利用する。revision の照合では依存の内容・symlink・実行権限も検証する。依存の導入・更新はプロジェクトのパッケージマネージャーが所有する。workspace・symlink・peer dependency を含む取得済み graph と local files を revision に含め、公開前に再検証する。Compiler と隔離 worker は取得済み入力を使う。永続 lock の更新は行わず、publish は生成済み Dist を検証する。
 
 ### 表示の更新
 

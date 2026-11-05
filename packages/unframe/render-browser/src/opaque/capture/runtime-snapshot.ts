@@ -6,9 +6,10 @@ import { isAbsolute, join, relative as relativePath } from "node:path";
 export const snapshotOpaqueRuntimeDirectory = async (
   source: string,
   target: string,
+  expectedFingerprint?: string,
 ): Promise<string> => {
   const root = await realpath(source);
-  const expectedHash = await fingerprintOpaqueRuntimeDirectory(source);
+  const expectedHash = expectedFingerprint ?? (await fingerprintOpaqueRuntimeDirectory(source));
   await cp(source, target, {
     recursive: true,
     dereference: false,

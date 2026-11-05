@@ -11,7 +11,10 @@ import { rolldown } from "rolldown";
 import { chromium } from "playwright-core";
 import * as z from "zod";
 import { runIsolatedOpaqueWorker } from "../isolation/run-isolated-opaque-worker.js";
-import { snapshotOpaqueRuntimeDirectory } from "./runtime-snapshot.js";
+import {
+  fingerprintOpaqueRuntimeDirectory,
+  snapshotOpaqueRuntimeDirectory,
+} from "./runtime-snapshot.js";
 import { managedHeadlessShell, nativeBrowserPlatform } from "../../browser/runtime-environment.js";
 import { hash } from "../../config/config-environment.js";
 import type { OpaqueCaptureRequest, OpaqueCaptureResult } from "./types.js";
@@ -62,8 +65,7 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
       code: "opaque-isolation-unavailable",
     });
   const runtimePaths = (await readFile(closureFile, "utf8")).trim().split("\n");
-  const directory = await mkdtemp(join(tmpdir(), "unframe-opaque-worker-"));
-  const workerDirectory = join(directory, "worker");
+  let directory: string | undefined;
   const controller = new AbortController();
   const active = new Set<Promise<OpaqueCaptureResult>>();
   let closing: Promise<void> | undefined;
@@ -79,18 +81,18 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
     controller.abort();
     closing = (async () => {
       await Promise.allSettled(active);
-      await rm(directory, { recursive: true, force: true });
+      if (directory) await rm(directory, { recursive: true, force: true });
     })();
     return closing;
   };
   try {
     const require = createRequire(import.meta.url);
-    await mkdir(join(workerDirectory, "node_modules"), { recursive: true });
     const packageHashes: Record<string, string> = {};
+    const packageDirectories: Record<string, string> = {};
     for (const name of ["playwright-core", "pngjs"]) {
       const path = await realpath(dirname(require.resolve(`${name}/package.json`)));
-      const target = join(workerDirectory, "node_modules", name);
-      packageHashes[name] = await snapshotOpaqueRuntimeDirectory(path, target);
+      packageDirectories[name] = path;
+      packageHashes[name] = await fingerprintOpaqueRuntimeDirectory(path);
     }
     const bundle = await rolldown({
       input: fileURLToPath(
@@ -108,19 +110,43 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
     } finally {
       await bundle.close();
     }
-    const workerPath = join(workerDirectory, "worker.mjs");
-    await writeFile(workerPath, code, { mode: 0o400 });
     const managedBrowser = managedHeadlessShell(chromium.executablePath());
-    const browserDirectory = join(directory, "browser");
-    const browserHash = await snapshotOpaqueRuntimeDirectory(
-      await realpath(managedBrowser.directory),
-      browserDirectory,
-    );
-    const browserPath = join(
-      browserDirectory,
-      managedBrowser.executablePath.slice(managedBrowser.directory.length + 1),
-    );
-    const platform = await nativeBrowserPlatform(browserDirectory);
+    const browserSource = await realpath(managedBrowser.directory);
+    const browserHash = await fingerprintOpaqueRuntimeDirectory(browserSource);
+    const platform = await nativeBrowserPlatform(browserSource);
+    const isolation = getWorkerIsolationIdentity();
+    let staged: Promise<{ workerPath: string; browserPath: string }> | undefined;
+    const stage = async () => {
+      directory = await mkdtemp(join(tmpdir(), "unframe-opaque-worker-"));
+      const workerDirectory = join(directory, "worker");
+      await mkdir(join(workerDirectory, "node_modules"), { recursive: true });
+      for (const [name, source] of Object.entries(packageDirectories)) {
+        const actual = await snapshotOpaqueRuntimeDirectory(
+          source,
+          join(workerDirectory, "node_modules", name),
+          packageHashes[name],
+        );
+        if (actual !== packageHashes[name])
+          throw new Error("Opaque runtime changed after its fingerprint was captured.");
+      }
+      const workerPath = join(workerDirectory, "worker.mjs");
+      await writeFile(workerPath, code, { mode: 0o400 });
+      const browserDirectory = join(directory, "browser");
+      if (
+        (await snapshotOpaqueRuntimeDirectory(browserSource, browserDirectory, browserHash)) !==
+          browserHash ||
+        hash(await nativeBrowserPlatform(browserDirectory)) !== hash(platform) ||
+        hash(getWorkerIsolationIdentity()) !== hash(isolation)
+      )
+        throw new Error("Opaque runtime changed after its fingerprint was captured.");
+      return {
+        workerPath,
+        browserPath: join(
+          browserDirectory,
+          managedBrowser.executablePath.slice(managedBrowser.directory.length + 1),
+        ),
+      };
+    };
 
     const capture = async (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
       if (options.signal?.aborted || controller.signal.aborted)
@@ -131,6 +157,16 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
         };
       let result: unknown;
       try {
+        // A compiler cache hit needs the identity, but never executes the isolated worker.
+        const { workerPath, browserPath } = await (staged ??= stage());
+        if (options.signal?.aborted || controller.signal.aborted)
+          return {
+            ok: false,
+            code:
+              closed || options.signal?.aborted
+                ? "opaque-capture-cancelled"
+                : "opaque-build-timeout",
+          };
         result = await runIsolatedOpaqueWorker(
           { workerPath, browserPath, runtimePaths, input },
           { signal: controller.signal },
@@ -159,7 +195,7 @@ export const openOpaqueCaptureRuntime = async (options: { readonly signal?: Abor
         packageHashes,
         runtimePaths,
         platform,
-        isolation: getWorkerIsolationIdentity(),
+        isolation,
       }),
       capture: (input: OpaqueCaptureRequest): Promise<OpaqueCaptureResult> => {
         const work = capture(input);

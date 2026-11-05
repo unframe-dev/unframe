@@ -123,6 +123,21 @@ it("does not turn a successful commit into cancellation while reading inspection
   });
 });
 
+it("reports a committed build as failed when its inspection artifacts cannot be loaded", async () => {
+  const adapter = ports();
+  adapter.readPublishedArtifacts = async () => {
+    throw new Error("Published generation is incomplete");
+  };
+  const service = createAuthorBuildService(adapter);
+  const job = await service.build("r1", "request");
+  await expect.poll(async () => (await service.job(job.buildId)).status).toBe("failed");
+  expect(await service.job(job.buildId)).toMatchObject({
+    generationId: "a".repeat(32),
+    diagnostics: [{ code: "author-build-failed", message: "Published generation is incomplete" }],
+  });
+  await service.close();
+});
+
 it("keeps an output generation conflict stale even when cancellation was also requested", async () => {
   const running = Promise.withResolvers<void>();
   const resume = Promise.withResolvers<void>();
@@ -272,6 +287,85 @@ it("replays an identical request ID and rejects conflicting use", async () => {
   release.resolve();
   expect((await duplicate).buildId).toBe((await first).buildId);
   expect(prepare).toHaveBeenCalledOnce();
+  await service.close();
+});
+
+it("shares pending preparation across different request IDs for the same validated input", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const prepare = vi.fn(async (revision: string, _channel: "dev" | "dist", signal: AbortSignal) => {
+    started.resolve();
+    await release.promise;
+    expect(signal.aborted).toBe(false);
+    return { revision, snapshot };
+  });
+  adapter.prepareBuild = prepare;
+  const accepted = vi.fn();
+  const service = createAuthorBuildService(adapter);
+  const first = service.build("r1", "one", "dev", { onAccepted: accepted });
+  await started.promise;
+  const second = service.build("r1", "two", "dev", { onAccepted: accepted });
+  release.resolve();
+  const [one, two] = await Promise.all([first, second]);
+  expect(two.buildId).not.toBe(one.buildId);
+  expect(prepare).toHaveBeenCalledOnce();
+  expect(accepted).toHaveBeenCalledOnce();
+  expect((await service.build("r1", "two")).buildId).toBe(two.buildId);
+  await service.close();
+});
+
+it("validates a new request before joining an already running revision", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let changed = false;
+  let aborted = false;
+  adapter.validateRevision = async () => {
+    if (changed) adapter.fail(412, "author-revision-mismatch", "Changed");
+  };
+  adapter.run = async ({ signal }) => {
+    started.resolve();
+    signal.addEventListener("abort", () => {
+      aborted = true;
+    });
+    await release.promise;
+    return { status: "failed", diagnostics: [] };
+  };
+  const service = createAuthorBuildService(adapter);
+  const first = await service.build("r1", "one");
+  await started.promise;
+  changed = true;
+  await expect(service.build("r1", "two")).rejects.toMatchObject({
+    code: "author-revision-mismatch",
+  });
+  expect(aborted).toBe(false);
+  expect((await service.job(first.buildId)).status).toBe("running");
+  release.resolve();
+  await service.close();
+});
+
+it("joins a running build without restarting it or cancelling it when an observer disconnects", async () => {
+  const adapter = ports();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const run = vi.fn(async ({ signal }: { signal: AbortSignal }) => {
+    started.resolve();
+    await release.promise;
+    expect(signal.aborted).toBe(false);
+    return { status: "failed" as const, diagnostics: [] };
+  });
+  adapter.run = run;
+  const service = createAuthorBuildService(adapter);
+  const first = await service.build("r1", "one");
+  await started.promise;
+  const disconnected = new AbortController();
+  const second = await service.build("r1", "two", "dev", { signal: disconnected.signal });
+  disconnected.abort();
+  expect(second.buildId).not.toBe(first.buildId);
+  expect(run).toHaveBeenCalledOnce();
+  release.resolve();
+  await expect.poll(async () => (await service.job(first.buildId)).status).toBe("failed");
   await service.close();
 });
 
@@ -668,4 +762,146 @@ it("bounds cancelled request history while another request keeps the shared buil
     release.resolve();
     await service.close();
   }
+});
+
+it("keeps a shared execution alive during another request validation until that caller disconnects", async () => {
+  const adapter = ports();
+  const running = Promise.withResolvers<AbortSignal>();
+  const validating = Promise.withResolvers<AbortSignal>();
+  let validations = 0;
+  adapter.validateRevision = async (_revision, signal) => {
+    if (++validations === 1) return;
+    validating.resolve(signal);
+    await new Promise<void>((resolve) =>
+      signal.addEventListener("abort", () => resolve(), { once: true }),
+    );
+  };
+  adapter.run = async ({ signal }) => {
+    running.resolve(signal);
+    await new Promise<void>((resolve) =>
+      signal.addEventListener("abort", () => resolve(), { once: true }),
+    );
+    return { status: "cancelled", diagnostics: [] };
+  };
+  const service = createAuthorBuildService(adapter);
+  const one = await service.build("r1", "one");
+  const executionSignal = await running.promise;
+  const controller = new AbortController();
+  const pending = service.build("r1", "two", "dev", { signal: controller.signal });
+  const rejected = expect(pending).rejects.toMatchObject({ code: "cli-cancelled" });
+  const validationSignal = await validating.promise;
+  await service.cancel(one.buildId);
+  expect(executionSignal.aborted).toBe(false);
+  controller.abort();
+  await rejected;
+  expect(validationSignal.aborted).toBe(true);
+  expect(executionSignal.aborted).toBe(true);
+  await service.close();
+});
+
+it("makes replays wait for the same request revision validation", async () => {
+  const adapter = ports();
+  const validating = Promise.withResolvers<void>();
+  const releaseValidation = Promise.withResolvers<void>();
+  const running = Promise.withResolvers<void>();
+  const releaseRun = Promise.withResolvers<void>();
+  let validations = 0;
+  adapter.validateRevision = async () => {
+    if (++validations === 1) return;
+    validating.resolve();
+    await releaseValidation.promise;
+    adapter.fail(412, "author-revision-mismatch", "Changed");
+  };
+  adapter.run = async () => {
+    running.resolve();
+    await releaseRun.promise;
+    return { status: "failed", diagnostics: [] };
+  };
+  const service = createAuthorBuildService(adapter);
+  await service.build("r1", "one");
+  await running.promise;
+  const pending = service.build("r1", "two");
+  await validating.promise;
+  const replay = service.build("r1", "two");
+  const results = Promise.allSettled([pending, replay]);
+  releaseValidation.resolve();
+  const received = await results;
+  releaseRun.resolve();
+  await service.close();
+  expect(received).toEqual([
+    { status: "rejected", reason: expect.objectContaining({ code: "author-revision-mismatch" }) },
+    { status: "rejected", reason: expect.objectContaining({ code: "author-revision-mismatch" }) },
+  ]);
+});
+
+it("keeps revision validation alive when one replay disconnects", async () => {
+  const adapter = ports();
+  const validating = Promise.withResolvers<AbortSignal>();
+  const releaseValidation = Promise.withResolvers<void>();
+  const releaseRun = Promise.withResolvers<void>();
+  let validations = 0;
+  adapter.validateRevision = async (_revision, signal) => {
+    if (++validations === 1) return;
+    validating.resolve(signal);
+    await releaseValidation.promise;
+  };
+  adapter.run = async () => {
+    await releaseRun.promise;
+    return { status: "failed", diagnostics: [] };
+  };
+  const service = createAuthorBuildService(adapter);
+  await service.build("r1", "one");
+  const controller = new AbortController();
+  const pending = service.build("r1", "two", "dev", { signal: controller.signal });
+  const rejected = expect(pending).rejects.toMatchObject({ code: "cli-cancelled" });
+  const validationSignal = await validating.promise;
+  const replay = service.build("r1", "two");
+  controller.abort();
+  await rejected;
+  expect(validationSignal.aborted).toBe(false);
+  releaseValidation.resolve();
+  expect(await replay).toMatchObject({ revision: "r1" });
+  expect(validations).toBe(2);
+  releaseRun.resolve();
+  await service.close();
+});
+
+it("cancels and waits for request validation after the shared execution has finished", async () => {
+  const adapter = ports();
+  const validating = Promise.withResolvers<AbortSignal>();
+  const cleaned = Promise.withResolvers<void>();
+  const running = Promise.withResolvers<void>();
+  const releaseRun = Promise.withResolvers<void>();
+  let validations = 0;
+  adapter.validateRevision = async (_revision, signal) => {
+    if (++validations === 1) return;
+    validating.resolve(signal);
+    await new Promise<void>((resolve) =>
+      signal.addEventListener("abort", () => resolve(), { once: true }),
+    );
+    await cleaned.promise;
+  };
+  adapter.run = async () => {
+    running.resolve();
+    await releaseRun.promise;
+    return { status: "succeeded", diagnostics: [], generationId: "a".repeat(32) };
+  };
+  const service = createAuthorBuildService(adapter);
+  const one = await service.build("r1", "one");
+  await running.promise;
+  const pending = service.build("r1", "two");
+  const rejected = expect(pending).rejects.toMatchObject({ code: "author-service-closed" });
+  const validationSignal = await validating.promise;
+  releaseRun.resolve();
+  await expect.poll(async () => (await service.job(one.buildId)).status).toBe("succeeded");
+  let closed = false;
+  const closing = service.close().then(() => {
+    closed = true;
+  });
+  expect(validationSignal.aborted).toBe(true);
+  await Promise.resolve();
+  expect(closed).toBe(false);
+  cleaned.resolve();
+  await closing;
+  await rejected;
 });

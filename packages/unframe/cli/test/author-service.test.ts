@@ -207,7 +207,7 @@ describe("author service with frozen React source", () => {
     const created = await service.build(snapshot.revision, commandId("f"));
     await expect
       .poll(async () => (await service.job(created.buildId)).status, { timeout: 20_000 })
-      .toBe("succeeded");
+      .toBe("failed");
     const completed = await service.job(created.buildId);
     expect(completed.artifacts).toEqual([]);
     expect(completed.diagnostics).toEqual([

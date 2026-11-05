@@ -66,6 +66,8 @@ export const createAuthorBuildService = (
     requestId: string;
     buildId: string;
     work: Work;
+    controller: AbortController;
+    ready: Promise<void>;
     callers: number;
     delivered: boolean;
     cancelled: boolean;
@@ -82,6 +84,7 @@ export const createAuthorBuildService = (
   const jobs = new Map<string, BuildRequest>();
   const requests = new Map<string, BuildRequest>();
   const completed: string[] = [];
+  const validations = new Set<Promise<void>>();
   const successes = new Map<Channel, Success>();
   const artifacts = new AuthorArtifactCache(
     options.artifactRetention?.maxGenerations,
@@ -103,6 +106,7 @@ export const createAuthorBuildService = (
       ports.fail(409, "cli-cancelled", "A newer build superseded this request.");
   };
   const forget = (request: BuildRequest) => {
+    request.controller.abort();
     jobs.delete(request.buildId);
     if (requests.get(request.requestId) === request) requests.delete(request.requestId);
     request.work.requests.delete(request);
@@ -137,11 +141,13 @@ export const createAuthorBuildService = (
     work.job = job;
     return job;
   };
-  const attach = (work: Work, requestId: string): BuildRequest => {
+  const attach = (work: Work, requestId: string, validateRevision = false): BuildRequest => {
     const request: BuildRequest = {
       requestId,
       buildId: randomId(),
       work,
+      controller: new AbortController(),
+      ready: work.ready,
       callers: 0,
       delivered: false,
       cancelled: false,
@@ -149,6 +155,25 @@ export const createAuthorBuildService = (
     };
     requests.set(requestId, request);
     work.requests.add(request);
+    if (validateRevision) {
+      const signal = AbortSignal.any([request.controller.signal, work.controller.signal]);
+      const validation = (async () => {
+        try {
+          await ports.validateRevision(work.revision, signal);
+        } catch (error) {
+          requireOpen();
+          if (!signal.aborted) throw error;
+        }
+        requireOpen();
+        if (signal.aborted) ports.fail(409, "cli-cancelled", "Build request was cancelled.");
+      })();
+      validations.add(validation);
+      void validation.then(
+        () => validations.delete(validation),
+        () => validations.delete(validation),
+      );
+      request.ready = Promise.all([work.ready, validation]).then(() => {});
+    }
     return request;
   };
   const abortIfUnobserved = (work: Work) => {
@@ -189,7 +214,7 @@ export const createAuthorBuildService = (
         }
       };
       signal?.addEventListener("abort", abort, { once: true });
-      void work.ready.then(
+      void request.ready.then(
         () => finish(),
         (error: unknown) => finish(error),
       );
@@ -224,7 +249,7 @@ export const createAuthorBuildService = (
           work.revision === revision && work.channel === channel && !work.controller.signal.aborted,
       );
       if (shared) {
-        return observe(attach(shared, requestId), requestOptions.signal);
+        return observe(attach(shared, requestId, pending.has(shared)), requestOptions.signal);
       }
       const sequence = ++arrival;
       const response = Promise.withResolvers<void>();
@@ -270,10 +295,7 @@ export const createAuthorBuildService = (
           requireCurrent(work);
           running = work;
           const candidate = successes.get(channel);
-          if (
-            candidate?.revision === revision &&
-            artifacts.hasGeneration(channel, candidate.generationId)
-          ) {
+          if (candidate?.revision === revision) {
             try {
               const published = await readPublished(
                 candidate.generationId,
@@ -346,7 +368,7 @@ export const createAuthorBuildService = (
                 diagnostics: structuredClone(result.diagnostics),
               });
           } catch (error) {
-            job.status = committed ? "succeeded" : signal.aborted ? "cancelled" : "failed";
+            job.status = committed || !signal.aborted ? "failed" : "cancelled";
             if (committed || !signal.aborted)
               job.diagnostics = [
                 diagnostic(
@@ -407,7 +429,8 @@ export const createAuthorBuildService = (
     close: async () => {
       closed = true;
       for (const work of allWorks) work.controller.abort();
-      await Promise.allSettled([...allWorks].map((work) => work.done));
+      for (const request of requests.values()) request.controller.abort();
+      await Promise.allSettled([...allWorks].map((work) => work.done).concat([...validations]));
       successes.clear();
       artifacts.clear();
     },

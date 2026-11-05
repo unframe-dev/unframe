@@ -7,6 +7,8 @@ import type {
   assembleAuthoringProject,
   prepareProjectInputs,
   OpaqueRenderProgram,
+  AuthoringProjectPipelineResult,
+  StyleDiagnostic,
 } from "@unframe-dev/build";
 import type { prepareAuthorSave } from "@unframe-dev/author-service";
 
@@ -15,14 +17,29 @@ export type CapturedProject = Extract<
   { ok: true }
 >;
 export type TypeLibraries = Awaited<ReturnType<typeof readTypeLibraries>>;
+export type PreparedInputs =
+  | Extract<Awaited<ReturnType<typeof prepareProjectInputs>>, { ok: true }>
+  | {
+      ok: false;
+      code: string;
+      message: string;
+      analysisFailure?: Exclude<AuthoringProjectPipelineResult<unknown>, { valid: true }>;
+      diagnostics?: readonly StyleDiagnostic[];
+    };
 export type AnalysisInputs = {
   found: CapturedProject;
   typeLibraries: TypeLibraries;
   modelTransformIdentity: `sha256:${string}`;
 };
 export type AnalysisOperations = {
-  prepare: { input: AnalysisInputs; output: Awaited<ReturnType<typeof prepareProjectInputs>> };
-  project: { input: AnalysisInputs; output: ProjectSnapshot };
+  prepare: { input: AnalysisInputs; output: PreparedInputs };
+  project: {
+    input: AnalysisInputs;
+    output: {
+      snapshot: ProjectSnapshot;
+      preparedInputs?: Extract<PreparedInputs, { ok: true }>["value"];
+    };
+  };
   save: {
     input: AnalysisInputs & { snapshot: ProjectSnapshot; revision: string; request: PatchRequest };
     output: Awaited<ReturnType<typeof prepareAuthorSave>>;

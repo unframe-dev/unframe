@@ -388,15 +388,17 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
     ]);
   let preparedInputs: AnalysisOperations["prepare"]["output"];
   try {
-    preparedInputs = await runAnalysisOperation(
-      "prepare",
-      {
-        found: discovered,
-        typeLibraries: await readTypeLibraries(),
-        modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
-      },
-      host.signal,
-    );
+    preparedInputs = host.prepareInputs
+      ? await host.prepareInputs(discovered, host.signal)
+      : await runAnalysisOperation(
+          "prepare",
+          {
+            found: discovered,
+            typeLibraries: await readTypeLibraries(),
+            modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+          },
+          host.signal,
+        );
   } catch (error) {
     const stale = error instanceof AuthorError && error.code === "cli-output-stale";
     return output(host.signal?.aborted ? 130 : 3, command, format, [
@@ -420,9 +422,9 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
       preparedInputs.code === "cli-cancelled" ? 130 : 1,
       command,
       format,
-      "analysisFailure" in preparedInputs && preparedInputs.analysisFailure
+      preparedInputs.analysisFailure
         ? compilerDiagnostics(preparedInputs.analysisFailure)
-        : "diagnostics" in preparedInputs && preparedInputs.diagnostics?.length
+        : preparedInputs.diagnostics?.length
           ? styleDiagnostics(preparedInputs.diagnostics, preparedInputs.code)
           : [diagnostic("semantic", preparedInputs.code, preparedInputs.message)],
     );

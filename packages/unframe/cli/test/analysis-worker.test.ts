@@ -38,11 +38,14 @@ it("rejects an already cancelled analysis before starting work", async () => {
 });
 
 it("returns a validated project snapshot from the generated worker", async () => {
-  const project = await runAnalysisOperation("project", input);
+  const { snapshot: project, preparedInputs } = await runAnalysisOperation("project", input);
   expect(project.revision).toBe(input.found.revision);
   expect(project.irHash, JSON.stringify(project.diagnostics)).not.toBeNull();
   expect(project.definition).not.toBeNull();
   expect(project.diagnostics).toEqual([]);
+  assert(preparedInputs);
+  expect(preparedInputs.source.entryFile).toBe(input.found.entryFile);
+  expect(preparedInputs.assemblyCarrier.componentLocks.length).toBeGreaterThan(0);
 }, 30_000);
 
 it("prepares build inputs without blocking Host timers", async () => {
@@ -179,7 +182,7 @@ it("reports an asset preparation failure after a Host video identity callback", 
       },
     },
   );
-  expect((await result).diagnostics).toMatchObject([{ code: "cli-source-asset-missing" }]);
+  expect((await result).snapshot.diagnostics).toMatchObject([{ code: "cli-source-asset-missing" }]);
   expect(identityRequested).toBe(true);
 });
 

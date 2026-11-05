@@ -20,15 +20,16 @@ import (
 )
 
 type request struct {
-	ID       int    `json:"id"`
-	Op       string `json:"op"`
-	Path     string `json:"path"`
-	Target   string `json:"target"`
-	Handle   int    `json:"handle"`
-	Bytes    []byte `json:"bytes"`
-	Limit    int64  `json:"limit"`
-	Expected *int64 `json:"expected"`
-	Mode     uint32 `json:"mode"`
+	ID       int      `json:"id"`
+	Op       string   `json:"op"`
+	Path     string   `json:"path"`
+	Target   string   `json:"target"`
+	Handle   int      `json:"handle"`
+	Bytes    []byte   `json:"bytes"`
+	Limit    int64    `json:"limit"`
+	Expected *int64   `json:"expected"`
+	Mode     uint32   `json:"mode"`
+	Names    []string `json:"names"`
 }
 type response struct {
 	ID        int    `json:"id"`
@@ -200,6 +201,89 @@ func checkedOperation(r request) (any, error) {
 	return value, nil
 }
 
+type fileIdentity struct {
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	Hash       string `json:"hash,omitempty"`
+	Executable bool   `json:"executable"`
+	Link       string `json:"link,omitempty"`
+}
+
+func checkedIdentities(r request) ([]fileIdentity, error) {
+	before, resolved, err := checkedPath(r.Path, true)
+	if err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(r.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	opened, err := root.Stat(".")
+	if err != nil {
+		return nil, err
+	}
+	if !same(before, opened) {
+		return nil, invalid
+	}
+	entries := make([]fileIdentity, 0, len(r.Names))
+	for _, name := range r.Names {
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+			return nil, invalid
+		}
+		stat, err := root.Lstat(name)
+		if err != nil {
+			return nil, err
+		}
+		entry := fileIdentity{Name: name, Kind: statValue(stat).Kind}
+		switch entry.Kind {
+		case "file":
+			file, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+			if err != nil {
+				return nil, err
+			}
+			opened, err := file.Stat()
+			if err != nil || !same(stat, opened) {
+				file.Close()
+				if err != nil {
+					return nil, err
+				}
+				return nil, invalid
+			}
+			bytes, err := readBounded(file, r.Limit, nil, nil)
+			closeErr := file.Close()
+			if err != nil {
+				return nil, err
+			}
+			if closeErr != nil {
+				return nil, closeErr
+			}
+			entry.Hash = fmt.Sprintf("sha256:%x", sha256.Sum256(bytes))
+			entry.Executable = stat.Mode().Perm()&0111 != 0
+		case "symlink":
+			entry.Link, err = root.Readlink(name)
+			if err != nil {
+				return nil, err
+			}
+		case "directory":
+		default:
+			return nil, invalid
+		}
+		after, err := root.Lstat(name)
+		if err != nil {
+			return nil, err
+		}
+		if !same(stat, after) || stat.Mode() != after.Mode() || stat.Size() != after.Size() || !stat.ModTime().Equal(after.ModTime()) {
+			return nil, invalid
+		}
+		entries = append(entries, entry)
+	}
+	if !stablePath(r.Path, before, resolved, true) {
+		return nil, invalid
+	}
+	return entries, nil
+}
+
 type directory struct {
 	file *os.File
 	root *os.Root
@@ -319,6 +403,9 @@ func (s *server) execute(r request) (any, error) {
 		return nil, invalid
 	}
 
+	if r.Op == "identitiesChecked" {
+		return checkedIdentities(r)
+	}
 	if r.Op == "readChecked" || r.Op == "hashChecked" || r.Op == "directoryChecked" || r.Op == "listChecked" {
 		return checkedOperation(r)
 	}

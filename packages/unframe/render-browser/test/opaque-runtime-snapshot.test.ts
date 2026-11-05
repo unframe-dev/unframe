@@ -2,7 +2,10 @@ import { mkdtemp, mkdir, writeFile, symlink, rm, readFile, lstat } from "node:fs
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { it, expect } from "vite-plus/test";
-import { snapshotOpaqueRuntimeDirectory } from "../src/opaque/capture/runtime-snapshot.js";
+import {
+  fingerprintOpaqueRuntimeDirectory,
+  snapshotOpaqueRuntimeDirectory,
+} from "../src/opaque/capture/runtime-snapshot.js";
 
 it("rejects a dependency symlink to a file outside its runtime root", async () => {
   const directory = await mkdtemp(join(tmpdir(), "opaque-snapshot-"));
@@ -59,6 +62,22 @@ it("rejects internal symlink cycles", async () => {
     await expect(
       snapshotOpaqueRuntimeDirectory(source, join(directory, "snapshot")),
     ).rejects.toThrow("cyclic");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("rejects copied bytes that differ from a previously captured fingerprint", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "opaque-snapshot-"));
+  try {
+    const source = join(directory, "source");
+    await mkdir(source);
+    await writeFile(join(source, "index.js"), "one");
+    const fingerprint = await fingerprintOpaqueRuntimeDirectory(source);
+    await writeFile(join(source, "index.js"), "two");
+    await expect(
+      snapshotOpaqueRuntimeDirectory(source, join(directory, "snapshot"), fingerprint),
+    ).rejects.toThrow("Opaque runtime changed while being snapshotted.");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

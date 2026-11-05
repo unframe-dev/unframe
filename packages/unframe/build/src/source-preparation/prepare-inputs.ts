@@ -31,6 +31,8 @@ const cancelled = () => failure("cli-cancelled", "Project input preparation was 
 const diagnostics = (items: readonly { code: string; message: string }[]) =>
   items.map((item) => `${item.code}: ${item.message}`).join("\n");
 
+export type ProjectInputPreparationResult = Awaited<ReturnType<typeof prepareProjectInputs>>;
+
 export const prepareProjectInputs = async (
   input: { found: ProjectInput; graph: InstalledDependencyGraph; signal?: AbortSignal },
   ports: ProjectInputPreparationPorts,

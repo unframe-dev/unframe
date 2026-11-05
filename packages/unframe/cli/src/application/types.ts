@@ -1,5 +1,7 @@
 import type { FixedBrowserSession, WebRendererConfig } from "@unframe-dev/render-browser";
 import type { StyleDiagnostic } from "@unframe-dev/styles-node";
+import type { ProjectInputPreparationResult } from "@unframe-dev/build";
+import type { DiscoveredProjectFiles } from "@unframe-dev/workspace-node";
 
 export type PresentationCliExitCode = 0 | 1 | 2 | 3 | 130;
 export type PresentationDiagnosticFamily =
@@ -44,6 +46,10 @@ export type PresentationCliBuildContext = Readonly<{
 }>;
 
 export type PresentationCliHost = Readonly<{
+  prepareInputs?: (
+    found: Extract<DiscoveredProjectFiles, { ok: true }>,
+    signal?: AbortSignal,
+  ) => Promise<ProjectInputPreparationResult>;
   /** Test seam. Production opens the packaged Fixed Browser. */
   openFixedBrowser?: (input: Readonly<{ signal?: AbortSignal }>) => Promise<FixedBrowserSession>;
   /** Process owners pass their single cancellation signal through this boundary. */

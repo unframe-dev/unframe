@@ -113,25 +113,27 @@ const execute = async (request: AnalysisRequest) => {
   if (request.operation === "project") {
     const result = await prepare(input);
     if (!result.ok && !("prepared" in result))
-      return (
-        await createAuthorProjectSnapshot({
-          revision: input.found.revision,
-          sourceText,
-          files: input.found.files,
-          localFiles: input.found.localFiles,
-          componentLocks: [],
-          carrier: { componentLocks: [], themeHashes: [], assets: {} },
-          prepared: {
-            ok: false,
-            code: result.code,
-            message: result.message,
-            diagnostics: "diagnostics" in result ? result.diagnostics : [],
-          },
-          resolveAssets: async () => {
-            throw new Error("Failed inputs cannot resolve assets.");
-          },
-        })
-      ).snapshot;
+      return {
+        snapshot: (
+          await createAuthorProjectSnapshot({
+            revision: input.found.revision,
+            sourceText,
+            files: input.found.files,
+            localFiles: input.found.localFiles,
+            componentLocks: [],
+            carrier: { componentLocks: [], themeHashes: [], assets: {} },
+            prepared: {
+              ok: false,
+              code: result.code,
+              message: result.message,
+              diagnostics: "diagnostics" in result ? result.diagnostics : [],
+            },
+            resolveAssets: async () => {
+              throw new Error("Failed inputs cannot resolve assets.");
+            },
+          })
+        ).snapshot,
+      };
     const prepared = result.ok
       ? result.value
       : {
@@ -143,24 +145,27 @@ const execute = async (request: AnalysisRequest) => {
           assets: "assets" in result ? result.assets : [],
           sourceAssetBytes: "sourceAssetBytes" in result ? result.sourceAssetBytes : {},
         };
-    return (
-      await createAuthorProjectSnapshot({
-        revision: input.found.revision,
-        sourceText,
-        files: input.found.files,
-        localFiles: input.found.localFiles,
-        componentLocks: prepared.assemblyCarrier.componentLocks,
-        carrier: prepared.assemblyCarrier,
-        prepared: { ok: true, source: prepared.source, diagnostics: prepared.diagnostics },
-        resolveAssets: async () => ({
-          ok: true,
-          value: {
-            assets: prepared.assets,
-            sourceAssetBytes: prepared.sourceAssetBytes,
-          },
-        }),
-      })
-    ).snapshot;
+    return {
+      snapshot: (
+        await createAuthorProjectSnapshot({
+          revision: input.found.revision,
+          sourceText,
+          files: input.found.files,
+          localFiles: input.found.localFiles,
+          componentLocks: prepared.assemblyCarrier.componentLocks,
+          carrier: prepared.assemblyCarrier,
+          prepared: { ok: true, source: prepared.source, diagnostics: prepared.diagnostics },
+          resolveAssets: async () => ({
+            ok: true,
+            value: {
+              assets: prepared.assets,
+              sourceAssetBytes: prepared.sourceAssetBytes,
+            },
+          }),
+        })
+      ).snapshot,
+      ...(result.ok ? { preparedInputs: result.value } : {}),
+    };
   }
   const prepared = await requirePrepared(input);
   return prepareAuthorSave({
