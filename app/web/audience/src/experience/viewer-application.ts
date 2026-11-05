@@ -116,7 +116,13 @@ export function createViewerApplication(
     )
       return;
     if (!clearBinding(true)) {
-      input?.disconnected();
+      if (input) {
+        options.recorder?.recordDisconnect(
+          { code: "runtime-binding-failed" },
+          { sessionId: options.connection.session?.id },
+        );
+        input.disconnected();
+      }
       return;
     }
     if (!input || disposed) return;
@@ -149,6 +155,10 @@ export function createViewerApplication(
         else cleanup();
       }
     } catch {
+      options.recorder?.recordDisconnect(
+        { code: "runtime-binding-failed" },
+        { sessionId: options.connection.session?.id },
+      );
       setError(connectionFailure);
       input.disconnected();
     }
@@ -180,6 +190,10 @@ export function createViewerApplication(
           return target.restartInput();
         });
       } catch {
+        options.recorder?.recordDisconnect(
+          { code: "runtime-recovery-failed" },
+          { sessionId: options.connection.session?.id },
+        );
         setError(connectionFailure);
         input.disconnected();
       }
@@ -231,7 +245,14 @@ export function createViewerApplication(
     if (disposed || !viewer) return;
     if (options.recovering) {
       clearBinding(false);
-      viewer.getInput()?.disconnected();
+      const input = viewer.getInput();
+      if (input) {
+        options.recorder?.recordDisconnect(
+          { code: "runtime-unavailable" },
+          { sessionId: options.connection.session?.id },
+        );
+        input.disconnected();
+      }
       return;
     }
     const disconnected = viewer.getSnapshot().phase === "disconnected";
@@ -352,6 +373,7 @@ export function createViewerApplication(
         tracking: host?.getSnapshot() ?? null,
         viewing: viewingState.getState(),
         context: host?.getDiagnosticContext() ?? null,
+        lastDisconnect: options.recorder?.getLastDisconnect(options.connection.session?.id) ?? null,
       });
       const url = URL.createObjectURL(
         new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),

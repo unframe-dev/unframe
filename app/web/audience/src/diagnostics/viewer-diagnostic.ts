@@ -2,6 +2,7 @@ import type { AnchorSessionSnapshot } from "../experience/anchor-session";
 import type { ViewingSnapshot } from "../experience/viewing-session";
 import { safeDiagnosticError, summarizeTrackingDiagnostics } from "./tracking-summary";
 import { sanitizeAssetFailure } from "./asset-failure";
+import type { DisconnectDiagnostic } from "./session-recorder";
 
 function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -17,6 +18,7 @@ export function buildViewerDiagnostic(options: {
   tracking: AnchorSessionSnapshot | null;
   viewing: ViewingSnapshot | null;
   context: Parameters<typeof summarizeTrackingDiagnostics>[0];
+  lastDisconnect?: DisconnectDiagnostic | null;
 }) {
   const { tracking, viewing } = options;
   const runtime = viewing?.runtime;
@@ -24,6 +26,7 @@ export function buildViewerDiagnostic(options: {
     schemaVersion: 1,
     mode: "audience-viewer",
     recordedAt: new Date().toISOString(),
+    lastDisconnect: options.lastDisconnect ?? null,
     tracking: tracking
       ? {
           stage: status(tracking.stage, ["ready", "starting", "running", "stopped", "error"]),
