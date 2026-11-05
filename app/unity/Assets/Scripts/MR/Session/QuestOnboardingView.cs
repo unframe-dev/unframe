@@ -526,6 +526,16 @@ namespace Unframe.Unity.PresentationRuntime
                 && (flow.Page == QuestOnboardingPage.Calibration || flow.Page == QuestOnboardingPage.Ready || IsComplete)
                 && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable");
             if (!busy && (IsComplete && NeedsReauthentication || viewerExpired)) { _ = RetryConnectionAsync(); return; }
+            if (!busy && !IsComplete && ownsConnection && room != null && entry?.ControlReady == true
+                && (flow.Role == QuestOnboardingRole.Presenter) == entry.IsPresenter
+                && (flow.Page == QuestOnboardingPage.Preparation || flow.Page == QuestOnboardingPage.Join
+                    || flow.Page == QuestOnboardingPage.Authentication && flow.IsReturningToRoom))
+            {
+                message = "";
+                flow.ConnectionReady();
+                Draw();
+                return;
+            }
             bool valid = calibration?.Calibration?.IsValid == true;
             bool canAdvance = CanAdvance;
             if ((valid != lastCalibrationValid || canAdvance != lastCanAdvance)
