@@ -218,8 +218,8 @@ export const projectPlaybackWire = (
         color: run.effect.color,
         speed: run.effect.speed,
         durationMs: String(run.effect.durationMilliseconds),
-        waveCycles: run.effect.kind === "wave" ? run.effect.waveCycles : 0,
-        hand: run.effect.kind === "handGlow" ? (run.effect.hand === "left" ? 1 : 2) : 0,
+        ...(run.effect.kind === "wave" ? { waveCycles: run.effect.waveCycles } : {}),
+        ...(run.effect.kind === "handGlow" ? { hand: run.effect.hand === "left" ? 1 : 2 } : {}),
       },
     })),
   activeRuns: state.activeRuns
