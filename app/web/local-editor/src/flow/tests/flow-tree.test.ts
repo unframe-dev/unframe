@@ -15,17 +15,21 @@ import { FlowTree } from "../flow-tree";
 function fixture() {
   const project = createProjectStore();
   project.getInitialState = project.getState;
+  const preview = createPreviewStore();
+  preview.getInitialState = preview.getState;
+  const ui = createUiStore("light");
+  ui.getInitialState = ui.getState;
   const workspace = {
     project: { store: project },
-    preview: { store: createPreviewStore() },
+    preview: { store: preview },
     publication: { store: createPublicationStore() },
-    ui: createUiStore("light"),
+    ui,
   } as Workspace;
   const render = (component: ComponentType = FlowTree) =>
     renderToStaticMarkup(
       createElement(WorkspaceProvider, { workspace, children: createElement(component) }),
     );
-  return { project, render };
+  return { project, preview, ui, render };
 }
 
 const snapshot: ProjectSnapshot = {
@@ -83,3 +87,47 @@ it("replaces the loading status with the flow when a valid Source result arrives
   expect(html).not.toContain("読み込んでいます");
   expect(html).not.toContain("検証できません");
 });
+
+it.each([
+  { status: "ready" as const, revision: "r1", cueId: null, enabled: true },
+  { status: "ready" as const, revision: "r1", cueId: "cue", enabled: true },
+  { status: "ready" as const, revision: "old", cueId: null, enabled: false },
+  { status: "recovering" as const, revision: "r1", cueId: null, enabled: false },
+])(
+  "sets sidebar playback availability to $enabled for $status / $revision / $cueId",
+  ({ status, revision, cueId, enabled }) => {
+    const { project, preview, ui, render } = fixture();
+    project.setState({
+      project: {
+        ...snapshot,
+        revision: "r1",
+        definition: definition as unknown as NonNullable<ProjectSnapshot["definition"]>,
+      },
+    });
+    ui.setState({ selection: { groupId: "intro", stepId: "start", cueId } });
+    preview.setState({
+      status,
+      loaded: { channel: "dev", requestId: "r", buildIdentity: "b", sourceRevision: revision },
+      playback: {
+        mode: "normal",
+        inspection: null,
+        occurrences: [],
+        inputs: [],
+        groupId: "intro",
+        stepId: "start",
+        ended: false,
+        state: { requestId: "r", sequence: "1" },
+        simulation: {
+          steps: [{ groupId: "intro", stepId: "start" }],
+          gestures: [],
+          events: [],
+          nextInput: null,
+        },
+      },
+    });
+    expect(render()).toMatch(
+      /<button[^>]*title="intro \/ start から再生"[^>]*>.*?選択位置から再生/s,
+    );
+    expect(render().includes("disabled")).toBe(!enabled);
+  },
+);
