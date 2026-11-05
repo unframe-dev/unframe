@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { setImmediate } from "node:timers/promises";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { assert, describe, expect, it, vi } from "vite-plus/test";
 import {
   presentationDefinitionSchema,
   renderBundleSchema,
@@ -88,6 +88,61 @@ const acknowledgePlayback = (
 };
 
 describe("fixed local Preview service", () => {
+  it("loads PNGs whose total GPU charge exceeds the runtime budget", async () => {
+    const artifacts = fixture();
+    const { definition, renderBundle, assetSet, buildManifest } = artifacts;
+    const previewAssets = new Map(Object.entries(sourceAssets));
+    const node = definition.scene.nodes["node-baked"];
+    assert(node?.kind === "surface");
+    for (let index = 1; index <= 12; index++) {
+      const surfaceId = `baked-${index}`;
+      const nodeId = `node-${surfaceId}`;
+      const renderId = `render-${surfaceId}`;
+      const assetId = `texture-${index}`;
+      const artifactId = `artifact-${surfaceId}`;
+      const png = new Uint8Array(64).fill(index);
+      const checksum = `sha256:${createHash("sha256").update(png).digest("hex")}`;
+      previewAssets.set(assetId, { bytes: png, mediaType: "image/png" });
+      assetSet.assets[assetId] = { ...assetSet.assets.texture!, checksum };
+      definition.scene.nodes[nodeId] = { ...node, id: nodeId, surfaceId, order: index + 10 };
+      const surface = structuredClone(definition.scene.surfaces.baked!);
+      definition.scene.surfaces[surfaceId] = { ...surface, id: surfaceId, hostNodeId: nodeId };
+
+      const compiled = structuredClone(renderBundle.surfaces.baked!);
+      const render = compiled.renderSurfaces["render-baked"]!;
+      const artifact = render.artifacts["artifact-baked"];
+      assert(artifact?.kind === "baked-web");
+      Object.assign(artifact.states.default!.texture, { assetId, checksum });
+      artifact.id = artifactId;
+      render.artifacts = { [artifactId]: artifact };
+      render.stateBindings.default = { kind: "artifacts", artifactIds: [artifactId] };
+      renderBundle.surfaces[surfaceId] = {
+        ...compiled,
+        semanticSurfaceId: surfaceId,
+        renderSurfaceIds: [renderId],
+        renderSurfaces: { [renderId]: { ...render, id: renderId, semanticSurfaceId: surfaceId } },
+      };
+    }
+    renderBundle.definitionHash = hashCanonicalJsonPayload(definition);
+    buildManifest.definitionHash = renderBundle.definitionHash;
+    buildManifest.renderBundleHash = hashCanonicalJsonPayload(renderBundle);
+    buildManifest.assetSetHash = hashCanonicalJsonPayload(assetSet);
+    const service = createLocalPreviewService("/project", {
+      readGeneration: async () => ({
+        generationId: generationA,
+        artifacts,
+        readAsset: async (id) => previewAssets.get(id)!,
+      }),
+    });
+
+    const envelope = await service.load({ requestId: requestA, channel: "dist" });
+    expect(envelope.projection?.textureResidency).toMatchObject({
+      totalDecodedGpuBytes: "218103808",
+      maximumResidentGpuBytes: "218103808",
+    });
+    expect(envelope.assets).toHaveLength(13);
+  });
+
   it("rereads evicted Preview bytes while reusing assets within the byte budget", async () => {
     const source = generation();
     let reads = 0;

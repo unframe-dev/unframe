@@ -19,12 +19,13 @@ func testLeaseRequest() BootstrapRequest {
 
 func testLeaseValue() RuntimeLease {
 	return RuntimeLease{
-		Assignment:  BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4, LeaseExpiresAt: time.Date(2026, 10, 2, 1, 0, 0, 0, time.UTC)},
-		Publication: BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)},
+		SessionState: SessionPresenting,
+		Assignment:   BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4, LeaseExpiresAt: time.Date(2026, 10, 2, 1, 0, 0, 0, time.UTC)},
+		Publication:  BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:" + strings.Repeat("a", 64), DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)},
 	}
 }
 
-func TestLeaseRefreshNeedsOnlyAssignmentAndPublication(t *testing.T) {
+func TestLeaseReturnsCurrentSessionStateAndFences(t *testing.T) {
 	want := testLeaseValue()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/internal/runtime/lease" {
@@ -41,6 +42,26 @@ func TestLeaseRefreshNeedsOnlyAssignmentAndPublication(t *testing.T) {
 	got, err := client.Lease(context.Background(), testLeaseRequest())
 	if err != nil || got != want {
 		t.Fatalf("lease=%#v err=%v", got, err)
+	}
+}
+
+func TestLeaseRequiresActiveSessionState(t *testing.T) {
+	for _, state := range []string{"", "Ended", "unexpected"} {
+		t.Run(state, func(t *testing.T) {
+			value := testLeaseValue()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				response := map[string]any{"assignment": value.Assignment, "publication": value.Publication}
+				if state != "" {
+					response["sessionState"] = state
+				}
+				_ = json.NewEncoder(w).Encode(response)
+			}))
+			defer server.Close()
+			client := NewClient(Config{BaseURL: server.URL, ServiceIdentity: "service-token", AllowInsecureLoopback: true})
+			if _, err := client.Lease(context.Background(), testLeaseRequest()); !errors.Is(err, ErrInvalidBootstrap) {
+				t.Fatalf("inactive session state accepted: %v", err)
+			}
+		})
 	}
 }
 

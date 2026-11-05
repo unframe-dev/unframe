@@ -554,7 +554,7 @@ export interface ProjectedNodeDefinitionWireFields {
 export type ProjectedNodeDefinitionWire_node = { container: ContainerNodeWire; surface?: never; model?: never; shape?: never; light?: never } | { surface: SurfaceNodeWire; container?: never; model?: never; shape?: never; light?: never } | { model: ModelNodeWire; container?: never; surface?: never; shape?: never; light?: never } | { shape: ShapeNodeWire; container?: never; surface?: never; model?: never; light?: never } | { light: LightNodeWire; container?: never; surface?: never; model?: never; shape?: never };
 export type ProjectedNodeDefinitionWire = ProjectedNodeDefinitionWireFields & ProjectedNodeDefinitionWire_node;
 
-export interface ProjectedRuntimeCatalogWire {
+export interface ProjectedRuntimeCatalogWireFields {
   catalogContractVersion?: number;
   nodes?: ProjectedNodeDefinitionWire[];
   surfaces?: ProjectedSurfaceDefinitionWire[];
@@ -563,6 +563,8 @@ export interface ProjectedRuntimeCatalogWire {
   modelClips?: ProjectedModelClipDefinitionWire[];
   presenterRecognition?: PresenterRecognitionCatalogWire;
 }
+export type ProjectedRuntimeCatalogWire__placementReferencePoint = { placementReferencePoint: Vector3Wire;  } | { placementReferencePoint?: never };
+export type ProjectedRuntimeCatalogWire = ProjectedRuntimeCatalogWireFields & ProjectedRuntimeCatalogWire__placementReferencePoint;
 
 export interface ProjectedSurfaceDefinitionWire {
   surfaceId?: string;

@@ -1,5 +1,6 @@
 export { calculateProjectionProfileId } from "./delivery/profile-identity.js";
 export {
+  buildLocalPreviewProjection,
   buildProjectionProfile,
   buildRuntimeProjection,
   type RuntimeProjection,

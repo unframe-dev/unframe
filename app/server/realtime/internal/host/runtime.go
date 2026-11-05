@@ -243,8 +243,12 @@ func startSession(ctx context.Context, a Assignment, renewals <-chan Assignment,
 	}
 	runtime.ConfigureCompletion(writer)
 	runtime.ConfigureResumeValidation(func(ctx context.Context) error {
-		if err := verifySessionLease(ctx, client, guard, request, bootstrap.Publication); err != nil {
+		lease, err := verifySessionLease(ctx, client, guard, request, bootstrap.Publication)
+		if err != nil {
 			return err
+		}
+		if lease.SessionState != persistence.SessionPresenting {
+			return errors.New("presentation has not started")
 		}
 		return guard.AllowCommand(claim)
 	})
@@ -276,6 +280,10 @@ func startSession(ctx context.Context, a Assignment, renewals <-chan Assignment,
 			return nil, err
 		}
 	}
+	waiting := bootstrap.SessionState == persistence.SessionWaiting
+	if waiting {
+		runtime.WaitForPresentationStart()
+	}
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
@@ -293,11 +301,20 @@ func startSession(ctx context.Context, a Assignment, renewals <-chan Assignment,
 	writer.ready.Store(true)
 	router.Register(a.SessionID, service)
 	go e.run(lifetime, claim)
+	if waiting {
+		go awaitPresentationStart(lifetime, runtime, func(ctx context.Context) (bool, error) {
+			lease, err := verifySessionLease(ctx, client, guard, request, bootstrap.Publication)
+			if err != nil {
+				return false, err
+			}
+			return lease.SessionState == persistence.SessionPresenting, guard.AllowCommand(claim)
+		})
+	}
 	go func() {
 		if err := runtime.RunCheckpointWorker(lifetime, nil); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Warn("session checkpoint worker stopped", "sessionId", a.SessionID, "error", err)
 			verification, cancel := context.WithTimeout(lifetime, 5*time.Second)
-			verificationError := verifySessionLease(verification, client, guard, request, bootstrap.Publication)
+			_, verificationError := verifySessionLease(verification, client, guard, request, bootstrap.Publication)
 			cancel()
 			if errors.Is(guard.AllowCommand(claim), assignment.ErrInvalidAssignment) {
 				e.Revoke()
@@ -343,20 +360,44 @@ type sessionLeaseReader interface {
 	Lease(context.Context, persistence.BootstrapRequest) (persistence.RuntimeLease, error)
 }
 
-func verifySessionLease(ctx context.Context, reader sessionLeaseReader, guard *assignment.AssignmentGuard, request persistence.BootstrapRequest, pin persistence.BootstrapPublication) error {
+func verifySessionLease(ctx context.Context, reader sessionLeaseReader, guard *assignment.AssignmentGuard, request persistence.BootstrapRequest, pin persistence.BootstrapPublication) (persistence.RuntimeLease, error) {
 	lease, err := reader.Lease(ctx, request)
 	if err != nil {
 		var response *persistence.ResponseError
 		if errors.Is(err, persistence.ErrInvalidBootstrap) || (errors.As(err, &response) && (response.StatusCode == 401 || response.StatusCode == 403 || response.StatusCode == 404 || response.StatusCode == 409 || response.StatusCode == 410)) {
 			guard.Revoke()
 		}
-		return err
+		return persistence.RuntimeLease{}, err
 	}
 	if lease.Publication != pin {
 		guard.Revoke()
-		return errors.New("runtime publication fence changed")
+		return persistence.RuntimeLease{}, errors.New("runtime publication fence changed")
 	}
-	return nil
+	return lease, nil
+}
+
+func awaitPresentationStart(ctx context.Context, runtime *runtimecore.V2Session, presenting func(context.Context) (bool, error)) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			check, cancel := context.WithTimeout(ctx, 5*time.Second)
+			started, err := presenting(check)
+			if err == nil && started {
+				err = runtime.StartPresentation(check)
+			}
+			cancel()
+			if err == nil && started {
+				return
+			}
+			if err != nil && ctx.Err() == nil {
+				slog.Warn("check presentation start", "error", err)
+			}
+		}
+	}
 }
 
 func monitorHostReadiness(ctx context.Context, checks <-chan time.Time, check func(context.Context) error, setReady func(bool)) {

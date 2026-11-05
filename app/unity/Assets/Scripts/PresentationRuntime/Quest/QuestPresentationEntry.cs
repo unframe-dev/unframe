@@ -125,7 +125,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 CommandOutcome outcome = await runtime.SendConfirmedAsync(QuestPresentationInput.CreateControl(kind,
                     runtime.PresentationOriginVersion, runtime.InputSynchronization.CommandEpoch), linked.Token);
-                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted
+                    && !(kind == RuntimeControlKind.Resume && outcome.NoOp?.Reason == CommandNoOpReason.AlreadyRunning))
                     throw new InvalidOperationException("Presenter control was not accepted: " + outcome.ResultCase);
             }
         }
@@ -457,8 +458,17 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task SendPlacementAsync()
         {
             ControlClientItem command;
-            try { command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch); }
-            catch (Exception) { LastErrorCode = "presenter-placement-invalid"; return; }
+            try
+            {
+                command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch,
+                    runtime.DataStore.Catalog?.PlacementReferencePoint);
+            }
+            catch (InvalidOperationException)
+            {
+                LastErrorCode = "presenter-placement-invalid";
+                nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
+                return;
+            }
             if (command == null) return;
             try
             {

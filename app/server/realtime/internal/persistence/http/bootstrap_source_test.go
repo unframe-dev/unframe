@@ -34,9 +34,10 @@ func TestBootstrapValidatesIndependentCheckpointSource(t *testing.T) {
 			}
 			server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 				_ = json.NewEncoder(w).Encode(map[string]any{
-					"assignment":  map[string]any{"sessionId": "session-1", "runtimeId": "new-runtime", "runtimeKind": "Cloud", "assignmentEpoch": 4, "presentationRevision": 4, "leaseExpiresAt": "2026-10-02T01:00:00Z"},
-					"publication": map[string]any{"presentationId": "presentation-1", "publicationEpoch": 2, "publicationManifestHash": "sha256:" + strings.Repeat("a", 64), "definitionHash": "sha256:" + strings.Repeat("b", 64), "renderBundleHash": "sha256:" + strings.Repeat("c", 64)},
-					"definition":  map[string]any{"schemaVersion": 1}, "renderBundle": map[string]any{"schemaVersion": 1}, "checkpoint": json.RawMessage(encoded), "checkpointSource": test.source,
+					"sessionState": SessionWaiting,
+					"assignment":   map[string]any{"sessionId": "session-1", "runtimeId": "new-runtime", "runtimeKind": "Cloud", "assignmentEpoch": 4, "presentationRevision": 4, "leaseExpiresAt": "2026-10-02T01:00:00Z"},
+					"publication":  map[string]any{"presentationId": "presentation-1", "publicationEpoch": 2, "publicationManifestHash": "sha256:" + strings.Repeat("a", 64), "definitionHash": "sha256:" + strings.Repeat("b", 64), "renderBundleHash": "sha256:" + strings.Repeat("c", 64)},
+					"definition":   map[string]any{"schemaVersion": 1}, "renderBundle": map[string]any{"schemaVersion": 1}, "checkpoint": json.RawMessage(encoded), "checkpointSource": test.source,
 				})
 			}))
 			defer server.Close()

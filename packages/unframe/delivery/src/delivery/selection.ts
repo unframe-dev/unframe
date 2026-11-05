@@ -131,13 +131,19 @@ const requiredCodePoints = (value: Artifact & { kind: "native-ui" }, maximumGlyp
   return points;
 };
 
+export type SelectionMode = "delivery" | "local-preview";
+
 export const selectDeliveryArtifactsParsed = (
   definition: PresentationDefinition,
   bundle: RenderBundle,
   assetSet: AssetSetManifest,
   capability: CapabilityProfile,
   role: "presenter" | "viewer",
+  mode: SelectionMode = "delivery",
 ): DeliverySelection => {
+  const withinMemoryBudget = (value: number, limit: number, name: string) => {
+    if (mode === "delivery") within(value, limit, name);
+  };
   const visibility = createRuntimeVisibilitySelection(definition, "selection", role, []);
   const selected: SelectedRenderSurface[] = [];
   const assets = new Map<string, AssetSetManifest["assets"][string]>();
@@ -412,14 +418,14 @@ export const selectDeliveryArtifactsParsed = (
     capability.limits.texture.maxTextureBindings,
     "Texture bindings",
   );
-  within(combinedGpuBytes, capability.limits.texture.maxGpuBytes, "Texture GPU bytes");
-  within(combinedGpuBytes, 268_435_456, "Texture baseline GPU bytes");
-  within(
+  withinMemoryBudget(combinedGpuBytes, capability.limits.texture.maxGpuBytes, "Texture GPU bytes");
+  withinMemoryBudget(combinedGpuBytes, 268_435_456, "Texture baseline GPU bytes");
+  withinMemoryBudget(
     maximumTextureLoadCpuBytes,
     capability.limits.texture.maxSerialLoadCpuBytes,
     "Texture load CPU bytes",
   );
-  within(maximumTextureLoadCpuBytes, 268_435_456, "Texture baseline load CPU bytes");
+  withinMemoryBudget(maximumTextureLoadCpuBytes, 268_435_456, "Texture baseline load CPU bytes");
   const modelValues = [...modelByChecksum.values()];
   const modelInstances = visibility.visibleNodeIds.flatMap((id) => {
     const node = definition.scene.nodes[id];
@@ -451,7 +457,11 @@ export const selectDeliveryArtifactsParsed = (
   const modelLimit = capability.limits.model;
   within(modelValues.length, modelLimit.maxAssets, "Model Assets");
   within(modelTotals.instanceCount, modelLimit.maxInstances, "Model instances");
-  within(modelTotals.encodedBytes, modelLimit.maxEncodedBytes, "Model encodedSizeBytes");
+  withinMemoryBudget(
+    modelTotals.encodedBytes,
+    modelLimit.maxEncodedBytes,
+    "Model encodedSizeBytes",
+  );
   for (const [field, limit] of [
     ["nodeCount", modelLimit.maxNodes],
     ["primitiveCount", modelLimit.maxPrimitives],
@@ -460,7 +470,7 @@ export const selectDeliveryArtifactsParsed = (
   ] as const)
     within(modelTotals[field], limit, `Model ${field}`);
   for (const model of modelValues) {
-    within(
+    withinMemoryBudget(
       model.peakLoadCpuBytes,
       capability.limits.texture.maxSerialLoadCpuBytes,
       "Model load CPU bytes",
@@ -488,7 +498,7 @@ export const selectDeliveryArtifactsParsed = (
     videos.map((video) => video.encodedSizeBytes),
     "Video encoded bytes",
   );
-  within(videoEncoded, capability.limits.video.maxEncodedBytes, "Video encoded bytes");
+  withinMemoryBudget(videoEncoded, capability.limits.video.maxEncodedBytes, "Video encoded bytes");
   let maximumConcurrentDecoders = 0;
   let maximumDecodedFrameBytes = 0;
   for (const groupId of Object.keys(definition.flow.groups)) {
@@ -527,7 +537,7 @@ export const selectDeliveryArtifactsParsed = (
     capability.limits.video.maxConcurrentDecoders,
     "Video decoders",
   );
-  within(
+  withinMemoryBudget(
     maximumDecodedFrameBytes,
     capability.limits.video.maxDecodedFrameBytes,
     "Video frame bytes",
@@ -540,7 +550,7 @@ export const selectDeliveryArtifactsParsed = (
     assetList.map((asset) => asset.descriptor.encodedSizeBytes),
     "Selected encoded bytes",
   );
-  within(
+  withinMemoryBudget(
     checkedAdd(
       totalSelectedEncodedBytes,
       capability.limits.texture.encodedCacheReserveBytes,

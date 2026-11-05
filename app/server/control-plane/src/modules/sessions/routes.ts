@@ -29,6 +29,7 @@ import type { Identity } from "../../presentation/service";
 import { RealtimeBootstrapCredentials } from "../realtime-bootstrap/credential";
 import { D1RuntimeAssignmentRepository } from "../runtime-assignments/repository";
 import { RuntimeAssignmentError, RuntimeAssignmentService } from "../runtime-assignments/service";
+import { RuntimeHostRepository } from "../runtime-hosts/repository";
 import { D1SessionRepository, type SessionRepository } from "./repository";
 import { SessionError, SessionService, sha256JoinCode } from "./service";
 
@@ -154,6 +155,17 @@ export function createSessionRoutes(options: SessionRouteOptions) {
       const result = await execute(context, (identity, { service }) =>
         service.create(identity, context.req.valid("json").presentationId),
       );
+      try {
+        await new RuntimeHostRepository(context.get("config").DB).prepare(result.session.id, now());
+      } catch {
+        // The Session is already persisted. Return it so preparation can be retried on the same Room.
+        console.error(
+          JSON.stringify({
+            event: "session_runtime_preparation_failed",
+            sessionId: result.session.id,
+          }),
+        );
+      }
       return context.json(result, 201);
     })
     .openapi(joinSessionRoute, async (context) => {

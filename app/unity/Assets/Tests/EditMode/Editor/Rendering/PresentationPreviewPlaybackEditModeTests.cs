@@ -68,35 +68,32 @@ public sealed class PresentationPreviewPlaybackEditModeTests
     }
 
     [UnityTest]
-    public IEnumerator GroupExitReleasesTextureAndReturningReusesEncodedAssetWithoutDownload()
+    public IEnumerator PngOutsideTheInitialGroupStaysResidentThroughoutPlayback()
     {
         var envelope = PresentationPreviewTestFixture.Create(texture: true);
-        var root = new GameObject("texture window playback");
-        int downloads = 0;
+        var enter = State(envelope, 1, 100);
+        envelope.Projection.TextureResidency.InitialGroupId = "group:second";
+        envelope.InitialState.NodeStates.RemoveAt(1);
+        envelope.InitialState.NodeStates.Add(PresentationPreviewTestFixture.Node("node:other"));
+        envelope.InitialState.SurfaceStates.Clear();
+        var exit = State(envelope, 2, 200);
+        exit.CurrentGroupId = "group:second";
+        var root = new GameObject("resident texture playback");
         using (var transaction = new PresentationPreviewTransaction(root.transform))
         {
             try
             {
                 var load = transaction.PrepareAsync(envelope, (_, __, ___) =>
-                {
-                    downloads++;
-                    return Task.FromResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png"));
-                }, CancellationToken.None);
+                    Task.FromResult(new PresentationPreviewAssetData(PresentationPreviewTestFixture.Png, "image/png")),
+                    CancellationToken.None);
                 while (!load.IsCompleted) yield return null;
                 load.GetAwaiter().GetResult();
                 transaction.Commit(envelope.RequestId);
                 Assert.That(transaction.ResidentGpuBytes, Is.EqualTo(4));
-                var exit = State(envelope, 1, 100);
-                exit.CurrentGroupId = "group:second";
-                exit.NodeStates.Clear();
-                exit.NodeStates.Add(PresentationPreviewTestFixture.Node("node:stage"));
-                exit.NodeStates.Add(PresentationPreviewTestFixture.Node("node:other"));
-                exit.SurfaceStates.Clear();
-                Assert.That(transaction.TryPlayback(exit, 0, out string error), Is.True, error);
-                Assert.That(transaction.ResidentGpuBytes, Is.Zero);
-                Assert.That(transaction.TryPlayback(State(envelope, 2, 200), .1, out error), Is.True, error);
+                Assert.That(transaction.TryPlayback(enter, 0, out string error), Is.True, error);
                 Assert.That(transaction.ResidentGpuBytes, Is.EqualTo(4));
-                Assert.That(downloads, Is.EqualTo(1));
+                Assert.That(transaction.TryPlayback(exit, .1, out error), Is.True, error);
+                Assert.That(transaction.ResidentGpuBytes, Is.EqualTo(4));
             }
             finally { Object.DestroyImmediate(root); }
         }

@@ -68,6 +68,7 @@ type V2Session struct {
 	tracking             v2TrackingEvaluator
 	completionWriter     V2CompletionWriter
 	resumeValidator      func(context.Context) error
+	waitingForStart      bool
 	lastTick             time.Time
 	now                  func() time.Time
 	emptySince           time.Time

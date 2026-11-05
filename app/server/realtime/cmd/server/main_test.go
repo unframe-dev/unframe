@@ -43,9 +43,9 @@ func TestRefreshV2LeaseKeepsPublicationPinAndExtendsOnlyTrustedAssignment(t *tes
 	request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
 	pin := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 1, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", DefinitionHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RenderBundleHash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 	reader := leaseReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
-		return persistencehttp.RuntimeLease{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(2 * time.Minute)}, Publication: pin}, nil
+		return persistencehttp.RuntimeLease{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(2 * time.Minute)}, Publication: pin, SessionState: persistencehttp.SessionPresenting}, nil
 	})
-	if err := refreshV2Lease(context.Background(), reader, guard, request, pin); err != nil || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
+	if state, err := refreshV2Lease(context.Background(), reader, guard, request, pin); err != nil || state != persistencehttp.SessionPresenting || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
 		t.Fatalf("lease=%#v err=%v", guard.Assignment(), err)
 	}
 	reader = leaseReaderFunc(func(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error) {
@@ -53,7 +53,7 @@ func TestRefreshV2LeaseKeepsPublicationPinAndExtendsOnlyTrustedAssignment(t *tes
 		changed.PublicationEpoch++
 		return persistencehttp.RuntimeLease{Assignment: persistencehttp.BootstrapAssignment{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision, LeaseExpiresAt: issued.Add(3 * time.Minute)}, Publication: changed}, nil
 	})
-	if err := refreshV2Lease(context.Background(), reader, guard, request, pin); err == nil || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
+	if _, err := refreshV2Lease(context.Background(), reader, guard, request, pin); err == nil || !guard.Assignment().LeaseExpiresAt.Equal(issued.Add(2*time.Minute)) {
 		t.Fatalf("changed publication accepted lease=%#v err=%v", guard.Assignment(), err)
 	}
 }
@@ -313,7 +313,7 @@ func TestLeaseRefreshRevokesRejectedAssignmentBeforeHeldLeaseExpires(t *testing.
 			defer server.Close()
 			client := persistencehttp.NewClient(persistencehttp.Config{BaseURL: server.URL, ServiceIdentity: "service-token", AllowInsecureLoopback: true})
 			request := persistencehttp.BootstrapRequest{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
-			if err := refreshV2Lease(context.Background(), client, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
+			if _, err := refreshV2Lease(context.Background(), client, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
 				t.Fatal("rejected lease accepted")
 			}
 			claim := assignment.AssignmentClaim{SessionID: initial.SessionID, RuntimeID: initial.RuntimeID, RuntimeKind: initial.RuntimeKind, AssignmentEpoch: initial.AssignmentEpoch, PresentationRevision: initial.PresentationRevision}
@@ -353,9 +353,10 @@ func TestRevokedLeasePausesRuntimeClockAndRejectsResume(t *testing.T) {
 		return persistencehttp.RuntimeLease{}, &persistencehttp.ResponseError{Operation: "lease", StatusCode: 409}
 	})
 	runtime.ConfigureResumeValidation(func(ctx context.Context) error {
-		return refreshV2Lease(ctx, reader, guard, request, persistencehttp.BootstrapPublication{})
+		_, err := refreshV2Lease(ctx, reader, guard, request, persistencehttp.BootstrapPublication{})
+		return err
 	})
-	if err := refreshV2Lease(context.Background(), reader, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
+	if _, err := refreshV2Lease(context.Background(), reader, guard, request, persistencehttp.BootstrapPublication{}); err == nil {
 		t.Fatal("ended Session lease accepted")
 	}
 	before := runtime.Snapshot().Clock.RuntimeTimeMs

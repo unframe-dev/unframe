@@ -6513,6 +6513,9 @@ export namespace unframe {
             /** ProjectedRuntimeCatalog presenterRecognition. */
             presenterRecognition?: (unframe.presentation.PresenterRecognitionCatalog.$Properties|null);
 
+            /** ProjectedRuntimeCatalog placementReferencePoint. */
+            placementReferencePoint?: (unframe.presentation.Vector3.$Properties|null);
+
             /**
              * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
              * @param [properties] Properties to set
@@ -6618,6 +6621,9 @@ export namespace unframe {
                 /** ProjectedRuntimeCatalog presenterRecognition */
                 presenterRecognition?: (unframe.presentation.PresenterRecognitionCatalog.$Properties|null);
 
+                /** ProjectedRuntimeCatalog placementReferencePoint */
+                placementReferencePoint?: (unframe.presentation.Vector3.$Properties|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -6631,6 +6637,7 @@ export namespace unframe {
               timelines?: unframe.presentation.ProjectedTimelineDefinition.$Shape[]|null;
               modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Shape[]|null;
               presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Shape|null;
+              placementReferencePoint?: unframe.presentation.Vector3.$Shape|null;
               $unknowns?: Uint8Array[];
             };
         }
