@@ -36,9 +36,11 @@ export function createEditorSocket(token: string, baseUrl?: string) {
     socket = connection;
     connecting = new Promise((resolve, reject) => {
       let ready = false;
+      let failure: HostApiError | undefined;
       const timeout = setTimeout(() => connection.close(), 5000);
       connection.addEventListener("open", () => connection.send(JSON.stringify({ token })));
       connection.addEventListener("message", (event) => {
+        if (failure) return;
         try {
           const message = editorSocketMessageSchema.parse(JSON.parse(String(event.data)));
           if (message.type === "ready") {
@@ -55,15 +57,20 @@ export function createEditorSocket(token: string, baseUrl?: string) {
               request?.reject(new HostApiError(message.status, message.code, message.message));
             else request?.resolve(message.value);
           }
-        } catch {
+        } catch (cause) {
+          const detail = cause instanceof Error ? cause.message : String(cause);
           const error = new HostApiError(
             502,
             "invalid-response",
-            "Host WebSocket response is invalid.",
+            `Host WebSocket response is invalid: ${detail}`,
+            { cause },
           );
+          failure = error;
+          clearTimeout(timeout);
+          reject(error);
           for (const request of pending.values()) request.reject(error);
           pending.clear();
-          connection.close(1008);
+          connection.close(4002);
         }
       });
       connection.addEventListener("error", () => connection.close());
@@ -72,7 +79,7 @@ export function createEditorSocket(token: string, baseUrl?: string) {
         if (socket !== connection) return;
         socket = undefined;
         connecting = undefined;
-        const error = disconnected();
+        const error = failure ?? disconnected();
         reject(error);
         for (const request of pending.values()) request.reject(error);
         pending.clear();

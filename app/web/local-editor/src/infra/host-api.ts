@@ -23,8 +23,9 @@ export class HostApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
   }
 }
 export async function getEditorToken(): Promise<string> {
