@@ -87,7 +87,7 @@ Worker は既存の専用プロトコルを継続する。[Comlink](https://gith
 - `fiducials/detector.ts` / `worker.ts`: AprilTag 3のWASMで`tag36h11`を検出。`quad_decimate=1`・`refine_edges=1`。
 - `fiducials/pose.ts` / `tag-localization.ts`: 画像だけから単一タグ姿勢を推定・判定。POSIT由来の反転初期値を含む最大4候補で探索し、曖昧姿勢と再投影誤差超過を除く。SDKをタグ推定の初期値に使わない。
 - `rendering/live-tag-anchor.ts`: `sdkFromVenue = sdkFromCamera * inverse(tagVenueFromCamera)`を即反映。検出間は行列を維持し、SDKの通常描画ループで表示する。
-- `rendering/presentation-space.ts`: タグ表示から会場基準を復元し、設定の`presentationToVenue`と共有原点用の独立Groupを接合する。子ノードはこの`contentRoot`へ追加する。Presenter が確定した共有配置を適用し、Viewer の高さでは再計算しない。原点更新後は描画準備を待って新しい version の `StateReady` を送信する。
+- `rendering/presentation-space.ts`: タグ表示から会場基準を復元し、設定の`presentationToVenue`と共有原点用の独立Groupを接合する。子ノードはこの`contentRoot`へ追加する。Presenter が原点の高さをHMDより30cm下へ合わせた共有配置を適用し、Viewer の高さや向きでは再計算しない。高さ補正前の実空間の水平位置と回転を保ち、マーカーが傾いていても共有原点をそのまま合成する。原点更新後は描画準備を待って新しい version の `StateReady` を送信する。
 - `rendering/presentation-guide.ts`: プレゼン位置確認用の1m座標軸と幅1m・高さ0.5625mの枠。実プレゼン素材ではない。
 - `rendering/png-plan.ts`: 既存DeliveryとParticipantRuntimeViewからPNGの選択済state binding、空間親子、fit、表示状態と予算を照合する。
 - `rendering/png-presentation.ts`: PNGを全件準備後にプレゼンrootへ接合し、失敗・取消時は巻き戻す。

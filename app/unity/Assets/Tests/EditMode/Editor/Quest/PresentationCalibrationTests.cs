@@ -10,11 +10,11 @@ public sealed class PresentationCalibrationTests
     [TestCase(0.9f, 90f)]
     [TestCase(1.8f, 0f)]
     [TestCase(2.5f, 32f)]
-    public void PresenterPlacementCentersAuthoredContentAndKeepsItUpright(float markerHeight, float markerPitch)
+    public void PresenterPlacementChangesOnlyWorldHeightAndPreservesTheExistingRotation(float markerHeight, float markerPitch)
     {
         var marker = new Pose(new Vector3(3, markerHeight, -4), Quaternion.Euler(markerPitch, 47, 0));
         var head = new Pose(Vector3.up * 1.8f, Quaternion.Euler(0, 63, 0) * Quaternion.Euler(30, 0, 18));
-        var reference = new ProtoVector3 { Y = 2.15, Z = -2.5 };
+        var reference = new ProtoVector3 { X = .25, Y = 2.15, Z = -2.5 };
         var original = QuestPresentationTracking.ToCanonicalPose(new Vector3(0.6f, 0.2f, -0.4f), Quaternion.Euler(12, 25, 3));
         Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, original, reference, out ProtoPose corrected), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(original, out Pose before), Is.True);
@@ -22,12 +22,10 @@ public sealed class PresentationCalibrationTests
         Vector3 oldWorld = marker.position + marker.rotation * before.position;
         Vector3 world = marker.position + marker.rotation * after.position;
         Quaternion stageRotation = marker.rotation * after.rotation;
-        var referencePoint = new Vector3(0, 2.15f, 2.5f);
-        Assert.That((world + stageRotation * referencePoint).y, Is.EqualTo(1.5f).Within(0.00001f));
+        Assert.That(world.y, Is.EqualTo(head.position.y - .30f).Within(0.00001f));
         Assert.That(world.x, Is.EqualTo(oldWorld.x).Within(0.00001f));
         Assert.That(world.z, Is.EqualTo(oldWorld.z).Within(0.00001f));
-        Assert.That(Vector3.Distance(stageRotation * Vector3.up, Vector3.up), Is.LessThan(0.00001f));
-        Assert.That(Quaternion.Angle(stageRotation, Quaternion.Euler(0, 63, 0)), Is.LessThan(0.02f));
+        Assert.That(Quaternion.Angle(stageRotation, marker.rotation * before.rotation), Is.LessThan(0.02f));
         Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, corrected, reference, out ProtoPose repeated), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(repeated, out Pose repeatedPose), Is.True);
         Assert.That(Vector3.Distance(repeatedPose.position, after.position), Is.LessThan(0.00001f));
@@ -35,37 +33,43 @@ public sealed class PresentationCalibrationTests
 
     [TestCase(-90)]
     [TestCase(90)]
-    public void VerticalHeadGazeUsesTheHorizontalHeadRightAxis(int pitch)
+    public void HeadGazeCannotRotateThePresentation(int pitch)
     {
         var head = new Pose(Vector3.up, Quaternion.Euler(pitch, 90, 0));
         var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
 
         Assert.That(PresentationCalibrationMath.TryPresenterOrigin(Pose.identity, head, initial, new ProtoVector3(), out var corrected), Is.True);
         Assert.That(PresentationCoordinateAdapter.TryToUnityPose(corrected, out Pose stage), Is.True);
-        Assert.That(Vector3.Distance(stage.rotation * Vector3.forward, Vector3.right), Is.LessThan(0.00001f));
-        Assert.That(Vector3.Distance(stage.rotation * Vector3.up, Vector3.up), Is.LessThan(0.00001f));
+        Assert.That(Quaternion.Angle(stage.rotation, Quaternion.identity), Is.LessThan(0.00001f));
+        Assert.That(stage.position.y, Is.EqualTo(.7f).Within(.00001f));
     }
 
     [Test]
-    public void InitialPlacementRequiresAReferencePoint()
+    public void InitialPlacementUsesTheOriginWithoutAContentReference()
     {
         var state = new PresenterOriginPlacement();
         state.Capture(Pose.identity, new Pose(Vector3.up, Quaternion.identity));
         var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
 
-        Assert.Throws<System.InvalidOperationException>(() => state.Prepare(initial, 4, null));
+        var command = state.Prepare(initial, 4, null);
+        Assert.That(command, Is.Not.Null);
+        Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(.7f).Within(.00001f));
         Assert.That(state.IsConfirmed, Is.False);
-        Assert.That(state.Prepare(initial, 4, new ProtoVector3()), Is.Not.Null);
     }
 
-    [TestCase(double.NaN)]
-    [TestCase(double.PositiveInfinity)]
-    [TestCase(double.MaxValue)]
-    public void PlacementRejectsAReferencePointUnityCannotRepresent(double value)
+    [TestCase(0f)]
+    [TestCase(.9f)]
+    [TestCase(2.5f)]
+    public void InitialOriginStaysHorizontallyAtTheMarkerAtEveryMarkerHeight(float height)
     {
+        var marker = new Pose(new Vector3(3, height, -4), Quaternion.Euler(72, 47, 18));
         var initial = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
-        var reference = new ProtoVector3 { Y = value };
-        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(Pose.identity, Pose.identity, initial, reference, out _), Is.False);
+        var head = new Pose(new Vector3(-8, 1.8f, 9), Quaternion.Euler(35, -90, 24));
+        Assert.That(PresentationCalibrationMath.TryPresenterOrigin(marker, head, initial, new ProtoVector3 { Y = 2.15 }, out var corrected), Is.True);
+        Assert.That(PresentationCoordinateAdapter.TryToUnityPose(corrected, out Pose pose), Is.True);
+        Vector3 worldPosition = marker.position + marker.rotation * pose.position;
+        Assert.That(Vector3.Distance(worldPosition, new Vector3(3, 1.5f, -4)), Is.LessThan(.00001f));
+        Assert.That(Quaternion.Angle(marker.rotation * pose.rotation, marker.rotation), Is.LessThan(.02f));
     }
 
     [Test]
