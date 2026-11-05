@@ -84,7 +84,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly QuestPresentationButtonEdges uiButtons = new QuestPresentationButtonEdges();
         private readonly QuestPresentationGestureTriggers gestureTriggers = new QuestPresentationGestureTriggers();
         private bool leftTriggerHeld, rightTriggerHeld;
-        private double lastTrackingAt;
+        private readonly QuestTrackingSendSchedule trackingSchedule = new QuestTrackingSendSchedule();
 
         private readonly QuestGestureRecognition recognition = new QuestGestureRecognition();
         public event Action<PresenterGesturePositionSample> GesturePositionSampleReady
@@ -95,7 +95,11 @@ namespace Unframe.Unity.PresentationRuntime
         public double GesturePositionSampleIntervalSeconds
         {
             get => recognition.PositionSampleIntervalSeconds;
-            set => recognition.PositionSampleIntervalSeconds = value;
+            set
+            {
+                recognition.PositionSampleIntervalSeconds = value;
+                trackingSchedule.DiscardRequests();
+            }
         }
         private ulong recognitionRevision;
         private bool recalibrationPending;
@@ -132,6 +136,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void Awake()
         {
             if (runtime == null) runtime = GetComponent<PresentationBakedRuntime>();
+            recognition.PositionSampleReady += OnGesturePositionSample;
             foreach (MonoBehaviour component in GetComponents<MonoBehaviour>())
                 if (component is IQuestBodyPoseSource source) { bodySource = source; break; }
         }
@@ -193,6 +198,7 @@ namespace Unframe.Unity.PresentationRuntime
             finally
             {
                 runLifetime.Cancel();
+                trackingSchedule.DiscardRequests();
                 interactionLifetime?.Cancel();
                 await ObserveInteractionAsync(input);
                 await ObserveInteractionAsync(tracking);
@@ -291,10 +297,18 @@ namespace Unframe.Unity.PresentationRuntime
                 leftConsumed, rightConsumed, out bool leftGestureHeld, out bool rightGestureHeld);
             if (!runtime.CanSendInput || !PresentationInputEnabled)
                 recognition.SampleHands(Time.realtimeSinceStartupAsDouble, null, null, null, leftGestureHeld, rightGestureHeld, null);
-            if (lifetime == null || lifetime.IsCancellationRequested) return;
+            if (lifetime == null || lifetime.IsCancellationRequested)
+            {
+                trackingSchedule.DiscardRequests();
+                return;
+            }
             TrySendPlacement();
             TrySendRecalibration();
-            if (!PlacementReady || !runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested) return;
+            if (!PlacementReady || !runtime.SessionReady || !runtime.CalibrationReady || interactionLifetime == null || interactionLifetime.IsCancellationRequested)
+            {
+                trackingSchedule.DiscardRequests();
+                return;
+            }
 
             if (logicalPressed && CanAdvance)
                 _ = AdvanceAsync();
@@ -309,10 +323,10 @@ namespace Unframe.Unity.PresentationRuntime
             if (PresentationInputEnabled) SampleRecognition(leftGestureHeld, rightGestureHeld);
             else ResetRecognition();
 
-            if (runtime.CanSendTracking && Time.realtimeSinceStartupAsDouble - lastTrackingAt >= 0.1
-                && (tracking == null || tracking.IsCompleted))
+            if (!PresentationInputEnabled || !runtime.CanSendInput) trackingSchedule.DiscardRequests();
+            if (trackingSchedule.TryBeginFrame(Time.realtimeSinceStartupAsDouble, runtime.CanSendTracking,
+                tracking != null && !tracking.IsCompleted))
             {
-                lastTrackingAt = Time.realtimeSinceStartupAsDouble;
                 var samples = new List<QuestPoseSample>(4);
                 QuestPresentationTracking.TrySample(XRNode.Head, TrackedTarget.Head, out QuestPoseSample head);
                 QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out QuestPoseSample left);
@@ -327,17 +341,29 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        private void ResetRecognition() { recognition.Reset(null, null); recognitionRevision = 0; }
+        private void OnGesturePositionSample(PresenterGesturePositionSample _)
+        {
+            if (PresentationInputEnabled && runtime.CanSendInput && runtime.CanSendTracking)
+                trackingSchedule.RequestPositionSample();
+        }
+
+        private void ResetRecognition()
+        {
+            trackingSchedule.DiscardRequests();
+            recognition.Reset(null, null);
+            recognitionRevision = 0;
+        }
 
         private void SampleRecognition(bool leftTriggerHeld, bool rightTriggerHeld)
         {
             var synchronization = runtime.InputSynchronization;
             if (!runtime.CanSendInput)
             {
-                recognition.Reset(null, null); recognitionRevision = 0; return;
+                ResetRecognition(); return;
             }
             if (recognitionRevision != synchronization.Revision)
             {
+                trackingSchedule.DiscardRequests();
                 recognition.Reset(synchronization.Context, synchronization.Catalog);
                 recognitionRevision = synchronization.Revision;
             }
@@ -413,7 +439,7 @@ namespace Unframe.Unity.PresentationRuntime
             interactionLifetime?.Cancel();
             interactionLifetime?.Dispose();
             interactionLifetime = null;
-            recognition.Reset(null, null); recognitionRevision = 0;
+            ResetRecognition();
             runtime.DiscardPendingInputs();
             if (!calibration.IsValid || calibrationRevision != 0) recalibrationPending = true;
             calibrationRevision = calibration.Revision;
