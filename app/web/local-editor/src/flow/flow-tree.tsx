@@ -3,9 +3,12 @@ import { useWorkspace } from "../app/workspace-provider";
 import { createTimelineView, triggerTiming } from "./flow-model";
 export function FlowTree() {
   const w = useWorkspace();
-  const definition = useStore(w.project.store, (s) => s.project?.definition);
+  const project = useStore(w.project.store, (s) => s.project);
+  const error = useStore(w.project.store, (s) => s.error);
+  const definition = project?.definition;
   const selection = useStore(w.ui, (s) => s.selection);
   const model = definition ? createTimelineView(definition) : null;
+  const loading = !project && !error;
   return (
     <nav aria-label="Group / Step / Cue" className="flow-tree">
       <header className="panel-heading">
@@ -50,7 +53,13 @@ export function FlowTree() {
         </details>
       ))}
       {!model && (
-        <p className="empty-state">Source の定義を検証できません。問題パネルを確認してください。</p>
+        <p className="empty-state" role={loading ? "status" : "alert"}>
+          {project
+            ? "Source の定義を検証できません。問題パネルを確認してください。"
+            : error
+              ? "Source を読み込めません。問題パネルを確認してください。"
+              : "Source を読み込んでいます…"}
+        </p>
       )}
     </nav>
   );

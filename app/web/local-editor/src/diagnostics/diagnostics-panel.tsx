@@ -3,9 +3,10 @@ import { useWorkspace } from "../app/workspace-provider";
 export function DiagnosticsPanel() {
   const w = useWorkspace();
   const project = useStore(w.project.store, (s) => s.project);
+  const projectError = useStore(w.project.store, (s) => s.error);
   const preview = useStore(w.preview.store);
   const publication = useStore(w.publication.store);
-  const errors = [preview.error, publication.error].filter(Boolean);
+  const errors = [projectError, preview.error, publication.error].filter(Boolean);
   const items = [
     ...(project?.diagnostics ?? []),
     ...(preview.job?.diagnostics ?? []),

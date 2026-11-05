@@ -46,7 +46,7 @@ CLI Host は UI／Player のファイル内容を起動時には読み込みま�
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
-Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、成功した解析の準備済み入力は build でも使用します。再利用時も Source・依存の内容と保存の復旧状態を確認し、後から取得した revision を古い解析の完了で上書きしません。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
+Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、成功した解析の準備済み入力は build でも使用します。再利用時も Source・依存の内容と保存の復旧状態を確認し、後から取得した revision を古い解析の完了で上書きしません。進行パネルは初回の解析結果を待つ間は読み込み中と表示し、取得失敗と定義の検証失敗を区別します。取得エラーの詳細は問題パネルに表示します。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
 
 Compiler の永続キャッシュは `.unframe/cache/builds-v1/` に保存し、新規保存時に16件・合計512 MiBを上限として古い entry を回収します。容量には metadata とアセットの両方を含めます。読込時は成果物と checksum を検証し、破損した entry は再利用しません。完成済み Dev／Dist generation の保持とは独立しています。
 
