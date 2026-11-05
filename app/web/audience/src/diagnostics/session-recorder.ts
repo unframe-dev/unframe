@@ -5,6 +5,7 @@ const eventNames = [
   "delivery.received",
   "bootstrap.received",
   "connection.stage",
+  "connection.disconnected",
   "control.sent",
   "state.sample",
   "connection.retry",
@@ -108,6 +109,50 @@ export interface SessionEventFields {
   assetCode?: string | undefined;
   httpStatus?: number | undefined;
 }
+type CloseDetails = {
+  closeCode: number;
+  wasClean: boolean;
+  closeReason?: "realtime connection closed";
+};
+type DisconnectCode =
+  | "socket-error"
+  | "socket-closed"
+  | "socket-create-failed"
+  | "handshake-send-failed"
+  | "invalid-frame"
+  | "decode-failed"
+  | "receive-failed"
+  | "duplicate-snapshot"
+  | "invalid-snapshot"
+  | "invalid-origin-update"
+  | "invalid-state-nonce"
+  | "invalid-state-connection"
+  | "state-before-connected"
+  | "resync-required"
+  | "snapshot-recovery"
+  | "credential-expired"
+  | "ready-timeout"
+  | "state-ready-send-failed"
+  | "connection-check-failed"
+  | "runtime-binding-failed"
+  | "runtime-unavailable"
+  | "runtime-recovery-failed";
+export type DisconnectCause = {
+  code: DisconnectCode;
+  channel?: "control" | "state";
+};
+export type DisconnectDiagnostic = DisconnectCause & Partial<CloseDetails> & { atUtc: string };
+
+function safeCloseDetails(event: CloseEvent): Partial<CloseDetails> {
+  return {
+    ...(Number.isInteger(event.code) && event.code >= 0 && event.code <= 4999
+      ? { closeCode: event.code }
+      : {}),
+    ...(typeof event.wasClean === "boolean" ? { wasClean: event.wasClean } : {}),
+    // The server's fixed message is safe. Arbitrary peer text may include credentials or URLs.
+    ...(event.reason === "realtime connection closed" ? { closeReason: event.reason } : {}),
+  };
+}
 function sanitize(input: SessionEventFields): SessionEventFields {
   const output: Record<string, string | number> = {};
   if (input.renderPhase === "prepare" || input.renderPhase === "frame")
@@ -168,13 +213,22 @@ export function createSessionRecorder(
   let context: SessionEventFields = {};
   let lastObservation = -Infinity;
   let lastStage: string | undefined;
+  let lastDisconnect: { sessionId?: string | undefined; detail: DisconnectDiagnostic } | undefined;
   const transportTimes = new Map<string, number>();
   const events: (SessionEventFields & {
     index: number;
     atUtc: string;
     elapsedMs: number;
     event: EventName;
+    disconnect?: DisconnectDiagnostic;
   })[] = [];
+  function append(entry: (typeof events)[number]) {
+    events.push(entry);
+    if (events.length > 512) {
+      events.shift();
+      droppedEvents++;
+    }
+  }
   function record(event: EventName, fields: SessionEventFields = {}) {
     if (!eventNames.includes(event)) return;
     const time = now();
@@ -184,20 +238,40 @@ export function createSessionRecorder(
       if (elapsed - (transportTimes.get(key) ?? -Infinity) < 1000) return;
       transportTimes.set(key, elapsed);
     }
-    events.push({
+    append({
       index: index++,
       atUtc: new Date(time).toISOString(),
       elapsedMs: elapsed,
       event,
       ...sanitize({ ...context, ...fields }),
     });
-    if (events.length > 512) {
-      events.shift();
-      droppedEvents++;
-    }
   }
   return {
     record,
+    recordDisconnect(cause: DisconnectCause, scope: SessionEventFields, close?: CloseEvent) {
+      const detail: DisconnectDiagnostic = {
+        code: cause.code,
+        ...(cause.channel ? { channel: cause.channel } : {}),
+        atUtc: new Date(now()).toISOString(),
+        ...(close ? safeCloseDetails(close) : {}),
+      };
+      lastDisconnect = { sessionId: scope.sessionId, detail };
+      append({
+        ...sanitize({ ...context, ...scope }),
+        index: index++,
+        atUtc: detail.atUtc,
+        elapsedMs: Math.max(0, elapsedNow() - elapsedStarted),
+        event: "connection.disconnected",
+        disconnect: detail,
+      });
+      // A socket error can be followed by its close event after the binding has been torn down.
+      return (event: CloseEvent) => Object.assign(detail, safeCloseDetails(event));
+    },
+    getLastDisconnect(sessionId: string | undefined) {
+      return lastDisconnect && lastDisconnect.sessionId === sessionId
+        ? structuredClone(lastDisconnect.detail)
+        : null;
+    },
     setContext(fields: SessionEventFields) {
       context = sanitize(fields);
     },

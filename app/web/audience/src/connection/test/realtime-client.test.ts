@@ -1,4 +1,5 @@
 import { createSessionRecorder } from "../../diagnostics/session-recorder";
+import { buildViewerDiagnostic } from "../../diagnostics/viewer-diagnostic";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { decodeWireMessage, encodeWireMessage } from "@unframe-dev/contracts/presentation";
 import type { PreparedConnection } from "../join-controller";
@@ -176,6 +177,88 @@ it("fails closed on nonbinary server data without exposing it", () => {
     h.sockets[0]!.dispatchEvent(new MessageEvent("message", { data: "private-server-detail" }));
     expect(h.input.disconnected).toHaveBeenCalledOnce();
     expect(h.sockets[0]!.readyState).toBe(3);
+    expect(h.recorder.getLastDisconnect(h.connection.session?.id)).toMatchObject({
+      code: "invalid-frame",
+      channel: "control",
+    });
+  } finally {
+    h.cleanup();
+  }
+});
+it("keeps the last close details in the checkpoint after reconnect and drops arbitrary server text", () => {
+  const h = setup();
+  try {
+    h.sockets[0]!.open();
+    const failedAt = new Date().toISOString();
+    h.sockets[0]!.dispatchEvent(
+      Object.assign(new Event("close"), {
+        code: 1008,
+        wasClean: true,
+        reason: "private-token https://private.example/presentation",
+      }),
+    );
+    h.client.install(h.input, h.connection, () => h.connection, h.restart);
+    h.sockets[1]!.open();
+    for (let i = 0; i < 512; i++) h.recorder.record("state.sample");
+    const checkpoint = buildViewerDiagnostic({
+      tracking: null,
+      viewing: null,
+      context: null,
+      lastDisconnect: h.recorder.getLastDisconnect(h.connection.session!.id),
+    });
+    expect(checkpoint.lastDisconnect).toEqual({
+      atUtc: failedAt,
+      channel: "control",
+      code: "socket-closed",
+      closeCode: 1008,
+      wasClean: true,
+    });
+  } finally {
+    h.client.dispose();
+  }
+});
+it("records the close details that follow a socket error without replacing a newer failure", () => {
+  const h = setup();
+  try {
+    const first = h.sockets[0]!;
+    first.dispatchEvent(new Event("error"));
+    first.dispatchEvent(
+      Object.assign(new Event("close"), {
+        code: 1008,
+        wasClean: true,
+        reason: "realtime connection closed",
+      }),
+    );
+    expect(h.recorder.getLastDisconnect(h.connection.session?.id)).toMatchObject({
+      channel: "control",
+      code: "socket-error",
+      closeCode: 1008,
+      wasClean: true,
+      closeReason: "realtime connection closed",
+    });
+    h.client.install(h.input, h.connection, () => h.connection, h.restart);
+    const second = h.sockets[1]!;
+    second.dispatchEvent(new Event("error"));
+    h.client.install(h.input, h.connection, () => h.connection, h.restart);
+    const third = h.sockets[2]!;
+    third.dispatchEvent(Object.assign(new Event("close"), { code: 1011, wasClean: true }));
+    second.dispatchEvent(Object.assign(new Event("close"), { code: 1006, wasClean: false }));
+    expect(h.recorder.getLastDisconnect(h.connection.session?.id)).toMatchObject({
+      code: "socket-closed",
+      closeCode: 1011,
+    });
+  } finally {
+    h.client.dispose();
+  }
+});
+it("records a readiness timeout separately from socket errors", async () => {
+  const h = setup();
+  try {
+    h.sockets[0]!.open();
+    await vi.advanceTimersByTimeAsync(30100);
+    expect(h.recorder.getLastDisconnect(h.connection.session?.id)).toMatchObject({
+      code: "ready-timeout",
+    });
   } finally {
     h.cleanup();
   }
