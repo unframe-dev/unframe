@@ -7,7 +7,11 @@ import type {
 } from "@unframe-dev/contracts/presentation/wire-types";
 import { resolvePlacementReferencePoint } from "@unframe-dev/artifacts";
 import { calculateProjectionProfileId } from "./profile-identity.js";
-import { selectDeliveryArtifactsParsed, type DeliverySelection } from "./selection.js";
+import {
+  selectDeliveryArtifactsParsed,
+  type DeliverySelection,
+  type SelectionMode,
+} from "./selection.js";
 import { parseDeliveryInputs, parseBuildInputs } from "./input.js";
 import type { DeliverySourceInput, BuildSourceInput } from "./input.js";
 
@@ -422,6 +426,7 @@ export type RuntimeProjection = Omit<
 const buildProjection = (
   parsed: BuildSourceInput,
   role: "presenter" | "viewer",
+  mode: SelectionMode = "delivery",
 ): { projection: RuntimeProjection; selection: DeliverySelection } => {
   const definition = parsed.definition;
   const bundle = parsed.renderBundle;
@@ -431,6 +436,7 @@ const buildProjection = (
     parsed.assetSet,
     parsed.capability,
     role,
+    mode,
   );
   const renderSurfaces = [...selection.renderSurfaces]
     .sort((a, b) => byId(a.semanticSurfaceId, b.semanticSurfaceId) || a.layer - b.layer)
@@ -558,15 +564,24 @@ export type ProjectionProfileResult = {
   selection: DeliverySelection;
 };
 
-export const buildRuntimeProjection = (
+const buildUnpublishedProjection = (
   input: BuildSourceInput,
   role: "presenter" | "viewer",
+  mode: SelectionMode,
 ): RuntimeProjectionResult => {
   requireRole(role);
   const parsed = parseBuildInputs(input);
-  const projected = buildProjection(parsed, role);
+  const projected = buildProjection(parsed, role, mode);
   return { ...projected, residency: buildResidencyPlan(parsed, projected.selection) };
 };
+
+export const buildRuntimeProjection = (
+  input: BuildSourceInput,
+  role: "presenter" | "viewer",
+): RuntimeProjectionResult => buildUnpublishedProjection(input, role, "delivery");
+
+export const buildLocalPreviewProjection = (input: BuildSourceInput): RuntimeProjectionResult =>
+  buildUnpublishedProjection(input, "viewer", "local-preview");
 
 export const buildProjectionProfile = (
   input: DeliverySourceInput,

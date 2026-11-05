@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Google.Protobuf;
+using Google.Protobuf.WellKnownTypes;
+using Unframe.Delivery;
 using Unframe.Presentation;
 using Unframe.Preview;
 using Unframe.Unity.PresentationRuntime;
@@ -47,6 +49,77 @@ public sealed class PresentationPreviewTransactionEditModeTests
         var decoded = LocalPreviewEnvelope.Parser.ParseFrom(envelope.ToByteArray());
         Assert.That(PresentationLocalPreviewAdapter.TryCreate(decoded, out var input, out string error), Is.True, error);
         Assert.That(input, Is.Not.Null);
+    }
+
+    [Test]
+    public void PreviewAcceptsPngsThatExceedFormerMemoryBudget()
+    {
+        const int textureCount = 13;
+        const ulong gpuBytes = 16777216;
+        const ulong encodedBytes = 16780625;
+        var envelope = PresentationPreviewTestFixture.Create(texture: true);
+        var projection = envelope.Projection;
+        var plan = projection.TextureResidency;
+        var artifact = projection.RenderSurfaces[0].Artifacts[0].BakedWeb;
+        var texture = artifact.States[0].Texture.Clone();
+        var assets = new Struct();
+        projection.RuntimeCatalog.Surfaces[0].ReachableStateIds.Clear();
+        projection.SemanticSurfaces[0].States.Clear();
+        projection.RenderSurfaces[0].StateBindings.Clear();
+        artifact.States.Clear();
+        plan.Textures.Clear();
+        plan.GroupWindows[0].AssetIds.Clear();
+        envelope.Assets.Clear();
+        for (int i = 0; i < textureCount; i++)
+        {
+            string stateId = i == 0 ? "state:first" : $"state:{i}";
+            string assetId = $"asset:{i}";
+            string checksum = $"sha256:{i:x64}";
+            texture.AssetId = assetId;
+            texture.Checksum = checksum;
+            texture.PixelSize = new PixelSize { Width = 2048, Height = 2048 };
+            texture.EncodedSizeBytes = encodedBytes;
+            texture.DecodedGpuBytes = gpuBytes;
+            projection.RuntimeCatalog.Surfaces[0].ReachableStateIds.Add(stateId);
+            projection.SemanticSurfaces[0].States.Add(new SurfaceSemanticState { StateId = stateId });
+            projection.RenderSurfaces[0].StateBindings.Add(new DeliveredStateBinding
+            {
+                StateId = stateId,
+                Artifact = new ArtifactStateBinding { ArtifactId = artifact.ArtifactId },
+            });
+            artifact.States.Add(new BakedWebStateTexture { StateId = stateId, Texture = texture.Clone() });
+            plan.Textures.Add(new TextureResidencyBinding
+            {
+                AssetId = assetId,
+                Checksum = checksum,
+                PixelSize = texture.PixelSize.Clone(),
+                DecodedGpuBytes = gpuBytes,
+                PeakLoadCpuBytes = encodedBytes + 2 * gpuBytes,
+            });
+            plan.GroupWindows[0].AssetIds.Add(assetId);
+            envelope.Assets.Add(new LocalPreviewAsset { AssetId = assetId, Reference = $"asset-ref-{i}" });
+            assets.Fields.Add(assetId, Value.ForStruct(new Struct
+            {
+                Fields =
+                {
+                    { "checksum", Value.ForString(checksum) },
+                    { "mediaType", Value.ForString("image/png") },
+                    { "encodedSizeBytes", Value.ForNumber(encodedBytes) },
+                },
+            }));
+        }
+        plan.TotalDecodedGpuBytes = plan.MaximumResidentGpuBytes = textureCount * gpuBytes;
+        plan.MaximumResidentTextureBindings = textureCount;
+        plan.MaximumPeakLoadCpuBytes = encodedBytes + 2 * gpuBytes;
+        envelope.AssetSet = new Struct
+        {
+            Fields =
+            {
+                { "schemaVersion", Value.ForNumber(1) },
+                { "assets", Value.ForStruct(assets) },
+            },
+        }.ToString();
+        Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out _, out string error), Is.True, error);
     }
 
     [UnityTest]

@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { runtimeAuthorityVersions } from "@unframe-dev/contracts/presentation";
 import type { LocalPreviewEnvelopeWire } from "@unframe-dev/contracts/presentation";
-import { buildRuntimeProjection } from "@unframe-dev/delivery";
+import { buildLocalPreviewProjection } from "@unframe-dev/delivery";
 import {
   canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
@@ -59,7 +59,7 @@ const parseRequest = <T>(parsed: { success: true; data: T } | { success: false }
 
 const projectPreviewBuild = (artifacts: BuildArtifacts) => {
   try {
-    return buildRuntimeProjection({ ...artifacts, capability: previewCapability() }, "viewer");
+    return buildLocalPreviewProjection({ ...artifacts, capability: previewCapability() });
   } catch (error) {
     fail(
       422,
