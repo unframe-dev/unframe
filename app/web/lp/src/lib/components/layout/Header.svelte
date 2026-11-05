@@ -17,11 +17,11 @@
 <header class="absolute inset-x-0 top-0 z-30">
   <div class="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-6 sm:px-10 lg:px-14">
     <a
-      class="group inline-flex items-center gap-[0.17em] text-[2.25rem] leading-none"
+      class="group inline-flex items-center gap-[0.17em] text-[1.75rem] leading-none"
       href="/"
       aria-label="Unframe home"
     >
-      <AnimatedIcon size="0.78em" duration="700ms" />
+      <AnimatedIcon class="shrink-0" size="0.78em" duration="700ms" />
       <Wordmark />
     </a>
 
