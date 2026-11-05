@@ -256,7 +256,7 @@ describe("reference Authoring Project", () => {
     expect(await readlink(join(directory, ".unframe", "preview", "current"))).toMatch(
       /^generations\/[0-9a-f]{32}$/,
     );
-  }, 30000);
+  });
   it("builds the latest local asset bytes into Dev while retaining the published Dist", async () => {
     const directory = await projectCopy();
     const dist = await runPresentationCli({
@@ -771,37 +771,33 @@ describe("reference Authoring Project", () => {
     "presentation.unframe.tsx",
     "node_modules/@unframe-dev/authoring/index.ts",
     "unframe.config.ts",
-  ])(
-    "preserves dist when %s changes during capture",
-    async (name) => {
-      const directory = await projectCopy();
-      const initial = await runPresentationCli({
-        args: ["build", directory],
-        host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
-      });
-      expect(initial.stderr).toBe("");
-      expect(initial.exitCode).toBe(0);
-      const previous = (await lstat(join(directory, "dist"))).ino;
-      const path = join(directory, name);
-      const original = await readFile(path);
-      const browser = fakeBrowser({
-        duringCapture: async () => {
-          await writeFile(path, Buffer.concat([original, Buffer.from("\n")]));
-        },
-      });
-      const stale = await runPresentationCli({
-        args: ["build", directory, "--format", "json"],
-        host: { openFixedBrowser: async () => browser.session, buildContext },
-      });
-      expect(stale.exitCode).toBe(3);
-      expect(diagnostics(stale)).toContainEqual(
-        expect.objectContaining({ code: "cli-output-stale" }),
-      );
-      expect((await lstat(join(directory, "dist"))).ino).toBe(previous);
-      expect(await readFile(path)).toEqual(Buffer.concat([original, Buffer.from("\n")]));
-    },
-    30_000,
-  );
+  ])("preserves dist when %s changes during capture", async (name) => {
+    const directory = await projectCopy();
+    const initial = await runPresentationCli({
+      args: ["build", directory],
+      host: { openFixedBrowser: async () => fakeBrowser().session, buildContext },
+    });
+    expect(initial.stderr).toBe("");
+    expect(initial.exitCode).toBe(0);
+    const previous = (await lstat(join(directory, "dist"))).ino;
+    const path = join(directory, name);
+    const original = await readFile(path);
+    const browser = fakeBrowser({
+      duringCapture: async () => {
+        await writeFile(path, Buffer.concat([original, Buffer.from("\n")]));
+      },
+    });
+    const stale = await runPresentationCli({
+      args: ["build", directory, "--format", "json"],
+      host: { openFixedBrowser: async () => browser.session, buildContext },
+    });
+    expect(stale.exitCode).toBe(3);
+    expect(diagnostics(stale)).toContainEqual(
+      expect.objectContaining({ code: "cli-output-stale" }),
+    );
+    expect((await lstat(join(directory, "dist"))).ino).toBe(previous);
+    expect(await readFile(path)).toEqual(Buffer.concat([original, Buffer.from("\n")]));
+  });
 
   it("keeps the previous managed dist unchanged for renderer and I/O failures", async () => {
     const directory = await projectCopy();
@@ -866,5 +862,5 @@ describe("reference Authoring Project", () => {
       },
     ]);
     await expect(readFile(lockPath, "utf8")).resolves.toBe("replacement");
-  }, 15_000);
+  });
 });
