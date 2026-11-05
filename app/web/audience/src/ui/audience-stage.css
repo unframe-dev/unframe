@@ -10,7 +10,6 @@
 }
 .audience-stage--permission,
 .audience-stage--ended,
-.audience-stage--sdk,
 .audience-stage--error {
   background: var(--audience-surface);
 }
