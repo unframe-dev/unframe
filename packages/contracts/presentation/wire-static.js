@@ -14844,7 +14844,6 @@ export const unframe = ($root.unframe = (() => {
        * @property {Array.<unframe.presentation.ProjectedTimelineDefinition.$Properties>|null} [timelines] ProjectedRuntimeCatalog timelines
        * @property {Array.<unframe.presentation.ProjectedModelClipDefinition.$Properties>|null} [modelClips] ProjectedRuntimeCatalog modelClips
        * @property {unframe.presentation.PresenterRecognitionCatalog.$Properties|null} [presenterRecognition] ProjectedRuntimeCatalog presenterRecognition
-       * @property {unframe.presentation.Vector3.$Properties|null} [placementReferencePoint] ProjectedRuntimeCatalog placementReferencePoint
        * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
        */
 
@@ -14866,7 +14865,6 @@ export const unframe = ($root.unframe = (() => {
        *   timelines?: Array.<unframe.presentation.ProjectedTimelineDefinition.$Shape>|null;
        *   modelClips?: Array.<unframe.presentation.ProjectedModelClipDefinition.$Shape>|null;
        *   presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Shape|null;
-       *   placementReferencePoint?: unframe.presentation.Vector3.$Shape|null;
        *   $unknowns?: Array.<Uint8Array>;
        * }} unframe.presentation.ProjectedRuntimeCatalog.$Shape
        */
@@ -14948,23 +14946,6 @@ export const unframe = ($root.unframe = (() => {
       ProjectedRuntimeCatalog.prototype.presenterRecognition = null;
 
       /**
-       * ProjectedRuntimeCatalog placementReferencePoint.
-       * @member {unframe.presentation.Vector3.$Properties|null|undefined} placementReferencePoint
-       * @memberof unframe.presentation.ProjectedRuntimeCatalog
-       * @instance
-       */
-      ProjectedRuntimeCatalog.prototype.placementReferencePoint = null;
-
-      // OneOf field names bound to virtual getters and setters
-      let $oneOfFields;
-
-      // Virtual OneOf for proto3 optional field
-      $Object.defineProperty(ProjectedRuntimeCatalog.prototype, "_placementReferencePoint", {
-        get: $util.oneOfGetter(($oneOfFields = ["placementReferencePoint"])),
-        set: $util.oneOfSetter($oneOfFields),
-      });
-
-      /**
        * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
        * @function create
        * @memberof unframe.presentation.ProjectedRuntimeCatalog
@@ -15033,14 +15014,6 @@ export const unframe = ($root.unframe = (() => {
           $root.unframe.presentation.PresenterRecognitionCatalog.encode(
             message.presenterRecognition,
             writer.uint32(/* id 8, wireType 2 =*/ 66).fork(),
-          ).ldelim();
-        if (
-          message.placementReferencePoint != null &&
-          $Object.hasOwnProperty.call(message, "placementReferencePoint")
-        )
-          $root.unframe.presentation.Vector3.encode(
-            message.placementReferencePoint,
-            writer.uint32(/* id 9, wireType 2 =*/ 74).fork(),
           ).ldelim();
         return writer;
       };
@@ -15158,15 +15131,6 @@ export const unframe = ($root.unframe = (() => {
                 );
               break;
             }
-            case 9: {
-              message.placementReferencePoint = $root.unframe.presentation.Vector3.decode(
-                reader,
-                reader.uint32(),
-                $undefined,
-                long + 1,
-              );
-              break;
-            }
             default:
               reader.skipType(tag & 7, long);
               break;
@@ -15202,7 +15166,6 @@ export const unframe = ($root.unframe = (() => {
         if (typeof message !== "object" || message === null) return "object expected";
         if (long === $undefined) long = 0;
         if (long > $util.recursionLimit) return "maximum nesting depth exceeded";
-        let properties = {};
         if (
           message.catalogContractVersion != null &&
           message.hasOwnProperty("catalogContractVersion")
@@ -15268,19 +15231,6 @@ export const unframe = ($root.unframe = (() => {
             long + 1,
           );
           if (error) return "presenterRecognition." + error;
-        }
-        if (
-          message.placementReferencePoint != null &&
-          message.hasOwnProperty("placementReferencePoint")
-        ) {
-          properties._placementReferencePoint = 1;
-          {
-            let error = $root.unframe.presentation.Vector3.verify(
-              message.placementReferencePoint,
-              long + 1,
-            );
-            if (error) return "placementReferencePoint." + error;
-          }
         }
         return null;
       };
@@ -15400,16 +15350,6 @@ export const unframe = ($root.unframe = (() => {
               long + 1,
             );
         }
-        if (object.placementReferencePoint != null) {
-          if (typeof object.placementReferencePoint !== "object")
-            throw $TypeError(
-              ".unframe.presentation.ProjectedRuntimeCatalog.placementReferencePoint: object expected",
-            );
-          message.placementReferencePoint = $root.unframe.presentation.Vector3.fromObject(
-            object.placementReferencePoint,
-            long + 1,
-          );
-        }
         return message;
       };
 
@@ -15490,16 +15430,6 @@ export const unframe = ($root.unframe = (() => {
               message.presenterRecognition,
               options,
             );
-        if (
-          message.placementReferencePoint != null &&
-          message.hasOwnProperty("placementReferencePoint")
-        ) {
-          object.placementReferencePoint = $root.unframe.presentation.Vector3.toObject(
-            message.placementReferencePoint,
-            options,
-          );
-          if (options.oneofs) object._placementReferencePoint = "placementReferencePoint";
-        }
         return object;
       };
 

@@ -1,32 +1,23 @@
 using System;
 using UnityEngine;
 using ProtoPose = Unframe.Presentation.Pose;
-using ProtoVector3 = Unframe.Presentation.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {
     public static class PresentationCalibrationMath
     {
-        public static bool TryPresenterOrigin(Pose worldFromMarker, Pose worldFromHead, ProtoPose current,
-            ProtoVector3 placementReferencePoint, out ProtoPose corrected)
+        public static bool TryPresenterOrigin(Pose worldFromMarker, Pose worldFromHead, ProtoPose current, out ProtoPose corrected)
         {
             corrected = null;
             if (!ValidPose(worldFromMarker) || !ValidPose(worldFromHead)
                 || !PresentationCalibrationState.IsCanonical(current)
-                || !PresentationCoordinateAdapter.TryToUnityPose(current, out Pose markerFromStage)
-                || !PresentationCoordinateAdapter.TryToUnityPosition(placementReferencePoint, out Vector3 stageReferencePoint)) return false;
+                || !PresentationCoordinateAdapter.TryToUnityPose(current, out Pose markerFromStage)) return false;
 
-            Vector3 forward = Vector3.ProjectOnPlane(worldFromHead.rotation * Vector3.forward, Vector3.up);
-            // When the Presenter looks straight at a floor or ceiling tag, the head's right axis still determines a heading.
-            if (forward.sqrMagnitude < 0.000001f)
-                forward = Vector3.Cross(worldFromHead.rotation * Vector3.right, Vector3.up);
-            Quaternion worldFromStageRotation = Quaternion.LookRotation(forward, Vector3.up);
             Vector3 worldFromStagePosition = worldFromMarker.position + worldFromMarker.rotation * markerFromStage.position;
-            worldFromStagePosition.y = worldFromHead.position.y - 0.30f - (worldFromStageRotation * stageReferencePoint).y;
+            worldFromStagePosition.y = worldFromHead.position.y - 0.30f;
 
             Quaternion markerFromWorld = Quaternion.Inverse(worldFromMarker.rotation);
-            Pose placement = new Pose(markerFromWorld * (worldFromStagePosition - worldFromMarker.position),
-                markerFromWorld * worldFromStageRotation);
+            Pose placement = new Pose(markerFromWorld * (worldFromStagePosition - worldFromMarker.position), markerFromStage.rotation);
             if (!ValidPose(placement)) return false;
             corrected = QuestPresentationTracking.ToCanonicalPose(placement.position, placement.rotation);
             return true;

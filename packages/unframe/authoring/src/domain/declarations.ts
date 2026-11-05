@@ -158,7 +158,6 @@ export type ZoneDeclaration = StableDeclaration & {
   center: readonly [number, number, number];
 };
 export type StageDeclaration = {
-  placementReferencePoint?: readonly [number, number, number];
   zones?: Readonly<Record<string, ZoneDeclaration>>;
   coordinateSystem: {
     unit: "meter";

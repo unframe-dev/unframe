@@ -150,7 +150,7 @@ namespace Unframe.Presentation {
             "bnRlclJlY29nbml0aW9uQ2F0YWxvZxIzCghnZXN0dXJlcxgBIAMoDjIhLnVu",
             "ZnJhbWUucHJlc2VudGF0aW9uLkdlc3R1cmVLaW5kEj0KBXpvbmVzGAIgAygL",
             "Mi4udW5mcmFtZS5wcmVzZW50YXRpb24uUHJlc2VudGVyUmVjb2duaXRpb25a",
-            "b25lIt4EChdQcm9qZWN0ZWRSdW50aW1lQ2F0YWxvZxIgChhjYXRhbG9nX2Nv",
+            "b25lIpoEChdQcm9qZWN0ZWRSdW50aW1lQ2F0YWxvZxIgChhjYXRhbG9nX2Nv",
             "bnRyYWN0X3ZlcnNpb24YASABKA0SPAoFbm9kZXMYAiADKAsyLS51bmZyYW1l",
             "LnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWROb2RlRGVmaW5pdGlvbhJCCghzdXJm",
             "YWNlcxgDIAMoCzIwLnVuZnJhbWUucHJlc2VudGF0aW9uLlByb2plY3RlZFN1",
@@ -160,64 +160,62 @@ namespace Unframe.Presentation {
             "ZWRUaW1lbGluZURlZmluaXRpb24SRwoLbW9kZWxfY2xpcHMYBiADKAsyMi51",
             "bmZyYW1lLnByZXNlbnRhdGlvbi5Qcm9qZWN0ZWRNb2RlbENsaXBEZWZpbml0",
             "aW9uElAKFXByZXNlbnRlcl9yZWNvZ25pdGlvbhgIIAEoCzIxLnVuZnJhbWUu",
-            "cHJlc2VudGF0aW9uLlByZXNlbnRlclJlY29nbml0aW9uQ2F0YWxvZxJFChlw",
-            "bGFjZW1lbnRfcmVmZXJlbmNlX3BvaW50GAkgASgLMh0udW5mcmFtZS5wcmVz",
-            "ZW50YXRpb24uVmVjdG9yM0gAiAEBQhwKGl9wbGFjZW1lbnRfcmVmZXJlbmNl",
-            "X3BvaW50SgQIBxAIUg1tb3Rpb25fZ3VpZGVzIu0BChNFZmZlY3RDb25maWd1",
-            "cmF0aW9uEi4KBGtpbmQYASABKA4yIC51bmZyYW1lLnByZXNlbnRhdGlvbi5F",
-            "ZmZlY3RLaW5kEgwKBHNpemUYAiABKAESLwoFY29sb3IYAyABKAsyIC51bmZy",
-            "YW1lLnByZXNlbnRhdGlvbi5TcmdiYUNvbG9yEg0KBXNwZWVkGAQgASgBEhMK",
-            "C2R1cmF0aW9uX21zGAUgASgEEhMKC3dhdmVfY3ljbGVzGAYgASgBEi4KBGhh",
-            "bmQYByABKA4yIC51bmZyYW1lLnByZXNlbnRhdGlvbi5FZmZlY3RIYW5kKmAK",
-            "C1Nlc3Npb25Sb2xlEhwKGFNFU1NJT05fUk9MRV9VTlNQRUNJRklFRBAAEhoK",
-            "FlNFU1NJT05fUk9MRV9QUkVTRU5URVIQARIXChNTRVNTSU9OX1JPTEVfVklF",
-            "V0VSEAIq7AMKEVJ1bnRpbWVDYXBhYmlsaXR5EiIKHlJVTlRJTUVfQ0FQQUJJ",
-            "TElUWV9VTlNQRUNJRklFRBAAEigKJFJVTlRJTUVfQ0FQQUJJTElUWV9SVU5U",
-            "SU1FX1RSQU5TUE9SVBABEiMKH1JVTlRJTUVfQ0FQQUJJTElUWV9USU1FTElO",
-            "RV9SVU4QAhIpCiVSVU5USU1FX0NBUEFCSUxJVFlfU1VSRkFDRV9UUkFOU0lU",
-            "SU9OEAMSJQohUlVOVElNRV9DQVBBQklMSVRZX1ZJREVPX1BMQVlCQUNLEAQS",
-            "IQodUlVOVElNRV9DQVBBQklMSVRZX01PREVMX0NMSVAQBRIfChtSVU5USU1F",
-            "X0NBUEFCSUxJVFlfVFJBQ0tJTkcQBhIsCihSVU5USU1FX0NBUEFCSUxJVFlf",
-            "UFJFU0VOVEVSX1JFQ09HTklUSU9OEAcSLAooUlVOVElNRV9DQVBBQklMSVRZ",
-            "X0lOUFVUX1NZTkNIUk9OSVpBVElPThAIEiUKIVJVTlRJTUVfQ0FQQUJJTElU",
-            "WV9GUk9aRU5fQU5DSE9SUxAJEiMKH1JVTlRJTUVfQ0FQQUJJTElUWV9TVEVQ",
-            "X1JFU1RPUkUQChImCiJSVU5USU1FX0NBUEFCSUxJVFlfRUZGRUNUX1BMQVlC",
-            "QUNLEAsqiAEKClNjYWxhclR5cGUSGwoXU0NBTEFSX1RZUEVfVU5TUEVDSUZJ",
-            "RUQQABIWChJTQ0FMQVJfVFlQRV9TVFJJTkcQARIWChJTQ0FMQVJfVFlQRV9O",
-            "VU1CRVIQAhIXChNTQ0FMQVJfVFlQRV9CT09MRUFOEAMSFAoQU0NBTEFSX1RZ",
-            "UEVfTlVMTBAEKncKBkVhc2luZxIWChJFQVNJTkdfVU5TUEVDSUZJRUQQABIR",
-            "Cg1FQVNJTkdfTElORUFSEAESEwoPRUFTSU5HX0NVQklDX0lOEAISFAoQRUFT",
-            "SU5HX0NVQklDX09VVBADEhcKE0VBU0lOR19DVUJJQ19JTl9PVVQQBCptCg1S",
-            "dW5Db21wbGV0aW9uEh4KGlJVTl9DT01QTEVUSU9OX1VOU1BFQ0lGSUVEEAAS",
-            "GwoXUlVOX0NPTVBMRVRJT05fQkxPQ0tJTkcQARIfChtSVU5fQ09NUExFVElP",
-            "Tl9OT05fQkxPQ0tJTkcQAirPAQoQVGltZWxpbmVQcm9wZXJ0eRIhCh1USU1F",
-            "TElORV9QUk9QRVJUWV9VTlNQRUNJRklFRBAAEh0KGVRJTUVMSU5FX1BST1BF",
-            "UlRZX09QQUNJVFkQARIoCiRUSU1FTElORV9QUk9QRVJUWV9UUkFOU0ZPUk1f",
-            "UE9TSVRJT04QAhIoCiRUSU1FTElORV9QUk9QRVJUWV9UUkFOU0ZPUk1fUk9U",
-            "QVRJT04QAxIlCiFUSU1FTElORV9QUk9QRVJUWV9UUkFOU0ZPUk1fU0NBTEUQ",
-            "BCqYAQoMQW5jaG9yVGFyZ2V0Eh0KGUFOQ0hPUl9UQVJHRVRfVU5TUEVDSUZJ",
-            "RUQQABIWChJBTkNIT1JfVEFSR0VUX0hFQUQQARIbChdBTkNIT1JfVEFSR0VU",
-            "X0xFRlRfSEFORBACEhwKGEFOQ0hPUl9UQVJHRVRfUklHSFRfSEFORBADEhYK",
-            "EkFOQ0hPUl9UQVJHRVRfQk9EWRAEKnIKClN1cmZhY2VGaXQSGwoXU1VSRkFD",
-            "RV9GSVRfVU5TUEVDSUZJRUQQABIXChNTVVJGQUNFX0ZJVF9DT05UQUlOEAES",
-            "FQoRU1VSRkFDRV9GSVRfQ09WRVIQAhIXChNTVVJGQUNFX0ZJVF9TVFJFVENI",
-            "EAMqywIKC0dlc3R1cmVLaW5kEhwKGEdFU1RVUkVfS0lORF9VTlNQRUNJRklF",
-            "RBAAEhsKF0dFU1RVUkVfS0lORF9TV0lQRV9MRUZUEAESHAoYR0VTVFVSRV9L",
-            "SU5EX1NXSVBFX1JJR0hUEAISGwoXR0VTVFVSRV9LSU5EX1NXSVBFX0RPV04Q",
-            "AxIZChVHRVNUVVJFX0tJTkRfU1dJUEVfVVAQBBIdChlHRVNUVVJFX0tJTkRf",
-            "UFVTSF9GT1JXQVJEEAUSHgoaR0VTVFVSRV9LSU5EX1BVTExfQkFDS1dBUkQQ",
-            "BhIdChlHRVNUVVJFX0tJTkRfU1BSRUFEX0hBTkRTEAcSHAoYR0VTVFVSRV9L",
-            "SU5EX0NMT1NFX0hBTkRTEAgSFgoSR0VTVFVSRV9LSU5EX1RIUk9XEAkSFwoT",
-            "R0VTVFVSRV9LSU5EX0NJUkNMRRAKKk4KCFpvbmVFZGdlEhkKFVpPTkVfRURH",
-            "RV9VTlNQRUNJRklFRBAAEhMKD1pPTkVfRURHRV9FTlRFUhABEhIKDlpPTkVf",
-            "RURHRV9FWElUEAIqdAoKRWZmZWN0S2luZBIbChdFRkZFQ1RfS0lORF9VTlNQ",
-            "RUNJRklFRBAAEhQKEEVGRkVDVF9LSU5EX1dBVkUQARIZChVFRkZFQ1RfS0lO",
-            "RF9IQU5EX0dMT1cQAhIYChRFRkZFQ1RfS0lORF9ESVNTT0xWRRADKlYKCkVm",
-            "ZmVjdEhhbmQSGwoXRUZGRUNUX0hBTkRfVU5TUEVDSUZJRUQQABIUChBFRkZF",
-            "Q1RfSEFORF9MRUZUEAESFQoRRUZGRUNUX0hBTkRfUklHSFQQAkJbWllnaXRo",
-            "dWIuY29tL3VuZnJhbWUtZGV2L3VuZnJhbWUvYXBwL3NlcnZlci9yZWFsdGlt",
-            "ZS9pbnRlcm5hbC9nZW4vcHJlc2VudGF0aW9uO3ByZXNlbnRhdGlvbmIGcHJv",
-            "dG8z"));
+            "cHJlc2VudGF0aW9uLlByZXNlbnRlclJlY29nbml0aW9uQ2F0YWxvZ0oECAcQ",
+            "CEoECAkQClINbW90aW9uX2d1aWRlc1IZcGxhY2VtZW50X3JlZmVyZW5jZV9w",
+            "b2ludCLtAQoTRWZmZWN0Q29uZmlndXJhdGlvbhIuCgRraW5kGAEgASgOMiAu",
+            "dW5mcmFtZS5wcmVzZW50YXRpb24uRWZmZWN0S2luZBIMCgRzaXplGAIgASgB",
+            "Ei8KBWNvbG9yGAMgASgLMiAudW5mcmFtZS5wcmVzZW50YXRpb24uU3JnYmFD",
+            "b2xvchINCgVzcGVlZBgEIAEoARITCgtkdXJhdGlvbl9tcxgFIAEoBBITCgt3",
+            "YXZlX2N5Y2xlcxgGIAEoARIuCgRoYW5kGAcgASgOMiAudW5mcmFtZS5wcmVz",
+            "ZW50YXRpb24uRWZmZWN0SGFuZCpgCgtTZXNzaW9uUm9sZRIcChhTRVNTSU9O",
+            "X1JPTEVfVU5TUEVDSUZJRUQQABIaChZTRVNTSU9OX1JPTEVfUFJFU0VOVEVS",
+            "EAESFwoTU0VTU0lPTl9ST0xFX1ZJRVdFUhACKuwDChFSdW50aW1lQ2FwYWJp",
+            "bGl0eRIiCh5SVU5USU1FX0NBUEFCSUxJVFlfVU5TUEVDSUZJRUQQABIoCiRS",
+            "VU5USU1FX0NBUEFCSUxJVFlfUlVOVElNRV9UUkFOU1BPUlQQARIjCh9SVU5U",
+            "SU1FX0NBUEFCSUxJVFlfVElNRUxJTkVfUlVOEAISKQolUlVOVElNRV9DQVBB",
+            "QklMSVRZX1NVUkZBQ0VfVFJBTlNJVElPThADEiUKIVJVTlRJTUVfQ0FQQUJJ",
+            "TElUWV9WSURFT19QTEFZQkFDSxAEEiEKHVJVTlRJTUVfQ0FQQUJJTElUWV9N",
+            "T0RFTF9DTElQEAUSHwobUlVOVElNRV9DQVBBQklMSVRZX1RSQUNLSU5HEAYS",
+            "LAooUlVOVElNRV9DQVBBQklMSVRZX1BSRVNFTlRFUl9SRUNPR05JVElPThAH",
+            "EiwKKFJVTlRJTUVfQ0FQQUJJTElUWV9JTlBVVF9TWU5DSFJPTklaQVRJT04Q",
+            "CBIlCiFSVU5USU1FX0NBUEFCSUxJVFlfRlJPWkVOX0FOQ0hPUlMQCRIjCh9S",
+            "VU5USU1FX0NBUEFCSUxJVFlfU1RFUF9SRVNUT1JFEAoSJgoiUlVOVElNRV9D",
+            "QVBBQklMSVRZX0VGRkVDVF9QTEFZQkFDSxALKogBCgpTY2FsYXJUeXBlEhsK",
+            "F1NDQUxBUl9UWVBFX1VOU1BFQ0lGSUVEEAASFgoSU0NBTEFSX1RZUEVfU1RS",
+            "SU5HEAESFgoSU0NBTEFSX1RZUEVfTlVNQkVSEAISFwoTU0NBTEFSX1RZUEVf",
+            "Qk9PTEVBThADEhQKEFNDQUxBUl9UWVBFX05VTEwQBCp3CgZFYXNpbmcSFgoS",
+            "RUFTSU5HX1VOU1BFQ0lGSUVEEAASEQoNRUFTSU5HX0xJTkVBUhABEhMKD0VB",
+            "U0lOR19DVUJJQ19JThACEhQKEEVBU0lOR19DVUJJQ19PVVQQAxIXChNFQVNJ",
+            "TkdfQ1VCSUNfSU5fT1VUEAQqbQoNUnVuQ29tcGxldGlvbhIeChpSVU5fQ09N",
+            "UExFVElPTl9VTlNQRUNJRklFRBAAEhsKF1JVTl9DT01QTEVUSU9OX0JMT0NL",
+            "SU5HEAESHwobUlVOX0NPTVBMRVRJT05fTk9OX0JMT0NLSU5HEAIqzwEKEFRp",
+            "bWVsaW5lUHJvcGVydHkSIQodVElNRUxJTkVfUFJPUEVSVFlfVU5TUEVDSUZJ",
+            "RUQQABIdChlUSU1FTElORV9QUk9QRVJUWV9PUEFDSVRZEAESKAokVElNRUxJ",
+            "TkVfUFJPUEVSVFlfVFJBTlNGT1JNX1BPU0lUSU9OEAISKAokVElNRUxJTkVf",
+            "UFJPUEVSVFlfVFJBTlNGT1JNX1JPVEFUSU9OEAMSJQohVElNRUxJTkVfUFJP",
+            "UEVSVFlfVFJBTlNGT1JNX1NDQUxFEAQqmAEKDEFuY2hvclRhcmdldBIdChlB",
+            "TkNIT1JfVEFSR0VUX1VOU1BFQ0lGSUVEEAASFgoSQU5DSE9SX1RBUkdFVF9I",
+            "RUFEEAESGwoXQU5DSE9SX1RBUkdFVF9MRUZUX0hBTkQQAhIcChhBTkNIT1Jf",
+            "VEFSR0VUX1JJR0hUX0hBTkQQAxIWChJBTkNIT1JfVEFSR0VUX0JPRFkQBCpy",
+            "CgpTdXJmYWNlRml0EhsKF1NVUkZBQ0VfRklUX1VOU1BFQ0lGSUVEEAASFwoT",
+            "U1VSRkFDRV9GSVRfQ09OVEFJThABEhUKEVNVUkZBQ0VfRklUX0NPVkVSEAIS",
+            "FwoTU1VSRkFDRV9GSVRfU1RSRVRDSBADKssCCgtHZXN0dXJlS2luZBIcChhH",
+            "RVNUVVJFX0tJTkRfVU5TUEVDSUZJRUQQABIbChdHRVNUVVJFX0tJTkRfU1dJ",
+            "UEVfTEVGVBABEhwKGEdFU1RVUkVfS0lORF9TV0lQRV9SSUdIVBACEhsKF0dF",
+            "U1RVUkVfS0lORF9TV0lQRV9ET1dOEAMSGQoVR0VTVFVSRV9LSU5EX1NXSVBF",
+            "X1VQEAQSHQoZR0VTVFVSRV9LSU5EX1BVU0hfRk9SV0FSRBAFEh4KGkdFU1RV",
+            "UkVfS0lORF9QVUxMX0JBQ0tXQVJEEAYSHQoZR0VTVFVSRV9LSU5EX1NQUkVB",
+            "RF9IQU5EUxAHEhwKGEdFU1RVUkVfS0lORF9DTE9TRV9IQU5EUxAIEhYKEkdF",
+            "U1RVUkVfS0lORF9USFJPVxAJEhcKE0dFU1RVUkVfS0lORF9DSVJDTEUQCipO",
+            "Cghab25lRWRnZRIZChVaT05FX0VER0VfVU5TUEVDSUZJRUQQABITCg9aT05F",
+            "X0VER0VfRU5URVIQARISCg5aT05FX0VER0VfRVhJVBACKnQKCkVmZmVjdEtp",
+            "bmQSGwoXRUZGRUNUX0tJTkRfVU5TUEVDSUZJRUQQABIUChBFRkZFQ1RfS0lO",
+            "RF9XQVZFEAESGQoVRUZGRUNUX0tJTkRfSEFORF9HTE9XEAISGAoURUZGRUNU",
+            "X0tJTkRfRElTU09MVkUQAypWCgpFZmZlY3RIYW5kEhsKF0VGRkVDVF9IQU5E",
+            "X1VOU1BFQ0lGSUVEEAASFAoQRUZGRUNUX0hBTkRfTEVGVBABEhUKEUVGRkVD",
+            "VF9IQU5EX1JJR0hUEAJCW1pZZ2l0aHViLmNvbS91bmZyYW1lLWRldi91bmZy",
+            "YW1lL2FwcC9zZXJ2ZXIvcmVhbHRpbWUvaW50ZXJuYWwvZ2VuL3ByZXNlbnRh",
+            "dGlvbjtwcmVzZW50YXRpb25iBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Unframe.Presentation.SessionRole), typeof(global::Unframe.Presentation.RuntimeCapability), typeof(global::Unframe.Presentation.ScalarType), typeof(global::Unframe.Presentation.Easing), typeof(global::Unframe.Presentation.RunCompletion), typeof(global::Unframe.Presentation.TimelineProperty), typeof(global::Unframe.Presentation.AnchorTarget), typeof(global::Unframe.Presentation.SurfaceFit), typeof(global::Unframe.Presentation.GestureKind), typeof(global::Unframe.Presentation.ZoneEdge), typeof(global::Unframe.Presentation.EffectKind), typeof(global::Unframe.Presentation.EffectHand), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -269,7 +267,7 @@ namespace Unframe.Presentation {
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedModelClipDefinition), global::Unframe.Presentation.ProjectedModelClipDefinition.Parser, new[]{ "ModelNodeId", "ModelAssetId", "ClipId", "SourceAnimationIndex", "DurationMs", "Owner" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PresenterRecognitionZone), global::Unframe.Presentation.PresenterRecognitionZone.Parser, new[]{ "ZoneId", "Center" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.PresenterRecognitionCatalog), global::Unframe.Presentation.PresenterRecognitionCatalog.Parser, new[]{ "Gestures", "Zones" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips", "PresenterRecognition", "PlacementReferencePoint" }, new[]{ "PlacementReferencePoint" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.ProjectedRuntimeCatalog), global::Unframe.Presentation.ProjectedRuntimeCatalog.Parser, new[]{ "CatalogContractVersion", "Nodes", "Surfaces", "Variables", "Timelines", "ModelClips", "PresenterRecognition" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Unframe.Presentation.EffectConfiguration), global::Unframe.Presentation.EffectConfiguration.Parser, new[]{ "Kind", "Size", "Color", "Speed", "DurationMs", "WaveCycles", "Hand" }, null, null, null, null)
           }));
     }
@@ -13782,7 +13780,6 @@ namespace Unframe.Presentation {
       timelines_ = other.timelines_.Clone();
       modelClips_ = other.modelClips_.Clone();
       presenterRecognition_ = other.presenterRecognition_ != null ? other.presenterRecognition_.Clone() : null;
-      placementReferencePoint_ = other.placementReferencePoint_ != null ? other.placementReferencePoint_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -13871,21 +13868,6 @@ namespace Unframe.Presentation {
       }
     }
 
-    /// <summary>Field number for the "placement_reference_point" field.</summary>
-    public const int PlacementReferencePointFieldNumber = 9;
-    private global::Unframe.Presentation.Vector3 placementReferencePoint_;
-    /// <summary>
-    /// Stage-local center used by Presenter placement. Included in Delivery catalogs.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::Unframe.Presentation.Vector3 PlacementReferencePoint {
-      get { return placementReferencePoint_; }
-      set {
-        placementReferencePoint_ = value;
-      }
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -13908,7 +13890,6 @@ namespace Unframe.Presentation {
       if(!timelines_.Equals(other.timelines_)) return false;
       if(!modelClips_.Equals(other.modelClips_)) return false;
       if (!object.Equals(PresenterRecognition, other.PresenterRecognition)) return false;
-      if (!object.Equals(PlacementReferencePoint, other.PlacementReferencePoint)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -13923,7 +13904,6 @@ namespace Unframe.Presentation {
       hash ^= timelines_.GetHashCode();
       hash ^= modelClips_.GetHashCode();
       if (presenterRecognition_ != null) hash ^= PresenterRecognition.GetHashCode();
-      if (placementReferencePoint_ != null) hash ^= PlacementReferencePoint.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -13955,10 +13935,6 @@ namespace Unframe.Presentation {
         output.WriteRawTag(66);
         output.WriteMessage(PresenterRecognition);
       }
-      if (placementReferencePoint_ != null) {
-        output.WriteRawTag(74);
-        output.WriteMessage(PlacementReferencePoint);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -13982,10 +13958,6 @@ namespace Unframe.Presentation {
         output.WriteRawTag(66);
         output.WriteMessage(PresenterRecognition);
       }
-      if (placementReferencePoint_ != null) {
-        output.WriteRawTag(74);
-        output.WriteMessage(PlacementReferencePoint);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -14006,9 +13978,6 @@ namespace Unframe.Presentation {
       size += modelClips_.CalculateSize(_repeated_modelClips_codec);
       if (presenterRecognition_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(PresenterRecognition);
-      }
-      if (placementReferencePoint_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(PlacementReferencePoint);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -14035,12 +14004,6 @@ namespace Unframe.Presentation {
           PresenterRecognition = new global::Unframe.Presentation.PresenterRecognitionCatalog();
         }
         PresenterRecognition.MergeFrom(other.PresenterRecognition);
-      }
-      if (other.placementReferencePoint_ != null) {
-        if (placementReferencePoint_ == null) {
-          PlacementReferencePoint = new global::Unframe.Presentation.Vector3();
-        }
-        PlacementReferencePoint.MergeFrom(other.PlacementReferencePoint);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -14092,13 +14055,6 @@ namespace Unframe.Presentation {
             input.ReadMessage(PresenterRecognition);
             break;
           }
-          case 74: {
-            if (placementReferencePoint_ == null) {
-              PlacementReferencePoint = new global::Unframe.Presentation.Vector3();
-            }
-            input.ReadMessage(PlacementReferencePoint);
-            break;
-          }
         }
       }
     #endif
@@ -14147,13 +14103,6 @@ namespace Unframe.Presentation {
               PresenterRecognition = new global::Unframe.Presentation.PresenterRecognitionCatalog();
             }
             input.ReadMessage(PresenterRecognition);
-            break;
-          }
-          case 74: {
-            if (placementReferencePoint_ == null) {
-              PlacementReferencePoint = new global::Unframe.Presentation.Vector3();
-            }
-            input.ReadMessage(PlacementReferencePoint);
             break;
           }
         }

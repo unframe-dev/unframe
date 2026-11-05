@@ -1,7 +1,6 @@
 using System;
 using Unframe.Realtime;
 using UnityEngine;
-using ProtoVector3 = Unframe.Presentation.Vector3;
 
 namespace Unframe.Unity.PresentationRuntime
 {
@@ -52,7 +51,7 @@ namespace Unframe.Unity.PresentationRuntime
             captured = true;
         }
 
-        public ControlClientItem Prepare(PresentationOrigin origin, ulong epoch, ProtoVector3 placementReferencePoint)
+        public ControlClientItem Prepare(PresentationOrigin origin, ulong epoch)
         {
             if (completed || !captured || origin == null || epoch == 0) return null;
             if (command != null) return command.Clone();
@@ -61,7 +60,7 @@ namespace Unframe.Unity.PresentationRuntime
                 completed = true;
                 return null;
             }
-            if (!PresentationCalibrationMath.TryPresenterOrigin(marker, head, origin.Pose, placementReferencePoint, out var pose))
+            if (!PresentationCalibrationMath.TryPresenterOrigin(marker, head, origin.Pose, out var pose))
                 throw new InvalidOperationException("presenter-placement-invalid");
             command = QuestPresentationInput.CreatePresentationOrigin(pose, origin.Version, epoch);
             return command.Clone();

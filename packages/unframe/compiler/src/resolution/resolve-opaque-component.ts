@@ -713,15 +713,6 @@ export const resolveOpaqueProject = (
     metadata: presentation.metadata,
     stage: {
       coordinateSystem: presentation.stage.coordinateSystem,
-      ...(presentation.stage.placementReferencePoint
-        ? {
-            placementReferencePoint: [...presentation.stage.placementReferencePoint] as [
-              number,
-              number,
-              number,
-            ],
-          }
-        : {}),
       size: [...presentation.stage.size],
       zones: Object.fromEntries(
         Object.entries(presentation.stage.zones ?? {}).map(([id, zone]) => [

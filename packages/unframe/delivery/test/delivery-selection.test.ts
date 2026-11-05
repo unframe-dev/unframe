@@ -126,101 +126,20 @@ const groupedSource = (change?: (current: typeof source) => void) =>
   });
 
 describe("Delivery artifact selection and admission", () => {
-  it("publishes the Stage-fixed content center as a shared placement reference", () => {
-    const input = baselineSource(({ definition }) => {
+  it("does not derive placement from content bounds for either role", () => {
+    const input = baselineSource(({ definition, renderBundle }) => {
       definition.scene.nodes["node-baked"]!.transform.position = [0, 2.15, -2.5];
-      const model = definition.scene.nodes.model!;
-      model.parent = {
-        kind: "anchor",
-        owner: { kind: "presenter" },
-        target: "head",
-        followPosition: true,
-        followRotation: true,
-      };
-      model.transform.position = [0, 100, 0];
+      definition.scene.nodes.model!.transform.position = [0, 100, 0];
+      delete renderBundle.models["model-asset"]!.defaultSceneBounds;
     });
 
     for (const role of ["presenter", "viewer"] as const) {
       const { profile } = buildProjectionProfile(input, role);
-      expect(profile.runtimeCatalog?.placementReferencePoint).toEqual({
-        x: 0,
-        y: 2.15,
-        z: -2.5,
-      });
+      const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
+      const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
+      expect(decoded.runtimeCatalog).not.toHaveProperty("placementReferencePoint");
+      expect(calculateProjectionProfileId(decoded)).toBe(profile.projectionProfileId);
     }
-  });
-
-  it("includes rotated hierarchy bounds and content from other roles and groups", () => {
-    const input = groupedSource(({ definition, renderBundle }) => {
-      const child = definition.scene.nodes["node-baked"]!;
-      child.parent = { kind: "node", nodeId: "parent" };
-      child.transform.position = [1, 0, 0];
-      definition.scene.surfaces.baked!.physicalSizeMeters = [2, 1];
-      renderBundle.surfaces.baked!.physicalSizeMeters = [2, 1];
-      definition.scene.nodes.parent = {
-        id: "parent",
-        kind: "container",
-        owner: { kind: "group", groupId: "intro" },
-        audience: { kind: "all" },
-        parent: { kind: "stage" },
-        order: 4,
-        transform: {
-          position: [0, 10, 0],
-          rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2],
-          scale: [2, 1, 1],
-        },
-        active: true,
-        visible: true,
-        opacity: 1,
-      };
-      const later = definition.scene.nodes["node-baked-middle"]!;
-      later.audience = { kind: "role", role: "viewer" };
-      later.transform.position = [0, -2, 0];
-    });
-
-    const presenter = buildProjectionProfile(input, "presenter").profile;
-    const viewer = buildProjectionProfile(input, "viewer").profile;
-    expect(presenter.visibleNodeIds).not.toContain("node-baked-middle");
-    expect(viewer.visibleNodeIds).toContain("node-baked-middle");
-    // The intro Surface spans heights 10..14 after its parent's rotation and scale.
-    // The viewer-only Surface reaches -2.5 in another group.
-    expect(presenter.runtimeCatalog?.placementReferencePoint?.y).toBeCloseTo(5.75);
-    expect(viewer.runtimeCatalog?.placementReferencePoint).toEqual(
-      presenter.runtimeCatalog?.placementReferencePoint,
-    );
-  });
-
-  it("includes the authored model's off-origin geometry in the content bounds", () => {
-    const input = baselineSource(({ definition, renderBundle }) => {
-      definition.scene.nodes.model!.transform.position = [0, 1, 0];
-      renderBundle.models["model-asset"]!.defaultSceneBounds = {
-        min: [-0.5, 2, -0.5],
-        max: [0.5, 4, 0.5],
-      };
-    });
-
-    const { profile } = buildProjectionProfile(input, "presenter");
-    const encoded = encodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", profile);
-    const decoded = decodeWireMessage("unframe.delivery.ProjectionProfileDescriptor", encoded);
-    expect(decoded.runtimeCatalog).toMatchObject({
-      placementReferencePoint: { x: 0, y: 2.25, z: 0 },
-    });
-    expect(calculateProjectionProfileId(decoded)).toBe(profile.projectionProfileId);
-  });
-
-  it("requires known static model bounds or an authored placement reference", () => {
-    const missingBounds = (current: typeof source) => {
-      delete current.renderBundle.models["model-asset"]!.defaultSceneBounds;
-    };
-    expect(() => buildProjectionProfile(baselineSource(missingBounds), "presenter")).toThrow(
-      "specify stage.placementReferencePoint",
-    );
-    const input = baselineSource((current) => {
-      missingBounds(current);
-      current.definition.stage.placementReferencePoint = [1, 2, -3];
-    });
-    const { profile } = buildProjectionProfile(input, "presenter");
-    expect(profile.runtimeCatalog?.placementReferencePoint).toEqual({ x: 1, y: 2, z: -3 });
   });
 
   it("plans a residency window for every group and identifies the initial group", () => {

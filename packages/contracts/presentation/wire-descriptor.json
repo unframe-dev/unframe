@@ -866,11 +866,6 @@
               }
             },
             "ProjectedRuntimeCatalog": {
-              "oneofs": {
-                "_placementReferencePoint": {
-                  "oneof": ["placementReferencePoint"]
-                }
-              },
               "fields": {
                 "catalogContractVersion": {
                   "type": "uint32",
@@ -904,16 +899,9 @@
                 "presenterRecognition": {
                   "type": "PresenterRecognitionCatalog",
                   "id": 8
-                },
-                "placementReferencePoint": {
-                  "type": "Vector3",
-                  "id": 9,
-                  "options": {
-                    "proto3_optional": true
-                  }
                 }
               },
-              "reserved": [[7, 7], "motion_guides"]
+              "reserved": [[7, 7], "motion_guides", [9, 9], "placement_reference_point"]
             },
             "EffectKind": {
               "values": {

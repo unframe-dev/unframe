@@ -463,8 +463,7 @@ namespace Unframe.Unity.PresentationRuntime
             ControlClientItem command;
             try
             {
-                command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch,
-                    runtime.DataStore.Catalog?.PlacementReferencePoint);
+                command = placement.Prepare(runtime.DataStore.PresentationOrigin, runtime.InputSynchronization.CommandEpoch);
             }
             catch (InvalidOperationException)
             {

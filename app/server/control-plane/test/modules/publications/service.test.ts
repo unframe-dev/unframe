@@ -43,7 +43,7 @@ const upload = (value: BuildIntegrityInput) => ({
   assetSetJson: canonicalizeJsonPayload(value.assetSet),
   buildManifestJson: canonicalizeJsonPayload(value.buildManifest),
 });
-const publishable = async () => {
+const publishable = async (includeModel = false) => {
   const verified = verifyBuildIntegrity(artifacts);
   if (!verified.valid) throw new Error("Invalid build fixture");
   const copy = structuredClone(verified.value);
@@ -53,7 +53,10 @@ const publishable = async () => {
     throw new Error("Missing baked fixture surface");
   const { root, text } = bakedSurface.content.nodes;
   if (!root || root.kind !== "frame" || !text) throw new Error("Missing baked fixture content");
-  copy.definition.scene.nodes = { "node-baked": bakedNode };
+  copy.definition.scene.nodes = {
+    "node-baked": bakedNode,
+    ...(includeModel ? { model: copy.definition.scene.nodes.model! } : {}),
+  };
   copy.definition.scene.surfaces = { baked: bakedSurface };
   bakedSurface.logicalSize = [100, 50];
   root.children = ["text"];
@@ -74,8 +77,8 @@ const publishable = async () => {
   const texture = artifact.states.default.texture;
   texture.pixelSize = [2048, 1024];
   texture.gpuBytes = 8388608;
-  copy.renderBundle.models = {};
-  for (const id of ["image", "model-asset", "video-asset"]) {
+  if (!includeModel) copy.renderBundle.models = {};
+  for (const id of ["image", "video-asset", ...(includeModel ? [] : ["model-asset"])]) {
     delete copy.assetSet.assets[id];
   }
   copy.renderBundle.definitionHash = hashCanonicalJsonPayload(copy.definition);
@@ -217,22 +220,24 @@ describe("publication service", () => {
     expect(row?.count).toBe(0);
   });
 
-  it("rejects publication of a stored build without a Stage placement reference", async () => {
-    const verified = verifyBuildIntegrity(artifacts);
-    if (!verified.valid) throw new Error("Invalid build fixture");
-    const legacyBuild = structuredClone(verified.value);
-    delete legacyBuild.renderBundle.models["model-asset"]!.defaultSceneBounds;
-    legacyBuild.buildManifest.renderBundleHash = hashCanonicalJsonPayload(legacyBuild.renderBundle);
-    await env.DB.prepare(
-      "INSERT INTO presentation_builds (presentation_id, build_id, target_revision, artifacts, created_at) VALUES ('demo', ?, 1, ?, '2026')",
-    )
-      .bind(legacyBuild.buildManifest.buildId, JSON.stringify(legacyBuild))
-      .run();
-
+  it("publishes a stored build without content placement bounds", async () => {
+    const { copy, bytes } = await publishable(true);
+    delete copy.renderBundle.models["model-asset"]!.defaultSceneBounds;
+    copy.buildManifest.renderBundleHash = hashCanonicalJsonPayload(copy.renderBundle);
     const service = new PublicationService(env.DB, env.ASSETS);
+    await service.createBuild(owner, "demo", upload(copy));
+    for (const [id, descriptor] of Object.entries(copy.assetSet.assets))
+      await service.uploadAsset(
+        owner,
+        "demo",
+        copy.buildManifest.buildId,
+        id,
+        bytes[id]!,
+        descriptor.mediaType,
+      );
     await expect(
-      service.publish(owner, "demo", legacyBuild.buildManifest.buildId, null),
-    ).rejects.toMatchObject({ code: "invalid_build" });
+      service.publish(owner, "demo", copy.buildManifest.buildId, null),
+    ).resolves.toMatchObject({ presentationId: "demo", publicationEpoch: 1 });
   });
 
   it("connects an anonymous viewer through join, delivery and realtime bootstrap", async () => {
@@ -309,11 +314,9 @@ describe("publication service", () => {
       "unframe.delivery.DeliveryManifest",
       new Uint8Array(await delivery.arrayBuffer()),
     ) as DeliveryManifestWire;
-    expect(manifest.projectionProfile?.runtimeCatalog?.placementReferencePoint).toEqual({
-      x: 0,
-      y: 0,
-      z: 0,
-    });
+    expect(manifest.projectionProfile?.runtimeCatalog).not.toHaveProperty(
+      "placementReferencePoint",
+    );
     expect(manifest.capabilityProfile?.capabilityProfileId).toBe(audienceWebCapabilityProfileId);
     expect(manifest.projectionProfile?.key?.capabilityProfileId).toBe(
       audienceWebCapabilityProfileId,
