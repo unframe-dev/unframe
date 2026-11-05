@@ -65,6 +65,6 @@ entry.GesturePositionSampleReady += sample =>
 };
 ```
 
-通知の `Sample` は Gesture／Hand／TimeSeconds／Position を持つ読み取り専用の値。TimeSeconds は Unity の単調時計の秒で、サーバーの Runtime 時計とは別。Position は Quest 校正を適用したプレゼン空間の Unity 座標・メートル（右手系の正式 Presentation 座標からZを反転済み）で、Quest の生ローカル座標ではない。Context は通知時の InputContext のコピー。原点バージョン・epoch・時計変換・送信形式・流量制御・補間・再接続は通信担当が確定する。
+通知の `Sample` は Gesture／Hand／TimeSeconds／Position を持つ読み取り専用の値。TimeSeconds は Unity の単調時計の秒で、サーバーの Runtime 時計とは別。Position は Quest 校正を適用したプレゼン空間の Unity 座標・メートル（右手系の正式 Presentation 座標からZを反転済み）で、Quest の生ローカル座標ではない。Context は通知時の InputContext のコピー。製品の送信では既存 TrackingFrame の校正変換・原点バージョン・連番を使用し、サーバーの受信時刻に基づく Anchor を描画へ渡す。
 
-イベントは Unity のフレーム更新内で同期通知する。購読側では待機や長い処理を行わず、必要に応じて最新値をキューへ渡し、破棄時に購読を解除する。認識には毎フレームの位置を使い、出力間隔の変更は認識精度のための間引きには使わない。既存 TrackingFrame は0.1秒間隔で送信済みなので、同じ位置を二重に送らないよう既存送信側と接続方針を合わせる。
+イベントは Unity のフレーム更新内で同期通知する。購読側では待機や長い処理を行わず、必要に応じて最新値をキューへ渡し、破棄時に購読を解除する。認識には毎フレームの位置を使い、出力間隔の変更は認識精度のための間引きには使わない。製品の `QuestPresentationEntry` はこの通知を既存 TrackingFrame の送信契機として使用する。通常の0.1秒送信と共通の送信枠で最新の Quest local Pose を採取し、通知位置や通知時刻を直接送信しない。送信中や流量制限中の通知は蓄積しない。通信と復旧の仕様は [統合文書](../../../../../../docs/visual-effects-integration.md) を参照する。

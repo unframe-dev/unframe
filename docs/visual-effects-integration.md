@@ -40,4 +40,6 @@ Unity Dissolve の対象は不透明な静的モデルの基本色・テクス�
 
 ## ジェスチャーの周期位置出力
 
-Throw／Circle の有効な Step では `QuestPresentationEntry.GesturePositionSampleReady` から左右の位置サンプルを受け取れる。間隔は `GesturePositionSampleIntervalSeconds`（既定0.05秒）で調整し、通信自体はこの通知で実行しない。座標・時刻・InputContext と通知寿命は [認識README](../app/unity/Assets/Scripts/VisualEffects/Gestures/README.md) を参照する。既存 TrackingFrame の0.1秒送信との重複を避け、流量制御・正式な通信契約への対応は通信担当が接続する。
+Throw／Circle の有効な Step では `QuestPresentationEntry.GesturePositionSampleReady` から左右の位置サンプルを受け取れる。間隔は `GesturePositionSampleIntervalSeconds`（既定0.05秒）で調整し、通信自体はこの通知で実行しない。座標・時刻・InputContext と通知寿命は [認識README](../app/unity/Assets/Scripts/VisualEffects/Gestures/README.md) を参照する。`QuestPresentationEntry` は同じ Update 内の通知を集約し、通常の0.1秒送信と共通の TrackingFrame 送信枠を使う。通知の既定間隔は0.05秒で、間隔を短くしてもサーバーの90Hz上限を超えて送信しない。送信中の通知は蓄積せず、次の有効な通知または通常周期で最新の XR Pose を採取する。
+
+通知位置を Quest local 座標として送信したり、通知時刻を Runtime 時刻へ直接変換したりしない。TrackingFrame は従来どおり Quest local Pose、校正変換、端末の Stopwatch 時刻を送り、サーバーが Presentation 座標と受信時刻へ対応付ける。再同期・再校正・切断時は未送信の通知を破棄する。再接続後は新しいフレームから Anchor と描画を再開し、過去の軌跡は再送しない。
