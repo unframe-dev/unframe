@@ -75,9 +75,11 @@ process entrypoint は上記を headless API へ委譲し、次の command を�
 author <project-directory>
 dev <project-directory>
 preview <dist-directory>
-publish <dist-directory> <presentation-id> <control-plane-origin>
+publish <dist-directory> <source-presentation-id> <control-plane-origin>
 publication-status '<operation-json>' <control-plane-origin>
 ```
+
+`publish` と `publication-status` は、公開が確認できると `Presentation ID` に公開先の ID を表示する。
 
 `check` は discovery、config、導入済み依存、Source frontend と assembly を検証し、Browser / Renderer を起動しない。
 
@@ -110,7 +112,7 @@ build の成功時だけ、CLI は次の deterministic な全ファイルを辞�
 
 filesystem host はcomplete artifact setを内部generationへ固定し、`build-receipt.json`を含む通常ディレクトリとして`dist`へ公開する。receiptはgeneration IDとbuild manifest bytesのhashを持つ。既存Distの置換は同一親FD配下のディレクトリ交換で原子的に行い、公開前後のbytesとidentityを検証する。失敗またはcancelではprevious Distを保持する。
 
-`dist`は元素材・Source・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <dist-directory> <presentation-id> <control-plane-origin>`は同じDistの全素材bytesをhash・サイズで検証してから送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
+`dist`は元素材・Source・`.unframe`への参照を持たず、そのディレクトリだけを別の場所へコピーできる。`preview <dist-directory>`は再ビルドせず共通Unity playerで表示し、編集・build APIを提供しない。`publish <dist-directory> <source-presentation-id> <control-plane-origin>`はDistのソースIDを引数で指定し、全素材bytesをhash・サイズで検証してから、認証したアカウントの公開先に送信する。Preview用Web UIとUnity playerはCLI側の実行環境に必要である。local BuildManifest の `sourceDraftRevision` は `0` とし、publication と Delivery artifact は出力しない。Compiler / Renderer の domain diagnostics は exit code `1`、
 discovery / read / write I/O は exit code `3` とする。
 
 ## 4. Interactive TUI boundary

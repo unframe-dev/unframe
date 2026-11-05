@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../../src/app";
 import { runtimeEnvironment } from "../runtime-environment";
@@ -23,8 +24,10 @@ function presentationDefinition(value: typeof definition): PresentationDefinitio
 }
 class Repository implements PresentationRepository {
   readonly records = new Map<string, PresentationRecord>();
-  async create(record: PresentationRecord) {
+  readonly sourceIds = new Map<string, string>();
+  async create(record: PresentationRecord, sourcePresentationId = record.id) {
     this.records.set(record.id, record);
+    this.sourceIds.set(record.id, sourcePresentationId);
   }
   async listAll() {
     return [...this.records.values()];
@@ -34,6 +37,15 @@ class Repository implements PresentationRepository {
   }
   async findById(id: string) {
     return this.records.get(id) ?? null;
+  }
+  async findByOwnerAndSource(ownerId: string, sourcePresentationId: string) {
+    return (
+      [...this.records.values()].find(
+        (record) =>
+          record.ownerId === ownerId &&
+          (this.sourceIds.get(record.id) ?? record.id) === sourcePresentationId,
+      ) ?? null
+    );
   }
   async roleFor(id: string, userId: string) {
     const record = this.records.get(id);
@@ -68,6 +80,55 @@ describe("presentation HTTP API", () => {
   it("requires an injected identity instead of allowing anonymous access", async () => {
     const response = await request(createApp(), "/presentations");
     expect(response.status).toBe(401);
+  });
+  it("registers a separate publication target per owner and reuses it across concurrent requests", async () => {
+    const suffix = crypto.randomUUID();
+    const sourcePresentationId = `demo/source:${suffix}`;
+    const sourceQuery = `/presentations?sourcePresentationId=${encodeURIComponent(sourcePresentationId)}`;
+    const ownerId = `owner-${suffix}`;
+    const otherId = `other-${suffix}`;
+    for (const userId of [ownerId, otherId]) {
+      await env.DB.prepare(
+        "INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, 'Owner', ?, 1, '2026', '2026')",
+      )
+        .bind(userId, `${userId}@example.test`)
+        .run();
+    }
+    const owner = createApp({
+      identityProvider: async () => ({ userId: ownerId, globalRole: "user" }),
+    });
+    const other = createApp({
+      identityProvider: async () => ({ userId: otherId, globalRole: "admin" }),
+    });
+    const register = (app: ReturnType<typeof createApp>) =>
+      request(app, "/presentations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sourcePresentationId, name: "Demo" }),
+      });
+
+    const [first, retry] = await Promise.all([register(owner), register(owner)]);
+    expect(first.status).toBe(201);
+    expect(retry.status).toBe(201);
+    const firstTarget = await first.json<{ id: string }>();
+    expect(firstTarget.id).toEqual(expect.any(String));
+    expect(firstTarget.id).not.toBe(sourcePresentationId);
+    await expect(retry.json()).resolves.toEqual(firstTarget);
+    const otherLookup = await request(other, sourceQuery);
+    expect(otherLookup.status).toBe(200);
+    await expect(otherLookup.json()).resolves.toEqual({ presentations: [] });
+
+    const second = await register(other);
+    expect(second.status).toBe(201);
+    const secondTarget = await second.json<{ id: string }>();
+    expect(secondTarget.id).toEqual(expect.any(String));
+    expect(secondTarget.id).not.toBe(firstTarget.id);
+    await expect((await request(owner, sourceQuery)).json()).resolves.toEqual({
+      presentations: [firstTarget],
+    });
+    await expect((await request(other, sourceQuery)).json()).resolves.toEqual({
+      presentations: [secondTarget],
+    });
   });
   it("registers a local immutable ID without a Definition and reuses it only with permission", async () => {
     const repository = new Repository();

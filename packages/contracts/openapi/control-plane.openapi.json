@@ -43,32 +43,55 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                    "pattern": "^[A-Za-z0-9_-]+$"
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false
                   },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 256
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sourcePresentationId": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    },
+                    "required": [
+                      "sourcePresentationId",
+                      "name"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "id",
-                  "name"
-                ],
-                "additionalProperties": false
+                ]
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Created",
+            "description": "Created or existing presentation for the registration",
             "content": {
               "application/json": {
                 "schema": {
@@ -1448,6 +1471,36 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Publication target changed during registration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -1458,6 +1511,19 @@
           },
           {
             "cookieSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$",
+              "description": "Find the authenticated account's publication target for a source ID."
+            },
+            "required": false,
+            "description": "Find the authenticated account's publication target for a source ID.",
+            "name": "sourcePresentationId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2759,6 +2825,36 @@
                   },
                   "required": [
                     "presentations"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid source presentation ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
                   ]
                 }
               }
@@ -14739,6 +14835,10 @@
                       "type": "string",
                       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
                     },
+                    "sourcePresentationId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
                     "publicationEpoch": {
                       "type": "integer",
                       "minimum": 1,
@@ -15316,6 +15416,10 @@
                       ]
                     },
                     "presentationId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+                    },
+                    "sourcePresentationId": {
                       "type": "string",
                       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
                     },

@@ -10,6 +10,10 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
     },
+    "sourcePresentationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+    },
     "publicationEpoch": {
       "type": "integer",
       "minimum": 1,

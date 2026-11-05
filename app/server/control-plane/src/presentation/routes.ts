@@ -82,7 +82,11 @@ export function createPresentationRoutes(options: PresentationRouteOptions) {
       return context.json(result, 201);
     })
     .openapi(listPresentationsRoute, async (context) => {
-      const result = await execute(context, (identity, service) => service.list(identity));
+      const { sourcePresentationId } = context.req.valid("query");
+      const result = await execute(context, (identity, service) =>
+        service.list(identity, sourcePresentationId),
+      );
+      if (sourcePresentationId !== undefined) context.header("Cache-Control", "no-store");
       return context.json({ presentations: result }, 200);
     })
     .openapi(getPresentationRoute, async (context) => {

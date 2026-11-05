@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
+  canonicalizeJsonPayload,
   hashCanonicalJsonPayload,
   verifyBuildIntegrity,
   type BuildArtifacts,
@@ -77,6 +78,49 @@ function publishedResponse(fixed: Awaited<ReturnType<typeof build>>, epoch: numb
 }
 
 describe("publication client", () => {
+  it("uploads the original Dist to the assigned publication ID", async () => {
+    const fixed = await build();
+    const sourcePresentationId = fixed.artifacts.buildManifest.presentationId;
+    const payload = {
+      ...fixed.artifacts.buildManifest,
+      sourcePresentationId,
+      presentationId: "account-target",
+      publicationEpoch: 1,
+    };
+    const client = createPublicationClient({
+      baseUrl: "https://api.example.test",
+      credentials: "include",
+      fetch: async (url, init) => {
+        if (url.pathname === "/presentations") {
+          expect(JSON.parse(String(init.body))).toEqual({
+            sourcePresentationId,
+            name: fixed.artifacts.definition.metadata.title,
+          });
+          return Response.json({ id: "account-target" }, { status: 201 });
+        }
+        expect(url.pathname).toMatch(/^\/presentations\/account-target\//u);
+        if (url.pathname.endsWith("/builds")) {
+          expect(JSON.parse(String(init.body)).buildManifestJson).toBe(
+            canonicalizeJsonPayload(fixed.artifacts.buildManifest),
+          );
+        }
+        return (
+          uploadedBuildResponse(fixed, url) ??
+          Response.json(
+            { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) },
+            { status: 201 },
+          )
+        );
+      },
+    });
+    await expect(client.publish({ ...fixed, expectedPublicationFence: null })).resolves.toEqual({
+      ok: true,
+      presentationId: "account-target",
+      buildId: fixed.artifacts.buildManifest.buildId,
+      publicationEpoch: 1,
+    });
+  });
+
   it("uses cookie authentication to inspect an existing unpublished presentation", async () => {
     const requests: RequestInit[] = [];
     const client = createPublicationClient({
@@ -154,7 +198,12 @@ describe("publication client", () => {
       },
     });
     await expect(client.publish({ ...fixed, expectedPublicationFence: expected })).resolves.toEqual(
-      { ok: true, buildId: fixed.artifacts.buildManifest.buildId, publicationEpoch: 5 },
+      {
+        ok: true,
+        presentationId: expected.presentationId,
+        buildId: fixed.artifacts.buildManifest.buildId,
+        publicationEpoch: 5,
+      },
     );
     expect(requests.every(({ init }) => init.method !== "GET")).toBe(true);
     expect(
@@ -168,6 +217,28 @@ describe("publication client", () => {
       buildId: fixed.artifacts.buildManifest.buildId,
       expectedPublicationFence: expected,
     });
+  });
+
+  it("stops if registration returns a different target than the confirmed unpublished target", async () => {
+    const fixed = await build();
+    const request = vi.fn(async () => Response.json({ id: "replacement-target" }, { status: 201 }));
+    const client = createPublicationClient({
+      baseUrl: "https://api.example.test",
+      credentials: "include",
+      fetch: request,
+    });
+    await expect(
+      client.publish({
+        ...fixed,
+        expectedPresentationId: "confirmed-target",
+        expectedPublicationFence: null,
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      code: "publication-conflict",
+      outcome: "rejected",
+    });
+    expect(request).toHaveBeenCalledTimes(1);
   });
 
   it("rejects corrupted assets before any write", async () => {
@@ -229,6 +300,7 @@ describe("publication client", () => {
       ok: false,
       code: "publication-io",
       outcome: "unknown",
+      presentationId: fixed.artifacts.buildManifest.presentationId,
     });
     expect(publications).toBe(1);
   });
@@ -246,6 +318,7 @@ describe("publication client", () => {
       ok: false,
       code: "publication-publication-response-invalid",
       outcome: "unknown",
+      presentationId: fixed.artifacts.buildManifest.presentationId,
     });
   });
 
@@ -330,6 +403,11 @@ describe("publication client", () => {
     });
     await expect(
       client.publish({ ...fixed, expectedPublicationFence: null, signal: controller.signal }),
-    ).resolves.toEqual({ ok: false, code: "publication-cancelled", outcome: "unknown" });
+    ).resolves.toEqual({
+      ok: false,
+      code: "publication-cancelled",
+      outcome: "unknown",
+      presentationId: fixed.artifacts.buildManifest.presentationId,
+    });
   });
 });

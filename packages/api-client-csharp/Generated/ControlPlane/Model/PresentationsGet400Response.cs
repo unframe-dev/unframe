@@ -26,16 +26,16 @@ using Unframe.ControlPlane.Client;
 namespace Unframe.ControlPlane.Model
 {
     /// <summary>
-    /// PresentationsGet401Response
+    /// PresentationsGet400Response
     /// </summary>
-    public partial class PresentationsGet401Response : IValidatableObject
+    public partial class PresentationsGet400Response : IValidatableObject
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="PresentationsGet401Response" /> class.
+        /// Initializes a new instance of the <see cref="PresentationsGet400Response" /> class.
         /// </summary>
         /// <param name="error">error</param>
         [JsonConstructor]
-        public PresentationsGet401Response(PresentationsGet401ResponseError error)
+        public PresentationsGet400Response(PresentationsGet400ResponseError error)
         {
             Error = error;
             OnCreated();
@@ -47,7 +47,7 @@ namespace Unframe.ControlPlane.Model
         /// Gets or Sets Error
         /// </summary>
         [JsonPropertyName("error")]
-        public PresentationsGet401ResponseError Error { get; set; }
+        public PresentationsGet400ResponseError Error { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -56,7 +56,7 @@ namespace Unframe.ControlPlane.Model
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("class PresentationsGet401Response {\n");
+            sb.Append("class PresentationsGet400Response {\n");
             sb.Append("  Error: ").Append(Error).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -74,19 +74,19 @@ namespace Unframe.ControlPlane.Model
     }
 
     /// <summary>
-    /// A Json converter for type <see cref="PresentationsGet401Response" />
+    /// A Json converter for type <see cref="PresentationsGet400Response" />
     /// </summary>
-    public class PresentationsGet401ResponseJsonConverter : JsonConverter<PresentationsGet401Response>
+    public class PresentationsGet400ResponseJsonConverter : JsonConverter<PresentationsGet400Response>
     {
         /// <summary>
-        /// Deserializes json to <see cref="PresentationsGet401Response" />
+        /// Deserializes json to <see cref="PresentationsGet400Response" />
         /// </summary>
         /// <param name="utf8JsonReader"></param>
         /// <param name="typeToConvert"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <returns></returns>
         /// <exception cref="JsonException"></exception>
-        public override PresentationsGet401Response Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
+        public override PresentationsGet400Response Read(ref Utf8JsonReader utf8JsonReader, Type typeToConvert, JsonSerializerOptions jsonSerializerOptions)
         {
             int currentDepth = utf8JsonReader.CurrentDepth;
 
@@ -95,7 +95,7 @@ namespace Unframe.ControlPlane.Model
 
             JsonTokenType startingTokenType = utf8JsonReader.TokenType;
 
-            Option<PresentationsGet401ResponseError?> error = default;
+            Option<PresentationsGet400ResponseError?> error = default;
 
             while (utf8JsonReader.Read())
             {
@@ -113,7 +113,7 @@ namespace Unframe.ControlPlane.Model
                     switch (localVarJsonPropertyName)
                     {
                         case "error":
-                            error = new Option<PresentationsGet401ResponseError?>(JsonSerializer.Deserialize<PresentationsGet401ResponseError>(ref utf8JsonReader, jsonSerializerOptions)!);
+                            error = new Option<PresentationsGet400ResponseError?>(JsonSerializer.Deserialize<PresentationsGet400ResponseError>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
                         default:
                             break;
@@ -122,43 +122,43 @@ namespace Unframe.ControlPlane.Model
             }
 
             if (!error.IsSet)
-                throw new ArgumentException("Property is required for class PresentationsGet401Response.", nameof(error));
+                throw new ArgumentException("Property is required for class PresentationsGet400Response.", nameof(error));
 
             if (error.IsSet && error.Value == null)
-                throw new ArgumentNullException(nameof(error), "Property is not nullable for class PresentationsGet401Response.");
+                throw new ArgumentNullException(nameof(error), "Property is not nullable for class PresentationsGet400Response.");
 
-            return new PresentationsGet401Response(error.Value!);
+            return new PresentationsGet400Response(error.Value!);
         }
 
         /// <summary>
-        /// Serializes a <see cref="PresentationsGet401Response" />
+        /// Serializes a <see cref="PresentationsGet400Response" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="presentationsGet401Response"></param>
+        /// <param name="presentationsGet400Response"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public override void Write(Utf8JsonWriter writer, PresentationsGet401Response presentationsGet401Response, JsonSerializerOptions jsonSerializerOptions)
+        public override void Write(Utf8JsonWriter writer, PresentationsGet400Response presentationsGet400Response, JsonSerializerOptions jsonSerializerOptions)
         {
             writer.WriteStartObject();
 
-            WriteProperties(writer, presentationsGet401Response, jsonSerializerOptions);
+            WriteProperties(writer, presentationsGet400Response, jsonSerializerOptions);
             writer.WriteEndObject();
         }
 
         /// <summary>
-        /// Serializes the properties of <see cref="PresentationsGet401Response" />
+        /// Serializes the properties of <see cref="PresentationsGet400Response" />
         /// </summary>
         /// <param name="writer"></param>
-        /// <param name="presentationsGet401Response"></param>
+        /// <param name="presentationsGet400Response"></param>
         /// <param name="jsonSerializerOptions"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void WriteProperties(Utf8JsonWriter writer, PresentationsGet401Response presentationsGet401Response, JsonSerializerOptions jsonSerializerOptions)
+        public void WriteProperties(Utf8JsonWriter writer, PresentationsGet400Response presentationsGet400Response, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (presentationsGet401Response.Error == null)
-                throw new ArgumentNullException(nameof(presentationsGet401Response.Error), "Property is required for class PresentationsGet401Response.");
+            if (presentationsGet400Response.Error == null)
+                throw new ArgumentNullException(nameof(presentationsGet400Response.Error), "Property is required for class PresentationsGet400Response.");
 
             writer.WritePropertyName("error");
-            JsonSerializer.Serialize(writer, presentationsGet401Response.Error, jsonSerializerOptions);
+            JsonSerializer.Serialize(writer, presentationsGet400Response.Error, jsonSerializerOptions);
         }
     }
 }

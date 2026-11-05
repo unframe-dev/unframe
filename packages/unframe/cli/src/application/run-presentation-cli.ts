@@ -76,7 +76,7 @@ const limits = Object.freeze({
   maxOutputBytes: 65 * 1024 * 1024,
 });
 const usage =
-  "Usage: unframe init|check|build|test <project-directory> [--format text|json]\n       unframe dev|author <project-directory>\n       unframe preview <dist-directory>\n       unframe publish <dist-directory> <presentation-id> <control-plane-origin>";
+  "Usage: unframe init|check|build|test <project-directory> [--format text|json]\n       unframe dev|author <project-directory>\n       unframe preview <dist-directory>\n       unframe publish <dist-directory> <source-presentation-id> <control-plane-origin>";
 const rendererDiagnosticCodes = new Set([
   "unsupported-structured-tree",
   "invalid-render-scale",

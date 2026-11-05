@@ -35,15 +35,17 @@ namespace Unframe.ControlPlane.Model
         /// </summary>
         /// <param name="assignment">assignment</param>
         /// <param name="publication">publication</param>
+        /// <param name="sessionState">sessionState</param>
         /// <param name="definition">PresentationDefinition; strict schema validated at storage boundary</param>
         /// <param name="renderBundle">RenderBundle; strict schema validated at storage boundary; identity bound by publication.renderBundleHash</param>
         /// <param name="checkpoint">checkpoint</param>
         /// <param name="checkpointSource">checkpointSource</param>
         [JsonConstructor]
-        public InternalRuntimeBootstrapGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default, InternalRuntimeBootstrapGet200ResponseCheckpointSource? checkpointSource = default)
+        public InternalRuntimeBootstrapGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, SessionStateEnum sessionState, Dictionary<string, Object> definition, Dictionary<string, Object> renderBundle, Dictionary<string, Object>? checkpoint = default, InternalRuntimeBootstrapGet200ResponseCheckpointSource? checkpointSource = default)
         {
             Assignment = assignment;
             Publication = publication;
+            SessionState = sessionState;
             Definition = definition;
             RenderBundle = renderBundle;
             Checkpoint = checkpoint;
@@ -52,6 +54,78 @@ namespace Unframe.ControlPlane.Model
         }
 
         partial void OnCreated();
+
+        /// <summary>
+        /// Defines SessionState
+        /// </summary>
+        public enum SessionStateEnum
+        {
+            /// <summary>
+            /// Enum Waiting for value: Waiting
+            /// </summary>
+            Waiting = 1,
+
+            /// <summary>
+            /// Enum Presenting for value: Presenting
+            /// </summary>
+            Presenting = 2
+        }
+
+        /// <summary>
+        /// Returns a <see cref="SessionStateEnum"/>
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public static SessionStateEnum SessionStateEnumFromString(string value)
+        {
+            if (value.Equals("Waiting"))
+                return SessionStateEnum.Waiting;
+
+            if (value.Equals("Presenting"))
+                return SessionStateEnum.Presenting;
+
+            throw new NotImplementedException($"Could not convert value to type SessionStateEnum: '{value}'");
+        }
+
+        /// <summary>
+        /// Returns a <see cref="SessionStateEnum"/>
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static SessionStateEnum? SessionStateEnumFromStringOrDefault(string value)
+        {
+            if (value.Equals("Waiting"))
+                return SessionStateEnum.Waiting;
+
+            if (value.Equals("Presenting"))
+                return SessionStateEnum.Presenting;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converts the <see cref="SessionStateEnum"/> to the json value
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public static string SessionStateEnumToJsonValue(SessionStateEnum value)
+        {
+            if (value == SessionStateEnum.Waiting)
+                return "Waiting";
+
+            if (value == SessionStateEnum.Presenting)
+                return "Presenting";
+
+            throw new NotImplementedException($"Value could not be handled: '{value}'");
+        }
+
+        /// <summary>
+        /// Gets or Sets SessionState
+        /// </summary>
+        [JsonPropertyName("sessionState")]
+        public SessionStateEnum SessionState { get; set; }
 
         /// <summary>
         /// Gets or Sets Assignment
@@ -101,6 +175,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("class InternalRuntimeBootstrapGet200Response {\n");
             sb.Append("  Assignment: ").Append(Assignment).Append("\n");
             sb.Append("  Publication: ").Append(Publication).Append("\n");
+            sb.Append("  SessionState: ").Append(SessionState).Append("\n");
             sb.Append("  Definition: ").Append(Definition).Append("\n");
             sb.Append("  RenderBundle: ").Append(RenderBundle).Append("\n");
             sb.Append("  Checkpoint: ").Append(Checkpoint).Append("\n");
@@ -144,6 +219,7 @@ namespace Unframe.ControlPlane.Model
 
             Option<InternalRuntimeAssetsGet200ResponseAssignment?> assignment = default;
             Option<InternalRuntimeAssetsGet200ResponsePublication?> publication = default;
+            Option<InternalRuntimeBootstrapGet200Response.SessionStateEnum?> sessionState = default;
             Option<Dictionary<string, Object>?> definition = default;
             Option<Dictionary<string, Object>?> renderBundle = default;
             Option<Dictionary<string, Object>?> checkpoint = default;
@@ -170,6 +246,11 @@ namespace Unframe.ControlPlane.Model
                         case "publication":
                             publication = new Option<InternalRuntimeAssetsGet200ResponsePublication?>(JsonSerializer.Deserialize<InternalRuntimeAssetsGet200ResponsePublication>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
+                        case "sessionState":
+                            string? sessionStateRawValue = utf8JsonReader.GetString();
+                            if (sessionStateRawValue != null)
+                                sessionState = new Option<InternalRuntimeBootstrapGet200Response.SessionStateEnum?>(InternalRuntimeBootstrapGet200Response.SessionStateEnumFromStringOrDefault(sessionStateRawValue));
+                            break;
                         case "definition":
                             definition = new Option<Dictionary<string, Object>?>(JsonSerializer.Deserialize<Dictionary<string, Object>>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
@@ -194,6 +275,9 @@ namespace Unframe.ControlPlane.Model
             if (!publication.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200Response.", nameof(publication));
 
+            if (!sessionState.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200Response.", nameof(sessionState));
+
             if (!definition.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeBootstrapGet200Response.", nameof(definition));
 
@@ -212,13 +296,16 @@ namespace Unframe.ControlPlane.Model
             if (publication.IsSet && publication.Value == null)
                 throw new ArgumentNullException(nameof(publication), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
 
+            if (sessionState.IsSet && sessionState.Value == null)
+                throw new ArgumentNullException(nameof(sessionState), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
+
             if (definition.IsSet && definition.Value == null)
                 throw new ArgumentNullException(nameof(definition), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
 
             if (renderBundle.IsSet && renderBundle.Value == null)
                 throw new ArgumentNullException(nameof(renderBundle), "Property is not nullable for class InternalRuntimeBootstrapGet200Response.");
 
-            return new InternalRuntimeBootstrapGet200Response(assignment.Value!, publication.Value!, definition.Value!, renderBundle.Value!, checkpoint.Value!, checkpointSource.Value!);
+            return new InternalRuntimeBootstrapGet200Response(assignment.Value!, publication.Value!, sessionState.Value!.Value!, definition.Value!, renderBundle.Value!, checkpoint.Value!, checkpointSource.Value!);
         }
 
         /// <summary>
@@ -261,6 +348,8 @@ namespace Unframe.ControlPlane.Model
             JsonSerializer.Serialize(writer, internalRuntimeBootstrapGet200Response.Assignment, jsonSerializerOptions);
             writer.WritePropertyName("publication");
             JsonSerializer.Serialize(writer, internalRuntimeBootstrapGet200Response.Publication, jsonSerializerOptions);
+            var sessionStateRawValue = InternalRuntimeBootstrapGet200Response.SessionStateEnumToJsonValue(internalRuntimeBootstrapGet200Response.SessionState);
+            writer.WriteString("sessionState", sessionStateRawValue);
             writer.WritePropertyName("definition");
             JsonSerializer.Serialize(writer, internalRuntimeBootstrapGet200Response.Definition, jsonSerializerOptions);
             writer.WritePropertyName("renderBundle");

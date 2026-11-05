@@ -107,7 +107,7 @@ export function PublicationPage() {
               <summary className="w-fit cursor-pointer text-[var(--muted)]">技術情報</summary>
               <dl className="mt-4 grid gap-3 break-all">
                 <div>
-                  <dt>Presentation ID</dt>
+                  <dt>Source ID</dt>
                   <dd>{selection.dist.artifacts.buildManifest.presentationId}</dd>
                 </div>
                 <div>
@@ -143,7 +143,7 @@ export function PublicationPage() {
               <Link
                 to="/presentations/$presentationId"
                 params={{
-                  presentationId: state.selection.dist.artifacts.buildManifest.presentationId,
+                  presentationId: state.result.presentationId,
                 }}
               >
                 プレゼンテーションを開く

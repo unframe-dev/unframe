@@ -142,7 +142,7 @@ export class DeliveryService {
     const assetAccess: Record<string, { url: string; expiresAtUnixMilliseconds: number }> = {};
     for (const asset of selection.assets) {
       const target = {
-        presentationId: artifacts.buildManifest.presentationId,
+        presentationId: artifacts.publishedPresentation.presentationId,
         buildId: artifacts.buildManifest.buildId,
         assetId: asset.assetId,
       };

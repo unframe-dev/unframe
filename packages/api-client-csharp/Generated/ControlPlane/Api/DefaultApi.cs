@@ -367,9 +367,10 @@ namespace Unframe.ControlPlane.Api
         ///
         /// </remarks>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="sourcePresentationId">Find the authenticated account&#39;s publication target for a source ID. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsGetApiResponse"/>&gt;</returns>
-        Task<IPresentationsGetApiResponse> PresentationsGetAsync(System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsGetApiResponse> PresentationsGetAsync(Option<string> sourcePresentationId = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -377,9 +378,10 @@ namespace Unframe.ControlPlane.Api
         /// <remarks>
         ///
         /// </remarks>
+        /// <param name="sourcePresentationId">Find the authenticated account&#39;s publication target for a source ID. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsGetApiResponse"/>?&gt;</returns>
-        Task<IPresentationsGetApiResponse?> PresentationsGetOrDefaultAsync(System.Threading.CancellationToken cancellationToken = default);
+        Task<IPresentationsGetApiResponse?> PresentationsGetOrDefaultAsync(Option<string> sourcePresentationId = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -1278,7 +1280,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IAssetsIdDeleteApiResponse"/>
     /// </summary>
-    public interface IAssetsIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IAssetsIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -1320,7 +1322,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IAssetsIdDownloadGetApiResponse"/>
     /// </summary>
-    public interface IAssetsIdDownloadGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsIdDownloadGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IServiceUnavailable<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IAssetsIdDownloadGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsIdDownloadGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IServiceUnavailable<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1362,7 +1364,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IAssetsIdFinalizePostApiResponse"/>
     /// </summary>
-    public interface IAssetsIdFinalizePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsUploadsPost201ResponseAsset?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IAssetsIdFinalizePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsUploadsPost201ResponseAsset?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1404,7 +1406,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IAssetsIdGetApiResponse"/>
     /// </summary>
-    public interface IAssetsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsUploadsPost201ResponseAsset?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IAssetsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.AssetsUploadsPost201ResponseAsset?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1440,7 +1442,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IAssetsUploadsPostApiResponse"/>
     /// </summary>
-    public interface IAssetsUploadsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.AssetsUploadsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IServiceUnavailable<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IAssetsUploadsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.AssetsUploadsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IServiceUnavailable<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -1476,7 +1478,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ICallbacksCheckpointsPostApiResponse"/>
     /// </summary>
-    public interface ICallbacksCheckpointsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.CallbacksCheckpointsPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ICallbacksCheckpointsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.CallbacksCheckpointsPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1518,7 +1520,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ICallbacksCompletionsPostApiResponse"/>
     /// </summary>
-    public interface ICallbacksCompletionsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.CallbacksCheckpointsPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ICallbacksCompletionsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.CallbacksCheckpointsPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1560,7 +1562,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeAssetsGetApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeAssetsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeAssetsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeAssetsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeAssetsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1596,7 +1598,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeBootstrapGetApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeBootstrapGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeBootstrapGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeBootstrapGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeBootstrapGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1638,7 +1640,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeHostsRuntimeIdHeartbeatPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdHeartbeatPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1668,7 +1670,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeHostsRuntimeIdStartPostApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeHostsRuntimeIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeHostsRuntimeIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeHostsRuntimeIdStartPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1698,7 +1700,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeLeaseGetApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeLeaseGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeLeaseGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeLeaseGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeLeaseGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1734,7 +1736,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IInternalRuntimeProjectionGetApiResponse"/>
     /// </summary>
-    public interface IInternalRuntimeProjectionGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeProjectionGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IInternalRuntimeProjectionGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.InternalRuntimeProjectionGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1770,13 +1772,19 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsGetApiResponse"/>
     /// </summary>
-    public interface IPresentationsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
         /// </summary>
         /// <returns></returns>
         bool IsOk { get; }
+
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
 
         /// <summary>
         /// Returns true if the response is 401 Unauthorized
@@ -1788,7 +1796,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsIdDeleteApiResponse"/>
     /// </summary>
-    public interface IPresentationsIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -1830,7 +1838,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsIdGetApiResponse"/>
     /// </summary>
-    public interface IPresentationsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1866,7 +1874,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsIdPutApiResponse"/>
     /// </summary>
-    public interface IPresentationsIdPutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsIdPutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -1914,7 +1922,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPostApiResponse"/>
     /// </summary>
-    public interface IPresentationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsGet200ResponsePresentationsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -1939,12 +1947,18 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <returns></returns>
         bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
     }
 
     /// <summary>
     /// The <see cref="IPresentationsPresentationIdBuildsBuildIdAssetsAssetIdPutApiResponse"/>
     /// </summary>
-    public interface IPresentationsPresentationIdBuildsBuildIdAssetsAssetIdPutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPresentationIdBuildsBuildIdAssetsAssetIdPutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -1986,7 +2000,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse"/>
     /// </summary>
-    public interface IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPresentationIdBuildsBuildIdThumbnailGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2034,7 +2048,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPresentationIdBuildsPostApiResponse"/>
     /// </summary>
-    public interface IPresentationsPresentationIdBuildsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsPresentationIdBuildsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPresentationIdBuildsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsPresentationIdBuildsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -2082,7 +2096,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPresentationIdPublicationGetApiResponse"/>
     /// </summary>
-    public interface IPresentationsPresentationIdPublicationGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsPresentationIdPublicationsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPresentationIdPublicationGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.PresentationsPresentationIdPublicationsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2118,7 +2132,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPresentationsPresentationIdPublicationsPostApiResponse"/>
     /// </summary>
-    public interface IPresentationsPresentationIdPublicationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsPresentationIdPublicationsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPresentationsPresentationIdPublicationsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.PresentationsPresentationIdPublicationsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -2166,7 +2180,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse"/>
     /// </summary>
-    public interface IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Object?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IPublicationAssetsPresentationIdBuildIdAssetIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Object?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2202,7 +2216,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsGetApiResponse"/>
     /// </summary>
-    public interface ISessionsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2232,7 +2246,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdBootstrapPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdBootstrapPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdBootstrapPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
+    public interface ISessionsIdBootstrapPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdBootstrapPost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2280,7 +2294,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdEndPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdEndPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdEndPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2322,7 +2336,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdGetApiResponse"/>
     /// </summary>
-    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
+    public interface ISessionsIdGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2364,7 +2378,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdJoinCodeGetApiResponse"/>
     /// </summary>
-    public interface ISessionsIdJoinCodeGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdJoinCodeGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2406,7 +2420,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdJoinCodePostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdJoinCodePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdJoinCodePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdJoinCodeGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2448,7 +2462,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdRuntimePreparationGetApiResponse"/>
     /// </summary>
-    public interface ISessionsIdRuntimePreparationGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdRuntimePreparationGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2478,7 +2492,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdRuntimePreparationPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdRuntimePreparationPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdRuntimePreparationPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsIdRuntimePreparationGet200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2514,7 +2528,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsIdStartPostApiResponse"/>
     /// </summary>
-    public interface ISessionsIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsIdStartPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2556,7 +2570,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsJoinPostApiResponse"/>
     /// </summary>
-    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsJoinPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsGet200ResponseSessionsInner?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2610,7 +2624,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsPostApiResponse"/>
     /// </summary>
-    public interface ISessionsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.SessionsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.SessionsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -2652,7 +2666,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsSessionIdDeliveryPostApiResponse"/>
     /// </summary>
-    public interface ISessionsSessionIdDeliveryPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsSessionIdDeliveryPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>, IUnprocessableContent<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2706,7 +2720,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsSessionIdRuntimeAssignmentGetApiResponse"/>
     /// </summary>
-    public interface ISessionsSessionIdRuntimeAssignmentGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsSessionIdRuntimeAssignmentGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2742,7 +2756,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="ISessionsSessionIdRuntimeAssignmentPostApiResponse"/>
     /// </summary>
-    public interface ISessionsSessionIdRuntimeAssignmentPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface ISessionsSessionIdRuntimeAssignmentPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -2778,7 +2792,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IUserImagesUserIdFilenameGetApiResponse"/>
     /// </summary>
-    public interface IUserImagesUserIdFilenameGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IUserImagesUserIdFilenameGetApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<System.IO.Stream?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2808,7 +2822,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IUsersMeImageDeleteApiResponse"/>
     /// </summary>
-    public interface IUsersMeImageDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImageDelete200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IUsersMeImageDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImageDelete200Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2838,7 +2852,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IUsersMeImagePutApiResponse"/>
     /// </summary>
-    public interface IUsersMeImagePutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImagePut200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnsupportedMediaType<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IUsersMeImagePutApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.UsersMeImagePut200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IContentTooLarge<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnsupportedMediaType<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2886,7 +2900,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochReleasePostApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochReleasePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochReleasePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -2916,7 +2930,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochRenewPostApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochRenewPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesEdgeIdAssignmentsSessionIdAssignmentEpochRenewPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.SessionsSessionIdRuntimeAssignmentGet200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -2946,7 +2960,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesEdgeIdDeleteApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesEdgeIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesEdgeIdDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -2982,7 +2996,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesEdgeIdRegisterPostApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesEdgeIdRegisterPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesEdgeIdRegisterPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -3018,7 +3032,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesEdgeIdRotatePostApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesEdgeIdRotatePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.VenueEdgesEdgeIdRotatePost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesEdgeIdRotatePostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.VenueEdgesEdgeIdRotatePost200Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -3060,7 +3074,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IVenueEdgesPostApiResponse"/>
     /// </summary>
-    public interface IVenueEdgesPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.VenueEdgesPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IVenueEdgesPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.VenueEdgesPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IForbidden<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -3096,7 +3110,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IViewerCredentialsDeleteApiResponse"/>
     /// </summary>
-    public interface IViewerCredentialsDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
+    public interface IViewerCredentialsDeleteApiResponse : Unframe.ControlPlane.Client.IApiResponse, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 204 NoContent
@@ -3120,7 +3134,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IViewerCredentialsPostApiResponse"/>
     /// </summary>
-    public interface IViewerCredentialsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet401Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet401Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet401Response?>
+    public interface IViewerCredentialsPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, ICreated<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IBadRequest<Unframe.ControlPlane.Model.PresentationsGet400Response?>, INotFound<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IConflict<Unframe.ControlPlane.Model.PresentationsGet400Response?>, ITooManyRequests<Unframe.ControlPlane.Model.PresentationsGet400Response?>
     {
         /// <summary>
         /// Returns true if the response is 201 Created
@@ -3156,7 +3170,7 @@ namespace Unframe.ControlPlane.Api
     /// <summary>
     /// The <see cref="IViewerCredentialsRefreshPostApiResponse"/>
     /// </summary>
-    public interface IViewerCredentialsRefreshPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet401Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
+    public interface IViewerCredentialsRefreshPostApiResponse : Unframe.ControlPlane.Client.IApiResponse, IOk<Unframe.ControlPlane.Model.ViewerCredentialsPost201Response?>, IUnauthorized<Unframe.ControlPlane.Model.PresentationsGet400Response?>, IGone<Unframe.ControlPlane.Model.SessionsJoinPost410Response?>
     {
         /// <summary>
         /// Returns true if the response is 200 Ok
@@ -4489,11 +4503,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4502,7 +4516,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4527,11 +4541,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4540,7 +4554,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4565,11 +4579,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4578,7 +4592,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4603,11 +4617,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4616,7 +4630,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4641,11 +4655,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4654,7 +4668,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4932,11 +4946,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4945,7 +4959,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -4970,11 +4984,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -4983,7 +4997,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5008,11 +5022,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5021,7 +5035,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5046,11 +5060,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5059,7 +5073,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5084,11 +5098,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 503 ServiceUnavailable
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ServiceUnavailable()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ServiceUnavailable()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsServiceUnavailable
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5097,7 +5111,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryServiceUnavailable([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryServiceUnavailable([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5375,11 +5389,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5388,7 +5402,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5413,11 +5427,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5426,7 +5440,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5451,11 +5465,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5464,7 +5478,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5489,11 +5503,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5502,7 +5516,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5527,11 +5541,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5540,7 +5554,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5818,11 +5832,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5831,7 +5845,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5856,11 +5870,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5869,7 +5883,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5894,11 +5908,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5907,7 +5921,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -5932,11 +5946,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -5945,7 +5959,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6235,11 +6249,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6248,7 +6262,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6273,11 +6287,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6286,7 +6300,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6311,11 +6325,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6324,7 +6338,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6349,11 +6363,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 503 ServiceUnavailable
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ServiceUnavailable()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ServiceUnavailable()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsServiceUnavailable
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6362,7 +6376,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryServiceUnavailable([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryServiceUnavailable([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6652,11 +6666,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6665,7 +6679,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6690,11 +6704,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6703,7 +6717,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6728,11 +6742,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6741,7 +6755,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6766,11 +6780,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6779,7 +6793,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -6804,11 +6818,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 413 ContentTooLarge
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ContentTooLarge()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsContentTooLarge
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -6817,7 +6831,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7107,11 +7121,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7120,7 +7134,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7145,11 +7159,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7158,7 +7172,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7183,11 +7197,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7196,7 +7210,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7221,11 +7235,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7234,7 +7248,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7259,11 +7273,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 413 ContentTooLarge
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ContentTooLarge()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsContentTooLarge
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7272,7 +7286,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7595,11 +7609,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7608,7 +7622,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7633,11 +7647,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7646,7 +7660,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7671,11 +7685,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7684,7 +7698,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -7709,11 +7723,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -7722,7 +7736,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8036,11 +8050,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8049,7 +8063,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8074,11 +8088,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8087,7 +8101,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8112,11 +8126,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8125,7 +8139,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8150,11 +8164,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8163,7 +8177,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8188,11 +8202,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 413 ContentTooLarge
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ContentTooLarge()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsContentTooLarge
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8201,7 +8215,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8502,11 +8516,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8515,7 +8529,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8540,11 +8554,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8553,7 +8567,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8578,11 +8592,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8591,7 +8605,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8892,11 +8906,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8905,7 +8919,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8930,11 +8944,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8943,7 +8957,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -8968,11 +8982,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -8981,7 +8995,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9282,11 +9296,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9295,7 +9309,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9320,11 +9334,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9333,7 +9347,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9358,11 +9372,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9371,7 +9385,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9396,11 +9410,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 413 ContentTooLarge
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ContentTooLarge()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsContentTooLarge
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9409,7 +9423,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9703,11 +9717,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9716,7 +9730,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9741,11 +9755,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9754,7 +9768,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9779,11 +9793,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9792,7 +9806,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9817,11 +9831,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -9830,7 +9844,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -9856,14 +9870,28 @@ namespace Unframe.ControlPlane.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
+        partial void FormatPresentationsGet(ref Option<string> sourcePresentationId);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="sourcePresentationId"></param>
+        /// <returns></returns>
+        private void ValidatePresentationsGet(Option<string> sourcePresentationId)
+        {
+            if (sourcePresentationId.IsSet && sourcePresentationId.Value == null)
+                throw new ArgumentNullException(nameof(sourcePresentationId));
+        }
+
         /// <summary>
         /// Processes the server response
         /// </summary>
         /// <param name="apiResponseLocalVar"></param>
-        private void AfterPresentationsGetDefaultImplementation(IPresentationsGetApiResponse apiResponseLocalVar)
+        /// <param name="sourcePresentationId"></param>
+        private void AfterPresentationsGetDefaultImplementation(IPresentationsGetApiResponse apiResponseLocalVar, Option<string> sourcePresentationId)
         {
             bool suppressDefaultLog = false;
-            AfterPresentationsGet(ref suppressDefaultLog, apiResponseLocalVar);
+            AfterPresentationsGet(ref suppressDefaultLog, apiResponseLocalVar, sourcePresentationId);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {2}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -9873,7 +9901,8 @@ namespace Unframe.ControlPlane.Api
         /// </summary>
         /// <param name="suppressDefaultLog"></param>
         /// <param name="apiResponseLocalVar"></param>
-        partial void AfterPresentationsGet(ref bool suppressDefaultLog, IPresentationsGetApiResponse apiResponseLocalVar);
+        /// <param name="sourcePresentationId"></param>
+        partial void AfterPresentationsGet(ref bool suppressDefaultLog, IPresentationsGetApiResponse apiResponseLocalVar, Option<string> sourcePresentationId);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -9881,10 +9910,11 @@ namespace Unframe.ControlPlane.Api
         /// <param name="exceptionLocalVar"></param>
         /// <param name="pathFormatLocalVar"></param>
         /// <param name="pathLocalVar"></param>
-        private void OnErrorPresentationsGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar)
+        /// <param name="sourcePresentationId"></param>
+        private void OnErrorPresentationsGetDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Option<string> sourcePresentationId)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorPresentationsGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar);
+            OnErrorPresentationsGet(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, sourcePresentationId);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -9896,18 +9926,20 @@ namespace Unframe.ControlPlane.Api
         /// <param name="exceptionLocalVar"></param>
         /// <param name="pathFormatLocalVar"></param>
         /// <param name="pathLocalVar"></param>
-        partial void OnErrorPresentationsGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar);
+        /// <param name="sourcePresentationId"></param>
+        partial void OnErrorPresentationsGet(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, Option<string> sourcePresentationId);
 
         /// <summary>
         ///
         /// </summary>
+        /// <param name="sourcePresentationId">Find the authenticated account&#39;s publication target for a source ID. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsGetApiResponse?> PresentationsGetOrDefaultAsync(System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsGetApiResponse?> PresentationsGetOrDefaultAsync(Option<string> sourcePresentationId = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await PresentationsGetAsync(cancellationToken).ConfigureAwait(false);
+                return await PresentationsGetAsync(sourcePresentationId, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -9919,14 +9951,19 @@ namespace Unframe.ControlPlane.Api
         ///
         /// </summary>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="sourcePresentationId">Find the authenticated account&#39;s publication target for a source ID. (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IPresentationsGetApiResponse"/>&gt;</returns>
-        public async Task<IPresentationsGetApiResponse> PresentationsGetAsync(System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IPresentationsGetApiResponse> PresentationsGetAsync(Option<string> sourcePresentationId = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
             try
             {
+                ValidatePresentationsGet(sourcePresentationId);
+
+                FormatPresentationsGet(ref sourcePresentationId);
+
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
                     uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
@@ -9935,6 +9972,13 @@ namespace Unframe.ControlPlane.Api
                     uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
                         ? "/presentations"
                         : string.Concat(HttpClient.BaseAddress.AbsolutePath.TrimEnd('/'), "/presentations");
+
+                    System.Collections.Specialized.NameValueCollection parseQueryStringLocalVar = System.Web.HttpUtility.ParseQueryString(string.Empty);
+
+                    if (sourcePresentationId.IsSet)
+                        parseQueryStringLocalVar["sourcePresentationId"] = ClientUtils.ParameterToString(sourcePresentationId.Value);
+
+                    uriBuilderLocalVar.Query = parseQueryStringLocalVar.ToString();
 
                     List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
@@ -9972,7 +10016,7 @@ namespace Unframe.ControlPlane.Api
                             }
                         }
 
-                        AfterPresentationsGetDefaultImplementation(apiResponseLocalVar);
+                        AfterPresentationsGetDefaultImplementation(apiResponseLocalVar, sourcePresentationId);
 
                         Events.ExecuteOnPresentationsGet(apiResponseLocalVar);
 
@@ -9986,7 +10030,7 @@ namespace Unframe.ControlPlane.Api
             }
             catch(Exception e)
             {
-                OnErrorPresentationsGetDefaultImplementation(e, "/presentations", uriBuilderLocalVar.Path);
+                OnErrorPresentationsGetDefaultImplementation(e, "/presentations", uriBuilderLocalVar.Path, sourcePresentationId);
                 Events.ExecuteOnErrorPresentationsGet(e);
                 throw;
             }
@@ -10075,6 +10119,44 @@ namespace Unframe.ControlPlane.Api
             }
 
             /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
             /// Returns true if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
@@ -10084,11 +10166,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10097,7 +10179,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10366,11 +10448,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10379,7 +10461,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10404,11 +10486,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10417,7 +10499,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10442,11 +10524,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10455,7 +10537,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10480,11 +10562,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10493,7 +10575,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10518,11 +10600,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10531,7 +10613,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10809,11 +10891,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10822,7 +10904,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10847,11 +10929,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10860,7 +10942,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10885,11 +10967,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10898,7 +10980,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -10923,11 +11005,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -10936,7 +11018,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11237,11 +11319,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11250,7 +11332,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11275,11 +11357,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11288,7 +11370,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11313,11 +11395,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11326,7 +11408,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11351,11 +11433,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11364,7 +11446,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11389,11 +11471,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11402,7 +11484,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11427,11 +11509,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11440,7 +11522,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11730,11 +11812,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11743,7 +11825,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11768,11 +11850,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11781,7 +11863,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11806,11 +11888,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -11819,7 +11901,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -11829,6 +11911,44 @@ namespace Unframe.ControlPlane.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
                 }
 
                 return result != null;
@@ -12106,11 +12226,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12119,7 +12239,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12144,11 +12264,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12157,7 +12277,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12182,11 +12302,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12195,7 +12315,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12220,11 +12340,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12233,7 +12353,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12258,11 +12378,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12271,7 +12391,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12588,11 +12708,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12601,7 +12721,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12626,11 +12746,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12639,7 +12759,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12664,11 +12784,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12677,7 +12797,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12702,11 +12822,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12715,7 +12835,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -12740,11 +12860,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -12753,7 +12873,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13054,11 +13174,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13067,7 +13187,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13092,11 +13212,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13105,7 +13225,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13130,11 +13250,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13143,7 +13263,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13168,11 +13288,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13181,7 +13301,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13206,11 +13326,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13219,7 +13339,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13244,11 +13364,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13257,7 +13377,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13535,11 +13655,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13548,7 +13668,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13573,11 +13693,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13586,7 +13706,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13611,11 +13731,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13624,7 +13744,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13649,11 +13769,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13662,7 +13782,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -13963,11 +14083,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -13976,7 +14096,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14001,11 +14121,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14014,7 +14134,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14039,11 +14159,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14052,7 +14172,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14077,11 +14197,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14090,7 +14210,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14115,11 +14235,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14128,7 +14248,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14153,11 +14273,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14166,7 +14286,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14483,11 +14603,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14496,7 +14616,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14521,11 +14641,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14534,7 +14654,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14559,11 +14679,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14572,7 +14692,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14597,11 +14717,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14610,7 +14730,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14903,11 +15023,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14916,7 +15036,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14941,11 +15061,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14954,7 +15074,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -14979,11 +15099,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -14992,7 +15112,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15270,11 +15390,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15283,7 +15403,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15308,11 +15428,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15321,7 +15441,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15346,11 +15466,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15359,7 +15479,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15384,11 +15504,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15397,7 +15517,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15422,11 +15542,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15435,7 +15555,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15751,11 +15871,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15764,7 +15884,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15789,11 +15909,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15802,7 +15922,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15827,11 +15947,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15840,7 +15960,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15865,11 +15985,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15878,7 +15998,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -15903,11 +16023,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -15916,7 +16036,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16194,11 +16314,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16207,7 +16327,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16232,11 +16352,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16245,7 +16365,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16270,11 +16390,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16283,7 +16403,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16308,11 +16428,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16321,7 +16441,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16637,11 +16757,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16650,7 +16770,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16675,11 +16795,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16688,7 +16808,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16713,11 +16833,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16726,7 +16846,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16751,11 +16871,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16764,7 +16884,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -16789,11 +16909,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -16802,7 +16922,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17080,11 +17200,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17093,7 +17213,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17118,11 +17238,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17131,7 +17251,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17156,11 +17276,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17169,7 +17289,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17194,11 +17314,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17207,7 +17327,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17232,11 +17352,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17245,7 +17365,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17523,11 +17643,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17536,7 +17656,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17561,11 +17681,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17574,7 +17694,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17599,11 +17719,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17612,7 +17732,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17890,11 +18010,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17903,7 +18023,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17928,11 +18048,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17941,7 +18061,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -17966,11 +18086,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -17979,7 +18099,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18004,11 +18124,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18017,7 +18137,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18295,11 +18415,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18308,7 +18428,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18333,11 +18453,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18346,7 +18466,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18371,11 +18491,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18384,7 +18504,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18409,11 +18529,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18422,7 +18542,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18447,11 +18567,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18460,7 +18580,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18750,11 +18870,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18763,7 +18883,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18788,11 +18908,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18801,7 +18921,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18826,11 +18946,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18839,7 +18959,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18864,11 +18984,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18877,7 +18997,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18902,11 +19022,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18915,7 +19035,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -18978,11 +19098,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 429 TooManyRequests
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? TooManyRequests()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? TooManyRequests()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsTooManyRequests
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -18991,7 +19111,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryTooManyRequests([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryTooManyRequests([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19281,11 +19401,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19294,7 +19414,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19319,11 +19439,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19332,7 +19452,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19357,11 +19477,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19370,7 +19490,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19395,11 +19515,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19408,7 +19528,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19433,11 +19553,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19446,7 +19566,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19756,11 +19876,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19769,7 +19889,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19794,11 +19914,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19807,7 +19927,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19832,11 +19952,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19845,7 +19965,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19870,11 +19990,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19883,7 +20003,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19908,11 +20028,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19921,7 +20041,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -19984,11 +20104,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 422 UnprocessableContent
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnprocessableContent()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnprocessableContent()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnprocessableContent
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -19997,7 +20117,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20275,11 +20395,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20288,7 +20408,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20313,11 +20433,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20326,7 +20446,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20351,11 +20471,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20364,7 +20484,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20389,11 +20509,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20402,7 +20522,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20703,11 +20823,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20716,7 +20836,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20741,11 +20861,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20754,7 +20874,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20779,11 +20899,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20792,7 +20912,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -20817,11 +20937,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -20830,7 +20950,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21136,11 +21256,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21149,7 +21269,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21174,11 +21294,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21187,7 +21307,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21441,11 +21561,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21454,7 +21574,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21479,11 +21599,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21492,7 +21612,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21517,11 +21637,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21530,7 +21650,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21818,11 +21938,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21831,7 +21951,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21856,11 +21976,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21869,7 +21989,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21894,11 +22014,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21907,7 +22027,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21932,11 +22052,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21945,7 +22065,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -21970,11 +22090,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 413 ContentTooLarge
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? ContentTooLarge()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? ContentTooLarge()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsContentTooLarge
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -21983,7 +22103,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryContentTooLarge([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22008,11 +22128,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 415 UnsupportedMediaType
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? UnsupportedMediaType()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? UnsupportedMediaType()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnsupportedMediaType
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22021,7 +22141,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnsupportedMediaType([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnsupportedMediaType([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22285,11 +22405,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22298,7 +22418,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22323,11 +22443,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22336,7 +22456,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22361,11 +22481,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22374,7 +22494,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22693,11 +22813,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22706,7 +22826,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22731,11 +22851,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22744,7 +22864,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -22769,11 +22889,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -22782,7 +22902,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23028,11 +23148,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23041,7 +23161,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23066,11 +23186,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23079,7 +23199,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23104,11 +23224,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23117,7 +23237,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23142,11 +23262,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23155,7 +23275,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23424,11 +23544,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23437,7 +23557,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23462,11 +23582,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23475,7 +23595,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23500,11 +23620,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23513,7 +23633,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23538,11 +23658,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23551,7 +23671,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23852,11 +23972,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23865,7 +23985,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23890,11 +24010,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23903,7 +24023,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23928,11 +24048,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23941,7 +24061,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -23966,11 +24086,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -23979,7 +24099,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24004,11 +24124,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24017,7 +24137,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24307,11 +24427,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24320,7 +24440,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24345,11 +24465,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24358,7 +24478,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24383,11 +24503,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 403 Forbidden
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Forbidden()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Forbidden()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsForbidden
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24396,7 +24516,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryForbidden([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24421,11 +24541,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24434,7 +24554,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24656,11 +24776,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24669,7 +24789,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -24986,11 +25106,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 400 BadRequest
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? BadRequest()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? BadRequest()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsBadRequest
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -24999,7 +25119,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryBadRequest([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -25024,11 +25144,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 404 NotFound
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? NotFound()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? NotFound()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsNotFound
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -25037,7 +25157,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryNotFound([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -25062,11 +25182,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 409 Conflict
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Conflict()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Conflict()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsConflict
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -25075,7 +25195,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryConflict([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -25100,11 +25220,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 429 TooManyRequests
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? TooManyRequests()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? TooManyRequests()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsTooManyRequests
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -25113,7 +25233,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryTooManyRequests([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryTooManyRequests([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
@@ -25367,11 +25487,11 @@ namespace Unframe.ControlPlane.Api
             /// Deserializes the response if the response is 401 Unauthorized
             /// </summary>
             /// <returns></returns>
-            public Unframe.ControlPlane.Model.PresentationsGet401Response? Unauthorized()
+            public Unframe.ControlPlane.Model.PresentationsGet400Response? Unauthorized()
             {
                 // This logic may be modified with the AsModel.mustache template
                 return IsUnauthorized
-                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet401Response>(RawContent, _jsonSerializerOptions)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Unframe.ControlPlane.Model.PresentationsGet400Response>(RawContent, _jsonSerializerOptions)
                     : null;
             }
 
@@ -25380,7 +25500,7 @@ namespace Unframe.ControlPlane.Api
             /// </summary>
             /// <param name="result"></param>
             /// <returns></returns>
-            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet401Response? result)
+            public bool TryUnauthorized([NotNullWhen(true)]out Unframe.ControlPlane.Model.PresentationsGet400Response? result)
             {
                 result = null;
 
