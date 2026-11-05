@@ -304,7 +304,9 @@ describe("session HTTP lifecycle", () => {
     });
   });
 
-  it("creates, joins, bootstraps, and makes credentials subordinate to Ended", async () => {
+  it("automatically prepares new rooms and lets viewers connect before the presentation starts", async ({
+    onTestFinished,
+  }) => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;
     const viewerId = `viewer-${suffix}`;
@@ -355,6 +357,31 @@ describe("session HTTP lifecycle", () => {
       );
 
     await publish(presentationId);
+    const runtimeId = `runtime-${suffix}`;
+    onTestFinished(async () => {
+      await env.DB.prepare("DELETE FROM runtime_hosts WHERE runtime_id = ?").bind(runtimeId).run();
+    });
+    const endpoint = "https://runtime.example.test";
+    const host = {
+      bootId: "boot-1",
+      bootStartedAt: "2026-08-18T00:00:00.000Z",
+      endpoint,
+      accepting: true,
+      capacity: 1,
+    };
+    const hostRequest = (action: "start" | "heartbeat", body: unknown) =>
+      app.fetch(
+        new Request(`https://api.example.com/internal/runtime/hosts/${runtimeId}/${action}`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer test-service-identity-secret-32-characters",
+          },
+          body: JSON.stringify(body),
+        }),
+        runtimeEnvironment(),
+      );
+    expect((await hostRequest("start", host)).status).toBe(200);
     const created = await request("/sessions", ownerId, { presentationId });
     expect(created.status).toBe(201);
     const creation = await created.json<{
@@ -383,48 +410,44 @@ describe("session HTTP lifecycle", () => {
       (await request("/sessions/join", viewerId, { joinCode: creation.joinCode })).status,
     ).toBe(200);
     await pinPublication(creation.session.id, presentationId, viewerId);
-    expect((await request(`/sessions/${creation.session.id}/start`, ownerId, {})).status).toBe(200);
     expect((await request(`/sessions/${creation.session.id}/bootstrap`, viewerId, {})).status).toBe(
       409,
     );
-    await env.DB.prepare(
-      "INSERT INTO venue_edges (id, runtime_id, status, runtime_version, protocol_version, capacity, local_endpoint, certificate_fingerprint, health, registered_at, last_seen_at, created_at) VALUES (?, ?, 'active', '1', 'v3', 50, ?, ?, 'healthy', ?, ?, ?)",
-    )
-      .bind(
-        `edge-${suffix}`,
-        `runtime-${suffix}`,
-        "https://edge.example.com",
-        `sha256:${"a".repeat(64)}`,
-        "2026-08-17T00:00:00.000Z",
-        "2026-08-18T00:00:00.000Z",
-        "2026-08-17T00:00:00.000Z",
-      )
-      .run();
-    await env.DB.prepare(
-      "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', ?, ?, ?, 1, 1, ?, ?)",
-    )
-      .bind(
-        creation.session.id,
-        `runtime-${suffix}`,
-        "https://edge.example.com",
-        `sha256:${"a".repeat(64)}`,
-        `edge-${suffix}`,
-        "2026-08-17T00:00:00.000Z",
-        "2026-08-21T00:00:00.000Z",
-      )
-      .run();
+    const assignment = { sessionId: creation.session.id, assignmentEpoch: 1 };
+    const heartbeat = {
+      bootId: host.bootId,
+      endpoint,
+      accepting: true,
+      capacity: 1,
+      generation: 1,
+    };
+    await expect(
+      (await hostRequest("heartbeat", { ...heartbeat, sessions: [] })).json(),
+    ).resolves.toMatchObject({ assignments: [assignment] });
+    expect(
+      (
+        await hostRequest("heartbeat", {
+          ...heartbeat,
+          sessions: [{ ...assignment, state: "ready" }],
+        })
+      ).status,
+    ).toBe(200);
+    await expect(
+      (await request(`/sessions/${creation.session.id}`, viewerId)).json(),
+    ).resolves.toMatchObject({ state: "Waiting" });
     const bootstrap = await request(`/sessions/${creation.session.id}/bootstrap`, viewerId, {});
+    expect(bootstrap.status).toBe(200);
     await expect(bootstrap.json()).resolves.toMatchObject({
-      endpoint: "https://edge.example.com",
-      runtimeId: `runtime-${suffix}`,
-      runtimeKind: "VenueEdge",
+      endpoint,
+      runtimeId,
+      runtimeKind: "Cloud",
       assignmentEpoch: 1,
       presentationId,
       presentationRevision: 1,
-      fingerprint: `sha256:${"a".repeat(64)}`,
       credential: "signed-session-token",
     });
 
+    expect((await request(`/sessions/${creation.session.id}/start`, ownerId, {})).status).toBe(200);
     expect((await request(`/sessions/${creation.session.id}/end`, ownerId, {})).status).toBe(200);
     await expect(
       env.DB.prepare(

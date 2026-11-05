@@ -42,7 +42,7 @@ func TestCheckpointRejectionRevalidatesAssignmentWithoutPausingOnTransportFailur
 			reader := leaseResponse(func(context.Context, persistence.BootstrapRequest) (persistence.RuntimeLease, error) {
 				return persistence.RuntimeLease{}, tc.err
 			})
-			if err := verifySessionLease(context.Background(), reader, guard, request, persistence.BootstrapPublication{}); !errors.Is(err, tc.err) {
+			if _, err := verifySessionLease(context.Background(), reader, guard, request, persistence.BootstrapPublication{}); !errors.Is(err, tc.err) {
 				t.Fatalf("verification=%v", err)
 			}
 			claim := assignment.AssignmentClaim{SessionID: a.SessionID, RuntimeID: a.RuntimeID, RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: a.AssignmentEpoch, PresentationRevision: a.PresentationRevision}
@@ -50,6 +50,28 @@ func TestCheckpointRejectionRevalidatesAssignmentWithoutPausingOnTransportFailur
 				t.Fatalf("authority changed incorrectly: %v", err)
 			}
 		})
+	}
+}
+
+func TestCloudStartsWaitingRuntimeAfterControlPlaneConfirmation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	execution, _, _ := servingExecution(t, ctx, "waiting-room", transport.NewSessionRouter())
+	runtime := execution.runtime
+	runtime.WaitForPresentationStart()
+	if err := runtime.JoinParticipant(ctx, session.Identity{ParticipantID: "viewer", Role: session.RoleViewer}); err != nil {
+		t.Fatal(err)
+	}
+	checks := 0
+	awaitPresentationStart(ctx, runtime, func(context.Context) (bool, error) {
+		checks++
+		if runtime.Snapshot().Clock.GetPaused() == nil {
+			t.Fatal("runtime started before the Control Plane confirmed start")
+		}
+		return checks == 2, nil
+	})
+	if checks != 2 || runtime.Snapshot().Clock.GetRunning() == nil {
+		t.Fatal("confirmed presentation start did not reach the runtime")
 	}
 }
 

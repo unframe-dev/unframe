@@ -49,10 +49,10 @@ type runtimeLeaseReader interface {
 	Lease(context.Context, persistencehttp.BootstrapRequest) (persistencehttp.RuntimeLease, error)
 }
 
-func refreshV2Lease(ctx context.Context, reader runtimeLeaseReader, guard *assignment.AssignmentGuard, request persistencehttp.BootstrapRequest, pin persistencehttp.BootstrapPublication) error {
+func refreshV2Lease(ctx context.Context, reader runtimeLeaseReader, guard *assignment.AssignmentGuard, request persistencehttp.BootstrapRequest, pin persistencehttp.BootstrapPublication) (string, error) {
 	claim := assignment.AssignmentClaim{SessionID: request.SessionID, RuntimeID: request.RuntimeID, RuntimeKind: request.RuntimeKind, AssignmentEpoch: request.AssignmentEpoch, PresentationRevision: request.PresentationRevision}
 	if err := guard.ValidateCurrent(claim); err != nil && !errors.Is(err, assignment.ErrLeaseExpired) {
-		return err
+		return "", err
 	}
 	value, err := reader.Lease(ctx, request)
 	if err != nil {
@@ -60,13 +60,16 @@ func refreshV2Lease(ctx context.Context, reader runtimeLeaseReader, guard *assig
 		if errors.As(err, &response) && (response.StatusCode == 401 || response.StatusCode == 403 || response.StatusCode == 404 || response.StatusCode == 409 || response.StatusCode == 410) || errors.Is(err, persistencehttp.ErrInvalidBootstrap) {
 			guard.Revoke()
 		}
-		return err
+		return "", err
 	}
 	if value.Publication != pin {
 		guard.Revoke()
-		return fmt.Errorf("runtime publication fence changed")
+		return "", fmt.Errorf("runtime publication fence changed")
 	}
-	return applyV2Lease(guard, value.Assignment)
+	if err := applyV2Lease(guard, value.Assignment); err != nil {
+		return "", err
+	}
+	return value.SessionState, nil
 }
 
 func applyV2Lease(guard *assignment.AssignmentGuard, value persistencehttp.BootstrapAssignment) error {
@@ -190,8 +193,12 @@ func main() {
 	v2Runtime.ConfigureCompletion(v2CheckpointCallback{client: persistence, revision: bootstrap.Assignment.PresentationRevision})
 	claim := assignment.AssignmentClaim{SessionID: config.assignment.SessionID, RuntimeID: config.assignment.RuntimeID, RuntimeKind: config.assignment.RuntimeKind, AssignmentEpoch: config.assignment.AssignmentEpoch, PresentationRevision: config.assignment.PresentationRevision}
 	v2Runtime.ConfigureResumeValidation(func(ctx context.Context) error {
-		if err := refreshV2Lease(ctx, persistence, guard, bootstrapRequest, bootstrap.Publication); err != nil {
+		state, err := refreshV2Lease(ctx, persistence, guard, bootstrapRequest, bootstrap.Publication)
+		if err != nil {
 			return err
+		}
+		if state != persistencehttp.SessionPresenting {
+			return errors.New("presentation has not started")
 		}
 		return guard.AllowCommand(claim)
 	})
@@ -228,6 +235,9 @@ func main() {
 			slog.Error("recover runtime without checkpoint", "error", err)
 			os.Exit(1)
 		}
+	}
+	if bootstrap.SessionState == persistencehttp.SessionWaiting {
+		v2Runtime.WaitForPresentationStart()
 	}
 	go func() {
 		if err := v2Runtime.RunCheckpointWorker(ctx, nil); err != nil && !errors.Is(err, context.Canceled) {
@@ -266,8 +276,13 @@ func main() {
 			select {
 			case <-ticker.C:
 				refreshCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-				if err := refreshV2Lease(refreshCtx, persistence, guard, bootstrapRequest, bootstrap.Publication); err != nil {
+				state, err := refreshV2Lease(refreshCtx, persistence, guard, bootstrapRequest, bootstrap.Publication)
+				if err != nil {
 					slog.Warn("refresh realtime lease", "error", err)
+				} else if state == persistencehttp.SessionPresenting && guard.AllowCommand(claim) == nil {
+					if err := v2Runtime.StartPresentation(refreshCtx); err != nil {
+						slog.Warn("start presentation", "error", err)
+					}
 				}
 				cancel()
 			case <-ctx.Done():

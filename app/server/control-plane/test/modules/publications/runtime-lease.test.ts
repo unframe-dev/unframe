@@ -59,6 +59,7 @@ describe("runtime lease", () => {
     const response = await createApp().fetch(request(), runtimeEnvironment());
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
+      sessionState: "Presenting",
       assignment: {
         sessionId: "lease-session",
         runtimeId: "lease-runtime",
@@ -76,6 +77,29 @@ describe("runtime lease", () => {
       },
     });
   });
+  it("reports the Session state before and after the presenter starts it", async () => {
+    await env.DB.prepare(
+      "UPDATE presentation_sessions SET state = 'Waiting' WHERE id = 'lease-session'",
+    ).run();
+    const app = createApp({
+      identityProvider: async () => ({ userId: "lease-owner", globalRole: "user" }),
+    });
+
+    const waiting = await app.fetch(request(), runtimeEnvironment());
+    expect(waiting.status).toBe(200);
+    await expect(waiting.json()).resolves.toMatchObject({ sessionState: "Waiting" });
+
+    const started = await app.fetch(
+      new Request("https://example.test/sessions/lease-session/start", { method: "POST" }),
+      runtimeEnvironment(),
+    );
+    expect(started.status).toBe(200);
+
+    const presenting = await app.fetch(request(), runtimeEnvironment());
+    expect(presenting.status).toBe(200);
+    await expect(presenting.json()).resolves.toMatchObject({ sessionState: "Presenting" });
+  });
+
   it("fences an old Host generation before its assignment lease expires", async () => {
     await env.DB.batch([
       env.DB.prepare("UPDATE runtime_hosts SET generation = 2 WHERE runtime_id = 'lease-runtime'"),

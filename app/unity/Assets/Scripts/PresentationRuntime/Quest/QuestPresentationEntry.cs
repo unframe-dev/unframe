@@ -127,7 +127,8 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 CommandOutcome outcome = await runtime.SendConfirmedAsync(QuestPresentationInput.CreateControl(kind,
                     runtime.PresentationOriginVersion, runtime.InputSynchronization.CommandEpoch), linked.Token);
-                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted
+                    && !(kind == RuntimeControlKind.Resume && outcome.NoOp?.Reason == CommandNoOpReason.AlreadyRunning))
                     throw new InvalidOperationException("Presenter control was not accepted: " + outcome.ResultCase);
             }
         }

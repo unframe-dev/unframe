@@ -22,6 +22,66 @@ func (s *V2Session) ConfigureCompletion(writer V2CompletionWriter) {
 	s.completionWriter = writer
 }
 
+// WaitForPresentationStart is called after recovery and before admitting connections.
+func (s *V2Session) WaitForPresentationStart() {
+	s.operationMu.Lock()
+	defer s.operationMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.snapshot.Clock.GetTerminating() == nil {
+		s.waitingForStart = true
+		if s.snapshot.Clock.GetRunning() != nil {
+			s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Paused{Paused: &realtimev2.Paused{Reason: realtimev2.PauseReason_PAUSE_REASON_EXPLICIT_PAUSE}}
+		}
+	}
+}
+
+// StartPresentation applies a start confirmed by the current Control Plane lease.
+func (s *V2Session) StartPresentation(ctx context.Context) error {
+	s.operationMu.Lock()
+	defer s.operationMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.waitingForStart || s.snapshot.Clock.GetTerminating() != nil || s.durability.completing {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := s.validateV2ResumeState(); err != nil {
+		return err
+	}
+	previous := proto.Clone(s.snapshot).(*realtimev2.CanonicalRuntimeSnapshot)
+	status, err := s.resumeV2Clock()
+	if err != nil {
+		return err
+	}
+	events := []*realtimev2.ProjectedReliableEvent{s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: status}})}
+	if err := s.requireV3Synchronization(realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RESUMED, false); err != nil {
+		s.snapshot = previous
+		return err
+	}
+	if err := s.commitV2Mutation(ctx, previous, &events); err != nil {
+		return err
+	}
+	s.capacityFault = nil
+	s.finishV2Resume()
+	return nil
+}
+
+func (s *V2Session) resumeV2Clock() (*realtimev2.RuntimeStatusChanged, error) {
+	if _, err := s.releaseFreshV3Anchors(time.Now()); err != nil {
+		return nil, err
+	}
+	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}
+	return &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}, nil
+}
+
+func (s *V2Session) finishV2Resume() {
+	s.waitingForStart = false
+	s.lastTick = time.Now()
+}
+
 func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identity, command *realtimev2.RuntimeControlCommand) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
 	if err := protocolv2.ValidateMessage(command); err != nil {
 		return nil, nil, err
@@ -63,6 +123,9 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_SESSION_ENDED), nil, nil
 	}
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_SELECT_STEP {
+		if s.waitingForStart {
+			return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_RUNTIME_NOT_ACCEPTING_INPUT), nil, nil
+		}
 		return s.selectV3Step(ctx, command, key, fingerprint)
 	}
 	noOp := realtimev2.CommandNoOpReason_COMMAND_NO_OP_REASON_UNSPECIFIED
@@ -90,12 +153,11 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		if err := s.validateV2Resume(ctx); err != nil {
 			return nil, nil, err
 		}
-		if _, err := s.releaseFreshV3Anchors(time.Now()); err != nil {
-			s.snapshot = previous
+		var err error
+		status, err = s.resumeV2Clock()
+		if err != nil {
 			return nil, nil, err
 		}
-		s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}
-		status = &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}
 	case realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RECALIBRATE:
 		if s.snapshot.Clock.GetTerminating() != nil {
 			return v3Rejected(command.ClientEventId, realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_SESSION_ENDED), nil, nil
@@ -158,12 +220,29 @@ func (s *V2Session) RuntimeControl(ctx context.Context, identity session.Identit
 		return nil, nil, err
 	}
 	if command.Kind == realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME {
-		s.lastTick = time.Now()
+		s.finishV2Resume()
 	}
 	return proto.Clone(outcome).(*realtimev2.CommandOutcome), cloneV2Events(events), nil
 }
 
 func (s *V2Session) validateV2Resume(ctx context.Context) error {
+	if err := s.validateV2ResumeState(); err != nil {
+		return err
+	}
+	if s.resumeValidator != nil {
+		validate := s.resumeValidator
+		s.mu.Unlock()
+		err := validate(ctx)
+		s.mu.Lock()
+		return err
+	}
+	if s.waitingForStart {
+		return ErrV2RuntimeDefinition
+	}
+	return nil
+}
+
+func (s *V2Session) validateV2ResumeState() error {
 	if fault := s.capacityFault; fault != nil && (fault.StepStartStateBytes > protocolv2.MaximumStepStartStateBytes || fault.StepStartHistoryBytes > protocolv2.MaximumStepStartHistoryBytes || fault.CanonicalSnapshotBytes > protocolv2.MaximumCanonicalSnapshotBytes) {
 		return ErrV3RuntimeCapacity
 	}
@@ -180,17 +259,7 @@ func (s *V2Session) validateV2Resume(ctx context.Context) error {
 		return err
 	}
 	_, _, _, err := s.nextV2Due(math.MaxUint64)
-	if err != nil {
-		return err
-	}
-	if s.resumeValidator != nil {
-		validate := s.resumeValidator
-		s.mu.Unlock()
-		err := validate(ctx)
-		s.mu.Lock()
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *V2Session) prepareV2Termination(events []*realtimev2.ProjectedReliableEvent, reason realtimev2.TerminationReason) ([]*realtimev2.ProjectedReliableEvent, error) {

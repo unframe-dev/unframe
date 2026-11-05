@@ -586,7 +586,10 @@ describe("publication service", () => {
     const winningBoot = claims[0]!.status === 200 ? "first-process" : "concurrent-process";
     const first = claims.find((response) => response.status === 200);
     assert.isDefined(first);
-    await expect(first.json()).resolves.toMatchObject({ checkpoint: null });
+    await expect(first.json()).resolves.toMatchObject({
+      sessionState: "Presenting",
+      checkpoint: null,
+    });
     expect((await bootstrap(winningBoot)).status).toBe(200);
     expect((await bootstrap("restarted-process")).status).toBe(409);
     await env.DB.batch([
@@ -625,7 +628,7 @@ describe("publication service", () => {
     await service.publish(owner, "demo", copy.buildManifest.buildId, null);
     await env.DB.batch([
       env.DB.prepare(
-        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('publication-runtime-session', 'demo', ?, 'publication-runtime-hash', 'Presenting', '2026', 1)",
+        "INSERT INTO presentation_sessions (id, presentation_id, presenter_id, join_code_hash, state, created_at, publication_epoch) VALUES ('publication-runtime-session', 'demo', ?, 'publication-runtime-hash', 'Waiting', '2026', 1)",
       ).bind(owner.userId),
       env.DB.prepare(
         "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, epoch, revision, issued_at, lease_expires_at, host_generation, execution_state) VALUES ('publication-runtime-session', 'runtime-demo', 'Cloud', 'https://runtime.example.test', 1, 1, '2026', '2099-01-01T00:00:00.000Z', 1, 'ready')",
@@ -649,6 +652,7 @@ describe("publication service", () => {
     );
     expect(initial.status).toBe(200);
     await expect(initial.json()).resolves.toMatchObject({
+      sessionState: "Waiting",
       checkpoint: null,
       checkpointSource: null,
     });
