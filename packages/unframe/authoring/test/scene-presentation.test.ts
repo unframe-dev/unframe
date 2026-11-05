@@ -131,3 +131,30 @@ it("accepts group ownership for flat scene instances and scene Timelines", () =>
   expect(grouped.scene[0]?.owner).toEqual({ kind: "group", groupId: "main" });
   expect(grouped.flow.timelines?.[0]?.owner).toEqual({ kind: "group", groupId: "main" });
 });
+
+it("accepts a model following a presenter hand for live gesture trails", () => {
+  const parent = {
+    kind: "anchor",
+    owner: { kind: "presenter" },
+    target: "rightHand",
+    followPosition: true,
+    followRotation: false,
+  } as const;
+  const result = definePresentation({
+    ...presentation,
+    scene: [{ ...presentation.scene[0], parent }],
+  });
+  expect(result.scene[0]?.parent).toEqual(parent);
+});
+
+it("rejects an unknown presenter anchor target at the Source boundary", () => {
+  const input = JSON.parse(JSON.stringify(presentation));
+  input.scene[0].parent = {
+    kind: "anchor",
+    owner: { kind: "presenter" },
+    target: "unknownHand",
+    followPosition: true,
+    followRotation: false,
+  };
+  expect(() => definePresentation(input)).toThrow();
+});

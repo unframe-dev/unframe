@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { z } from "zod";
+import type { PresentationDefinition } from "@unframe-dev/presentation";
 import type {
   ComponentManifest,
   PresentationDeclaration,
@@ -159,9 +160,13 @@ export type ReactSceneBase = {
 };
 export type ModelSceneBase = Omit<
   ReactSceneBase,
-  "component" | "props" | "physicalSizeMeters" | "fit"
+  "component" | "props" | "physicalSizeMeters" | "fit" | "parent"
 > & {
   readonly model: AssetReference;
+  readonly parent: Extract<
+    PresentationDefinition["scene"]["nodes"][string]["parent"],
+    { kind: "stage" | "anchor" }
+  >;
 };
 export type SceneBase = ReactSceneBase | ModelSceneBase;
 type CheckSceneItem<I> = I extends ModelSceneBase
@@ -409,6 +414,16 @@ const staticModelSceneItemSchema = sceneDataSchema
   .omit({ props: true, physicalSizeMeters: true, fit: true })
   .extend({
     model: z.strictObject({ kind: z.literal("asset-ref"), assetId: id }),
+    parent: z.discriminatedUnion("kind", [
+      z.strictObject({ kind: z.literal("stage") }),
+      z.strictObject({
+        kind: z.literal("anchor"),
+        owner: z.strictObject({ kind: z.literal("presenter") }),
+        target: z.enum(["head", "leftHand", "rightHand", "body"]),
+        followPosition: z.boolean(),
+        followRotation: z.boolean(),
+      }),
+    ]),
   });
 export type StaticReactSceneItem = z.infer<typeof staticSceneItemSchema>;
 export type StaticModelSceneItem = z.infer<typeof staticModelSceneItemSchema>;

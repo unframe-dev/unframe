@@ -24,7 +24,7 @@ Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active�
 
 [Unity API](../app/unity/Assets/Scripts/VisualEffects/README.md) と [Web API](../app/web/audience/src/visual-effects/README.md) は通信から独立している。接続層が Node ID を Transform／Object3D に解決し、共有時計で更新する。Run の消失、対象の変更、Scene の破棄、切断で描画資源を解放する。
 
-HandGlow は既存の projected anchor binding を利用する。Source に指定した左右の手へ追従する presenterAnchor Node（followPosition: true）が必要で、その Node を対象クライアントの投影に含めること。手の Anchor がない場合や Pose が無効・古い場合、新しい残光は追加されない。演出対象 Node はその Anchor とは別でもよい。
+HandGlow は既存の projected anchor binding を利用する。Source に指定した左右の手へ追従する Anchor Node（followPosition: true）が必要で、その Node を対象クライアントの投影に含めること。配列形式の Model では `parent: { kind: "anchor", owner: { kind: "presenter" }, target: "rightHand", followPosition: true, followRotation: false }` のように指定する。手の Anchor がない場合や Pose が無効・古い場合、新しい残光は追加されない。演出対象 Node はその Anchor とは別でもよい。
 
 Audience は描画準備済みの View と同じ時点の Anchor を使い、受信後もサンプルの500ms失効を判定する。RuntimeView の置換時は以前のライブ座標を破棄し、サーバーが確定した凍結座標を使う。
 

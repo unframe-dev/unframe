@@ -330,3 +330,25 @@ it("keeps a group-owned scene Timeline with its group-owned React and Model node
   for (const node of Object.values(result.value.scene.nodes))
     expect(node.owner).toEqual({ kind: "group", groupId: "main" });
 });
+
+it("preserves a presenter hand anchor on a model in a flat scene", () => {
+  const input = project();
+  const parent = {
+    kind: "anchor",
+    owner: { kind: "presenter" },
+    target: "rightHand",
+    followPosition: true,
+    followRotation: false,
+  };
+  const result = resolvePresentation({
+    ...input,
+    presentation: {
+      ...input.presentation,
+      scene: [{ ...input.presentation.scene[0], parent }, input.presentation.scene[1]],
+    },
+  });
+  assert.isTrue(result.valid, JSON.stringify(result.diagnostics));
+  expect(
+    Object.values(result.value.scene.nodes).find((node) => node.name === "logo")?.parent,
+  ).toEqual(parent);
+});
