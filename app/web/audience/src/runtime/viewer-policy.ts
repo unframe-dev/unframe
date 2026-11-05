@@ -2,9 +2,9 @@ import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 
 const viewerRole = 2;
 
-// Viewer uses replacement views for Step restore and rejects unsupported Anchor display state.
+// TRACKING covers the projected Presenter Anchor bindings received by the Viewer.
 export const viewerRuntimeCapabilities: readonly number[] = Object.freeze([
-  1, 2, 3, 4, 5, 8, 9, 10, 11,
+  1, 2, 3, 4, 5, 6, 8, 9, 10, 11,
 ]);
 
 export function assertViewerRuntimeCapabilities(required: readonly number[] | undefined): void {
