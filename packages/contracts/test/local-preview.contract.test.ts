@@ -14,6 +14,7 @@ test("Preview playback carries ordered state and the shared runtime clock withou
     nodeStates: [],
     surfaceStates: [],
     activeRuns: [],
+    effectRuns: [],
     mediaStates: [],
     modelClipStates: [],
     variableStates: [{ variableId: "caption", value: { stringValue: "Ready" } }],

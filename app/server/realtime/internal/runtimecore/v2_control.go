@@ -242,6 +242,10 @@ func (s *V2Session) prepareV2Termination(events []*realtimev2.ProjectedReliableE
 		surface.TransitionRunId = nil
 	}
 	s.snapshot.ActiveRuns = nil
+	if len(s.snapshot.EffectRuns) > 0 {
+		s.snapshot.EffectRuns = nil
+		events = append(events, s.nextEvent(effectRunsEvent(s.snapshot)))
+	}
 	s.snapshot.StepExecution.Timers = nil
 	s.snapshot.Progression.Phase = &realtimev2.ProgressionRuntimeState_Stable{Stable: &realtimev2.StableProgression{}}
 	events = append(events, s.nextEvent(&realtimev2.ProjectedReliableEvent{Payload: &realtimev2.ProjectedReliableEvent_RuntimeStatusChanged{RuntimeStatusChanged: &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Terminating{Terminating: &realtimev2.Terminating{Reason: reason}}}}}))

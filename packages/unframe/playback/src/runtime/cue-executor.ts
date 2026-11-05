@@ -1,3 +1,4 @@
+import { effectRuntimeDuration } from "./effects.js";
 import type { CanonicalRuntimeSnapshot } from "@unframe-dev/contracts/presentation/runtime-projection";
 import type { PresentationDefinition } from "@unframe-dev/contracts/presentation/definition";
 import type { RenderBundle } from "@unframe-dev/contracts/presentation/render-bundle";
@@ -102,6 +103,7 @@ export type CueState = {
   assignmentEpoch: number;
   lastRunSequence: number;
   activeRuns: RuntimeRun[];
+  effectRuns: CanonicalRuntimeSnapshot["effectRuns"];
   phase: ProgressionPhase;
   surfaces: Record<string, string>;
   variables: Record<string, Scalar>;
@@ -199,6 +201,7 @@ const enterStep = (definition: PresentationDefinition, state: CueState, stepId: 
     modelClipStates: state.modelClipStates,
     variables: state.variables,
     activeRuns: state.activeRuns,
+    effectRuns: state.effectRuns,
   });
   state.stepStartHistory = state.stepStartHistory.filter(
     (entry) => entry.groupId !== start.groupId || entry.stepId !== stepId,
@@ -237,6 +240,7 @@ export const createCueState = (
     assignmentEpoch,
     lastRunSequence: 0,
     activeRuns: [],
+    effectRuns: [],
     phase: { kind: "stable" },
     surfaces: {},
     variables: {},
@@ -483,6 +487,9 @@ const applyNext = (
       break;
     case "group": {
       const oldGroup = state.currentGroupId;
+      state.effectRuns = state.effectRuns.filter(
+        (run) => run.owner.kind !== "group" || run.owner.groupId !== oldGroup,
+      );
       for (const run of state.activeRuns)
         if (run.owner.kind === "group" && run.owner.groupId === oldGroup) {
           if (run.completion === "blocking") throw new Error("Blocking Run survived Group exit.");
@@ -526,6 +533,7 @@ const applyNext = (
             reason: "presentationEnded",
           });
       state.activeRuns = [];
+      state.effectRuns = [];
       for (const id of Object.keys(state.modelClipStates))
         state.modelClipStates[id] = { kind: "defaultPose" };
       for (const id of Object.keys(state.mediaStates))
@@ -594,6 +602,45 @@ const evaluateCueEvent = (
   };
   for (const action of cue.actions) {
     switch (action.kind) {
+      case "effect.start": {
+        if (
+          (definition.scene.nodes[action.nodeId]?.owner.kind === "group" &&
+            action.owner.kind === "presentation") ||
+          !next.nodes[action.nodeId] ||
+          (action.owner.kind === "group" && action.owner.groupId !== state.currentGroupId)
+        )
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "invalidTarget" } };
+        if (
+          next.effectRuns.length >= 32 ||
+          !claim(`effect:${action.effectId}`) ||
+          next.effectRuns.some(
+            (run) =>
+              run.effectId === action.effectId ||
+              (run.nodeId === action.nodeId &&
+                run.effect.kind === "dissolve" &&
+                action.effect.kind === "dissolve"),
+          )
+        )
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        checkedTimeAddition(state.runtimeTimeMilliseconds, effectRuntimeDuration(action.effect));
+        next.effectRuns.push({
+          runId: allocateRun(next),
+          effectId: action.effectId,
+          nodeId: action.nodeId,
+          effect: clone(action.effect),
+          seed: action.seed,
+          status: "active",
+          owner: ownerAtStart(action.owner, state),
+          cause: runCause(cue, input, state),
+          startedAtRuntimeTimeMilliseconds: state.runtimeTimeMilliseconds,
+        });
+        break;
+      }
+      case "effect.stop":
+        if (!claim(`effect:${action.effectId}`))
+          return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
+        next.effectRuns = next.effectRuns.filter((run) => run.effectId !== action.effectId);
+        break;
       case "surface.setState": {
         if (claims.has(`media:${action.surfaceId}`) || !claim(`surface:${action.surfaceId}`))
           return { state, outcome: { kind: "rejected", cueId: cue.id, reason: "conflict" } };
@@ -849,6 +896,24 @@ export const completeRuntimeRun = (
   return { state: next, completed: true, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };
 
+export const settleEffectRuns = (state: CueState) => {
+  state.effectRuns = state.effectRuns.filter((run) => {
+    if (
+      run.status === "retained" ||
+      state.runtimeTimeMilliseconds <
+        checkedTimeAddition(run.startedAtRuntimeTimeMilliseconds, effectRuntimeDuration(run.effect))
+    )
+      return true;
+    if (run.effect.kind === "wave") {
+      run.status = "retained";
+      return true;
+    }
+    if (run.effect.kind === "dissolve" && state.nodes[run.nodeId])
+      state.nodes[run.nodeId]!.visible = false;
+    return false;
+  });
+};
+
 export const advanceCueClock = (
   definition: PresentationDefinition,
   state: CueState,
@@ -906,6 +971,7 @@ export const advanceCueClock = (
         suppressCompletionCues = current.phase.kind === "transitioning";
       }
       current.runtimeTimeMilliseconds = nextRun.deadline;
+      settleEffectRuns(current);
       const completion = completeRuntimeRun(definition, current, nextRun.run.runId);
       current = completion.state;
       canceledRuns.push(...(completion.canceledRuns ?? []));
@@ -957,6 +1023,7 @@ export const advanceCueClock = (
     current.runtimeTimeMilliseconds = (
       timer as { dueAtRuntimeTimeMilliseconds: number }
     ).dueAtRuntimeTimeMilliseconds;
+    settleEffectRuns(current);
     current.timerStates[cueId] = { kind: "fired" };
     const result = evaluateCueEvent(
       definition,
@@ -977,6 +1044,7 @@ export const advanceCueClock = (
     if (result.outcome.kind !== "none") outcomes.push(result.outcome);
   }
   current.runtimeTimeMilliseconds = toRuntimeTimeMilliseconds;
+  settleEffectRuns(current);
   return { state: current, outcomes, captures, ...(canceledRuns.length ? { canceledRuns } : {}) };
 };
 

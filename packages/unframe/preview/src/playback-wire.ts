@@ -189,6 +189,39 @@ export const projectPlaybackWire = (
           : {}),
       };
     }),
+  effectRuns: state.effectRuns
+    .filter((run) => visibleNodeIds.has(run.nodeId))
+    .map((run) => ({
+      runId: runIdWire(run.runId),
+      owner:
+        run.owner.kind === "presentation"
+          ? { presentation: {} }
+          : {
+              group: {
+                groupId: run.owner.groupId,
+                groupEntryEpoch: String(run.owner.groupEntryEpoch),
+              },
+            },
+      cause: {
+        ...run.cause,
+        groupEntryEpoch: String(run.cause.groupEntryEpoch),
+        stepEntryEpoch: String(run.cause.stepEntryEpoch),
+      },
+      startedAtRuntimeTimeMs: String(run.startedAtRuntimeTimeMilliseconds),
+      effectId: run.effectId,
+      nodeId: run.nodeId,
+      seed: run.seed,
+      status: run.status === "active" ? 1 : 2,
+      configuration: {
+        kind: run.effect.kind === "wave" ? 1 : run.effect.kind === "handGlow" ? 2 : 3,
+        size: run.effect.size,
+        color: run.effect.color,
+        speed: run.effect.speed,
+        durationMs: String(run.effect.durationMilliseconds),
+        waveCycles: run.effect.kind === "wave" ? run.effect.waveCycles : 0,
+        hand: run.effect.kind === "handGlow" ? (run.effect.hand === "left" ? 1 : 2) : 0,
+      },
+    })),
   activeRuns: state.activeRuns
     .filter((run) =>
       run.kind === "timeline"

@@ -35,6 +35,7 @@ test("the public presentation export exposes the current contract without a vers
     "./presentation/capability",
     "./presentation/common",
     "./presentation/definition",
+    "./presentation/effects",
     "./presentation/publication",
     "./presentation/render-bundle",
     "./presentation/runtime-projection",

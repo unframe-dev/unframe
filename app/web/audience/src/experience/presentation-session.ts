@@ -2,6 +2,8 @@ import type { Camera, WebGLRenderer, Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
+import { createRuntimeEffects } from "../rendering/runtime-effects";
+import { applyRuntimeAnchors } from "../rendering/runtime-anchors";
 import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import { createPngTexturePool, type PngTextureLease } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
@@ -22,10 +24,16 @@ export function createPresentationSession(options: {
   let texturePool: Awaited<ReturnType<typeof createPngTexturePool>> | null = null;
   let textureLease: PngTextureLease | null = null;
   let runtime: ReturnType<typeof createRuntimePlayback> | null = null;
+  const effects = createRuntimeEffects(
+    (nodeId) =>
+      presentation?.root.getObjectByName(`model-node:${nodeId}`) ??
+      presentation?.root.getObjectByName(nodeId),
+  );
   let request: AbortController | null = null;
   let work: Promise<void> = Promise.resolve();
 
   function clearPresentation() {
+    effects.dispose();
     request?.abort();
     request = null;
     if (presentation) renderer?.resetState();
@@ -90,6 +98,7 @@ export function createPresentationSession(options: {
           (pool === previousPool ? 0 : (previousPool?.residentAssets.length ?? 0)),
       });
       if (!pool.canAcquire(groupId, externalResources())) {
+        effects.dispose();
         presentation?.dispose();
         presentation = null;
         textureLease?.release();
@@ -147,6 +156,7 @@ export function createPresentationSession(options: {
         });
         if (!active || pending.signal.aborted || host !== currentHost) return;
         if (presentation) renderer?.resetState();
+        effects.dispose();
         presentation?.dispose();
         presentation = next;
         next = null;
@@ -195,10 +205,17 @@ export function createPresentationSession(options: {
         delivery,
         present: (view) => present(delivery, view),
         clear: clearPresentation,
-        frame(view, runtimeTimeMilliseconds) {
+        frame(view, runtimeTimeMilliseconds, bindings) {
           if (!presentation || presentationDelivery !== delivery) return;
           presentation.setPlaybackEnabled(options.canPlay());
           presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
+          const poses = applyRuntimeAnchors(presentation.root, delivery, view, bindings);
+          effects.frame(
+            view.effectRuns,
+            runtimeTimeMilliseconds,
+            view.clock.lifecycle.kind === "running" ? poses : [],
+            host?.contentRoot.parent ?? undefined,
+          );
           options.onPlaybackBlocked(presentation.playbackBlocked);
         },
       });

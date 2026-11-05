@@ -289,3 +289,15 @@ test("canonical input epochs and Step history identity have the same required ra
     /must match/,
   );
 });
+
+for (const kind of [9, 10]) {
+  test(`Throw/Circle Gesture ${kind} crosses command, accepted event and recognition catalog`, () => {
+    for (const [name, value] of [
+      ["unframe.realtime.GestureInputCommand", { ...gesture, gesture: kind }],
+      ["unframe.realtime.GestureInputAccepted", { gesture: kind }],
+      ["unframe.presentation.PresenterRecognitionCatalog", { gestures: [kind], zones: [] }],
+    ] as const) {
+      assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, value)), value);
+    }
+  });
+}

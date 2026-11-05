@@ -19,6 +19,7 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly PresentationNodeStateApplier stateApplier = new PresentationNodeStateApplier();
         private readonly PresentationPlaybackPlayer playback = new PresentationPlaybackPlayer();
         private PresentationSceneRenderer sceneRenderer;
+        private readonly PresentationEffectPlayer effects = new PresentationEffectPlayer();
         private PresentationPlaybackPlayer.RendererRefresh refreshRenderer;
         private PresentationRealtimeConnection connection;
         private RuntimeClockSnapshot clock;
@@ -149,6 +150,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 connection?.Dispose();
                 connection = null;
+                effects.Clear();
                 playback.Clear();
                 clock = null;
                 sceneRenderer?.Dispose();
@@ -172,7 +174,8 @@ namespace Unframe.Unity.PresentationRuntime
                 clock = latest;
                 clockReceivedAt = Time.realtimeSinceStartupAsDouble;
             }
-            if (!playback.TryRefresh(store, hierarchy, refreshRenderer, RuntimeTimeMs(), out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
+            if (!playback.TryRefresh(store, hierarchy, refreshRenderer, RuntimeTimeMs(), out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
+                || !effects.TryUpdate(store, store.EffectRuns, hierarchy, RuntimeTimeMs(), out error))
             {
                 LastError = error;
                 lifetime.Cancel();
@@ -182,6 +185,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void HandleDisconnected()
         {
             store.ClearCommandOutcome();
+            effects.Clear();
             sceneRenderer?.Videos?.Pause();
             clock = null;
             store.InvalidateAnchorSamples();
@@ -249,7 +253,8 @@ namespace Unframe.Unity.PresentationRuntime
             if (connection != null && connection.SessionReady && sceneRenderer.HasResidentAssets(store))
             {
                 double runtimeTime = RuntimeTimeMs();
-                if (!playback.TryUpdate(store, hierarchy, refreshRenderer, runtimeTime, out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running))
+                if (!playback.TryUpdate(store, hierarchy, refreshRenderer, runtimeTime, out string error, clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
+                    || !effects.TryUpdate(store, store.EffectRuns, hierarchy, runtimeTime, out error))
                 {
                     LastError = error;
                     lifetime.Cancel();
@@ -265,12 +270,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void OnDisable()
         {
+            effects.Clear();
             lifetime?.Cancel();
             if (presentationSpace != null) presentationSpace.gameObject.SetActive(false);
         }
 
         private void OnDestroy()
         {
+            effects.Dispose();
             if (calibration != null) calibration.Changed -= RefreshCalibration;
             if (presentationSpace != null)
             {

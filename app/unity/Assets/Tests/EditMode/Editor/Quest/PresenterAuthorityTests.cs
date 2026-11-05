@@ -43,6 +43,13 @@ public static class PresenterAuthorityTests
         var originReady = originRequired.Clone();
         originReady.Phase = InputSynchronizationPhase.Ready;
         Require(sync.Receive(originReady) && sync.IsReadyAt(11) && sync.CommandEpoch == 4, "placement synchronization required an unnecessary command epoch rotation");
+        var extended = originRequired.Clone();
+        extended.SynchronizationRevision++;
+        extended.CommandEpoch = 4;
+        extended.NextCommandEpoch = 5;
+        extended.RecognitionCatalog.Gestures.Add(GestureKind.Throw);
+        extended.RecognitionCatalog.Gestures.Add(GestureKind.Circle);
+        Require(sync.Receive(extended), "Throw/Circle catalog rejected");
         CheckCapturedContext();
         CheckGestures();
         CheckTriggerCapture();

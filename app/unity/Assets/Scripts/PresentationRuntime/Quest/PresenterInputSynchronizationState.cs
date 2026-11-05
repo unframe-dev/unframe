@@ -70,7 +70,7 @@ namespace Unframe.Unity.PresentationRuntime
             GestureKind previous = GestureKind.Unspecified;
             foreach (GestureKind gesture in catalog.Gestures)
             {
-                if (gesture <= previous || gesture > GestureKind.CloseHands) return false;
+                if (gesture <= previous || gesture > GestureKind.Circle) return false;
                 previous = gesture;
             }
             string prior = null;

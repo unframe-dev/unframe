@@ -103,7 +103,7 @@ func collectionKey(field protoreflect.FieldDescriptor, value protoreflect.Value)
 	}
 	message := value.Message()
 	keys := map[protoreflect.Name][]protoreflect.Name{
-		"NodeRuntimeState": {"node_id"}, "SurfaceRuntimeState": {"surface_id"},
+		"EffectRunSnapshot": {"effect_id"}, "NodeRuntimeState": {"node_id"}, "SurfaceRuntimeState": {"surface_id"},
 		"VariableState": {"variable_id"}, "ModelClipRuntimeState": {"model_node_id"},
 		"MediaRuntimeState": {"surface_id"}, "ProjectedNodeDefinition": {"node_id"},
 		"ProjectedSurfaceDefinition": {"surface_id"}, "ProjectedVariableDefinition": {"variable_id"},
@@ -127,6 +127,9 @@ func validateValue(field protoreflect.FieldDescriptor, value protoreflect.Value,
 	case protoreflect.MessageKind:
 		return validate(value.Message(), path, partialTransform)
 	case protoreflect.EnumKind:
+		if field.ContainingMessage().Name() == "EffectConfiguration" && name == "hand" && value.Enum() == 0 {
+			return nil
+		}
 		if value.Enum() == 0 || field.Enum().Values().ByNumber(value.Enum()) == nil {
 			return invalid()
 		}
@@ -172,7 +175,29 @@ func validateKnownMessage(message protoreflect.Message, path string, partialTran
 	get := func(name string) protoreflect.Value {
 		return message.Get(message.Descriptor().Fields().ByName(protoreflect.Name(name)))
 	}
+	if field := message.Descriptor().Fields().ByName("effect_runs"); field != nil && message.Get(field).List().Len() > 32 {
+		return invalid()
+	}
 	switch message.Descriptor().Name() {
+	case "EffectConfiguration":
+		if get("size").Float() < math.SmallestNonzeroFloat32 || get("size").Float() > math.MaxFloat32 || get("speed").Float() < math.SmallestNonzeroFloat32 || get("speed").Float() > math.MaxFloat32 || get("wave_cycles").Float() < 0 || get("wave_cycles").Float() > 6 || get("duration_ms").Uint() > 9007199254740991 {
+			return invalid()
+		}
+		if get("kind").Enum() == 2 {
+			if get("hand").Enum() == 0 {
+				return invalid()
+			}
+		} else if get("hand").Enum() != 0 {
+			return invalid()
+		}
+		if get("kind").Enum() != 1 && get("wave_cycles").Float() != 0 {
+			return invalid()
+		}
+	case "EffectRunSnapshot":
+		if get("status").Enum() == 2 && get("configuration").Message().Get(get("configuration").Message().Descriptor().Fields().ByName("kind")).Enum() != 1 {
+			return invalid()
+		}
+
 	case "Quaternion":
 		x, y, z, w := get("x").Float(), get("y").Float(), get("z").Float(), get("w").Float()
 		if math.Abs(math.Sqrt(x*x+y*y+z*z+w*w)-1) > 1e-9 {

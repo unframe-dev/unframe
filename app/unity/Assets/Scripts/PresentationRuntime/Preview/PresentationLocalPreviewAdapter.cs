@@ -20,6 +20,9 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, VariableState> variableStates = new Dictionary<string, VariableState>();
         private UnityEngine.Vector3 presenterPosition;
         private UnityEngine.Quaternion presenterRotation = UnityEngine.Quaternion.identity;
+        private ulong poseSequence = 1;
+        public IEnumerable<EffectRunSnapshot> EffectRuns { get; private set; } = Array.Empty<EffectRunSnapshot>();
+        internal void ReplaceEffects(IEnumerable<EffectRunSnapshot> runs) { EffectRuns = new List<EffectRunSnapshot>(runs); }
         private List<RuntimeRunSnapshot> activeRuns = new List<RuntimeRunSnapshot>();
         internal readonly Dictionary<string, AssetAccessBinding> Assets;
         internal readonly Dictionary<string, string> References;
@@ -80,7 +83,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
         public NativeUiResidencyPlan NativeUiResidency => envelope.Projection.NativeUiResidency;
         internal void SetPresenterPose(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation)
-        { presenterPosition = position; presenterRotation = rotation; }
+        { presenterPosition = position; presenterRotation = rotation; poseSequence++; }
         public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value)
         {
             value = null;
@@ -88,7 +91,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (node.NodeId != nodeId || node.Parent.PresenterAnchor == null) continue;
                 var anchor = node.Parent.PresenterAnchor;
-                value = new ProjectedAnchorBindingSample();
+                value = new ProjectedAnchorBindingSample { TrackingFrameSequence = poseSequence };
                 UnityEngine.Vector3 offset;
                 switch (anchor.Target)
                 {
@@ -131,7 +134,7 @@ namespace Unframe.Unity.PresentationRuntime
                     ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)
-                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking)
+                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking && capability != RuntimeCapability.EffectPlayback)
                         || !capabilities.Add(capability)) return false;
 
                 var nodes = new Dictionary<string, ProjectedNodeDefinition>();

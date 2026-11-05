@@ -130,6 +130,8 @@ export const previewGestureSchema = z.enum([
   "pullBackward",
   "spreadHands",
   "closeHands",
+  "throw",
+  "circle",
 ]);
 export const previewEventActorSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("presenter") }).strict(),

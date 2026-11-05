@@ -22,6 +22,18 @@ func TestCapabilityNegotiation(t *testing.T) {
 	}
 }
 
+func TestEffectCapabilityNegotiation(t *testing.T) {
+	handshake := &realtimev2.ControlHandshake{ProtocolVersion: "v3", ProgressionContractVersion: 2, SupportedCapabilities: []presentationv2.RuntimeCapability{1, 8, 9, 10}}
+	required := []presentationv2.RuntimeCapability{1, 8, 9, 10, 11}
+	if err := NegotiateControl(handshake, required); err == nil {
+		t.Fatal("renderer without effect support admitted")
+	}
+	handshake.SupportedCapabilities = append(handshake.SupportedCapabilities, 11)
+	if err := NegotiateControl(handshake, required); err != nil {
+		t.Fatalf("effect renderer rejected: %v", err)
+	}
+}
+
 func TestProjectedViewRejectsUnreachableSurfaceState(t *testing.T) {
 	canonical := snapshotFixture()
 	view := &realtimev2.ParticipantRuntimeView{ProjectionProfileId: "profile", AssignmentEpoch: 1, BaseReliableSequence: 3, Progression: canonical.Progression, Clock: canonical.Clock, PresentationOrigin: canonical.PresentationOrigin, SurfaceStates: []*realtimev2.SurfaceRuntimeState{{SurfaceId: "surface", StateId: "state"}}}

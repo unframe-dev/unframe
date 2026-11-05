@@ -2209,3 +2209,106 @@ it("restores stopped video and a held model pose from a replacement view", () =>
     clip: { clipId: "a", positionMilliseconds: 400 },
   });
 });
+
+it.each([9, 10])("accepts Gesture %s reliable events without resync", (gesture) => {
+  const { store, snapshot, fence } = setup();
+  store.applyControl({ connectionSnapshot: snapshot });
+  store.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "1",
+      eventId: "gesture",
+      occurredAtRuntimeTimeMs: "0",
+      gestureInputAccepted: { gesture },
+    },
+  });
+  expect(store.getSnapshot().phase).toBe("ready");
+  expect(store.getSnapshot().reliableSequence).toBe("1");
+});
+it("replaces live Anchor samples immediately with the authoritative frozen view", () => {
+  const { delivery, snapshot, fence, nodeId, transform } = setup();
+  delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
+    presenterAnchor: { target: 2, followPosition: true },
+  };
+  const store = createRuntimeStore(delivery, () => 1000);
+  store.applyControl({ connectionSnapshot: snapshot });
+  store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  store.applyState({
+    stateFrame: {
+      fence,
+      frameSequence: "1",
+      baseReliableSequence: "0",
+      kind: 1,
+      producedAtRuntimeMonotonicMs: "500",
+      elements: [
+        { elementId: nodeId, node: { active: true, visible: true, opacity: 1, transform } },
+      ],
+      anchorBindings: [
+        {
+          nodeId,
+          sample: {
+            trackingFrameSequence: "1",
+            observedAtRuntimeMonotonicMs: "500",
+            position: { x: 1 },
+          },
+        },
+      ],
+    },
+  });
+  expect(store.getAnchorBindings()[nodeId]?.sample?.position?.x).toBe(1);
+  const replacement = structuredClone(snapshot.snapshot!.runtimeView!);
+  replacement.baseReliableSequence = "1";
+  replacement.clock = { runtimeTimeMs: "0", paused: { reason: 1 } };
+  replacement.frozenAnchors = [{ nodeId, position: { x: 2 } }];
+  store.applyControl({
+    reliableEvent: {
+      fence,
+      sequence: "1",
+      eventId: "pause",
+      occurredAtRuntimeTimeMs: "0",
+      runtimeViewReplaced: { runtimeView: replacement },
+    },
+  });
+  expect(store.getSnapshot().phase).toBe("ready");
+  expect(store.getAnchorBindings()).toEqual({});
+  expect(store.getSnapshot().view?.frozenAnchors).toEqual([{ nodeId, position: [2, 0, 0] }]);
+});
+it("expires received Anchor poses on the injected monotonic clock and clears them on State reconnect", () => {
+  const { delivery, snapshot, fence, nodeId, transform } = setup();
+  delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
+    presenterAnchor: { target: 2, followPosition: true },
+  };
+  let now = 1000;
+  const store = createRuntimeStore(delivery, () => now);
+  store.applyControl({ connectionSnapshot: snapshot });
+  store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  store.applyState({
+    stateFrame: {
+      fence,
+      frameSequence: "1",
+      baseReliableSequence: "0",
+      kind: 1,
+      producedAtRuntimeMonotonicMs: "500",
+      elements: [
+        { elementId: nodeId, node: { active: true, visible: true, opacity: 1, transform } },
+      ],
+      anchorBindings: [
+        {
+          nodeId,
+          sample: {
+            trackingFrameSequence: "1",
+            observedAtRuntimeMonotonicMs: "100",
+            position: { x: 1 },
+          },
+        },
+      ],
+    },
+  });
+  expect(store.getSnapshot().phase).toBe("ready");
+  now = 1100;
+  expect(store.getAnchorBindings()[nodeId]?.sample).toBeDefined();
+  now = 1101;
+  expect(store.getAnchorBindings()[nodeId]?.sample).toBeUndefined();
+  store.restartState();
+  expect(store.getAnchorBindings()).toEqual({});
+});

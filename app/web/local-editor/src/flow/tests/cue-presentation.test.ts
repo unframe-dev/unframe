@@ -81,6 +81,80 @@ it.each([
 });
 
 it.each<{
+  effect: Extract<FlowCue["actions"][number], { kind: "effect.start" }>["effect"];
+  details: string[][];
+}>([
+  {
+    effect: {
+      kind: "wave",
+      size: 2,
+      color: { red: 1, green: 0, blue: 0, alpha: 1 },
+      speed: 3,
+      durationMilliseconds: 800,
+      waveCycles: 2,
+    },
+    details: [
+      ["演出", "Wave"],
+      ["波の周期数", "2"],
+    ],
+  },
+  {
+    effect: {
+      kind: "handGlow",
+      size: 2,
+      color: { red: 1, green: 0, blue: 0, alpha: 1 },
+      speed: 3,
+      durationMilliseconds: 800,
+      hand: "left",
+    },
+    details: [
+      ["演出", "HandGlow"],
+      ["手", "左手"],
+    ],
+  },
+  {
+    effect: {
+      kind: "dissolve",
+      size: 2,
+      color: { red: 1, green: 0, blue: 0, alpha: 1 },
+      speed: 3,
+      durationMilliseconds: 800,
+    },
+    details: [["演出", "Dissolve"]],
+  },
+])("shows effect start settings: $effect.kind", ({ effect, details }) => {
+  const presentation = actionPresentation({
+    kind: "effect.start",
+    effectId: "reveal",
+    nodeId: "avatar",
+    effect,
+    owner: { kind: "group", groupId: "intro" },
+    seed: 42,
+  });
+  expect(presentation.title).toBe("演出を開始");
+  expect(presentation.tone).toBe("animation");
+  expect(presentation.rows).toEqual([
+    ["Effect", "reveal"],
+    ["Node", "avatar"],
+    ...details,
+    ["サイズ", "2"],
+    ["色 (r, g, b, a)", "1, 0, 0, 1"],
+    ["速度", "3"],
+    ["基準時間", "800 ms"],
+    ["所有者", "Group intro"],
+    ["Seed", "42"],
+  ]);
+});
+
+it("shows the effect selected for stopping", () => {
+  expect(actionPresentation({ kind: "effect.stop", effectId: "reveal" })).toEqual({
+    title: "演出を停止",
+    tone: "animation",
+    rows: [["Effect", "reveal"]],
+  });
+});
+
+it.each<{
   transition: Extract<FlowCue["actions"][number], { kind: "modelClip.play" }>["transition"];
   rows: string[][];
 }>([

@@ -75,7 +75,6 @@ function canonicalQuaternion(q: readonly number[]) {
 }
 export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): PngPlan {
   const view = participantRuntimeViewSchema.parse(input);
-  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
   const profile = delivery.projectionProfile ?? fail("missing projection");
   if (
     delivery.schemaVersion !== 1 ||
@@ -114,6 +113,15 @@ export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): Pn
   }
   const animated = view.activeRuns.some((run) => run.kind === "timeline");
   canonicalQuaternion(view.presentationOrigin.pose.rotation);
+  if (
+    view.frozenAnchors.some(
+      (anchor) =>
+        !profile.runtimeCatalog?.nodes?.some(
+          (node) => node.nodeId === anchor.nodeId && node.parent?.presenterAnchor,
+        ),
+    )
+  )
+    fail("Invalid frozen Anchor");
   const catalog = profile.runtimeCatalog!;
   if (profile.localOverlays?.length) fail("local overlays are not supported yet");
   const activeOwner = (
@@ -137,7 +145,7 @@ export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): Pn
     canonicalQuaternion(state.transform.rotation);
     const parentId = node.parent?.node
       ? id(node.parent.node.nodeId)
-      : node.parent?.stage
+      : node.parent?.stage || node.parent?.presenterAnchor
         ? null
         : fail("unsupported spatial parent");
     if (parentId !== null) visit(parentId);

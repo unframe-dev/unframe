@@ -1,6 +1,8 @@
 import type { PresentationDefinition, RenderBundle } from "@unframe-dev/contracts/presentation";
 import {
   advanceCueClock,
+  effectRuntimeDuration,
+  settleEffectRuns,
   createCueState,
   executeCueEvent,
   runtimeRunDeadline,
@@ -121,6 +123,14 @@ export const createLocalPlayback = ({
     const checkpoint = copy(capture.state);
     const durationMilliseconds = Math.max(
       0,
+      ...checkpoint.effectRuns
+        .filter(
+          (run) =>
+            visibleNodeIds.has(run.nodeId) &&
+            run.cause.causeEventId === capture.causeEventId &&
+            run.cause.cueId === capture.cueId,
+        )
+        .map((run) => effectRuntimeDuration(run.effect)),
       ...checkpoint.activeRuns
         .filter(
           (run) =>
@@ -162,6 +172,7 @@ export const createLocalPlayback = ({
     inspection.offset = offset;
     state = copy(inspection.occurrence.checkpoint);
     state.runtimeTimeMilliseconds += offset;
+    settleEffectRuns(state);
   };
   const availableInputs = () =>
     (definition.flow.groups[state.currentGroupId]?.steps[state.currentStepId]?.cues ?? []).flatMap(

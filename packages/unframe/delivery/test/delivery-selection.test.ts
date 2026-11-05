@@ -221,6 +221,37 @@ describe("Delivery artifact selection and admission", () => {
     expect(viewer.requiredRuntimeCapabilities).not.toContain(7);
   });
 
+  it("requires effect playback only for projections containing an effect target", () => {
+    const input = baselineSource((current) => {
+      current.definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "presenter" };
+      current.definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        {
+          kind: "effect.start",
+          effectId: "fade",
+          seed: 17,
+          nodeId: "node-baked",
+          owner: { kind: "presentation" },
+          effect: {
+            kind: "dissolve",
+            size: 1,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            speed: 1,
+            durationMilliseconds: 1000,
+          },
+        },
+      ];
+    });
+    expect(
+      buildProjectionProfile(input, "presenter").profile.requiredRuntimeCapabilities,
+    ).toContain(11);
+    expect(
+      buildProjectionProfile(input, "viewer").profile.requiredRuntimeCapabilities,
+    ).not.toContain(11);
+    expect(
+      buildProjectionProfile(baselineSource(), "presenter").profile.requiredRuntimeCapabilities,
+    ).not.toContain(11);
+  });
+
   it.each([67_108_864, 67_126_671])("rejects model import CPU above %s bytes", (limit) => {
     const input = baselineSource((current) => {
       Object.assign(current.renderBundle.models["model-asset"]!, { peakLoadCpuBytes: 67_126_672 });

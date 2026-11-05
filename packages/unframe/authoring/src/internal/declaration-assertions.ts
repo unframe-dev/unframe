@@ -85,6 +85,10 @@ export const assertFlowIds = (flow: FlowDeclaration): void => {
             assertId(invocation.timelineId, "cue timelineId");
             continue;
           }
+          if (invocation.kind === "effect.start" || invocation.kind === "effect.stop") {
+            assertId(invocation.effectId, "cue effectId");
+            continue;
+          }
           assertId(invocation.componentInstanceId, "cue action componentInstanceId");
           assertId(invocation.actionId, "cue actionId");
           assertRecordKeys(invocation.arguments, "cue action argument id");

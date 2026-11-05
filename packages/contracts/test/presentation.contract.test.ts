@@ -394,7 +394,7 @@ test("Video artifacts require an explicit supported fit", async () => {
   }
 });
 
-test("Presenter gesture triggers accept the eight recognized gestures", () => {
+test("Presenter gesture triggers accept all recognized gestures", () => {
   const valid = structuredClone(definition);
   for (const gesture of [
     "swipeLeft",
@@ -405,6 +405,8 @@ test("Presenter gesture triggers accept the eight recognized gestures", () => {
     "pullBackward",
     "spreadHands",
     "closeHands",
+    "throw",
+    "circle",
   ]) {
     valid.flow.groups.intro.steps.start.cues[0].trigger = {
       kind: "gesture",

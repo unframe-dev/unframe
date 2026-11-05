@@ -19,7 +19,7 @@ vi.mock("../../runtime/playback", () => ({ createRuntimePlayback: vi.fn() }));
 import runtimeFixture from "../../../../../../packages/contracts/presentation/fixtures/m3d-cue-participant-runtime-view.json";
 const view = participantRuntimeViewSchema.parse(runtimeFixture);
 const delivery = {} as DeliveryManifestWire;
-const host = { presentationRoot: new Group() } as never;
+const host = { contentRoot: new Group() } as never;
 function loaded() {
   return {
     root: new Group(),
@@ -215,11 +215,14 @@ describe("presentation session resources", () => {
     const runtime = session.openRuntime(delivery);
     await session.present(delivery, view);
     const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
-    frame({} as never, 1200);
+    frame({ effectRuns: [], clock: { lifecycle: { kind: "running" } } } as never, 1200, {});
     expect(current.setPlaybackEnabled).toHaveBeenLastCalledWith(false);
-    expect(current.applyAnimationFrame).toHaveBeenCalledWith({}, 1200);
+    expect(current.applyAnimationFrame).toHaveBeenCalledWith(
+      { effectRuns: [], clock: { lifecycle: { kind: "running" } } },
+      1200,
+    );
     canPlay = true;
-    frame({} as never, 1400);
+    frame({ effectRuns: [], clock: { lifecycle: { kind: "running" } } } as never, 1400, {});
     expect(current.setPlaybackEnabled).toHaveBeenLastCalledWith(true);
     expect(blocked).toHaveBeenLastCalledWith(false);
     session.prepareRender(new Camera());
@@ -227,6 +230,58 @@ describe("presentation session resources", () => {
     session.detachScene(host);
     expect(runtime.dispose).toHaveBeenCalledOnce();
     expect(current.dispose).toHaveBeenCalledOnce();
+    session.dispose();
+  });
+  it("releases active effects before a budget-driven replacement starts loading", async () => {
+    const current = loaded();
+    const target = new Group();
+    target.name = "effect-target";
+    current.root.add(target);
+    vi.mocked(createPresentation).mockResolvedValueOnce(current);
+    const { session } = setup();
+    session.openRuntime(delivery);
+    await session.present(delivery, view);
+    const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
+    frame(
+      {
+        ...view,
+        effectRuns: [
+          {
+            runId: { assignmentEpoch: 1, runSequence: 1 },
+            owner: { kind: "presentation" },
+            cause: {
+              cueId: "wave",
+              causeEventId: "event",
+              groupId: "intro",
+              groupEntryEpoch: 1,
+              stepId: "start",
+              stepEntryEpoch: 1,
+            },
+            startedAtRuntimeTimeMilliseconds: 0,
+            effectId: "wave",
+            nodeId: target.name,
+            seed: 1,
+            status: "active",
+            effect: {
+              kind: "wave",
+              size: 1,
+              color: { red: 1, green: 1, blue: 1, alpha: 1 },
+              speed: 1,
+              durationMilliseconds: 1000,
+              waveCycles: 1,
+            },
+          },
+        ],
+      },
+      100,
+      {},
+    );
+    expect(target.children).toHaveLength(1);
+    const pool = await vi.mocked(createPngTexturePool).mock.results[0]!.value;
+    vi.mocked(pool.canAcquire).mockReturnValue(false);
+    vi.mocked(pool.acquire).mockRejectedValueOnce(new Error("decode"));
+    await expect(session.present(delivery, view)).rejects.toThrow("decode");
+    expect(target.children).toHaveLength(0);
     session.dispose();
   });
   it("does not detach a newer scene when an old scene finishes cleanup", async () => {

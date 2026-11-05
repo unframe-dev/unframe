@@ -113,6 +113,10 @@ type v2Cue struct {
 }
 
 type v2Action struct {
+	EffectID        string                     `json:"effectId"`
+	Effect          v3EffectConfiguration      `json:"effect"`
+	Owner           v2Owner                    `json:"owner"`
+	Seed            uint32                     `json:"seed"`
 	Kind            string                     `json:"kind"`
 	TimelineID      string                     `json:"timelineId"`
 	Completion      string                     `json:"completion"`
@@ -216,6 +220,10 @@ func newV2InitialState(raw json.RawMessage, mediaSpecs map[string]map[string]v2M
 				}
 				for _, action := range cue.Actions {
 					switch action.Kind {
+					case "effect.start", "effect.stop":
+						if err := validateV3EffectAction(action, definition); err != nil {
+							return nil, err
+						}
 					case "modelClip.play", "modelClip.pause", "modelClip.resume", "modelClip.stop":
 						if modelClips[action.NodeID] == nil {
 							return nil, ErrV2RuntimeUnsupported

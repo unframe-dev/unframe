@@ -96,6 +96,7 @@ export const projectCanonicalParticipantRuntimeView = (
     modelClipStates: select(snapshot.modelClipStates, selection.visibleNodeIds),
     variables: select(snapshot.variables, selection.visibleVariableIds),
     activeRuns,
+    effectRuns: snapshot.effectRuns.filter((run) => nodes.has(run.nodeId)),
     clock: snapshot.clock,
     presentationOrigin: snapshot.presentationOrigin,
     enabledLogicalInputs,

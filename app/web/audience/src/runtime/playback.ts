@@ -4,6 +4,11 @@ import type {
   ParticipantRuntimeView,
   StateServerItemWire,
 } from "@unframe-dev/contracts/presentation";
+import {
+  readAnchorBindings,
+  type AnchorBindings,
+  type TimedAnchorBindings,
+} from "./anchor-bindings";
 import { createRuntimeStore } from "./runtime-store";
 import { createRuntimeClock } from "./runtime-clock";
 import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
@@ -13,19 +18,26 @@ export function createRuntimePlayback(options: {
   present(view: ParticipantRuntimeView): Promise<void>;
   clear(): void;
   now?: () => number;
-  frame?(view: ParticipantRuntimeView, runtimeTimeMilliseconds: number): void;
+  frame?(
+    view: ParticipantRuntimeView,
+    runtimeTimeMilliseconds: number,
+    bindings: AnchorBindings,
+  ): void;
 }) {
-  const store = createRuntimeStore(options.delivery);
+  const now = options.now ?? (() => performance.now());
+  const store = createRuntimeStore(options.delivery, now);
   let disposed = false;
   let generation = 0;
+  let stateGeneration = 0;
   let version = 0;
   let appliedVersion = -1;
   let pending: Promise<void> | null = null;
   let error: string | null = null;
   let assetFailure: AssetFailureDetails | null = null;
   let renderFailurePhase: "prepare" | "frame" | null = null;
-  const clock = createRuntimeClock(options.now);
+  const clock = createRuntimeClock(now);
   let appliedView: ParticipantRuntimeView | null = null;
+  let appliedBindings: TimedAnchorBindings = {};
   function failRendering(cause: unknown, phase: "prepare" | "frame") {
     error = "presentation-render-failed";
     assetFailure = getAssetFailure(cause);
@@ -33,6 +45,7 @@ export function createRuntimePlayback(options: {
     generation++;
     if (phase === "frame" || !appliedView) {
       appliedView = null;
+      appliedBindings = {};
       options.clear();
     }
   }
@@ -40,6 +53,8 @@ export function createRuntimePlayback(options: {
     const snapshot = store.getSnapshot();
     if (disposed || pending || error || snapshot.phase !== "ready" || !snapshot.view) return;
     const view = snapshot.view;
+    const bindings = store.getAnchorBindingsSnapshot();
+    const currentStateGeneration = stateGeneration;
     const currentGeneration = generation;
     const currentVersion = version;
     pending = Promise.resolve()
@@ -49,6 +64,7 @@ export function createRuntimePlayback(options: {
         if (!disposed && generation === currentGeneration) {
           appliedVersion = currentVersion;
           appliedView = view;
+          appliedBindings = stateGeneration === currentStateGeneration ? bindings : {};
         }
       })
       .catch((cause: unknown) => {
@@ -69,6 +85,7 @@ export function createRuntimePlayback(options: {
       generation++;
       appliedVersion = -1;
       appliedView = null;
+      appliedBindings = {};
       clock.reset();
       options.clear();
       return;
@@ -82,7 +99,7 @@ export function createRuntimePlayback(options: {
       const time = clock.read();
       if (time === null) return;
       try {
-        options.frame(appliedView, time);
+        options.frame(appliedView, time, readAnchorBindings(appliedBindings, now()));
       } catch (cause) {
         failRendering(cause, "frame");
       }
@@ -127,6 +144,8 @@ export function createRuntimePlayback(options: {
     restartState() {
       if (disposed) return;
       store.restartState();
+      stateGeneration++;
+      appliedBindings = {};
     },
     reset() {
       if (disposed) return;
@@ -144,6 +163,7 @@ export function createRuntimePlayback(options: {
       generation++;
       store.reset();
       appliedView = null;
+      appliedBindings = {};
       clock.reset();
       options.clear();
     },

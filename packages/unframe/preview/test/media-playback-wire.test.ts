@@ -24,6 +24,21 @@ describe("Preview canonical playback wire", () => {
         actions: [
           { kind: "media.play", surfaceId: "video" },
           {
+            kind: "effect.start",
+            effectId: "glow",
+            nodeId: "model",
+            owner: { kind: "presentation" },
+            seed: 4,
+            effect: {
+              kind: "handGlow",
+              hand: "left",
+              size: 1,
+              speed: 1,
+              color: { red: 1, green: 0, blue: 0, alpha: 1 },
+              durationMilliseconds: 500,
+            },
+          },
+          {
             kind: "modelClip.play",
             nodeId: "model",
             clipId: "wave",
@@ -54,6 +69,16 @@ describe("Preview canonical playback wire", () => {
       new Set(Object.keys(definition.scene.surfaces)),
       new Set(),
     );
+    expect(wire.effectRuns).toMatchObject([
+      {
+        effectId: "glow",
+        nodeId: "model",
+        seed: 4,
+        status: 1,
+        startedAtRuntimeTimeMs: "0",
+        configuration: { kind: 2, hand: 1, durationMs: "500" },
+      },
+    ]);
     expect(wire.modelClipStates).toMatchObject([
       { modelNodeId: "model", active: { runId: { assignmentEpoch: "7" } } },
     ]);
@@ -71,6 +96,7 @@ describe("Preview canonical playback wire", () => {
       ),
     ).toEqual(wire);
     const hidden = projectPlaybackWire("request", 6n, state, true, new Set(), new Set(), new Set());
+    expect(hidden.effectRuns).toEqual([]);
     expect(hidden.modelClipStates).toEqual([]);
     expect(hidden.mediaStates).toEqual([]);
     expect(hidden.activeRuns).toEqual([]);

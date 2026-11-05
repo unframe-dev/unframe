@@ -204,6 +204,33 @@ export const validateCueInvariants = (
         cue.actions.forEach((action, actionIndex) => {
           const suffix = `/actions/${actionIndex}`;
           switch (action.kind) {
+            case "effect.start": {
+              const duration = Math.ceil(action.effect.durationMilliseconds / action.effect.speed);
+              if (!Number.isSafeInteger(duration) || duration < 1)
+                issue(
+                  "behavior.invalid",
+                  `${suffix}/effect`,
+                  "Effect runtime duration must be a positive safe integer.",
+                );
+              const node = target(nodes, action.nodeId, `${suffix}/nodeId`);
+              if (node?.owner.kind === "group" && action.owner.kind === "presentation")
+                issue(
+                  "behavior.invalid",
+                  `${suffix}/owner`,
+                  "Effect cannot outlive its target Node.",
+                );
+              if (action.owner.kind === "group" && action.owner.groupId !== groupId)
+                issue(
+                  "behavior.invalid",
+                  `${suffix}/owner`,
+                  "Effect owner must be the current Group.",
+                );
+              claim(`effect:${action.effectId}`, suffix);
+              break;
+            }
+            case "effect.stop":
+              claim(`effect:${action.effectId}`, suffix);
+              break;
             case "surface.setState": {
               const surface = target(surfaces, action.surfaceId, `${suffix}/surfaceId`);
               if (surface && !Object.hasOwn(surface.states, action.stateId))

@@ -158,7 +158,7 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
       throw new TypeError("Surface interaction target is required");
     if (
       name === "GestureInputCommand" &&
-      (typeof value["gesture"] !== "number" || value["gesture"] < 1 || value["gesture"] > 8)
+      (typeof value["gesture"] !== "number" || value["gesture"] < 1 || value["gesture"] > 10)
     )
       throw new TypeError("Gesture kind is required");
     if (

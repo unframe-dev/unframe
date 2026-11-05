@@ -550,6 +550,16 @@ export const resolveOpaqueProject = (
             actions.push({ ...invocation, timelineId: id, conflict: "reject" });
             continue;
           }
+          if (invocation.kind === "effect.start" || invocation.kind === "effect.stop") {
+            if (invocation.kind === "effect.start") {
+              const host = presentation.scene.find((item) => item.id === invocation.nodeId);
+              actions.push({
+                ...invocation,
+                nodeId: host ? reactResourceId("host", host.id) : invocation.nodeId,
+              });
+            } else actions.push(invocation);
+            continue;
+          }
           const targetInstance = presentation.scene.find(
             (item): item is StaticReactSceneItem =>
               "component" in item && item.id === invocation.componentInstanceId,

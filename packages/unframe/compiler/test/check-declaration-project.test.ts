@@ -167,6 +167,42 @@ describe("checkDeclarationProject", () => {
     });
   });
 
+  it.each(["throw", "circle"] as const)("compiles %s and effect lifecycle actions", (gesture) => {
+    const input = project();
+    const start = {
+      kind: "effect.start" as const,
+      effectId: "wave",
+      nodeId: "spatial",
+      owner: { kind: "presentation" as const },
+      seed: 42,
+      effect: {
+        kind: "wave" as const,
+        size: 2,
+        speed: 1,
+        durationMilliseconds: 1500,
+        color: { red: 1, green: 0.5, blue: 0, alpha: 1 },
+        waveCycles: 2,
+      },
+    };
+    input.presentation.flow.groups.group!.steps.step!.cues = [
+      { id: "start", trigger: { kind: "gesture", gesture }, actions: [start] },
+      {
+        id: "stop",
+        trigger: { kind: "logicalInput", action: "presenter.next" },
+        actions: [{ kind: "effect.stop", effectId: "wave" }],
+      },
+    ];
+    const result = checkDeclarationProjectWithFixtureBytes(input);
+    expect(result.valid, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.valid) throw new Error(JSON.stringify(result.diagnostics));
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[0]!.actions).toEqual([
+      { ...start, nodeId: "instance:spatial" },
+    ]);
+    expect(result.value.definition.flow.groups.group!.steps.step!.cues[1]!.actions).toEqual([
+      { kind: "effect.stop", effectId: "wave" },
+    ]);
+  });
+
   it("lowers center-only Zones and Presenter Zone edges", () => {
     const input = project();
     input.presentation.stage.zones = {

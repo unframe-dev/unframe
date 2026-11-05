@@ -9,6 +9,7 @@
     "./control-plane-http": "./src/control-plane-http.ts",
     "./presentation/asset-set": "./src/presentation/asset-set.ts",
     "./presentation/capability": "./src/presentation/capability.ts",
+    "./presentation/effects": "./src/presentation/effects.ts",
     "./presentation/common": "./src/presentation/common.ts",
     "./presentation/definition": "./src/presentation/definition.ts",
     "./presentation/publication": "./src/presentation/publication.ts",

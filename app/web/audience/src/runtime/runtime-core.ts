@@ -10,6 +10,7 @@ import {
   type RuntimeRunSnapshotWire,
   type RuntimeRunIdWire,
 } from "@unframe-dev/contracts/presentation";
+import { mergeAnchorBindings, type TimedAnchorBindings } from "./anchor-bindings";
 import { toParticipantView } from "./wire-view";
 import { assertViewerDelivery, assertViewerRuntimeCapabilities } from "./viewer-policy";
 import { evaluateAnimationView } from "./animation-view";
@@ -33,6 +34,7 @@ export interface RuntimeStoreSnapshot {
 
 export interface RuntimeCoreState {
   snapshot: RuntimeStoreSnapshot;
+  anchorBindings: TimedAnchorBindings;
   wireView: ParticipantRuntimeViewWire | null;
   connectionId: string | null;
   projectionPending: boolean;
@@ -45,7 +47,7 @@ export interface RuntimeCoreState {
 
 export type RuntimeAction =
   | { kind: "control"; item: ControlServerItemWire }
-  | { kind: "state"; item: StateServerItemWire }
+  | { kind: "state"; item: StateServerItemWire; receivedAtMilliseconds?: number }
   | { kind: "restart-state" }
   | { kind: "reset" };
 
@@ -59,6 +61,7 @@ export function createRuntimeState(): RuntimeCoreState {
       stateSync: "awaiting-keyframe",
       reason: null,
     },
+    anchorBindings: {},
     wireView: null,
     connectionId: null,
     projectionPending: false,
@@ -87,10 +90,12 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
     let wireView = previous.wireView ? structuredClone(previous.wireView) : null;
     let { connectionId, projectionPending, stateConnected, groupChange, maximumRunSequence } =
       previous;
+    let anchorBindings = previous.anchorBindings;
     const canceledMedia = new Set(previous.canceledMedia);
     const canceledModels = new Set(previous.canceledModels);
     const fail = () => {
       wireView = null;
+      anchorBindings = {};
       state = {
         phase: "resync-required",
         view: null,
@@ -237,7 +242,10 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
         presence.add(participant.participantId);
       }
       validateView(view);
-      maximumRunSequence = Math.max(0, ...(view.activeRuns ?? []).map((run) => runKey(run.runId)));
+      maximumRunSequence = Math.max(
+        0,
+        ...[...(view.activeRuns ?? []), ...(view.effectRuns ?? [])].map((run) => runKey(run.runId)),
+      );
       wireView = view;
       connectionId = envelope.connectionId;
       projectionPending = false;
@@ -257,6 +265,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
       restartState(): void {
         if (state.phase !== "ready") return;
         stateConnected = false;
+        anchorBindings = {};
         state.stateSequence = "0";
         state.stateSync = "awaiting-keyframe";
       },
@@ -333,9 +342,12 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
               assignmentEpoch: delivery.projectionInstance!.assignmentEpoch,
             });
             wireView = replacement;
+            anchorBindings = {};
             maximumRunSequence = Math.max(
               maximumRunSequence,
-              ...(replacement.activeRuns ?? []).map((run) => runKey(run.runId)),
+              ...[...(replacement.activeRuns ?? []), ...(replacement.effectRuns ?? [])].map((run) =>
+                runKey(run.runId),
+              ),
             );
             groupChange = null;
             projectionPending = false;
@@ -346,7 +358,32 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
           }
           if (groupChange === "exited") requireValue(event.groupEntered);
           if (groupChange === "entered") requireValue(event.stepEntered);
-          if (event.groupExited) {
+          if (event.effectRunsChanged) {
+            const nextRuns = event.effectRunsChanged.effectRuns ?? [];
+            const nextRunKeys = new Set<number>();
+            let batchMaximumRunSequence = maximumRunSequence;
+            for (const run of nextRuns) {
+              const key = runKey(run.runId);
+              requireValue(!nextRunKeys.has(key));
+              nextRunKeys.add(key);
+              const old = wireView.effectRuns?.find((entry) => runKey(entry.runId) === key);
+              if (old) {
+                requireValue(
+                  sameWire(
+                    "unframe.realtime.EffectRunSnapshot",
+                    { ...old, status: run.status },
+                    run,
+                  ),
+                );
+                requireValue(old.status !== 2 || run.status === 2);
+              } else {
+                requireValue(key > maximumRunSequence && uint(run.startedAtRuntimeTimeMs) === time);
+                batchMaximumRunSequence = Math.max(batchMaximumRunSequence, key);
+              }
+            }
+            maximumRunSequence = batchMaximumRunSequence;
+            wireView.effectRuns = nextRuns;
+          } else if (event.groupExited) {
             const exit = event.groupExited;
             requireValue(
               !groupChange &&
@@ -805,6 +842,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
               origin && uint(origin.version) === uint(wireView.presentationOrigin?.version) + 1,
             );
             wireView.presentationOrigin = origin;
+            anchorBindings = {};
           } else if (event.runtimeStatusChanged) {
             wireView.clock = { runtimeTimeMs: String(time), ...event.runtimeStatusChanged };
           } else if (event.presentationEnded) {
@@ -838,7 +876,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             id(event.logicalInputAccepted.logicalEventName);
           } else if (event.gestureInputAccepted) {
             requireValue(
-              [1, 2, 3, 4, 5, 6, 7, 8].includes(event.gestureInputAccepted.gesture ?? 0),
+              [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(event.gestureInputAccepted.gesture ?? 0),
             );
           } else if (event.zoneInputAccepted) {
             id(event.zoneInputAccepted.zoneId);
@@ -918,7 +956,17 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             state.stateSync = "awaiting-keyframe";
             return;
           }
-          requireValue(!frame.anchorBindings?.length);
+          const nextBindings = mergeAnchorBindings(
+            delivery,
+            anchorBindings,
+            frame.anchorBindings ?? [],
+            frame.kind === 1,
+            {
+              producedAtMilliseconds: uint(frame.producedAtRuntimeMonotonicMs),
+              receivedAtMilliseconds:
+                action.kind === "state" ? (action.receivedAtMilliseconds ?? 0) : 0,
+            },
+          );
           const elements = frame.elements ?? [];
           if (frame.kind === 1) requireValue(elements.length === wireView.nodeStates?.length);
           const ownedProperties = timelineProperties(catalog, wireView);
@@ -953,6 +1001,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             if (patch.opacity !== undefined) node.opacity = patch.opacity;
             if (patch.transform) node.transform = { ...node.transform!, ...patch.transform };
           }
+          anchorBindings = nextBindings;
           state.stateSequence = String(sequence);
           state.stateSync = "ready";
           publish();
@@ -966,6 +1015,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
     else actions.restartState();
     return {
       snapshot: state,
+      anchorBindings,
       wireView,
       connectionId,
       projectionPending,

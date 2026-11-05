@@ -84,6 +84,18 @@ func (s *V2Session) advanceTo(ctx context.Context, runtimeTimeMs uint64) ([]*rea
 		if err != nil {
 			return nil, s.rollbackV3EvaluationFault(ctx, previous, err)
 		}
+		effect, effectDeadline, effectErr := nextV3EffectDue(s.snapshot, runtimeTimeMs)
+		if effectErr != nil {
+			return nil, s.rollbackV3EvaluationFault(ctx, previous, effectErr)
+		}
+		if effect != nil && (run == nil && timer == nil || effectDeadline <= deadline) {
+			s.snapshot.Clock.RuntimeTimeMs = effectDeadline
+			for _, event := range completeV3Effect(s.snapshot, effect) {
+				events = append(events, s.nextEvent(event))
+			}
+			drainedDue = true
+			continue
+		}
 		if run == nil && timer == nil {
 			break
 		}

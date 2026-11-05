@@ -35,6 +35,11 @@ namespace Unframe.Unity.PresentationRuntime
         private ulong minimumReliableSequence;
         private RuntimeClockSnapshot clock;
         private ProgressionRuntimeState progression;
+        private readonly Dictionary<string, EffectRunSnapshot> effectRuns = new Dictionary<string, EffectRunSnapshot>();
+        internal IEnumerable<EffectRunSnapshot> EffectRuns
+        {
+            get { foreach (var run in effectRuns.Values) yield return run.Clone(); }
+        }
         private readonly Dictionary<string, RuntimeRunSnapshot> activeRuns = new Dictionary<string, RuntimeRunSnapshot>();
 
         internal PresentationRuntimeStateStore(PresentationDeliveryCatalog delivery)
@@ -120,6 +125,7 @@ namespace Unframe.Unity.PresentationRuntime
             LastStateFrameSequence = 0;
             frozenAnchors.Clear();
             hasSnapshot = false;
+            effectRuns.Clear();
             presentationOriginVersion = 0;
             presentationOrigin = null;
             participants.Clear();
@@ -281,6 +287,7 @@ namespace Unframe.Unity.PresentationRuntime
             mediaStates.Clear(); foreach (var media in view.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
             clock = view.Clock.Clone();
             progression = view.Progression.Clone();
+            ReplaceEffects(view.EffectRuns);
             activeRuns.Clear();
             foreach (RuntimeRunSnapshot run in view.ActiveRuns) activeRuns.Add(RunKey(run.RunId), run.Clone());
             return true;
@@ -347,12 +354,18 @@ namespace Unframe.Unity.PresentationRuntime
                     { error = "realtime.event replacement view is invalid."; return false; }
                     mediaStates.Clear();
                     foreach (var media in replacement.MediaStates) mediaStates.Add(media.SurfaceId, media.Clone());
+                    ReplaceEffects(replacement.EffectRuns);
                     activeRuns.Clear();
                     foreach (var run in replacement.ActiveRuns) activeRuns.Add(RunKey(run.RunId), run.Clone());
                     clock = replacement.Clock.Clone();
                     progression = replacement.Progression.Clone();
                     anchorSamples.Clear();
                     ReplaceFrozenAnchors(replacement);
+                    break;
+                case ProjectedReliableEvent.PayloadOneofCase.EffectRunsChanged:
+                    if (!ValidateEffects(reliableEvent.EffectRunsChanged.EffectRuns, reliableEvent.OccurredAtRuntimeTimeMs, progression))
+                    { error = "realtime effect runs are invalid."; return false; }
+                    ReplaceEffects(reliableEvent.EffectRunsChanged.EffectRuns);
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.RuntimeStatusChanged:
                     RuntimeStatusChanged status = reliableEvent.RuntimeStatusChanged;
@@ -403,7 +416,7 @@ namespace Unframe.Unity.PresentationRuntime
                     { error = "realtime.event cue is invalid."; return false; }
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.GestureInputAccepted:
-                    if (reliableEvent.GestureInputAccepted.Gesture < GestureKind.SwipeLeft || reliableEvent.GestureInputAccepted.Gesture > GestureKind.CloseHands)
+                    if (reliableEvent.GestureInputAccepted.Gesture < GestureKind.SwipeLeft || reliableEvent.GestureInputAccepted.Gesture > GestureKind.Circle)
                     { error = "realtime.event gesture is invalid."; return false; }
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.ZoneInputAccepted:
@@ -425,6 +438,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (endReason == TerminationReason.Unspecified || !Enum.IsDefined(typeof(TerminationReason), endReason))
                     { error = "realtime.event termination is invalid."; return false; }
                     clock.Terminating = new Terminating { Reason = endReason };
+                    effectRuns.Clear();
                     activeRuns.Clear();
                     foreach (SurfaceRuntimeState surface in surfaceStates.Values) surface.TransitionRunId = null;
                     foreach (string target in new List<string>(modelClipStates.Keys)) modelClipStates[target] = new ModelClipRuntimeState { ModelNodeId = target, DefaultPose = new DefaultModelPose() };
@@ -1043,6 +1057,8 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
+            if (!ValidateEffects(view.EffectRuns, view.Clock.RuntimeTimeMs, view.Progression))
+            { error = "realtime snapshot effect runs are invalid."; return false; }
             HashSet<string> runIds = new HashSet<string>();
             Dictionary<string, RuntimeRunSnapshot> surfaceRuns = new Dictionary<string, RuntimeRunSnapshot>();
             Dictionary<string, RuntimeRunSnapshot> mediaRuns = new Dictionary<string, RuntimeRunSnapshot>();
@@ -1206,6 +1222,18 @@ namespace Unframe.Unity.PresentationRuntime
                     && playback.Playing.ReferenceRuntimeTimeMs <= runtimeTimeMs);
         }
 
+        private void ReplaceEffects(IEnumerable<EffectRunSnapshot> runs)
+        {
+            effectRuns.Clear();
+            foreach (var run in runs) effectRuns.Add(RunKey(run.RunId), run.Clone());
+        }
+
+        private bool ValidateEffects(IEnumerable<EffectRunSnapshot> runs, ulong time, ProgressionRuntimeState state)
+        {
+            return PresentationEffectValidation.Validate(runs, delivery.Delivery.ProjectionProfile.RuntimeCatalog,
+                time, state.CurrentGroupId, state.GroupEntryEpoch, delivery.Delivery.ProjectionInstance.AssignmentEpoch);
+        }
+
         private bool IsValidRunId(RuntimeRunId runId)
         {
             return runId != null && runId.AssignmentEpoch == delivery.Delivery.ProjectionInstance.AssignmentEpoch
@@ -1302,6 +1330,7 @@ namespace Unframe.Unity.PresentationRuntime
             foreach (ProjectedNodeDefinition node in catalog.Nodes) if (IsGroupOwner(node.Owner, groupId)) { nodeStates.Remove(node.NodeId); modelClipStates.Remove(node.NodeId); }
             foreach (ProjectedSurfaceDefinition surface in catalog.Surfaces) if (IsGroupOwner(surface.Owner, groupId)) { surfaceStates.Remove(surface.SurfaceId); mediaStates.Remove(surface.SurfaceId); }
             foreach (ProjectedVariableDefinition variable in catalog.Variables) if (IsGroupOwner(variable.Owner, groupId)) variableStates.Remove(variable.VariableId);
+            foreach (string key in new List<string>(effectRuns.Keys)) if (effectRuns[key].Owner?.Group?.GroupId == groupId) effectRuns.Remove(key);
             foreach (string key in new List<string>(activeRuns.Keys)) if (activeRuns[key].Owner?.Group?.GroupId == groupId) activeRuns.Remove(key);
         }
 
