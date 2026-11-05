@@ -3780,8 +3780,10 @@ type ProjectedRuntimeCatalog struct {
 	Timelines              []*ProjectedTimelineDefinition  `protobuf:"bytes,5,rep,name=timelines,proto3" json:"timelines,omitempty"`
 	ModelClips             []*ProjectedModelClipDefinition `protobuf:"bytes,6,rep,name=model_clips,json=modelClips,proto3" json:"model_clips,omitempty"`
 	PresenterRecognition   *PresenterRecognitionCatalog    `protobuf:"bytes,8,opt,name=presenter_recognition,json=presenterRecognition,proto3" json:"presenter_recognition,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Stage-local center used by Presenter placement. Included in Delivery catalogs.
+	PlacementReferencePoint *Vector3 `protobuf:"bytes,9,opt,name=placement_reference_point,json=placementReferencePoint,proto3,oneof" json:"placement_reference_point,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ProjectedRuntimeCatalog) Reset() {
@@ -3859,6 +3861,13 @@ func (x *ProjectedRuntimeCatalog) GetModelClips() []*ProjectedModelClipDefinitio
 func (x *ProjectedRuntimeCatalog) GetPresenterRecognition() *PresenterRecognitionCatalog {
 	if x != nil {
 		return x.PresenterRecognition
+	}
+	return nil
+}
+
+func (x *ProjectedRuntimeCatalog) GetPlacementReferencePoint() *Vector3 {
+	if x != nil {
+		return x.PlacementReferencePoint
 	}
 	return nil
 }
@@ -4164,7 +4173,7 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\x06center\x18\x02 \x01(\v2\x1d.unframe.presentation.Vector3R\x06center\"\xa2\x01\n" +
 	"\x1bPresenterRecognitionCatalog\x12=\n" +
 	"\bgestures\x18\x01 \x03(\x0e2!.unframe.presentation.GestureKindR\bgestures\x12D\n" +
-	"\x05zones\x18\x02 \x03(\v2..unframe.presentation.PresenterRecognitionZoneR\x05zones\"\xda\x04\n" +
+	"\x05zones\x18\x02 \x03(\v2..unframe.presentation.PresenterRecognitionZoneR\x05zones\"\xd8\x05\n" +
 	"\x17ProjectedRuntimeCatalog\x128\n" +
 	"\x18catalog_contract_version\x18\x01 \x01(\rR\x16catalogContractVersion\x12C\n" +
 	"\x05nodes\x18\x02 \x03(\v2-.unframe.presentation.ProjectedNodeDefinitionR\x05nodes\x12L\n" +
@@ -4173,7 +4182,9 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\ttimelines\x18\x05 \x03(\v21.unframe.presentation.ProjectedTimelineDefinitionR\ttimelines\x12S\n" +
 	"\vmodel_clips\x18\x06 \x03(\v22.unframe.presentation.ProjectedModelClipDefinitionR\n" +
 	"modelClips\x12f\n" +
-	"\x15presenter_recognition\x18\b \x01(\v21.unframe.presentation.PresenterRecognitionCatalogR\x14presenterRecognitionJ\x04\b\a\x10\bR\rmotion_guides\"\xa5\x02\n" +
+	"\x15presenter_recognition\x18\b \x01(\v21.unframe.presentation.PresenterRecognitionCatalogR\x14presenterRecognition\x12^\n" +
+	"\x19placement_reference_point\x18\t \x01(\v2\x1d.unframe.presentation.Vector3H\x00R\x17placementReferencePoint\x88\x01\x01B\x1c\n" +
+	"\x1a_placement_reference_pointJ\x04\b\a\x10\bR\rmotion_guides\"\xa5\x02\n" +
 	"\x13EffectConfiguration\x124\n" +
 	"\x04kind\x18\x01 \x01(\x0e2 .unframe.presentation.EffectKindR\x04kind\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x01R\x04size\x126\n" +
@@ -4405,14 +4416,15 @@ var file_unframe_presentation_runtime_proto_depIdxs = []int32{
 	36, // 57: unframe.presentation.ProjectedRuntimeCatalog.timelines:type_name -> unframe.presentation.ProjectedTimelineDefinition
 	57, // 58: unframe.presentation.ProjectedRuntimeCatalog.model_clips:type_name -> unframe.presentation.ProjectedModelClipDefinition
 	59, // 59: unframe.presentation.ProjectedRuntimeCatalog.presenter_recognition:type_name -> unframe.presentation.PresenterRecognitionCatalog
-	10, // 60: unframe.presentation.EffectConfiguration.kind:type_name -> unframe.presentation.EffectKind
-	47, // 61: unframe.presentation.EffectConfiguration.color:type_name -> unframe.presentation.SrgbaColor
-	11, // 62: unframe.presentation.EffectConfiguration.hand:type_name -> unframe.presentation.EffectHand
-	63, // [63:63] is the sub-list for method output_type
-	63, // [63:63] is the sub-list for method input_type
-	63, // [63:63] is the sub-list for extension type_name
-	63, // [63:63] is the sub-list for extension extendee
-	0,  // [0:63] is the sub-list for field type_name
+	16, // 60: unframe.presentation.ProjectedRuntimeCatalog.placement_reference_point:type_name -> unframe.presentation.Vector3
+	10, // 61: unframe.presentation.EffectConfiguration.kind:type_name -> unframe.presentation.EffectKind
+	47, // 62: unframe.presentation.EffectConfiguration.color:type_name -> unframe.presentation.SrgbaColor
+	11, // 63: unframe.presentation.EffectConfiguration.hand:type_name -> unframe.presentation.EffectHand
+	64, // [64:64] is the sub-list for method output_type
+	64, // [64:64] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_unframe_presentation_runtime_proto_init() }
@@ -4460,6 +4472,7 @@ func file_unframe_presentation_runtime_proto_init() {
 		(*ProjectedNodeDefinition_Shape)(nil),
 		(*ProjectedNodeDefinition_Light)(nil),
 	}
+	file_unframe_presentation_runtime_proto_msgTypes[48].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -2,6 +2,7 @@ import {
   Accessor,
   ImageUtils,
   GLB_BUFFER,
+  getBounds,
   Logger,
   NodeIO,
   type JSONDocument,
@@ -47,9 +48,9 @@ export type TransformedModel = {
 };
 export const MODEL_TRANSFORM_IDENTITY = Object.freeze({
   transformerId: "unframe-glb",
-  version: "4",
+  version: "5",
   fingerprint:
-    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-textures2048-cpu-v4",
+    "gltf-transform-4.5.1-validator-dev3.10-unity-media-geometry160-morph48-curves64-uv0-textures2048-cpu-default-scene-bounds-v5",
 });
 
 const invalid = (
@@ -252,7 +253,18 @@ const describeModel = (
     clips[`clip-${index}`] = { sourceAnimationIndex: index, durationMilliseconds };
   }
   if (root.listAnimations().length) features.add("animation");
+  // Geometry bounds do not account for joint or morph deformation.
+  const defaultSceneBounds =
+    primitiveCount > 0 && !features.has("skin") && !features.has("morphTargets")
+      ? getBounds(scene)
+      : undefined;
+  if (
+    defaultSceneBounds &&
+    ![...defaultSceneBounds.min, ...defaultSceneBounds.max].every(Number.isFinite)
+  )
+    throw new ModelRejection("model-invalid-glb", "Default scene geometry bounds must be finite.");
   return {
+    ...(defaultSceneBounds ? { defaultSceneBounds } : {}),
     assetId: checksum,
     mediaType: "model/gltf-binary",
     checksum,
