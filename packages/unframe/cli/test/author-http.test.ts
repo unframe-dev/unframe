@@ -1,4 +1,5 @@
 import { WebSocket } from "ws";
+import { createAuthorBuildService } from "@unframe-dev/build";
 import { createProjectChanges } from "../src/author/project-changes.js";
 import { mkdtemp, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -835,3 +836,77 @@ it("authenticates cursor observations, rejects unknown query fields and resumes 
   expect(await resumed.json()).toMatchObject({ changed: true });
   expect(service.project).not.toHaveBeenCalled();
 });
+
+it.each(["dev", "dist"] as const)(
+  "isolates cancellation of %s requests sharing one execution over HTTP",
+  async (channel) => {
+    const { host, service } = await setup();
+    const running = Promise.withResolvers<AbortSignal>();
+    const release = Promise.withResolvers<void>();
+    const run = vi.fn(async ({ signal }: { signal: AbortSignal }) => {
+      running.resolve(signal);
+      await new Promise<void>((resolve) => {
+        void release.promise.then(resolve);
+        signal.addEventListener("abort", () => resolve(), { once: true });
+      });
+      return signal.aborted
+        ? { status: "cancelled" as const, diagnostics: [] }
+        : { status: "succeeded" as const, diagnostics: [], generationId: "1".repeat(32) };
+    });
+    Object.assign(
+      service,
+      createAuthorBuildService({
+        fail: (status, code, message) => {
+          throw new AuthorError(status, code, message);
+        },
+        validateRevision: async () => {},
+        canReuseBuild: async () => true,
+        prepareBuild: async () => ({ revision: "rev", snapshot: await service.project() }),
+        run,
+        readPublishedArtifacts: async () => ({
+          identity: "identity",
+          catalog: [],
+          assets: new Map(),
+        }),
+      }),
+    );
+    const headers = {
+      authorization: `Bearer ${host.token}`,
+      origin: host.origin,
+      "content-type": "application/json",
+      "if-match": '"rev"',
+    };
+    const build = (requestId: string) =>
+      fetch(`${host.origin}/api/${channel === "dev" ? "builds" : "dist-builds"}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ requestId }),
+      });
+    const firstResponse = await build("a".repeat(32));
+    expect(firstResponse.status).toBe(202);
+    const first: BuildJob = await firstResponse.json();
+    const signal = await running.promise;
+    const secondResponse = await build("b".repeat(32));
+    expect(secondResponse.status).toBe(202);
+    const second: BuildJob = await secondResponse.json();
+    expect(second.buildId).not.toBe(first.buildId);
+    const cancelled = await fetch(`${host.origin}/api/builds/${first.buildId}/cancellation`, {
+      method: "PUT",
+      headers,
+      body: "{}",
+    });
+    expect(cancelled.status).toBe(200);
+    expect(await cancelled.json()).toMatchObject({ status: "cancelled" });
+    expect(signal.aborted).toBe(false);
+    release.resolve();
+    await expect
+      .poll(async () => {
+        const response = await fetch(`${host.origin}/api/builds/${second.buildId}`, { headers });
+        return ((await response.json()) as BuildJob).status;
+      })
+      .toBe("succeeded");
+    const replay = await build("a".repeat(32));
+    expect(await replay.json()).toMatchObject({ buildId: first.buildId, status: "cancelled" });
+    expect(run).toHaveBeenCalledOnce();
+  },
+);
