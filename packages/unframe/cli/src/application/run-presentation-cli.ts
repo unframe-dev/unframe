@@ -31,7 +31,7 @@ import {
 import { prepareOpaqueRenderer } from "./opaque-renderer.js";
 import { OpaquePreparationFailure } from "@unframe-dev/build";
 import { createFilesystemBuildCache } from "@unframe-dev/workspace-node";
-import { acquireBuildLock, type BuildLock } from "@unframe-dev/workspace-node";
+import { acquireBuildLock, projectDirectory } from "@unframe-dev/workspace-node";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { createVideoValidator } from "@unframe-dev/media-node";
 import { initPresentationProject } from "@unframe-dev/workspace-node";
@@ -358,6 +358,54 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
           diagnostic("io", result.code, "Project could not be initialized at this path."),
         ]);
   }
+  if (command === "check") return runProjectCommand(parsed.value, host);
+
+  const root = await projectDirectory(directory);
+  if (!root)
+    return output(3, command, format, [
+      diagnostic(
+        "io",
+        "cli-project-discovery-invalid-directory",
+        "Project directory must be an absolute non-symbolic-link directory.",
+        [directory],
+      ),
+    ]);
+  const acquired = await acquireBuildLock(root);
+  if (!acquired.ok)
+    return output(3, command, format, [
+      diagnostic(
+        "io",
+        acquired.code,
+        "Another build owns this project or its build lock is unsafe.",
+      ),
+    ]);
+  let result: PresentationCliResult;
+  let releaseFailed = false;
+  try {
+    result = await runProjectCommand({ command, directory: root, format }, host);
+  } finally {
+    await acquired.value.release().catch(() => {
+      releaseFailed = true;
+    });
+  }
+  if (!releaseFailed) return result;
+  const releaseFailure = diagnostic(
+    "io",
+    "cli-build-lock-release-failed",
+    "Build lock could not be released.",
+  );
+  return result.exitCode === 130
+    ? output(130, command, format, [
+        diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+        releaseFailure,
+      ])
+    : output(3, command, format, [releaseFailure]);
+};
+
+const runProjectCommand = async (
+  { command, directory, format }: Command,
+  host: PresentationCliHost,
+): Promise<PresentationCliResult> => {
   const sourceWait = {
     // Editor inspections can outlive a fixed lease timeout; the job signal owns cancellation.
     waitTimeoutMs: host.channel ? (host.signal ? Number.POSITIVE_INFINITY : 5000) : 0,
@@ -476,48 +524,10 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
   const opaque = Object.values(checked.value.definition.scene.surfaces).find(
     (surface) => surface.content.kind === "opaque",
   );
-  const acquired = await acquireBuildLock(discovered.projectDirectory);
-  if (!acquired.ok)
-    return output(3, command, format, [
-      diagnostic(
-        "io",
-        acquired.code,
-        "Another build owns this project or its build lock is unsafe.",
-      ),
-    ]);
-  const buildLock: BuildLock = acquired.value;
-  const finishBuild = async (result: PresentationCliResult): Promise<PresentationCliResult> => {
-    try {
-      await buildLock.release();
-    } catch {
-      return output(
-        result.exitCode === 130 ? 130 : 3,
-        command,
-        format,
-        result.exitCode === 130
-          ? [
-              diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
-              diagnostic(
-                "io",
-                "cli-build-lock-release-failed",
-                "Build lock could not be released.",
-              ),
-            ]
-          : [
-              diagnostic(
-                "io",
-                "cli-build-lock-release-failed",
-                "Build lock could not be released.",
-              ),
-            ],
-      );
-    }
-    return result;
-  };
   if (host.signal?.aborted)
-    return finishBuild(
-      output(130, command, format, [diagnostic("cancel", "cli-cancelled", "Build was cancelled.")]),
-    );
+    return output(130, command, format, [
+      diagnostic("cancel", "cli-cancelled", "Build was cancelled."),
+    ]);
   let cleanupFailed = false;
   const buildResult = await (async (): Promise<PresentationCliResult> => {
     let session: { close(): Promise<void> } | undefined;
@@ -781,7 +791,7 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
         });
     }
   })();
-  const completedResult = cleanupFailed
+  return cleanupFailed
     ? output(
         buildResult.exitCode === 130 ? 130 : 1,
         command,
@@ -804,5 +814,4 @@ export const runPresentationCli = async (input: unknown): Promise<PresentationCl
             ],
       )
     : buildResult;
-  return finishBuild(completedResult);
 };

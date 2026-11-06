@@ -21,6 +21,7 @@ const ports = (project: AuthorServicePorts["project"]): AuthorServicePorts => {
     patch: async () => {
       throw new Error("Unexpected save");
     },
+    checkBuildAvailability: async () => {},
     validateRevision: async () => {},
     canReuseBuild: async () => false,
     prepareBuild: async () => {
