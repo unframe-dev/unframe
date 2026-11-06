@@ -38,8 +38,8 @@ test("開幕を飛ばさず、次の入力でパネルと立方体が現れ、�
   assert.equal(shown.currentStepId, "original-intro");
   assert.equal(shown.nodes[panelId].opacity, 1);
   assert.equal(shown.nodes[cubeId].opacity, 1);
-  assert.deepEqual(shown.nodes[panelId].transform.position, [-0.52, 1.35, -2]);
-  assert.deepEqual(shown.nodes[cubeId].transform.position, [1.16, 1.38, -2.05]);
+  assert.deepEqual(shown.nodes[panelId].transform.position, [-0.52, 1.35, 0.5]);
+  assert.deepEqual(shown.nodes[cubeId].transform.position, [1.16, 1.38, 0.45]);
   assert.deepEqual(shown.nodes[brandId], before.nodes[brandId]);
   assert.deepEqual(shown.nodes[logoId], before.nodes[logoId]);
 });
@@ -54,7 +54,6 @@ test("パネル送りは一度だけ受け付け、2枚目の説明へ切り替�
     advanced.state.surfaces[surfaceId],
     reactResourceId("state", "original-panel", "detail"),
   );
-  assert.equal(input(advanced.state, "presenter.next").outcome.kind, "none");
   const detail = definition.scene.surfaces[surfaceId].states[advanced.state.surfaces[surfaceId]];
   assert.ok(
     detail.semanticOverrides
@@ -68,12 +67,11 @@ test("パネル送りは一度だけ受け付け、2枚目の説明へ切り替�
   );
 });
 
-test("回転操作で立方体が10秒かけて一周し、パネルを残し、ブランドを再表示せず停止する", () => {
+test("次への入力で立方体が10秒かけて一周し、パネルを残し、ブランドを再表示せず停止する", () => {
   const detail = input(showOriginal(), "presenter.next").state;
-  const turning = input(detail, "presenter.rotate");
+  const turning = input(detail, "presenter.next");
   assert.equal(turning.outcome.kind, "accepted");
   assert.equal(turning.state.currentStepId, "original-shown");
-  assert.equal(input(turning.state, "presenter.rotate").outcome.kind, "none");
   const timeline = Object.values(definition.flow.timelines).find((t) =>
     t.tracks.some(
       (track) => track.target.nodeId === cubeId && track.target.property === "transform.rotation",
@@ -99,7 +97,7 @@ test("回転操作で立方体が10秒かけて一周し、パネルを残し、
 
 test("回転後の次へで一拍置いて×を出し、当初案だけをまとめて退場させる", () => {
   const detail = input(showOriginal(), "presenter.next").state;
-  const turning = input(detail, "presenter.rotate").state;
+  const turning = input(detail, "presenter.next").state;
   const stopped = advanceCueClock(definition, turning, 19362).state;
   const rejected = input(stopped, "presenter.next");
   assert.equal(rejected.outcome.kind, "accepted");
@@ -140,7 +138,7 @@ test("回転後の次へで一拍置いて×を出し、当初案だけをまと
 
 test("回転開始直後も回転途中も、完了を待たず次へ進んで退場できる", () => {
   const detail = input(showOriginal(), "presenter.next").state;
-  const turning = input(detail, "presenter.rotate").state;
+  const turning = input(detail, "presenter.next").state;
   assert.equal(input(turning, "presenter.next").outcome.kind, "accepted");
   const halfway = advanceCueClock(definition, turning, 14362).state;
   assert.equal(halfway.activeRuns.length, 1);

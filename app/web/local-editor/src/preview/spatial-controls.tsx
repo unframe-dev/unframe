@@ -102,7 +102,7 @@ export function SpatialControls() {
           俯瞰
         </Button>
         <Button disabled={disabled} onClick={() => workspace.commands.resetPreviewCamera()}>
-          カメラを原点へ
+          正面から見る
         </Button>
       </div>
       <div className="presenter-coordinates" role="group" aria-label="Presenter の腰位置">

@@ -29,8 +29,8 @@ test("Unframe と同時に左下と右上から wave を開始し、開幕完了
   const started = advanceCueClock(definition, initial, 1).state;
   assert.equal(started.effectRuns.length, 2);
   const directions = {
-    "opening-wave-bottom-left": { position: [-2.1, 0.4, -2.2], direction: [1, 0, 0] },
-    "opening-wave-top-right": { position: [2.1, 2.8, -2.2], direction: [-1, 0, 0] },
+    "opening-wave-bottom-left": { position: [-2.1, 0.4, 0.3], direction: [1, 0, 0] },
+    "opening-wave-top-right": { position: [2.1, 2.8, 0.3], direction: [-1, 0, 0] },
   };
   assert.deepEqual(
     new Set(started.effectRuns.map((run) => run.effectId)),
@@ -186,9 +186,9 @@ test("フェードイン完了から4秒保持し、位置とサイズを変え�
     assert.equal(at("opacity", 8500, id), 0);
   }
   for (const time of [0, 3000, 7000, 7750, 8500]) {
-    assert.deepEqual(at("transform.position", time), [0.381, 1.6, -2]);
+    assert.deepEqual(at("transform.position", time), [0.381, 1.6, 0.5]);
     assert.deepEqual(at("transform.scale", time), [1.5, 1.5, 1.5]);
-    assert.deepEqual(at("transform.position", time, logo.id), [-0.966, 1.6, -2]);
+    assert.deepEqual(at("transform.position", time, logo.id), [-0.966, 1.6, 0.5]);
     assert.deepEqual(at("transform.scale", time, logo.id), [0.6, 0.6, 0.6]);
   }
 });

@@ -46,7 +46,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 2.15, -2.5],
+        position: [0, 2.15, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -65,7 +65,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [-0.85, 1.5, -2.5],
+        position: [-0.85, 1.5, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -84,7 +84,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0.85, 1.5, -2.5],
+        position: [0.85, 1.5, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -103,7 +103,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [-0.85, 0.95, -2.5],
+        position: [-0.85, 0.95, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -122,7 +122,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0.85, 0.95, -2.5],
+        position: [0.85, 0.95, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -141,7 +141,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 2.15, -2.5],
+        position: [0, 2.15, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -160,7 +160,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.55, -2.5],
+        position: [0, 1.55, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -179,7 +179,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.1, -2.5],
+        position: [0, 1.1, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -198,7 +198,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 0.6, -2.5],
+        position: [0, 0.6, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -217,7 +217,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 2.15, -2.5],
+        position: [0, 2.15, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -236,7 +236,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.55, -2.5],
+        position: [0, 1.55, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -255,7 +255,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.1, -2.5],
+        position: [0, 1.1, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -274,7 +274,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 0.6, -2.5],
+        position: [0, 0.6, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -293,7 +293,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.95, -2.5],
+        position: [0, 1.95, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -312,7 +312,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 1.4, -2.5],
+        position: [0, 1.4, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -331,7 +331,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 0.85, -2.5],
+        position: [0, 0.85, 0],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -347,7 +347,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [-0.6, 1.4, -2.2],
+        position: [-0.6, 1.4, 0.3],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -363,7 +363,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0.6, 1.4, -2.2],
+        position: [0.6, 1.4, 0.3],
         rotation: [0, 0, 1, 0],
         scale: [1, 1, 1],
       },
@@ -386,7 +386,7 @@ export default definePresentation({
       },
       opacity: 0,
       transform: {
-        position: [0.55, 1.3, -2.15],
+        position: [0.55, 1.3, 0.35],
         rotation: [0, 0, 0, 1],
         scale: [0.32, 0.32, 0.32],
       },
@@ -465,7 +465,7 @@ export default definePresentation({
       },
       opacity: 0,
       transform: {
-        position: [0, 1.3, -1.5],
+        position: [0, 1.3, 1],
         rotation: [0, 0, 0, 1],
         scale: [0.4, 0.4, 0.4],
       },
@@ -513,7 +513,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 0.85, -2],
+        position: [0, 0.85, 0.5],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -528,7 +528,7 @@ export default definePresentation({
       physicalSizeMeters: [1.4, 1.4],
       fit: "contain",
       opacity: 0,
-      transform: { position: [0, 1.4, -1.5], rotation: [0, 0, 0, 1], scale: [0.8, 0.8, 0.8] },
+      transform: { position: [0, 1.4, 1], rotation: [0, 0, 0, 1], scale: [0.8, 0.8, 0.8] },
     },
     {
       id: "brand",
@@ -540,7 +540,7 @@ export default definePresentation({
       physicalSizeMeters: [1.28, 0.44],
       fit: "contain",
       opacity: 0,
-      transform: { position: [0.381, 1.6, -2], rotation: [0, 0, 0, 1], scale: [1.5, 1.5, 1.5] },
+      transform: { position: [0.381, 1.6, 0.5], rotation: [0, 0, 0, 1], scale: [1.5, 1.5, 1.5] },
     },
     {
       id: "logo",
@@ -550,7 +550,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 0,
       transform: {
-        position: [-0.966, 1.6, -2],
+        position: [-0.966, 1.6, 0.5],
         rotation: [0, 0.7071067811865476, 0.7071067811865476, 0],
         scale: [0.6, 0.6, 0.6],
       },
@@ -565,7 +565,7 @@ export default definePresentation({
       physicalSizeMeters: [1.72, 1.1008],
       fit: "contain",
       opacity: 0,
-      transform: { position: [-0.52, 1.25, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [-0.52, 1.25, 0.5], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
     {
       id: "demo-cube",
@@ -575,7 +575,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 0,
       transform: {
-        position: [1.16, 1.28, -2.05],
+        position: [1.16, 1.28, 0.45],
         rotation: [
           -0.1205904774487396, 0.37940952255126037, 0.049950211252314816, 0.9159756150367534,
         ],
@@ -589,7 +589,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 1,
       id: "opening-wave-bottom-left",
-      transform: { position: [-2.1, 0.4, -2.2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [-2.1, 0.4, 0.3], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
     {
       model: { kind: "asset-ref", assetId: "wave-anchor" },
@@ -598,7 +598,7 @@ export default definePresentation({
       parent: { kind: "stage" },
       opacity: 1,
       id: "opening-wave-top-right",
-      transform: { position: [2.1, 2.8, -2.2], rotation: [0, 1, 0, 0], scale: [1, 1, 1] },
+      transform: { position: [2.1, 2.8, 0.3], rotation: [0, 1, 0, 0], scale: [1, 1, 1] },
     },
     {
       id: "goal-before",
@@ -610,7 +610,7 @@ export default definePresentation({
       physicalSizeMeters: [1.5, 0.4167],
       fit: "contain",
       opacity: 0,
-      transform: { position: [-0.35, 1.7, -2.15], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [-0.35, 1.7, 0.35], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
     {
       id: "goal-after",
@@ -622,7 +622,7 @@ export default definePresentation({
       physicalSizeMeters: [1.5, 0.4167],
       fit: "contain",
       opacity: 0,
-      transform: { position: [0, 0.9, -1.8], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [0, 0.9, 0.7], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
   ],
   flow: {
@@ -707,7 +707,7 @@ export default definePresentation({
             cues: [
               {
                 id: "rotate-cube",
-                trigger: { kind: "logicalInput", action: "presenter.rotate" },
+                trigger: { kind: "logicalInput", action: "presenter.next" },
                 actions: [
                   { kind: "timeline.play", timelineId: "cube-turn", completion: "nonBlocking" },
                 ],

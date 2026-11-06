@@ -9,7 +9,6 @@ public sealed class QuestPresentationSessionWindow : EditorWindow
     [NonSerialized] private string origin = String.Empty;
     [NonSerialized] private string sessionId = String.Empty;
     [NonSerialized] private string credential = String.Empty;
-    [NonSerialized] private string logicalEventName = String.Empty;
     [NonSerialized] private string error = String.Empty;
     [NonSerialized] private bool connecting;
 
@@ -23,7 +22,6 @@ public sealed class QuestPresentationSessionWindow : EditorWindow
         origin = EditorGUILayout.TextField("HTTPS origin", origin);
         sessionId = EditorGUILayout.TextField("Session ID", sessionId);
         credential = EditorGUILayout.PasswordField("Credential", credential);
-        logicalEventName = EditorGUILayout.TextField("Advance logical event", logicalEventName);
         using (new EditorGUI.DisabledScope(!EditorApplication.isPlaying || connecting || String.IsNullOrWhiteSpace(credential)))
             if (GUILayout.Button("Connect")) Connect();
         if (!String.IsNullOrEmpty(error)) EditorGUILayout.HelpBox(error, MessageType.Error);
@@ -39,7 +37,7 @@ public sealed class QuestPresentationSessionWindow : EditorWindow
         {
             if (session == null) session = FindFirstObjectByType<QuestPresentationSession>();
             if (session == null) { error = "No active presentation session found."; return; }
-            session.ConfigureConnection(new Uri(origin), sessionId, _ => Task.FromResult(suppliedCredential), logicalEventName);
+            session.ConfigureConnection(new Uri(origin), sessionId, _ => Task.FromResult(suppliedCredential));
             await session.ConnectAsync();
             if (this != null) error = session.LastErrorCode;
         }

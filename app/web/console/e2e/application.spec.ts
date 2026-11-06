@@ -32,6 +32,30 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) => route.fulfill({ json: accountSession }));
 });
 
+test("brand icon keeps its size when the sidebar is collapsed and expanded", async ({ page }) => {
+  await page.goto("/home");
+  await page.evaluate(() => document.fonts.ready);
+  const brand = page.getByRole("link", { name: "Unframe home" });
+  const icon = brand.locator("img");
+  const wordmark = brand.getByText("Unframe", { exact: true });
+  await expect(icon).toBeVisible();
+  const iconSize = () =>
+    icon.evaluate((element) => {
+      const { width, height } = element.getBoundingClientRect();
+      return { width, height };
+    });
+  const expandedSize = await iconSize();
+  expect(expandedSize.width).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "サイドバーを折り畳む" }).click();
+  await expect(wordmark).toBeHidden();
+  await expect.poll(iconSize).toEqual(expandedSize);
+
+  await page.getByRole("button", { name: "サイドバーを展開" }).click();
+  await expect(wordmark).toBeVisible();
+  await expect.poll(iconSize).toEqual(expandedSize);
+});
+
 test("account menu displays the account image on desktop and mobile", async ({ page }) => {
   await page.goto("/home");
   const menu = page.getByRole("button", { name: "アカウントメニュー" });
@@ -234,7 +258,10 @@ test("shows active device authorizations and links to approval without exposing 
   await expect(page.getByText("Desktop Chrome", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Expired Quest", { exact: true })).toHaveCount(0);
   await expect(page.locator("main")).not.toContainText("secret-device-token");
-  await page.getByRole("link", { name: "デバイスを承認" }).click();
+  const approveDeviceLink = page.getByRole("link", { name: "デバイスを承認" });
+  await expect(approveDeviceLink).toHaveCSS("background-color", "rgb(223, 123, 128)");
+  await expect(approveDeviceLink).toHaveCSS("min-height", "44px");
+  await approveDeviceLink.click();
   await expect(page.getByRole("heading", { name: "Connect a device." })).toBeVisible();
   await page.getByRole("link", { name: "デバイス一覧へ" }).click();
   await expect(page.getByText("Unframe Quest", { exact: true })).toBeVisible();

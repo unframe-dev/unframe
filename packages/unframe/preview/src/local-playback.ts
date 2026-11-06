@@ -44,6 +44,14 @@ const cueInput = (cue: Cue, causeEventId: string): CueInput | undefined => {
         kind: "semanticEvent",
         event: cue.trigger.event,
       };
+    case "zoneEdge":
+      return {
+        ...base,
+        actor,
+        kind: "zoneEdge",
+        zoneId: cue.trigger.zoneId,
+        edge: cue.trigger.edge,
+      };
     case "surfaceInteraction":
       return {
         ...base,

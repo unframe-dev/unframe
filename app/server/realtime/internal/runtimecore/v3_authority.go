@@ -233,6 +233,9 @@ func v3InputFingerprint(input v2Input) string {
 	values := []string{input.logicalEventName}
 	enum := uint32(0)
 	switch input.kind {
+	case "forceAdvance":
+		variant = "force_advance"
+		values = nil
 	case "surfaceInteraction":
 		variant = "surface_interaction"
 		values = []string{input.surfaceID, input.interactionID}

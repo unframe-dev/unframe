@@ -546,7 +546,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
             string id = command?.PresentationOrigin?.ClientEventId ?? command?.RuntimeControl?.ClientEventId ?? command?.LogicalInput?.ClientEventId
-                ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId;
+                ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId ?? command?.ForceAdvance?.ClientEventId;
             if (String.IsNullOrWhiteSpace(id)) throw new ArgumentException("A command event identifier is required.", nameof(command));
             var completion = new TaskCompletionSource<CommandOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (pendingGate)
@@ -582,7 +582,8 @@ namespace Unframe.Unity.PresentationRuntime
                 && (command.ItemCase == ControlClientItem.ItemOneofCase.LogicalInput
                 || command.ItemCase == ControlClientItem.ItemOneofCase.SurfaceInteraction
                 || command.ItemCase == ControlClientItem.ItemOneofCase.GestureInput
-                || command.ItemCase == ControlClientItem.ItemOneofCase.ZoneInput);
+                || command.ItemCase == ControlClientItem.ItemOneofCase.ZoneInput
+                || command.ItemCase == ControlClientItem.ItemOneofCase.ForceAdvance);
         }
 
         private async Task WriteInputAsync(AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem> expectedControl, ControlClientItem command, ulong generation, CancellationToken token)
@@ -595,7 +596,7 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new InvalidOperationException("The runtime input connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 await expectedControl.RequestStream.WriteAsync(command);
-                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId);
+                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId);
             }
             finally { writes.Release(); }
         }

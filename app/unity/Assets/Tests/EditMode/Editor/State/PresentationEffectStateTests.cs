@@ -82,5 +82,8 @@ public sealed class PresentationEffectStateTests
             update.ReliableEvent.GestureInputAccepted = new GestureInputAccepted { Gesture = gesture };
             Assert.IsTrue(store.TryReceiveNetworkControl(update, out error), error);
         }
+        update.ReliableEvent.Sequence++;
+        update.ReliableEvent.ForceAdvanceAccepted = new ForceAdvanceAccepted();
+        Assert.IsTrue(store.TryReceiveNetworkControl(update, out error), error);
     }
 }

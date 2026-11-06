@@ -10,16 +10,23 @@ namespace Unframe.Unity.PresentationRuntime
         private bool leftTrigger;
         private bool rightTrigger;
         private bool primary;
+        private bool leftStick;
 
         public void Sample(bool nextLeftTrigger, bool nextRightTrigger, bool nextPrimary, bool ready,
             out bool leftRay, out bool rightRay, out bool logical)
+            => Sample(nextLeftTrigger, nextRightTrigger, nextPrimary, false, ready, out leftRay, out rightRay, out logical, out _);
+
+        public void Sample(bool nextLeftTrigger, bool nextRightTrigger, bool nextPrimary, bool nextLeftStick, bool ready,
+            out bool leftRay, out bool rightRay, out bool logical, out bool advance)
         {
             leftRay = ready && nextLeftTrigger && !leftTrigger;
             rightRay = ready && nextRightTrigger && !rightTrigger;
             logical = ready && nextPrimary && !primary;
+            advance = ready && nextLeftStick && !leftStick;
             leftTrigger = nextLeftTrigger;
             rightTrigger = nextRightTrigger;
             primary = nextPrimary;
+            leftStick = nextLeftStick;
         }
     }
 
@@ -42,6 +49,20 @@ namespace Unframe.Unity.PresentationRuntime
     public static class QuestPresentationInput
     {
         private static ulong CapturedAtMs() { return (ulong)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000); }
+
+        public static ControlClientItem CreateForceAdvance(ulong presentationOriginVersion, InputContext context, ulong commandEpoch)
+        {
+            return new ControlClientItem
+            {
+                ForceAdvance = new ForceAdvanceCommand
+                {
+                    ClientEventId = EventId(commandEpoch),
+                    CommandEpoch = commandEpoch,
+                    InputContext = context?.Clone() ?? throw new ArgumentNullException(nameof(context)),
+                    PresentationOriginVersion = presentationOriginVersion,
+                },
+            };
+        }
 
         public static ControlClientItem CreateLogical(string logicalEventName, ulong presentationOriginVersion, InputContext context, ulong commandEpoch)
         {

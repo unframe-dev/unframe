@@ -222,10 +222,11 @@ test("confirms a new Dist before writing and publishes every validated asset exa
     buildId: dist.fixture.artifacts.buildManifest.buildId,
     expectedPublicationFence: null,
   });
-  await expect(page.getByRole("link", { name: "プレゼンテーションを開く" })).toHaveAttribute(
-    "href",
-    `/presentations/${targetId}`,
-  );
+  await page.mouse.move(0, 0);
+  const openPresentationLink = page.getByRole("link", { name: "プレゼンテーションを開く" });
+  await expect(openPresentationLink).toHaveCSS("background-color", "rgb(223, 123, 128)");
+  await expect(openPresentationLink).toHaveCSS("min-height", "44px");
+  await expect(openPresentationLink).toHaveAttribute("href", `/presentations/${targetId}`);
   await testInfo.attach("Dist publication completed", {
     body: await page.screenshot({
       path: testInfo.outputPath("dist-completed.png"),
