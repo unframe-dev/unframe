@@ -1,4 +1,5 @@
-import { NarrativeLine } from "./component/narrative-line.component";
+import { pocScene } from "./poc.scene";
+import { reactionScene } from "./reaction.scene";
 import { SlideFrame } from "./component/slide-frame.component";
 import { definePresentation } from "@unframe-dev/authoring";
 import { OpeningBrand } from "./component/opening.component";
@@ -19,10 +20,20 @@ export default definePresentation({
     coordinateSystem: { unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z" },
     size: [4, 3.2, 4],
     zones: {
+      "closing-stage": {
+        id: "closing-stage",
+        owner: { kind: "group", groupId: "closing-wait" },
+        center: [-1.8, 0, 0],
+      },
+      "reaction-gaze-stage": {
+        id: "reaction-gaze-stage",
+        owner: { kind: "group", groupId: "reaction-sense" },
+        center: [1.8, 0, 0],
+      },
       "journey-stage": {
         id: "journey-stage",
         owner: { kind: "group", groupId: "journey" },
-        center: [1.4, 0, 0],
+        center: [-1.8, 0, 0],
       },
     },
   },
@@ -32,310 +43,8 @@ export default definePresentation({
     { kind: "asset-ref", assetId: "wave-anchor" },
   ],
   scene: [
-    {
-      id: "conditions-title",
-      component: NarrativeLine,
-      props: { text: "この体験を成立させるもの" },
-      owner: {
-        kind: "group",
-        groupId: "conditions",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 2.15, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "condition-content",
-      component: SpatialWord,
-      props: { text: "見せる内容" },
-      owner: {
-        kind: "group",
-        groupId: "conditions",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [1.6, 0.444],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [-0.85, 1.5, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "condition-action",
-      component: SpatialWord,
-      props: { text: "発表者の操作" },
-      owner: {
-        kind: "group",
-        groupId: "conditions",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [1.6, 0.444],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0.85, 1.5, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "condition-space",
-      component: SpatialWord,
-      props: { text: "空間の位置合わせ" },
-      owner: {
-        kind: "group",
-        groupId: "conditions",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [1.6, 0.444],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [-0.85, 0.95, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "condition-sharing",
-      component: SpatialWord,
-      props: { text: "観客への共有" },
-      owner: {
-        kind: "group",
-        groupId: "conditions",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [1.6, 0.444],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0.85, 0.95, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "action-title",
-      component: NarrativeLine,
-      props: { text: "内容と操作を結びつける" },
-      owner: {
-        kind: "group",
-        groupId: "content-action",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 2.15, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "action-gesture",
-      component: NarrativeLine,
-      props: { text: "動作に応じて、内容が変わる" },
-      owner: {
-        kind: "group",
-        groupId: "content-action",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.55, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "action-zone",
-      component: NarrativeLine,
-      props: { text: "立つ場所に応じて、場面が変わる" },
-      owner: {
-        kind: "group",
-        groupId: "content-action",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.1, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "action-message",
-      component: NarrativeLine,
-      props: { text: "身体を使った発表へ" },
-      owner: {
-        kind: "group",
-        groupId: "content-action",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [2.6, 0.325],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 0.6, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "sharing-title",
-      component: NarrativeLine,
-      props: { text: "同じ空間・同じ進行を共有する" },
-      owner: {
-        kind: "group",
-        groupId: "space-sharing",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 2.15, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "sharing-place",
-      component: NarrativeLine,
-      props: { text: "どこに表示するか" },
-      owner: {
-        kind: "group",
-        groupId: "space-sharing",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [2.6, 0.325],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.55, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "sharing-progress",
-      component: NarrativeLine,
-      props: { text: "いま何が起きているか" },
-      owner: {
-        kind: "group",
-        groupId: "space-sharing",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [2.6, 0.325],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.1, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "sharing-message",
-      component: NarrativeLine,
-      props: { text: "発表者と観客が、ともに体験する" },
-      owner: {
-        kind: "group",
-        groupId: "space-sharing",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 0.6, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "summary-content",
-      component: NarrativeLine,
-      props: { text: "内容を、" },
-      owner: {
-        kind: "group",
-        groupId: "summary",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [2.6, 0.325],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.95, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "summary-body-space",
-      component: NarrativeLine,
-      props: { text: "身体と空間を使って、" },
-      owner: {
-        kind: "group",
-        groupId: "summary",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 1.4, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
-    {
-      id: "summary-audience",
-      component: NarrativeLine,
-      props: { text: "観客に伝える。" },
-      owner: {
-        kind: "group",
-        groupId: "summary",
-      },
-      audience: { kind: "all" },
-      parent: { kind: "stage" },
-      physicalSizeMeters: [3.2, 0.4],
-      fit: "contain",
-      opacity: 0,
-      transform: {
-        position: [0, 0.85, 0],
-        rotation: [0, 0, 0, 1],
-        scale: [1, 1, 1],
-      },
-    },
+    ...pocScene,
+    ...reactionScene,
     {
       id: "goal-frame-left",
       component: SlideFrame,
@@ -388,7 +97,7 @@ export default definePresentation({
       transform: {
         position: [0.55, 1.3, 0.35],
         rotation: [0, 0, 0, 1],
-        scale: [0.32, 0.32, 0.32],
+        scale: [0.24, 0.24, 0.24],
       },
     },
     {
@@ -513,7 +222,7 @@ export default definePresentation({
       fit: "contain",
       opacity: 0,
       transform: {
-        position: [0, 0.85, 0.5],
+        position: [-1.2, 1.5, 1],
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
@@ -615,14 +324,14 @@ export default definePresentation({
     {
       id: "goal-after",
       component: SpatialWord,
-      props: { text: "動きも、表現へ。" },
+      props: { text: "動きに連動する" },
       owner: { kind: "group", groupId: "journey" },
       audience: { kind: "all" },
       parent: { kind: "stage" },
-      physicalSizeMeters: [1.5, 0.4167],
+      physicalSizeMeters: [1.6, 0.4444],
       fit: "contain",
       opacity: 0,
-      transform: { position: [0, 0.9, 0.7], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+      transform: { position: [0, 1.6, 0.5], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
     },
   ],
   flow: {
@@ -630,8 +339,19 @@ export default definePresentation({
     groups: {
       demo: {
         id: "demo",
-        initialStepId: "opening",
+        initialStepId: "opening-wait",
         steps: {
+          "opening-wait": {
+            id: "opening-wait",
+            cues: [
+              {
+                id: "start-opening",
+                trigger: { kind: "logicalInput", action: "presenter.next" },
+                actions: [],
+                next: { kind: "step", stepId: "opening" },
+              },
+            ],
+          },
           opening: {
             id: "opening",
             cues: [
@@ -757,15 +477,15 @@ export default definePresentation({
       {
         id: "opening",
         owner: { kind: "group", groupId: "demo" },
-        durationMilliseconds: 8500,
+        durationMilliseconds: 6000,
         tracks: [
           {
             target: { kind: "instance", instanceId: "brand", property: "opacity" },
             keyframes: [
               { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
               { timeMilliseconds: 3000, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 8500, value: 0 },
+              { timeMilliseconds: 4500, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 6000, value: 0 },
             ],
           },
           {
@@ -773,8 +493,8 @@ export default definePresentation({
             keyframes: [
               { timeMilliseconds: 0, value: 0, easingToNext: "cubicInOut" },
               { timeMilliseconds: 3000, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 8500, value: 0 },
+              { timeMilliseconds: 4500, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 6000, value: 0 },
             ],
           },
           {
@@ -785,8 +505,8 @@ export default definePresentation({
             },
             keyframes: [
               { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 8500, value: 0 },
+              { timeMilliseconds: 4500, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 6000, value: 0 },
             ],
           },
           {
@@ -797,8 +517,8 @@ export default definePresentation({
             },
             keyframes: [
               { timeMilliseconds: 0, value: 1, easingToNext: "linear" },
-              { timeMilliseconds: 7000, value: 1, easingToNext: "cubicInOut" },
-              { timeMilliseconds: 8500, value: 0 },
+              { timeMilliseconds: 4500, value: 1, easingToNext: "cubicInOut" },
+              { timeMilliseconds: 6000, value: 0 },
             ],
           },
         ],
