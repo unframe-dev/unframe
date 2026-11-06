@@ -971,6 +971,64 @@ function groupSetup() {
 }
 
 describe("group ownership and progression", () => {
+  it("drops frozen Group anchors on exit while preserving presentation anchors", () => {
+    const { delivery, snapshot, initialization, nodeId, fence } = groupSetup();
+    const catalog = delivery.projectionProfile!.runtimeCatalog!;
+    for (const id of [nodeId, "intro-node"]) {
+      catalog.nodes!.find((node) => node.nodeId === id)!.parent = {
+        presenterAnchor: { target: 1, followPosition: true },
+      };
+    }
+    snapshot.snapshot!.runtimeView!.frozenAnchors = [
+      { nodeId, position: { x: 2 } },
+      { nodeId: "intro-node", position: { x: 1 } },
+    ];
+    const store = createRuntimeStore(delivery);
+    store.applyControl({ connectionSnapshot: snapshot });
+    expect(store.getSnapshot().phase).toBe("ready");
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "exit",
+        occurredAtRuntimeTimeMs: "10",
+        groupExited: { groupId: "intro", groupEntryEpoch: "1" },
+      },
+    });
+    expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "2",
+        eventId: "enter",
+        occurredAtRuntimeTimeMs: "10",
+        groupEntered: { groupId: "next", groupEntryEpoch: "2", initialization },
+      },
+    });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "3",
+        eventId: "step",
+        occurredAtRuntimeTimeMs: "10",
+        stepEntered: {
+          groupId: "next",
+          groupEntryEpoch: "2",
+          stepId: "first",
+          stepEntryEpoch: "2",
+          enteredAtRuntimeTimeMs: "10",
+        },
+      },
+    });
+    expect(store.getSnapshot()).toMatchObject({
+      phase: "ready",
+      reliableSequence: "3",
+      view: {
+        progression: { currentGroupId: "next" },
+        frozenAnchors: [{ nodeId, position: [2, 0, 0] }],
+      },
+    });
+  });
   it("accepts exactly presentation-owned and current Group-owned snapshot state", () => {
     const { store, snapshot } = groupSetup();
     store.applyControl({ connectionSnapshot: snapshot });

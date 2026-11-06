@@ -1,15 +1,19 @@
 import { PNG_DEFAULT_STATE } from "../../test-support/png-delivery-fixture";
 import { afterEach, expect, test, vi } from "vite-plus/test";
-import type {
-  ConnectionSnapshotEnvelopeWire,
-  DeliveryManifestWire,
-  ParticipantRuntimeView,
-  RuntimeProjectionFenceWire,
-  StateServerItemWire,
+import {
+  decodeWireMessage,
+  encodeWireMessage,
+  type ConnectionSnapshotEnvelopeWire,
+  type DeliveryManifestWire,
+  type ParticipantRuntimeView,
+  type RuntimeProjectionFenceWire,
+  type StateServerItemWire,
 } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimePlayback } from "../../runtime/playback";
 import { createViewingSession } from "../viewing-session";
+import { createAudienceRealtime } from "../../connection/realtime-client";
+import type { PreparedConnection } from "../../connection/join-controller";
 
 function contractFixture() {
   const delivery = structuredClone(fixture.value) as DeliveryManifestWire;
@@ -81,6 +85,25 @@ const sessions: ReturnType<typeof createViewingSession>[] = [];
 afterEach(() => {
   for (const session of sessions.splice(0)) session.dispose();
 });
+class RealtimeSocket extends EventTarget {
+  readyState = 1;
+  bufferedAmount = 0;
+  sent: (string | Uint8Array)[] = [];
+
+  send(data: string | Uint8Array) {
+    this.sent.push(data);
+  }
+
+  close() {
+    this.readyState = 3;
+  }
+
+  receive(type: string, value: object) {
+    const data = new Uint8Array(encodeWireMessage(type, value)).buffer;
+    this.dispatchEvent(new MessageEvent("message", { data }));
+  }
+}
+
 function setup() {
   const data = contractFixture();
   let running = false;
@@ -327,4 +350,87 @@ test("a State delta gap preserves display and emits a stable keyframe recovery r
     runtime: { stateSequence: "5", stateSync: "ready" },
   });
   expect(rendered()?.nodeStates[nodeId]?.transform.position).toEqual([3, 0, -2]);
+});
+
+test("State reattachment keeps the previous view visible and waits to send StateReady", async () => {
+  const { viewer, delivery, snapshot, keyframe, rendered, nodeId, present } = setup();
+  const sockets: RealtimeSocket[] = [];
+  const realtime = createAudienceRealtime({
+    socket: () => {
+      const socket = new RealtimeSocket();
+      sockets.push(socket);
+      return socket as unknown as WebSocket;
+    },
+  });
+  const connection = {
+    bootstrap: {
+      endpoint: "https://runtime.example.test",
+      credential: "test-credential",
+      expiresAt: "2099-01-01T00:00:00Z",
+    },
+  } as PreparedConnection;
+  const controlType = "unframe.realtime.ControlServerItem";
+  const stateType = "unframe.realtime.StateServerItem";
+  await viewer.start(delivery);
+  const input = viewer.getInput()!;
+  vi.useFakeTimers();
+  const resume = Promise.withResolvers<void>();
+  try {
+    realtime.install(
+      input,
+      connection,
+      () => connection,
+      () => null,
+    );
+    const control = sockets[0]!;
+    const attachState = (nonce: number, nextStateFrameSequence: string) => {
+      control.receive(controlType, {
+        stateConnectionNonce: { nonce: new Uint8Array([nonce]), expiresInMs: 30_000 },
+      });
+      const state = sockets.at(-1)!;
+      state.receive(stateType, {
+        connected: { connectionId: snapshot.connectionId, nextStateFrameSequence },
+      });
+      return state;
+    };
+    control.receive(controlType, { connectionSnapshot: snapshot });
+    const state = attachState(1, "1");
+    await viewer.waitForIdle();
+    await vi.advanceTimersByTimeAsync(50);
+    const stateReady = {
+      stateReady: { appliedReliableSequence: "0", presentationOriginVersion: "0" },
+    };
+    const controlMessages = () =>
+      control.sent.map((data) =>
+        decodeWireMessage("unframe.realtime.ControlClientItem", data as Uint8Array),
+      );
+    expect(controlMessages()).toEqual([stateReady]);
+
+    const render = present.getMockImplementation()!;
+    present.mockImplementation(async (view) => {
+      await resume.promise;
+      await render(view);
+    });
+    state.receive(stateType, keyframe());
+    realtime.recover({ id: 1, kind: "keyframe", afterSequence: "0" }, input, () => null);
+    attachState(2, "2");
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(viewer.getSnapshot()).toMatchObject({
+      phase: "viewing",
+      runtime: { rendering: "ready" },
+    });
+    expect(rendered()?.nodeStates[nodeId]?.transform.position).toEqual([0, 0, 0]);
+    expect(controlMessages()).toEqual([stateReady]);
+
+    resume.resolve();
+    await viewer.waitForIdle();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(rendered()?.nodeStates[nodeId]?.transform.position).toEqual([1, 0, -2]);
+    expect(controlMessages()).toEqual([stateReady, stateReady]);
+  } finally {
+    resume.resolve();
+    realtime.dispose();
+    vi.useRealTimers();
+  }
 });

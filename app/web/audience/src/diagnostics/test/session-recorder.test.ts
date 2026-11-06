@@ -96,3 +96,76 @@ test("経過時間はUTC時計の補正で巻き戻らず許可外の識別子�
   data.events.length = 0;
   expect(recorder.export().events).toHaveLength(2);
 });
+
+test("再同期入力は固定分類とuint64だけを保持し呼び出し元の変更を受けない", () => {
+  const recorder = createSessionRecorder();
+  const cause = {
+    code: "snapshot-recovery",
+    channel: "control",
+    input: {
+      channel: "control",
+      kind: "reliableEvent",
+      eventKind: "stepEntered",
+      reliableSequence: "18446744073709551615",
+      message: "private message",
+      url: "https://private.test/?credential=secret",
+    },
+  };
+  recorder.recordDisconnect(cause as never, { sessionId: "session" });
+  cause.input.eventKind = "private-event";
+  const first = recorder.getLastDisconnect("session");
+  expect(first).toMatchObject({
+    input: {
+      channel: "control",
+      kind: "reliableEvent",
+      eventKind: "stepEntered",
+      reliableSequence: "18446744073709551615",
+    },
+  });
+  first!.input!.eventKind = "groupEntered";
+  expect(recorder.getLastDisconnect("session")?.input?.eventKind).toBe("stepEntered");
+  const exported = recorder.export();
+  expect(JSON.stringify(exported)).not.toMatch(/private|secret|credential|message|url/);
+  recorder.recordDisconnect(
+    {
+      code: "snapshot-recovery",
+      input: {
+        channel: "https://private.test",
+        kind: "private-kind",
+        eventKind: "private-event",
+        frameKind: "private-frame",
+        reliableSequence: "18446744073709551616",
+        stateSequence: "-1",
+      },
+    } as never,
+    { sessionId: "session" },
+  );
+  expect(recorder.getLastDisconnect("session")).not.toHaveProperty("input");
+  recorder.recordDisconnect(
+    {
+      code: "snapshot-recovery",
+      input: {
+        channel: "state",
+        kind: "stateFrame",
+        eventKind: "private-event",
+        frameKind: "private-frame",
+        reliableSequence: "18446744073709551616",
+        stateSequence: "-1",
+      },
+    } as never,
+    { sessionId: "session" },
+  );
+  expect(recorder.getLastDisconnect("session")?.input).toEqual({
+    channel: "state",
+    kind: "stateFrame",
+  });
+  recorder.recordDisconnect(
+    {
+      code: "socket-error",
+      input: { channel: "control", kind: "reliableEvent", eventKind: "stepEntered" },
+    },
+    { sessionId: "session" },
+  );
+  expect(recorder.getLastDisconnect("session")).not.toHaveProperty("input");
+  expect(JSON.stringify(recorder.export())).not.toMatch(/private|secret|credential|message|url/);
+});

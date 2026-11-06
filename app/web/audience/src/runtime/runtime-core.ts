@@ -412,6 +412,9 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             wireView.nodeStates = (wireView.nodeStates ?? []).filter(
               (node) => !exitingNodes.has(node.nodeId),
             );
+            wireView.frozenAnchors = (wireView.frozenAnchors ?? []).filter(
+              (anchor) => !exitingNodes.has(anchor.nodeId),
+            );
             wireView.surfaceStates = (wireView.surfaceStates ?? []).filter(
               (surface) => !exitingSurfaces.has(surface.surfaceId),
             );

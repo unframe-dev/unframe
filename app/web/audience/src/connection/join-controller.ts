@@ -169,11 +169,7 @@ export function createJoinController(options: {
       expiry(prepared, now());
     } catch {
       stop();
-      publish({
-        phase: "error",
-        error: "expired-connection",
-        ...(joinedSession ? { session: { id: joinedSession.id, state: joinedSession.state } } : {}),
-      });
+      waitForRuntime();
     }
   }
   function scheduleExpiry() {

@@ -1,4 +1,10 @@
-import type { DisconnectCause, SessionRecorder } from "../diagnostics/session-recorder";
+import {
+  runtimeControlKinds,
+  runtimeEventKinds,
+  type DisconnectCause,
+  type RuntimeInputDiagnostic,
+  type SessionRecorder,
+} from "../diagnostics/session-recorder";
 import {
   decodeWireMessage,
   encodeWireMessage,
@@ -62,6 +68,7 @@ export function createAudienceRealtime(
       let receivedState = false;
       let recoveringState = false;
       let started = Date.now();
+      let lastInput: RuntimeInputDiagnostic | undefined;
       let timer: ReturnType<typeof setInterval> | undefined;
       const close = () => {
         if (closed) return;
@@ -169,7 +176,7 @@ export function createAudienceRealtime(
           if (closed) return;
           options.recorder?.record("connection.retry", { ...scope, kind });
           if (kind === "snapshot") {
-            fail({ code: "snapshot-recovery", channel: "control" });
+            fail({ code: "snapshot-recovery", channel: "control", input: lastInput });
           } else if (receivedState && state && !recoveringState) {
             recoveringState = true;
             stateConnected = false;
@@ -206,7 +213,17 @@ export function createAudienceRealtime(
               presentationOriginVersion: snapshot.fence.presentationOriginVersion ?? "0",
             };
           }
+          lastInput = {
+            channel: "control",
+            kind: runtimeControlKinds.find((kind) => item[kind] !== undefined) ?? "unknown",
+            eventKind: runtimeEventKinds.find((kind) => item.reliableEvent?.[kind] !== undefined),
+            reliableSequence:
+              item.reliableEvent?.sequence ??
+              item.connectionSnapshot?.reliableSequence ??
+              item.projectionAdvance?.throughSequence,
+          };
           input.applyControl(item);
+          if (closed) return;
           const origin = item.reliableEvent?.presentationOriginChanged?.origin;
           if (origin) {
             if (!cut || !item.reliableEvent?.sequence || !origin.version) {
@@ -246,6 +263,22 @@ export function createAudienceRealtime(
                   return;
                 }
                 if (stateItem.stateFrame) receivedState = true;
+                lastInput = {
+                  channel: "state",
+                  kind: stateItem.stateFrame
+                    ? "stateFrame"
+                    : stateItem.connected
+                      ? "connected"
+                      : "unknown",
+                  frameKind:
+                    stateItem.stateFrame?.kind === 1
+                      ? "keyframe"
+                      : stateItem.stateFrame?.kind === 2
+                        ? "delta"
+                        : undefined,
+                  reliableSequence: stateItem.stateFrame?.baseReliableSequence,
+                  stateSequence: stateItem.stateFrame?.frameSequence,
+                };
                 input.applyState(stateItem);
               },
             );

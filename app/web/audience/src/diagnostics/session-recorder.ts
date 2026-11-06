@@ -137,9 +137,101 @@ type DisconnectCode =
   | "runtime-binding-failed"
   | "runtime-unavailable"
   | "runtime-recovery-failed";
+export const runtimeControlKinds = [
+  "connected",
+  "connectionSnapshot",
+  "reliableEvent",
+  "projectionAdvance",
+  "commandOutcome",
+  "stateConnectionNonce",
+  "resyncRequired",
+  "presenterInputSynchronization",
+  "presenterStepSelectionCatalog",
+] as const;
+export const runtimeEventKinds = [
+  "runtimeStatusChanged",
+  "presentationOriginChanged",
+  "groupEntered",
+  "groupExited",
+  "stepEntered",
+  "cueAccepted",
+  "presentationEnded",
+  "logicalInputAccepted",
+  "surfaceInteractionAccepted",
+  "surfaceStateChanged",
+  "surfaceTransitionStarted",
+  "surfaceTransitionCompleted",
+  "nodeStateCommitted",
+  "variableChanged",
+  "timelineStarted",
+  "timelineCompleted",
+  "timelineCanceled",
+  "mediaStarted",
+  "mediaPaused",
+  "mediaResumed",
+  "mediaSeeked",
+  "mediaCompleted",
+  "mediaCanceled",
+  "mediaStopped",
+  "modelClipStarted",
+  "modelClipPaused",
+  "modelClipResumed",
+  "modelClipStopped",
+  "modelClipCompleted",
+  "modelClipCrossfadeStarted",
+  "modelClipCrossfadeCompleted",
+  "modelClipCanceled",
+  "participantPresenceChanged",
+  "mediaStoppedSeeked",
+  "gestureInputAccepted",
+  "zoneInputAccepted",
+  "runtimeViewReplaced",
+  "effectRunsChanged",
+  "forceAdvanceAccepted",
+] as const;
+export interface RuntimeInputDiagnostic {
+  channel: "control" | "state";
+  kind: (typeof runtimeControlKinds)[number] | "stateFrame" | "unknown";
+  eventKind?: (typeof runtimeEventKinds)[number] | undefined;
+  frameKind?: "keyframe" | "delta" | undefined;
+  reliableSequence?: string | undefined;
+  stateSequence?: string | undefined;
+}
+function sanitizeRuntimeInput(
+  input: RuntimeInputDiagnostic | undefined,
+): RuntimeInputDiagnostic | undefined {
+  if (!input || (input.channel !== "control" && input.channel !== "state")) return;
+  const allowedKinds: readonly string[] =
+    input.channel === "control" ? runtimeControlKinds : ["connected", "stateFrame"];
+  if (!allowedKinds.includes(input.kind) && input.kind !== "unknown") return;
+  const output: RuntimeInputDiagnostic = { channel: input.channel, kind: input.kind };
+  if (
+    input.kind === "reliableEvent" &&
+    input.eventKind &&
+    (runtimeEventKinds as readonly string[]).includes(input.eventKind)
+  )
+    output.eventKind = input.eventKind;
+  if (
+    input.kind === "stateFrame" &&
+    (input.frameKind === "keyframe" || input.frameKind === "delta")
+  )
+    output.frameKind = input.frameKind;
+  for (const key of ["reliableSequence", "stateSequence"] as const) {
+    const value = input[key];
+    if (
+      typeof value === "string" &&
+      /^(0|[1-9][0-9]{0,19})$/.test(value) &&
+      BigInt(value) <= 18446744073709551615n
+    )
+      output[key] = value;
+  }
+  return output;
+}
+
 export type DisconnectCause = {
   code: DisconnectCode;
   channel?: "control" | "state";
+  input?: RuntimeInputDiagnostic | undefined;
 };
 export type DisconnectDiagnostic = DisconnectCause & Partial<CloseDetails> & { atUtc: string };
 
@@ -249,8 +341,11 @@ export function createSessionRecorder(
   return {
     record,
     recordDisconnect(cause: DisconnectCause, scope: SessionEventFields, close?: CloseEvent) {
+      const input =
+        cause.code === "snapshot-recovery" ? sanitizeRuntimeInput(cause.input) : undefined;
       const detail: DisconnectDiagnostic = {
         code: cause.code,
+        ...(input ? { input } : {}),
         ...(cause.channel ? { channel: cause.channel } : {}),
         atUtc: new Date(now()).toISOString(),
         ...(close ? safeCloseDetails(close) : {}),

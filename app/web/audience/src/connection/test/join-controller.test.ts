@@ -183,7 +183,7 @@ test("期限到達で資格と素材URLを破棄し更新は同じsessionから�
   delivery.assetAccess![0]!.expiresAtUnixMs = String(clock + 1000);
   await controller.join("ABCD-EFGH");
   await vi.advanceTimersByTimeAsync(1000);
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
   expect(controller.getPrepared()).toBeNull();
   bootstrap.expiresAt = new Date(clock + 120_000).toISOString();
   delivery.assetAccess!.forEach((asset) => {
@@ -256,7 +256,7 @@ test("バックグラウンドでtimerが遅れても利用時に期限切れを
   await controller.join("ABCD-EFGH");
   vi.setSystemTime(clock + 120_000);
   expect(controller.getPrepared()).toBeNull();
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
 });
 
 test("終了済sessionではDeliveryを要求しない", async () => {
@@ -319,7 +319,7 @@ test("素材URLの最短期限を使って自動更新し失敗は既存接続�
   await vi.advanceTimersByTimeAsync(1_000);
   expect(client.delivery).toHaveBeenCalledTimes(3);
   await vi.advanceTimersByTimeAsync(9_000);
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
   expect(controller.getPrepared()).toBeNull();
   expect(client.delivery.mock.calls.length).toBeLessThanOrEqual(5);
 });
@@ -366,7 +366,7 @@ test("更新を同時要求しても重複せず旧期限を過ぎた要求の�
   complete(delivery);
   await Promise.all([first, second]);
   expect(controller.getPrepared()).toBeNull();
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
 });
 
 test("更新失敗後の再試行成功で期限とrevisionを進め以後の旧期限timerを解除する", async () => {
@@ -400,7 +400,7 @@ test("leaseにより期限を延ばせなくても更新要求が期限付近で
   await controller.join("ABCD-EFGH");
   await vi.advanceTimersByTimeAsync(2_000);
   expect(client.delivery).toHaveBeenCalledTimes(2);
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
 });
 
 test("timerが止まった間に旧期限を過ぎた更新結果は新期限が有効でも採用しない", async () => {
@@ -421,7 +421,7 @@ test("timerが止まった間に旧期限を過ぎた更新結果は新期限が
   });
   complete(delivery);
   await work;
-  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "expired-connection" });
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
   expect(controller.getPrepared()).toBeNull();
 });
 
@@ -498,5 +498,39 @@ test.each([
   await vi.advanceTimersByTimeAsync(125_000);
   expect(controller.getSnapshot().phase).toBe("recovering");
   expect(client.delivery.mock.calls.length).toBeGreaterThan(20);
+  controller.dispose();
+});
+
+test("期限切れ後の再接続は視聴画面を破棄する中間状態を公開しない", async () => {
+  const { controller, bootstrap, delivery, client } = setup();
+  await controller.join("ABCD-EFGH");
+  const phases: string[] = [];
+  controller.subscribe(() => phases.push(controller.getSnapshot().phase));
+  vi.setSystemTime(clock + 61_000);
+  bootstrap.expiresAt = new Date(clock + 180_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 180_000);
+  });
+  await controller.reconnect();
+  expect(phases).toEqual(["recovering", "prepared"]);
+  expect(controller.getPrepared()?.bootstrap.expiresAt).toBe(bootstrap.expiresAt);
+  expect(client.join).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+
+test("期限切れ中の通信失敗はカメラを保ったまま再試行し確定拒否では停止する", async () => {
+  const { controller, client } = setup();
+  await controller.join("ABCD-EFGH");
+  vi.setSystemTime(clock + 61_000);
+  client.delivery.mockRejectedValueOnce(new AudienceConnectionError("network-error"));
+  await controller.reconnect();
+  expect(controller.getSnapshot().phase).toBe("recovering");
+  expect(controller.getPrepared()).toBeNull();
+  client.delivery.mockRejectedValue(new AudienceConnectionError("http-error", 403));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "forbidden" });
+  const requests = client.delivery.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(client.delivery).toHaveBeenCalledTimes(requests);
   controller.dispose();
 });

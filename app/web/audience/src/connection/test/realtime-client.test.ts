@@ -389,3 +389,103 @@ it("acknowledges the rendered origin update before continuing State at its new v
     h.cleanup();
   }
 });
+
+it("retains the rejected Control event summary when snapshot recovery runs during input application", () => {
+  const h = setup();
+  try {
+    vi.mocked(h.input.applyControl).mockImplementation(() => {
+      h.client.recover({ id: 1, kind: "snapshot", afterSequence: "0" }, h.input, h.restart);
+    });
+    h.sockets[0]!.open();
+    h.sockets[0]!.receive("unframe.realtime.ControlServerItem", {
+      reliableEvent: {
+        sequence: "146",
+        eventId: "private-event-id",
+        stepEntered: { stepId: "private-step", stepEntryEpoch: "2" },
+      },
+    });
+    for (let i = 0; i < 513; i++) h.recorder.record("state.sample");
+    expect(h.recorder.getLastDisconnect(h.connection.session.id)).toMatchObject({
+      code: "snapshot-recovery",
+      channel: "control",
+      input: {
+        channel: "control",
+        kind: "reliableEvent",
+        eventKind: "stepEntered",
+        reliableSequence: "146",
+      },
+    });
+    expect(JSON.stringify(h.recorder.getLastDisconnect(h.connection.session.id))).not.toMatch(
+      /private|token|https:/,
+    );
+  } finally {
+    h.cleanup();
+  }
+});
+
+it("retains the rejected State keyframe cut rather than the preceding Control nonce", () => {
+  const h = setup();
+  try {
+    const control = h.sockets[0]!;
+    control.open();
+    control.receive("unframe.realtime.ControlServerItem", {
+      connectionSnapshot: {
+        schemaVersion: 1,
+        connectionId: "connection",
+        fence: { presentationOriginVersion: "1" },
+      },
+    });
+    control.receive("unframe.realtime.ControlServerItem", {
+      stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+    });
+    const state = h.sockets[1]!;
+    state.open();
+    state.receive("unframe.realtime.StateServerItem", {
+      connected: { connectionId: "connection", nextStateFrameSequence: "1" },
+    });
+    vi.mocked(h.input.applyState).mockImplementation(() => {
+      h.client.recover({ id: 1, kind: "snapshot", afterSequence: "0" }, h.input, h.restart);
+    });
+    state.receive("unframe.realtime.StateServerItem", {
+      stateFrame: { kind: 1, frameSequence: "181", baseReliableSequence: "145" },
+    });
+    expect(h.recorder.getLastDisconnect(h.connection.session.id)).toMatchObject({
+      code: "snapshot-recovery",
+      input: {
+        channel: "state",
+        kind: "stateFrame",
+        frameKind: "keyframe",
+        reliableSequence: "145",
+        stateSequence: "181",
+      },
+    });
+  } finally {
+    h.cleanup();
+  }
+});
+
+it("does not attach State after applying a nonce triggers synchronous snapshot recovery", () => {
+  const h = setup();
+  try {
+    const control = h.sockets[0]!;
+    control.open();
+    control.receive("unframe.realtime.ControlServerItem", {
+      connectionSnapshot: {
+        schemaVersion: 1,
+        connectionId: "connection",
+        fence: { presentationOriginVersion: "1" },
+      },
+    });
+    vi.mocked(h.input.applyControl).mockImplementation(() => {
+      h.client.recover({ id: 1, kind: "snapshot", afterSequence: "0" }, h.input, h.restart);
+    });
+    control.receive("unframe.realtime.ControlServerItem", {
+      stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+    });
+    expect(h.input.disconnected).toHaveBeenCalledOnce();
+    expect(control.readyState).toBe(3);
+    expect(h.urls).toEqual(["wss://runtime.example/browser/control"]);
+  } finally {
+    h.cleanup();
+  }
+});
