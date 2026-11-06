@@ -327,8 +327,8 @@ export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): Pn
     encoded = 0;
   for (const asset of assets.values()) {
     const decoded = asset.pixelSize[0] * asset.pixelSize[1] * 4;
-    // ImageBitmaps stay available for deferred GPU upload and context restoration.
-    if (gpu + decoded * 2 + asset.encodedSizeBytes > maxCpu) fail("CPU texture budget exceeded");
+    // The texture pool uploads each serial decode and releases its bitmap before the next load.
+    if (decoded * 2 + asset.encodedSizeBytes > maxCpu) fail("CPU texture budget exceeded");
     gpu += decoded;
     encoded += asset.encodedSizeBytes;
   }

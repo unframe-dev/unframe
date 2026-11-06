@@ -1,0 +1,38 @@
+async (page) => {
+  const result = await page.evaluate(async () => {
+    const a = window.audienceExample;
+    const results = [];
+    for (let i = 0; i < a.data.scenarios.length; i++) {
+      try {
+        const r = await a.run(i);
+        results.push({ index: i, ...r, ok: true });
+      } catch (e) {
+        const s = a.getRuntime().getSnapshot();
+        let cause = String(e).slice(0, 100);
+        try {
+          await a.session.present(a.data.delivery, s.view);
+        } catch (c) {
+          cause = String(c);
+        }
+        results.push({
+          index: i,
+          label: a.data.scenarios[i].label,
+          ok: false,
+          group: s.view?.progression.currentGroupId,
+          step: s.view?.progression.currentStepId,
+          phase: s.phase,
+          rendering: s.rendering,
+          error: s.error,
+          cause,
+        });
+      }
+    }
+    window.audienceResults = results;
+    return results;
+  });
+  return {
+    passed: result.filter((x) => x.ok).length,
+    failed: result.filter((x) => !x.ok),
+    last: result.at(-1),
+  };
+}

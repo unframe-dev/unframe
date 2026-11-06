@@ -1,0 +1,45 @@
+{
+  "description": "Descriptor-derived estimates for the six unique PNG assets in demo/original-shown; these are not measured browser memory usage.",
+  "cpuBudgetBytes": 67108864,
+  "textures": [
+    {
+      "assetId": "sha256:e8062edab21faebfe1f183a53b5ba8a73d13a72711fc94a613128bf428743d59",
+      "width": 2048,
+      "height": 1311,
+      "encodedBytes": 10741919
+    },
+    {
+      "assetId": "sha256:020754e86d8afb78e5361e260aa287c60b957c5cd09af2d459881bef585e6b69",
+      "width": 2048,
+      "height": 569,
+      "encodedBytes": 4662253
+    },
+    {
+      "assetId": "sha256:2b24d6cc51e0d03d6d38805bf700e341b994d21dc0c5f5362318ee63c2d749a8",
+      "width": 2048,
+      "height": 569,
+      "encodedBytes": 4662253
+    },
+    {
+      "assetId": "sha256:5270a20954e0ebc2333ffd7b66df5fc3ceef478dd2a5ec01e0ac5bc93e8953b7",
+      "width": 2048,
+      "height": 569,
+      "encodedBytes": 4662253
+    },
+    {
+      "assetId": "sha256:f4f2fef9cbc0a9b5f059dda00bb14233a49eae8e874027117fbff644cce20dbe",
+      "width": 2048,
+      "height": 2048,
+      "encodedBytes": 16780625
+    },
+    {
+      "assetId": "sha256:dcc2ba082037dad08255272f05551f8515cd80738f75f2a45ed234fe75c1ecbf",
+      "width": 2048,
+      "height": 704,
+      "encodedBytes": 5768393
+    }
+  ],
+  "decodedTotalBytes": 47267840,
+  "serialCpuPeakBytes": 50335057,
+  "previousCumulativePeakAtRejectionBytes": 75058513
+}

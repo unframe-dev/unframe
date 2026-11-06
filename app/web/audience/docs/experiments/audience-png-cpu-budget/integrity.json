@@ -1,0 +1,21 @@
+{
+  "buildId": "build:dbbc2ec107a8572c83ec37236c81a6463bf30ea8978760b1bda502c6473cbb08",
+  "checks": [
+    {
+      "file": "definition",
+      "expected": "sha256:a0128e29fda5375d8fac61ca2cf81f409584bf3e73ae6e337e13345d08080c2f",
+      "actual": "sha256:a0128e29fda5375d8fac61ca2cf81f409584bf3e73ae6e337e13345d08080c2f"
+    },
+    {
+      "file": "render-bundle",
+      "expected": "sha256:b6d1c774d8f8accb3078c81cbfb281bb88587b865bd4b35b025913a215fd8c82",
+      "actual": "sha256:b6d1c774d8f8accb3078c81cbfb281bb88587b865bd4b35b025913a215fd8c82"
+    },
+    {
+      "file": "asset-set",
+      "expected": "sha256:a3372635a1f11ca03cc9cad5651ddc81e9985e2a6ecab9fa3e84bbbfd7752763",
+      "actual": "sha256:a3372635a1f11ca03cc9cad5651ddc81e9985e2a6ecab9fa3e84bbbfd7752763"
+    }
+  ],
+  "ok": true
+}

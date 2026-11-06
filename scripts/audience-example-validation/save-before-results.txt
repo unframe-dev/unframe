@@ -1,0 +1,14 @@
+async (page) => {
+  const downloadPromise = page.waitForEvent("download");
+  await page.evaluate(() => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(
+      new Blob([JSON.stringify(window.audienceResults, null, 2)], { type: "application/json" }),
+    );
+    a.download = "before-results.json";
+    a.click();
+  });
+  const download = await downloadPromise;
+  await download.saveAs(".unframe/audience-example-check/before-results.json");
+  return "saved";
+}
