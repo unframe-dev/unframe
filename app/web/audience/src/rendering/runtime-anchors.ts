@@ -60,6 +60,7 @@ export function applyRuntimeAnchors(
     for (const object of [
       root.getObjectByName(node.nodeId),
       root.getObjectByName(`model-node:${node.nodeId}`),
+      root.getObjectByName(`spatial-node:${node.nodeId}`),
     ]) {
       if (!object) continue;
       object.visible = available && state.active && state.visible;

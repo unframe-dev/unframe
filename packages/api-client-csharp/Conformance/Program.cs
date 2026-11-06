@@ -22,7 +22,7 @@ foreach (var path in args)
             case "unframe.realtime.PresenterInputSynchronization":
             case "unframe.realtime.PresenterStepSelectionCatalog":
             case "unframe.realtime.InputSynchronizationAck":
-            case "unframe.realtime.ProjectedAnchorBindingPatch":
+            case "unframe.realtime.ProjectedTrackedPose":
             case "unframe.realtime.RuntimeViewReplaced":
                 {
                     var descriptor = RealtimeReflection.Descriptor.MessageTypes.Single(message => message.FullName == typeName);

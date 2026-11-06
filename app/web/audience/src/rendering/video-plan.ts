@@ -1,3 +1,4 @@
+import { validateFrozenAnchors } from "../runtime/frozen-anchors";
 import {
   runtimeAuthorityVersions,
   participantRuntimeViewSchema,
@@ -45,7 +46,7 @@ function unique<T>(values: readonly T[], key: (value: T) => string | undefined):
 }
 export function buildVideoPlan(delivery: DeliveryManifestWire, input: unknown): VideoPlan {
   const view = participantRuntimeViewSchema.parse(input);
-  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
+  validateFrozenAnchors(delivery, view);
   const profile = delivery.projectionProfile ?? fail("missing projection");
   if (
     delivery.schemaVersion !== 1 ||
@@ -76,7 +77,8 @@ export function buildVideoPlan(delivery: DeliveryManifestWire, input: unknown): 
     const state = view.nodeStates[id] ?? fail("missing node state");
     canonicalQuaternion(state.transform.rotation);
     const parentId =
-      node.parent?.node?.nodeId ?? (node.parent?.stage ? null : fail("unsupported node parent"));
+      node.parent?.node?.nodeId ??
+      (node.parent?.stage || node.parent?.presenterAnchor ? null : fail("unsupported node parent"));
     if (parentId) visit(parentId);
     const p = parentId ? visibility.get(parentId)! : { visible: true, opacity: 1 };
     visibility.set(id, {

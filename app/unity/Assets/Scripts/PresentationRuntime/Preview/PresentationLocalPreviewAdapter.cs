@@ -152,7 +152,9 @@ namespace Unframe.Unity.PresentationRuntime
                         || !ValidOwner(node.Owner) || node.Parent == null
                         || node.Parent.ParentCase != SpatialParent.ParentOneofCase.Stage && node.Parent.ParentCase != SpatialParent.ParentOneofCase.Node && node.Parent.ParentCase != SpatialParent.ParentOneofCase.PresenterAnchor
                         || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Container && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface
-                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model) return false;
+                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Shape
+                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Light) return false;
+                    if (!PresentationSpatialNodeValidation.IsValid(node)) return false;
                     if (node.Parent.PresenterAnchor != null && (node.Parent.PresenterAnchor.Target < AnchorTarget.Head || node.Parent.PresenterAnchor.Target > AnchorTarget.Body
                         || !node.Parent.PresenterAnchor.FollowPosition && !node.Parent.PresenterAnchor.FollowRotation)) return false;
                     nodes.Add(node.NodeId, node);

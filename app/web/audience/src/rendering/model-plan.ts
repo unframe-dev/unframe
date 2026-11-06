@@ -1,3 +1,4 @@
+import { validateFrozenAnchors } from "../runtime/frozen-anchors";
 import {
   runtimeAuthorityVersions,
   participantRuntimeViewSchema,
@@ -120,7 +121,7 @@ export function buildResidentModelAssets(delivery: DeliveryManifestWire): ModelA
 export function buildModelPlan(delivery: DeliveryManifestWire, input: unknown): ModelPlan {
   const view = participantRuntimeViewSchema.parse(input),
     profile = delivery.projectionProfile;
-  if (view.frozenAnchors.length) fail("unsupported frozen Anchor display state");
+  validateFrozenAnchors(delivery, view);
   if (
     delivery.schemaVersion !== 1 ||
     delivery.deliveryContractVersion !== runtimeAuthorityVersions.delivery ||

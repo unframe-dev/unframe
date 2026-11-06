@@ -62,7 +62,7 @@ it.each(["delivery", "catalog"])("rejects obsolete v2 %s contracts before render
   expect(() => buildModelPlan(delivery, view)).toThrow();
 });
 
-it("rejects frozen Anchor display state before loading media", () => {
+it("rejects frozen Anchor state for a node without a Presenter Anchor", () => {
   const { delivery, view } = fixture();
   expect(() =>
     buildModelPlan(delivery, {
@@ -70,4 +70,18 @@ it("rejects frozen Anchor display state before loading media", () => {
       frozenAnchors: [{ nodeId: Object.keys(view.nodeStates)[0]!, position: [1, 2, 3] }],
     }),
   ).toThrow(/Anchor/);
+});
+
+it("accepts frozen model anchors and rejects unresolved or incomplete frozen anchors", () => {
+  const { delivery, view } = fixture();
+  const node = delivery.projectionProfile!.runtimeCatalog!.nodes![0]!;
+  node.parent = { presenterAnchor: { target: 2, followPosition: true, followRotation: true } };
+  view.frozenAnchors = [{ nodeId: node.nodeId!, position: [1, 2, 3], rotation: [0, 0, 0, 1] }];
+  expect(buildModelPlan(delivery, view).instances).toHaveLength(1);
+  view.frozenAnchors.push(structuredClone(view.frozenAnchors[0]!));
+  expect(() => buildModelPlan(delivery, view)).toThrow(/Anchor/);
+  view.frozenAnchors = [{ nodeId: node.nodeId!, position: [1, 2, 3] }];
+  expect(() => buildModelPlan(delivery, view)).toThrow(/Anchor/);
+  view.frozenAnchors = [{ nodeId: "unknown", position: [1, 2, 3] }];
+  expect(() => buildModelPlan(delivery, view)).toThrow(/Anchor/);
 });

@@ -12,6 +12,7 @@ namespace Unframe.Unity.PresentationRuntime
     {
         private PresentationBakedSurfaceRenderer baked;
         private PresentationNativeSurfaceRenderer native;
+        public PresentationSpatialRenderer Spatial { get; private set; }
         public PresentationVideoResidency Videos { get; private set; }
         public PresentationModelResidency Models { get; private set; }
         private PresentationRuntimeAssetFiles files;
@@ -22,7 +23,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public bool HasResidentAssets(PresentationRuntimeDataStore store)
         {
-            return loaded && files.IsReady && native.IsReady && Models.IsReady
+            return loaded && files.IsReady && native.IsReady && Spatial.IsReady && Models.IsReady
                 && store.Delivery?.Residency?.Textures != null && Textures.IsReady(Textures.Bindings);
         }
 
@@ -42,6 +43,7 @@ namespace Unframe.Unity.PresentationRuntime
             Textures = new PresentationTextureResidency();
             baked = new PresentationBakedSurfaceRenderer();
             native = new PresentationNativeSurfaceRenderer();
+            Spatial = new PresentationSpatialRenderer();
             Videos = new PresentationVideoResidency { Limits = store.Delivery.CapabilityProfile.Limits.Video };
             Models = new PresentationModelResidency { Limits = store.Delivery.CapabilityProfile.Limits.Model };
             try
@@ -52,7 +54,8 @@ namespace Unframe.Unity.PresentationRuntime
                     byte[] bytes = await readAsset(asset, token);
                     files.Add(asset, bytes);
                 }
-                if (!baked.TryBuild(store, hierarchy, out string buildError)
+                if (!Spatial.TryBuild(store, hierarchy, out string buildError)
+                    || !baked.TryBuild(store, hierarchy, out buildError)
                     || !native.TryBuild(store, hierarchy, files.Paths, out buildError)) throw new InvalidOperationException(buildError);
                 while (PrepareTextures(store) == null) { token.ThrowIfCancellationRequested(); await Task.Yield(); }
                 var modelBudget = new PresentationModelTextureBudget
@@ -141,7 +144,7 @@ namespace Unframe.Unity.PresentationRuntime
         private static bool IsNearer(string candidate, float distance, string selected, float nearest) =>
             candidate != null && (distance < nearest || distance == nearest && (selected == null || StringComparer.Ordinal.Compare(candidate, selected) < 0));
 
-        public void Disable() { interactionsEnabled = false; baked?.Disable(); native?.Disable(); Videos?.Pause(); }
+        public void Disable() { interactionsEnabled = false; baked?.Disable(); native?.Disable(); Spatial?.Disable(); Videos?.Pause(); }
 
         public void Dispose()
         {
@@ -150,6 +153,7 @@ namespace Unframe.Unity.PresentationRuntime
             Videos?.Dispose(); Videos = null;
             Models?.Dispose(); Models = null;
             native?.Dispose(); native = null;
+            Spatial?.Dispose(); Spatial = null;
             baked?.Dispose(); baked = null;
             Textures?.Dispose(); Textures = null;
             files?.Dispose(); files = null;

@@ -1392,15 +1392,21 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             unavailable.TrackedPoses[0].Unavailable = new TrackedPoseUnavailable();
             Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
             Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = Frame(4, 4) }, out error), Is.True, error);
-            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 400, out error), Is.True, error);
+            var stale = Frame(5, 5);
+            stale.TrackedPoses[0].Sample.TrackingFrameSequence = 2;
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = stale }, out error), Is.True, error);
+            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 500, out error), Is.True, error);
             var lines = root.GetComponentsInChildren<LineRenderer>();
             Assert.That(lines, Has.Length.EqualTo(2));
             var trail = System.Array.Find(lines, line => line.positionCount == 1);
             Assert.That(trail, Is.Not.Null);
+            Assert.That(trail.useWorldSpace, Is.True);
             var point = trail.GetPosition(0);
             Assert.That(point.x, Is.EqualTo(14).Within(.0001));
             Assert.That(point.y, Is.EqualTo(4).Within(.0001));
             Assert.That(point.z, Is.EqualTo(2).Within(.0001));
+            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 1500, out error), Is.True, error);
+            Assert.That(trail.gameObject.activeInHierarchy, Is.False);
         }
         finally { effects.Clear(); hierarchy.Clear(); Object.DestroyImmediate(root); }
     }

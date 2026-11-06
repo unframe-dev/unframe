@@ -153,6 +153,7 @@ namespace Unframe.Unity.PresentationRuntime
                         || !IsUnitInterval(material.Color.Blue) || !IsUnitInterval(material.Color.Alpha))
                         return Fail("delivery shape material is invalid.", out error);
                 }
+                if (!PresentationSpatialNodeValidation.IsValid(node)) return Fail("delivery spatial node is invalid.", out error);
             }
 
             foreach (ProjectedNodeDefinition node in catalog.Nodes)

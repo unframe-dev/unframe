@@ -5,6 +5,7 @@ import type {
   ParticipantRuntimeView,
 } from "@unframe-dev/contracts/presentation";
 import { applyRuntimeAnchors, runtimeHandPoses } from "../runtime-anchors";
+
 const delivery: DeliveryManifestWire = {
   projectionProfile: {
     runtimeCatalog: {
@@ -96,4 +97,17 @@ it("uses one live hand for multiple anchors regardless of their visibility", () 
   expect(root.getObjectByName("hand")!.visible).toBe(true);
   expect(root.getObjectByName("other")!.visible).toBe(false);
   expect(runtimeHandPoses(poses)).toEqual([{ hand: "left", sequence: 5, position: [12, 0, 0] }]);
+});
+it("applies anchors to spatial effect targets", () => {
+  const root = new Group();
+  const node = new Group();
+  node.name = "spatial-node:hand";
+  root.add(node);
+  applyRuntimeAnchors(root, delivery, view, {
+    2: { target: 2, sample: { trackingFrameSequence: "5", position: { x: 12 } } },
+  });
+  expect(node.position.x).toBe(13);
+  expect(node.visible).toBe(true);
+  applyRuntimeAnchors(root, delivery, view, {});
+  expect(node.visible).toBe(false);
 });

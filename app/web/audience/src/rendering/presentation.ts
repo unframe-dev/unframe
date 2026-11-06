@@ -10,6 +10,7 @@ import { buildPngPlan } from "./png-plan";
 import { buildVideoPlan } from "./video-plan";
 import { createVideoPresentation } from "./video-presentation";
 import { createModelPresentation } from "./model-presentation";
+import { createSpatialPresentation } from "./spatial-presentation";
 import { evaluateAnimationView } from "../runtime/animation-view";
 import { loadPngTexture, type PngTextureAsset } from "../assets/png-texture";
 import { loadVideoAsset } from "../assets/video-asset";
@@ -98,7 +99,10 @@ export async function createPresentation(options: {
     )
       throw new Error("Presentation replacement resource budget exceeded");
   }
-  if (!hasMediaResources(options.delivery)) {
+  const hasSpatialNodes = options.delivery.projectionProfile?.runtimeCatalog?.nodes?.some(
+    (node) => !!node.shape || !!node.light,
+  );
+  if (!hasMediaResources(options.delivery) && !hasSpatialNodes) {
     const assets =
       pool?.residentAssets ??
       buildPngPlan(options.delivery, participantRuntimeViewSchema.parse(options.view)).assets;
@@ -189,6 +193,7 @@ export async function createPresentation(options: {
     },
   };
   let model: Awaited<ReturnType<typeof createModelPresentation>> | null = null;
+  let spatial: ReturnType<typeof createSpatialPresentation> | null = null;
   let surfaces: Awaited<ReturnType<typeof createSurfacePresentation>> | null = null;
   let disposed = false;
   let enabled = false;
@@ -199,8 +204,13 @@ export async function createPresentation(options: {
     surfaces?.dispose();
     video?.dispose();
     model?.dispose();
+    spatial?.dispose();
   }
   try {
+    if (hasSpatialNodes) {
+      spatial = createSpatialPresentation(options.delivery, view);
+      root.add(spatial.root);
+    }
     video = await createVideoPresentation({
       ...options,
       host,
@@ -282,6 +292,7 @@ export async function createPresentation(options: {
         video!.applyView(next);
         model!.applyView(next);
         surfaces!.applyView(next);
+        spatial?.applyView(next);
         options.host.setPresentationOrigin(origin);
         return true;
       },
@@ -292,12 +303,14 @@ export async function createPresentation(options: {
           throw new Error("Surface animation mismatch");
         video!.applyAnimationFrame(sample.view, time);
         model!.applyAnimationFrame(sample.view, time);
+        spatial?.applyView(sample.view);
         options.host.setPresentationOrigin(origin);
         return sample.view;
       },
       prepareRender(camera: Camera) {
         surfaces!.prepareRender(camera);
         model!.prepareRender(camera);
+        spatial?.prepareRender();
       },
       releaseVideoDecoders(uploadTexture: (texture: Texture) => void) {
         if (disposed || video!.decoderCount === 0) return;

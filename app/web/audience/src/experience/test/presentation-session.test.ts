@@ -1,4 +1,4 @@
-import { Camera, Group, Texture } from "three";
+import { Camera, Group, Quaternion, Texture, Vector3 } from "three";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   participantRuntimeViewSchema,
@@ -9,6 +9,9 @@ import { createPresentation } from "../../rendering/presentation";
 import { createPresentationSession } from "../presentation-session";
 import { createPngTexturePool } from "../../assets/png-texture-pool";
 import { createRuntimePlayback } from "../../runtime/playback";
+import { evaluateAnimationView } from "../../runtime/animation-view";
+import { createSpatialPresentation } from "../../rendering/spatial-presentation";
+import { modelFixture } from "../../rendering/test/support/model-fixture";
 
 vi.mock("../../rendering/presentation", () => ({
   createPresentation: vi.fn(),
@@ -226,6 +229,125 @@ describe("presentation session resources", () => {
       factory.mockRestore();
     }
   });
+  it.each(["shape", "light"] as const)(
+    "preserves sampled %s transforms when applying a live Presenter Anchor",
+    async (kind) => {
+      const { delivery: anchoredDelivery, view: canonical } = modelFixture();
+      const node = anchoredDelivery.projectionProfile!.runtimeCatalog!.nodes![0]!;
+      delete node.model;
+      if (kind === "shape")
+        node.shape = {
+          box: { size: { x: 1, y: 1, z: 1 } },
+          material: { color: { red: 1, green: 1, blue: 1, alpha: 1 } },
+        };
+      else
+        node.light = {
+          point: { color: { red: 1, green: 1, blue: 1 }, intensityCandela: 1, rangeMeters: 5 },
+        };
+      node.parent = {
+        presenterAnchor: { target: 2, followPosition: true, followRotation: false },
+      };
+      canonical.presentationOrigin.pose = { position: [0, 0, 0], rotation: [0, 0, 0, 1] };
+      canonical.nodeStates.model!.transform = {
+        position: [0, 0, 0],
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      };
+      anchoredDelivery.projectionProfile!.runtimeCatalog!.timelines = [
+        {
+          timelineId: "move",
+          owner: { presentation: {} },
+          durationMs: "1000",
+          tracks: [
+            {
+              target: { nodeId: "model", property: 2 },
+              keyframes: [
+                { timeMs: "0", vector3: { value: { x: 0, y: 0, z: 0 } }, easingToNext: 1 },
+                { timeMs: "1000", vector3: { value: { x: 2, y: 0, z: 0 } } },
+              ],
+            },
+            {
+              target: { nodeId: "model", property: 3 },
+              keyframes: [
+                {
+                  timeMs: "0",
+                  quaternion: { value: { x: 0, y: 0, z: 0, w: 1 } },
+                  easingToNext: 1,
+                },
+                { timeMs: "1000", quaternion: { value: { x: 0, y: 1, z: 0, w: 0 } } },
+              ],
+            },
+            {
+              target: { nodeId: "model", property: 4 },
+              keyframes: [
+                { timeMs: "0", vector3: { value: { x: 1, y: 1, z: 1 } }, easingToNext: 1 },
+                { timeMs: "1000", vector3: { value: { x: 3, y: 3, z: 3 } } },
+              ],
+            },
+          ],
+        },
+      ];
+      canonical.activeRuns = [
+        {
+          kind: "timeline",
+          timelineId: "move",
+          runId: { assignmentEpoch: 1, runSequence: 1 },
+          owner: { kind: "presentation" },
+          completion: "nonBlocking",
+          startedAtRuntimeTimeMilliseconds: 0,
+          cause: {
+            cueId: "move",
+            causeEventId: "move",
+            groupId: "intro",
+            groupEntryEpoch: 1,
+            stepId: "start",
+            stepEntryEpoch: 1,
+          },
+        },
+      ];
+      const spatial = createSpatialPresentation(anchoredDelivery, canonical);
+      const current = loaded();
+      Object.assign(current, { root: spatial.root });
+      vi.mocked(current.applyAnimationFrame).mockImplementation((next, time) => {
+        const sampled = evaluateAnimationView(anchoredDelivery, next, time).view;
+        spatial.applyView(sampled);
+        return sampled;
+      });
+      vi.mocked(current.dispose).mockImplementation(spatial.dispose);
+      vi.mocked(createPresentation).mockResolvedValue(current);
+      const { session } = setup();
+      try {
+        session.openRuntime(anchoredDelivery);
+        await session.present(anchoredDelivery, canonical);
+        const frame = vi.mocked(createRuntimePlayback).mock.calls[0]![0].frame!;
+        const target = spatial.root.getObjectByName("spatial-node:model")!;
+        for (const time of [250, 500, 750]) {
+          frame(canonical, time, {
+            2: {
+              target: 2,
+              sample: { trackingFrameSequence: "1", position: { x: 5, y: 0, z: 0 } },
+            },
+          });
+          spatial.prepareRender();
+          expect(target.getWorldPosition(new Vector3()).x).toBeCloseTo(5 + (2 * time) / 1000);
+          const rotation = new Quaternion().setFromAxisAngle(
+            new Vector3(0, 1, 0),
+            (Math.PI * time) / 1000,
+          );
+          expect(target.getWorldQuaternion(new Quaternion()).angleTo(rotation)).toBeLessThan(1e-6);
+          for (const scale of target.getWorldScale(new Vector3()).toArray())
+            expect(scale).toBeCloseTo(1 + (2 * time) / 1000);
+        }
+        expect(canonical.nodeStates.model!.transform).toEqual({
+          position: [0, 0, 0],
+          rotation: [0, 0, 0, 1],
+          scale: [1, 1, 1],
+        });
+      } finally {
+        session.dispose();
+      }
+    },
+  );
   it("samples runtime frames with current playback permission and blocked state", async () => {
     let canPlay = false;
     const blocked = vi.fn();
@@ -398,5 +520,37 @@ it("uploads each PNG with the active renderer and resets the shared GL state aft
   upload(texture);
   expect(events).toEqual(["upload", "reset"]);
   expect(renderer.initTexture).toHaveBeenCalledWith(texture);
+  session.dispose();
+});
+
+it.each([false, true])(
+  "enables authored shadows and restores renderer's initial enabled=%s",
+  async (enabled) => {
+    const scene = loaded();
+    vi.mocked(createPresentation).mockResolvedValue(scene);
+    const session = createPresentationSession({ canPlay: () => true, onPlaybackBlocked: vi.fn() });
+    const renderer = { resetState: vi.fn(), initTexture: vi.fn(), shadowMap: { enabled } };
+    session.attachScene(host, renderer);
+    const lit = {
+      projectionProfile: {
+        runtimeCatalog: { nodes: [{ nodeId: "light", light: { point: { castsShadows: true } } }] },
+      },
+    } as DeliveryManifestWire;
+    await session.present(lit, view);
+    expect(renderer.shadowMap.enabled).toBe(true);
+    session.detachScene(host);
+    expect(renderer.shadowMap.enabled).toBe(enabled);
+  },
+);
+
+it("rejects shadow-casting lights when the XR renderer cannot expose shadow support", async () => {
+  const { session } = setup();
+  const lit = {
+    projectionProfile: {
+      runtimeCatalog: { nodes: [{ nodeId: "light", light: { point: { castsShadows: true } } }] },
+    },
+  } as DeliveryManifestWire;
+  await expect(session.present(lit, view)).rejects.toThrow("shadow");
+  expect(createPresentation).not.toHaveBeenCalled();
   session.dispose();
 });
