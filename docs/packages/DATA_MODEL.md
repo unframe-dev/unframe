@@ -55,7 +55,7 @@ Presenter client が入力を認識し、Runtime が Cue の採用と共有状�
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Gesture Trigger  | `swipeLeft` / `swipeRight` / `swipeUp` / `swipeDown` / `pushForward` / `pullBackward` / `spreadHands` / `closeHands` の種類を指定する。片手動作は左右どちらでも同じ種類。距離・速度・時間窓・終了判定は client 内部で調整し、ユーザー設定にしない。 |
 | Zone Definition  | ID、owner、中心位置を保持する。標準形状は Presentation Space の軸に平行な一辺2mの箱。ユーザーが指定する幾何情報は中心位置だけで、形状・寸法・判定部位は選択させない。                                                                               |
-| Presenter 用情報 | Gesture の操作候補と Zone ID / 位置を配布する。Gesture の上下は鉛直、前後左右は動作開始時の頭の水平向きに基づく。Zone は Body tracking の腰位置で認識し、欠損時の部位代替はしない。                                                                 |
+| Presenter 用情報 | Gesture の操作候補と Zone ID / 位置を配布する。Gesture の上下は鉛直、前後左右は動作開始時の頭の水平向きに基づく。Quest ではヘッドセットの位置で Zone を認識する。                                                                                   |
 | 入力             | Gesture の種類、または Zone ID と enter / exit を送る。認識開始時の Group / Step・Step 入場世代・server の入力世代・イベント ID を共通で持つ。送信者は認証情報から確定する。                                                                        |
 | Cue              | Guard、Action、Next、優先順位の評価は Runtime が行う。`oncePerStepEntry` / `repeatable` は残し、server cooldown は削除する。通常は前者、繰り返しが必要な Cue だけ後者を明示する。                                                                   |
 | Runtime State    | 入力世代、pause 中の凍結 Anchor、到達済み Step ごとの直近の開始状態を追加する。raw Pose 履歴や認識器内部状態は含めない。Step 履歴は checkpoint へ保存し、Viewer に履歴全体を投影しない。                                                            |

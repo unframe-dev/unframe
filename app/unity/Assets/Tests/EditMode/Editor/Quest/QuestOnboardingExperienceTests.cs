@@ -64,10 +64,10 @@ public sealed class QuestOnboardingExperienceTests
         view.Refresh();
         Assert.That(view.FindButton("DebugNext"), Is.Null);
         Assert.That(view.FindButton("SaveDiagnostics"), Is.Null);
-        var brand = view.Panel.transform.Find("Brand").GetComponent<Text>();
-        Assert.That(brand.rectTransform.anchoredPosition, Is.EqualTo(new Vector2(0, 365)));
+        var brand = view.Panel.transform.Find("Brand").GetComponent<RectTransform>();
+        Assert.That(brand.anchoredPosition, Is.EqualTo(new Vector2(0, 365)));
         Assert.That(view.Panel.GetComponent<CanvasScaler>().dynamicPixelsPerUnit, Is.EqualTo(2));
-        Assert.That(view.Panel.GetComponent<UnityEngine.UI.Image>().color, Is.EqualTo((Color)new Color32(246, 243, 255, 255)));
+        Assert.That(view.Panel.GetComponent<UnityEngine.UI.Image>().color, Is.EqualTo(QuestUiTheme.Surface));
     }
 
     [Test]

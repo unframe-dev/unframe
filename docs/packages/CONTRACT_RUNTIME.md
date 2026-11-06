@@ -223,7 +223,7 @@ Node keyframe patchは全visible Nodeについて、Timelineが現在所有し�
 
 Tracking は Presenter の State stream だけが送れる。frame sequence は正に単調増加、sample target は duplicate-free、最大4件で、finite で canonical な `presentation_from_quest_local` rigid Pose を必須とする。Runtime は同じ frame の calibration で Quest-local Pose を Presentation Space へ変換する。capture timestamp は診断専用で、受理時の Runtime monotonic 時刻を freshness authority とする。
 
-Pose を手追従などの連続演出専用の latest-wins 入力とし、Runtime で motion / Zone を再認識しない。Presenter client が Gesture の8種類と Zone の出入りを認識して Reliable Control へ送る。Gesture は種類だけを送り、距離・速度・時間窓・終了判定は client 内部の調整値とする。Zone は Presentation Space の軸に平行な一辺2mの箱、設定値は中心位置だけとし、配布された ID / 位置と Body tracking の腰位置で判定する。腰が取得できなければ停止し、別部位へ代替しない。2m は実機検証済み値ではない。server は境界の揺れや滞在時間を再計測しない。
+Pose を手追従などの連続演出専用の latest-wins 入力とし、Runtime で motion / Zone を再認識しない。Presenter client が Gesture の8種類と Zone の出入りを認識して Reliable Control へ送る。Gesture は種類だけを送り、距離・速度・時間窓・終了判定は client 内部の調整値とする。Zone は Presentation Space の軸に平行な一辺2mの箱、設定値は中心位置だけとし、Quest では配布された ID / 位置と、AprilTag で校正したヘッドセット位置を共有Stage原点の逆変換でStage座標へ揃えて判定する。ヘッドトラッキングが無効な間は判定を停止する。2m は実機検証済み値ではない。server は境界の揺れや滞在時間を再計測しない。
 
 新しい入力期間では Gesture の新しい動作を待ち、Zone の現在位置を無通知で seed する。追跡喪失を exit とせず、復帰時も無通知で seed する。Zone 内で開始した場合は外へ出て改めて入るまで enter を発生させない。認識器の内部状態や raw Pose 履歴は保存しない。
 

@@ -26,7 +26,7 @@ import {
 
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles, readTypeLibraries } from "@unframe-dev/workspace-node";
-import { acquireBuildLock } from "@unframe-dev/workspace-node";
+import { acquireBuildLock, acquireSourceLock } from "@unframe-dev/workspace-node";
 import { installFixtureGraph, readFixtureGraph } from "./installed-project-fixture.js";
 
 const temporaryDirectories: string[] = [];
@@ -194,18 +194,50 @@ afterEach(async () => {
 });
 
 describe("reference Authoring Project", () => {
-  it("rejects a competing build while another build owns the project", async () => {
+  it("rejects a competing build before taking the source lease", async () => {
     const directory = await projectCopy();
     const acquired = await acquireBuildLock(directory);
     assert(acquired.ok);
     try {
-      const result = await runPresentationCli({ args: ["build", directory] });
-      expect(result.exitCode).toBe(3);
-      expect(result.stderr).toContain("cli-build-lock-unavailable");
+      const source = await acquireSourceLock(directory);
+      assert(source.ok);
+      try {
+        const result = await runPresentationCli({ args: ["build", directory] });
+        expect(result.exitCode).toBe(3);
+        expect(result.stderr).toContain("cli-build-lock-unavailable");
+      } finally {
+        await source.value.release();
+      }
     } finally {
       await acquired.value.release();
     }
   });
+
+  it("checks the project while a build owns the build lease", async () => {
+    const directory = await projectCopy();
+    const acquired = await acquireBuildLock(directory);
+    assert(acquired.ok);
+    try {
+      const result = await runPresentationCli({ args: ["check", directory] });
+      expect(result.exitCode, result.stderr).toBe(0);
+    } finally {
+      await acquired.value.release();
+    }
+  });
+
+  it("releases the build lease if discovery fails", async () => {
+    const directory = await mkdtemp(join(temporaryDirectory(), "unframe-missing-config-"));
+    temporaryDirectories.push(directory);
+
+    const result = await runPresentationCli({ args: ["build", directory] });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toContain("cli-project-discovery-missing-files");
+    await expect(lstat(join(directory, ".unframe-build.lock"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
   it("regenerates changed local closures while retaining installed dependency snapshots", async () => {
     const directory = await projectCopy();
     const before = await checkedProject(directory);

@@ -189,10 +189,14 @@ public static class PresenterAuthorityTests
         var recognizer = new PresenterRecognition();
         var catalog = new PresenterRecognitionCatalog(); catalog.Zones.Add(new PresenterRecognitionZone { ZoneId = "zone", Center = new Vector3() });
         recognizer.Reset(new InputContext { InputEpoch = 1 }, catalog);
-        Require(recognizer.SampleWaist(new Vector3()).Count == 0, "initial enter emitted");
-        Require(recognizer.SampleWaist(null).Count == 0, "tracking loss emitted exit");
-        Require(recognizer.SampleWaist(new Vector3 { X = 2 }).Count == 0, "tracking recovery emitted exit");
-        Require(recognizer.SampleWaist(new Vector3 { X = 1 }).Count == 1, "2m boundary did not enter");
+        Require(recognizer.SampleHead(new Vector3()).Count == 0, "initial enter emitted");
+        Require(recognizer.SampleHead(null).Count == 0, "tracking loss emitted exit");
+        Require(recognizer.SampleHead(new Vector3 { Y = 2 }).Count == 0, "tracking recovery emitted exit");
+        var entered = recognizer.SampleHead(new Vector3 { Y = 1 });
+        Require(entered.Count == 1 && entered[0].Edge == ZoneEdge.Enter, "head did not enter at the vertical boundary");
+        Require(recognizer.SampleHead(new Vector3 { Y = 1.02 }).Count == 0, "head exited inside the hysteresis margin");
+        var exited = recognizer.SampleHead(new Vector3 { Y = 1.04 });
+        Require(exited.Count == 1 && exited[0].Edge == ZoneEdge.Exit, "head did not exit beyond the vertical boundary");
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
 }

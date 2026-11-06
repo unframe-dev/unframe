@@ -379,15 +379,15 @@ namespace Unframe.Unity.PresentationRuntime
             QuestPresentationTracking.TrySample(XRNode.RightHand, TrackedTarget.RightHand, out QuestPoseSample right);
             Unframe.Presentation.Vector3 position(QuestPoseSample sample) => sample.Available
                 ? QuestPresentationTracking.ToCanonicalPose(fromLocal.position + fromLocal.rotation * sample.Position, Quaternion.identity).Position : null;
+            var headPosition = position(head);
             Vector3 direction = fromLocal.rotation * head.Rotation * Vector3.forward;
             var result = recognition.SampleHands(Time.realtimeSinceStartupAsDouble, position(left), position(right), head.Available
                 ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null,
-                leftTriggerHeld, rightTriggerHeld, position(head));
+                leftTriggerHeld, rightTriggerHeld, headPosition);
             if (result != null) _ = SendInputAsync(QuestPresentationInput.CreateRecognition(result, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
-            Unframe.Presentation.Vector3 waist = null;
-            if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion _))
-                waist = QuestPresentationTracking.ToCanonicalPose(fromLocal.position + fromLocal.rotation * bodyPosition, Quaternion.identity).Position;
-            foreach (var edge in recognition.SampleWaist(waist))
+            var stageHeadPosition = QuestPresentationTracking.PositionInStage(head,
+                calibration.PresentationFromQuestLocal, runtime.DataStore.StageOrigin);
+            foreach (var edge in recognition.SampleHead(stageHeadPosition))
                 _ = SendInputAsync(QuestPresentationInput.CreateRecognition(edge, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
         }
 

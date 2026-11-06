@@ -12,11 +12,13 @@ namespace Unframe.Unity.PresentationRuntime
         {
             corrected = null;
             if (!ValidPose(worldFromMarker) || !ValidPose(worldFromHead)
+                || !PresentationCoordinateAdapter.TryToUnityPosition(placementReferencePoint, out Vector3 reference)
                 || !PresentationCalibrationState.IsCanonical(current)
                 || !PresentationCoordinateAdapter.TryToUnityPose(current, out Pose markerFromStage)) return false;
 
             Vector3 worldFromStagePosition = worldFromMarker.position + worldFromMarker.rotation * markerFromStage.position;
-            worldFromStagePosition.y = worldFromHead.position.y - 0.30f;
+            Quaternion worldFromStageRotation = worldFromMarker.rotation * markerFromStage.rotation;
+            worldFromStagePosition.y = worldFromHead.position.y - 0.30f - (worldFromStageRotation * reference).y;
 
             Quaternion markerFromWorld = Quaternion.Inverse(worldFromMarker.rotation);
             Pose placement = new Pose(markerFromWorld * (worldFromStagePosition - worldFromMarker.position), markerFromStage.rotation);

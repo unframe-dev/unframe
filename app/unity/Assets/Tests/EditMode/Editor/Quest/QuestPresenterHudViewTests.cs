@@ -13,7 +13,7 @@ public sealed class QuestPresenterHudViewTests
     [TestCase(48)]
     [TestCase(80)]
     [TestCase(95)]
-    public void HudStaysAtTheLowerLeftEdgeAndAtTheMotionGuidesNearDistance(float fieldOfView)
+    public void HudStaysNearTheCenterOnTheLowerLeftAtTheMotionGuidesDistance(float fieldOfView)
     {
         Vector3 head = new Vector3(1, 2, 3);
         Quaternion yaw = Quaternion.Euler(0, 55, 0);
@@ -25,8 +25,8 @@ public sealed class QuestPresenterHudViewTests
         Vector3 guideOffset = QuestMotionGuideGeometry.GetAnchorPosition(head, yaw, fieldOfView, 4f / 3) - head;
         Assert.That(offset.magnitude, Is.EqualTo(guideOffset.magnitude).Within(.00001f));
         float halfHeight = Mathf.Tan(fieldOfView * Mathf.Deg2Rad * .5f);
-        Assert.That(.5f + offset.x / (2 * offset.z * halfHeight * 4f / 3), Is.InRange(.05f, .3f));
-        Assert.That(.5f + offset.y / (2 * offset.z * halfHeight), Is.InRange(.1f, .4f));
+        Assert.That(.5f + offset.x / (2 * offset.z * halfHeight * 4f / 3), Is.InRange(.34f, .38f));
+        Assert.That(.5f + offset.y / (2 * offset.z * halfHeight), Is.InRange(.33f, .37f));
     }
 
     [Test]

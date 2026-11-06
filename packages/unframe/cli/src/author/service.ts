@@ -21,7 +21,7 @@ import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
 import { readPresentationProjectRevision } from "@unframe-dev/workspace-node";
 import { readTypeLibraries } from "@unframe-dev/workspace-node";
 import { readBuildGeneration } from "@unframe-dev/workspace-node";
-import { acquireSourceLock } from "@unframe-dev/workspace-node";
+import { acquireSourceLock, checkBuildLockAvailability } from "@unframe-dev/workspace-node";
 import { type ProjectSnapshot } from "@unframe-dev/contracts/author-http";
 import {
   AuthorTransactionConflict,
@@ -251,6 +251,15 @@ export const createAuthorService = async (
             return saved;
           },
         }),
+      checkBuildAvailability: async () => {
+        const availability = await checkBuildLockAvailability(directory);
+        if (!availability.ok)
+          fail(
+            availability.code === "cli-build-lock-unavailable" ? 409 : 500,
+            availability.code,
+            "Another build owns this project or its build lock is unsafe.",
+          );
+      },
       validateRevision: async (revision, signal) =>
         withSource(
           async () => {

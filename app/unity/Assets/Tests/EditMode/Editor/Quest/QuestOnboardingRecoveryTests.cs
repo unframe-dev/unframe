@@ -54,6 +54,7 @@ public sealed class QuestOnboardingRecoveryTests
         delivery.ProjectionProfile.Key.Role = presenter ? Unframe.Presentation.SessionRole.Presenter : Unframe.Presentation.SessionRole.Viewer;
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         renderer = new PresentationSceneRenderer();
+        typeof(PresentationSceneRenderer).GetProperty("Spatial").SetValue(renderer, new PresentationSpatialRenderer());
         typeof(PresentationSceneRenderer).GetProperty("Textures").SetValue(renderer, new PresentationTextureResidency());
         typeof(PresentationSceneRenderer).GetProperty("Models").SetValue(renderer, new PresentationModelResidency());
         typeof(PresentationSceneRenderer).GetProperty("Videos").SetValue(renderer, new PresentationVideoResidency());
@@ -72,6 +73,62 @@ public sealed class QuestOnboardingRecoveryTests
         Set(view, "ownsConnection", true);
         Set(view, "message", "ルームの準備を待っています。");
         Assert.That(entry.ControlReady, Is.True);
+    }
+
+    [Test]
+    public async Task SlowRoomPreparationKeepsLoadingUntilTheConnectionIsReady()
+    {
+        PrepareConnectedEntry();
+        view.Flow.SelectRole(QuestOnboardingRole.Presenter);
+        view.Flow.GoTo(QuestOnboardingPage.Preparation);
+        typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+        using (var cancellation = new System.Threading.CancellationTokenSource())
+        {
+            Task connecting = (Task)typeof(QuestOnboardingView).GetMethod("Connect", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(view, new object[] { cancellation.Token });
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(31));
+                Assert.That(connecting.IsCompleted, Is.False, "A slow download must not return to the preparation form.");
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+                await connecting;
+                Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Calibration));
+                Assert.That(typeof(QuestOnboardingView).GetField("message", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(view), Is.Empty);
+            }
+            finally { cancellation.Cancel(); }
+        }
+    }
+
+    [Test]
+    public async Task RoomPreparationReportsAStoppedConnectionInsteadOfWaitingForever()
+    {
+        PrepareConnectedEntry();
+        typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+        Task connecting = (Task)typeof(QuestOnboardingView).GetMethod("Connect", BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(view, new object[] { System.Threading.CancellationToken.None });
+        connectionLifetime.Cancel();
+        Exception failure = null;
+        try { await connecting; }
+        catch (Exception exception) { failure = exception; }
+        Assert.That(failure, Is.TypeOf<InvalidOperationException>());
+        Assert.That(failure.Message, Is.EqualTo("connection-failed"));
+    }
+
+    [Test]
+    public async Task RoomPreparationCanBeCancelledWhileWaiting()
+    {
+        PrepareConnectedEntry();
+        typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+        using (var cancellation = new System.Threading.CancellationTokenSource())
+        {
+            Task connecting = (Task)typeof(QuestOnboardingView).GetMethod("Connect", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(view, new object[] { cancellation.Token });
+            cancellation.Cancel();
+            Exception failure = null;
+            try { await connecting; }
+            catch (Exception exception) { failure = exception; }
+            Assert.That(failure, Is.TypeOf<TaskCanceledException>());
+        }
     }
 
     [TestCase(QuestOnboardingRole.Presenter, QuestOnboardingPage.Preparation, false)]

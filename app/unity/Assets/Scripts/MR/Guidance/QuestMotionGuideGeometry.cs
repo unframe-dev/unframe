@@ -14,15 +14,15 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public static Vector3 GetAnchorPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect) =>
-            GetPeripheralPosition(headPosition, headRotation, verticalFov, aspect, 1);
+            GetLowerViewPosition(headPosition, headRotation, verticalFov, aspect, 1);
 
         public static Vector3 GetHudPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect) =>
-            GetPeripheralPosition(headPosition, headRotation, verticalFov, aspect, -1);
+            GetLowerViewPosition(headPosition, headRotation, verticalFov, aspect, -1);
 
-        private static Vector3 GetPeripheralPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect, float side)
+        private static Vector3 GetLowerViewPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect, float side)
         {
             float halfHeight = Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-            Vector3 direction = new Vector3(side * .62f * halfHeight * aspect, -.58f * halfHeight, 1).normalized;
+            Vector3 direction = new Vector3(side * .28f * halfHeight * aspect, -.30f * halfHeight, 1).normalized;
             return headPosition + headRotation * direction * Distance;
         }
 

@@ -35,7 +35,7 @@ Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、
 1. Unity 6000.3.22f1のAndroid arm64 / OpenXR buildをQuestへ導入し、`nix shell --inputs-from . nixpkgs#android-tools --command adb devices` で端末が `device` と表示されることを確認する。接続先として、認証済みSessionのHTTPS Control Plane origin、Session ID、更新可能なcredential provider、端末から到達できるRealtime HTTPS endpointと有効な証明書、期限内のHTTPS PNG URLを持つ公開済みBaked Web Presentationを用意する。認証情報をSceneやrepositoryへ保存しない。
 2. `QuestPresentationBuild.BuildAndroid` で専用SceneのAPKを作り、アプリUIから参加する。一時検証Intentは `QuestPresentationBuild.BuildDevelopment` で作成したDevelopment APKで使用する。Control Plane Delivery / bootstrap、Android native HTTP/2 Realtime、既定 `HttpClient` のAsset取得を同一Sessionで通す。
 3. Deliveryで選ばれた全PNGについて、HTTPSの証明書検証、サイズ・MIME・checksum、encoded cacheのpin、順次decode / RGBA32 upload、CPU readback copy破棄、全textureのresidencyを確認する。Control / StateのSnapshotとreplayを適用して `StateReady` を送り、入力同期のREADYまで通常入力が無効であること、State変更・crossfade・Timelineが正しい絵と順序で表示されることを確認する。pause中の途中参加では凍結表示を維持し、再接続とアプリ再起動では同じSession選択、cache pin、fresh Snapshotへの復帰を確認する。
-4. Presenter端末で8種類のGestureと腰位置のZone出入りを認識し、同期済みの開始文脈で送信してRuntimeがCueを確定することを確認する。再校正・世代変更では途中認識を破棄し、Zoneを無通知seedする。Quest-local body / head / hand Poseは同じframeのcalibrationとともに追従用に送り、Logical Eventの確定とAnchor bindingの新鮮さを確認する。未接続時や、凍結状態を持たないstale Anchorでは対象を描画しない。context lossなどでpinned textureのresidencyを失わせた場合は描画と入力が止まり、Control / Stateが `asset_residency_lost` で閉じることを確認する。
+4. Presenter端末で8種類のGestureと校正済みヘッドセット位置のZone出入りを認識し、同期済みの開始文脈で送信してRuntimeがCueを確定することを確認する。再校正・世代変更では途中認識を破棄し、Zoneを無通知seedする。Quest-local body / head / hand Poseは同じframeのcalibrationとともに追従用に送り、Logical Eventの確定とAnchor bindingの新鮮さを確認する。未接続時や、凍結状態を持たないstale Anchorでは対象を描画しない。context lossなどでpinned textureのresidencyを失わせた場合は描画と入力が止まり、Control / Stateが `asset_residency_lost` で閉じることを確認する。
 5. 端末、OS、Unity build、Presentation / Delivery hash、選択texture数と解像度、測定ツールと時刻を記録する。Deliveryのunique selected textureのdecoded GPU bytes合計とserial load CPU bytes最大値を[ADR-0012](../../docs/decisions/0012-texture-budget-residency-contract.md)の各256 MiB tier、encoded cacheを実際に設定したhard limit / reserve（baselineは4 GiB / 512 MiB）に照合する。別にpreload中の実CPU / GPU memory peak、upload peak、process / driver overhead、State変更・crossfade中の追加download / allocation、cacheの空き容量・evictionを計測する。実process peakをportable tierの256 MiBと直接比較して失格にしない。端末log、Realtime / Control Planeのfence・ready・disconnect記録、Profiler capture、画面記録を合否の証拠として残す。
 
 これらの実機確認は未実施です。端末用SceneとPose / 入力adapterはEditorでの配線・契約検証まで完了しており、端末上の動作・性能測定は未検証です。
@@ -87,7 +87,8 @@ PNG・Native UI文字・動画は、同じSemantic Surface内のLayer順序を�
 ## Presenter の追従 HUD
 
 発表中は左下に現在ページと経過時間、右下に現在利用できる操作の案内を表示します。
-両方とも頭の移動・上下左右の向き・傾きに追従し、中央の資料を遮らない周辺配置です。
+両方とも頭の移動・上下左右の向き・傾きに追従し、視野端から中央寄りに配置します。
+表示の基準点は視野幅の左29%・右71%、下から27%の位置で、頭からの距離は0.5mです。
 メニュー・オンボーディング表示中、Audience、準備・校正未完了では非表示になります。
 「次へ」を実行できる場合は右 A ボタンを案内します。モーションはトリガーの
 使い方を文章と腕アニメーションで示し、複数候補は6秒ごとに切り替えます。
@@ -102,3 +103,8 @@ Quest 実機での可読性・視野端の見え方は端末で確認が必要�
 空間 Shape（box／sphere、unlit sRGBA、doubleSided）と Light（directional／point／spot）も、同じ配信ノード階層へ生成します。Shape は影を投影・受信せず、Light は lux／candela、range、spot内外角、影の指定を適用します。ノードのローカル -Z 方向は Unity の +Z へ変換し、親子TRS・表示状態・opacity・Timeline に従います。通常 Runtime と Local Preview は同じ空間描画を使用します。Unity が指定された spot 内外角を保持できない場合は、角度を黙って変更せず読み込みを拒否します。
 
 GLB のインスタンスには、glTFast の X 軸反転と Unframe の Z 軸反転の差を補う Y 軸180°回転を適用します。ノード自体の配置・回転とは分離し、モデル内部のオフセットや非対称な形状も Presentation 座標に一致させます。
+
+## Quest メニュー
+
+オンボーディングとプレゼン操作メニューは、既存のブランドロゴと `Unframe` のワードマークを共通表示します。配色は Web と同じ赤系のブランド色と明るい背景を使用します。
+ルームへの接続・素材の読み込み中は処理中の表示を保ち、準備完了後に位置合わせへ進みます。素材取得に30秒以上かかっても準備フォームには戻りません。「戻る」で待機をキャンセルでき、接続失敗時は再試行できます。

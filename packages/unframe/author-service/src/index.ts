@@ -57,6 +57,7 @@ export type AuthorServicePorts = {
   initialize(): Promise<void>;
   project(signal: AbortSignal): Promise<ProjectSnapshot>;
   patch(revision: string, request: PatchRequest, signal: AbortSignal): Promise<SavedCommand>;
+  checkBuildAvailability: AuthorBuildPorts["checkBuildAvailability"];
   prepareBuild(
     revision: string,
     channel: "dev" | "dist",

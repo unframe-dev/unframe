@@ -40,10 +40,11 @@ export function PlaybackControls() {
         </Button>
         {!w.readOnly && (
           <Button
+            aria-label="選択位置から再生"
             disabled={!ready || !selectedStep || !revision || loaded?.sourceRevision !== revision}
             title={
               selectedStep
-                ? `${selectedStep.groupId} / ${selectedStep.stepId} から再生`
+                ? `選択位置から再生：${selectedStep.groupId} / ${selectedStep.stepId}`
                 : "進行から Step を選択"
             }
             onClick={() => {
@@ -51,7 +52,15 @@ export function PlaybackControls() {
               w.commands.playSelectedStep();
             }}
           >
-            選択位置から再生
+            <svg
+              width="1em"
+              height="1em"
+              viewBox="0 0 256 256"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M40 40h16v176H40zM88 40v176l144-88z" />
+            </svg>
           </Button>
         )}
         {!inspection && (

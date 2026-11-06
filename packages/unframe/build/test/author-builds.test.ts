@@ -13,6 +13,7 @@ const ports = (): AuthorBuildPorts => ({
   fail: (status, code, message) => {
     throw Object.assign(new Error(message), { status, code });
   },
+  checkBuildAvailability: async () => {},
   validateRevision: async () => {},
   canReuseBuild: async () => false,
   prepareBuild: async () => ({ revision: "r1", snapshot }),
