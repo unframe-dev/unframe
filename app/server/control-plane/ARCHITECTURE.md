@@ -142,7 +142,7 @@ Current / Target のauthorization modelにはorganization / team resourceを導�
 
 Realtime Backend の checkpoint / completion callback は user credential と分離した service Bearer credential で認証する。Current は `SERVICE_IDENTITY_SECRET` を使用する。
 
-Current の Realtime bootstrap credential は、active `RuntimeAssignment` に拘束した Ed25519 JWT である。Control Plane は公開 JWKS を提供し、JWT の `iss`、設定された `aud`、`sub`、`session_id`、`role`、`runtime_id`、`runtime_kind`、`assignment_epoch`、`presentation_id`、`presentation_revision`、`scope`、`iat`、`nbf`、`exp`、`jti`、`protocol_version` を拘束する。v2 の scope は Cloud で `realtime:connect`、Venue Edge で `realtime:connect assets:read` とし、有効期限は active assignment の lease expiry を超えない。Realtime Backend は issuer / audience、期限、protocol version、必要な scope と assignment-bound field を接続と処理境界で検証する。
+Current の Realtime bootstrap credential は、active `RuntimeAssignment` に拘束した Ed25519 JWT である。Control Plane は公開 JWKS を提供し、JWT の `iss`、設定された `aud`、`sub`、`session_id`、`role`、`runtime_id`、`runtime_kind`、`assignment_epoch`、`presentation_id`、`presentation_revision`、`scope`、`iat`、`nbf`、`exp`、`jti`、`protocol_version` を拘束する。v3 の scope は Cloud で `realtime:connect`、Venue Edge で `realtime:connect assets:read` とし、有効期限は発行時から24時間とする。JWT の期限は assignment lease と独立させ、発行時の active lease 検証と Runtime での lease / epoch fencing は維持する。Realtime Backend は issuer / audience、期限、protocol version、必要な scope と assignment-bound field を接続と処理境界で検証する。
 
 Realtime JWT は Control Plane API の認証 credential として受け付けず、Better Auth の cookie / Bearer session も Realtime 接続 credential として流用しない。Callback 用 service identity もこれら二つから分離する。
 
@@ -197,7 +197,7 @@ stateDiagram-v2
 - `Ended` の Session は join と bootstrap を拒否する
 - bootstrap は join 済み participant にだけ endpoint と session-bound credential を返す
 
-Current の bootstrap は、Cloud / Venue Edge 共通の active `RuntimeAssignment` と Session に固定した Publication を必須とする。membership、assignment lease、publication / projection profile を検証し、runtime kind に応じた endpoint、Venue Edge の certificate fingerprint、assignment epoch、PublicationFence、projection profile ID と lease-bound v2 JWT を返す。assignment がない場合の静的 endpoint fallback は設けない。Fly.io Machine の登録・起動と Venue Edge Cloud Agent による配置先同期は Target である。
+Current の bootstrap は、Cloud / Venue Edge 共通の active `RuntimeAssignment` と Session に固定した Publication を必須とする。membership、assignment lease、publication / projection profile を検証し、runtime kind に応じた endpoint、Venue Edge の certificate fingerprint、assignment epoch、PublicationFence、projection profile ID と 発行時から24時間有効な assignment-bound v3 JWT を返す。assignment がない場合の静的 endpoint fallback は設けない。Fly.io Machine の登録・起動と Venue Edge Cloud Agent による配置先同期は Target である。
 
 ### 6.4 Realtime persistence callback
 

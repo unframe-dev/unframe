@@ -107,9 +107,9 @@ Bootstrap は durable authority から active runtime への handoff である�
 4. Realtime Backend が署名、issuer / audience、期限、protocol version、Session、participant、role を検証する。
 5. Realtime Backend は検証済み identity を connection context に固定し、message payload による identity 上書きを許さない。
 
-Current の Control Plane は、active Venue Edge assignment の endpoint / certificate fingerprint と、lease / epoch / Presentation revision に拘束した JWT / JWKS を発行する。Realtime process は同じ JWT contract を検証し、local assignment guard で接続、command、reliable delivery を fencing する。Current process は単一 assignment を環境変数から読み込むため、Control Plane から assignment / Manifest を同期する Cloud Agent、Cloud Runtime、`RuntimeAssignment` への一般化は未接続である。
+Current の Control Plane は、active Cloud / Venue Edge assignment の endpoint、Venue Edge の certificate fingerprint と、Runtime ID / kind、epoch、Presentation revision に拘束した JWT / JWKS を提供する。JWT は発行時から24時間有効で、assignment lease の期限とは独立する。Realtime process は同じ JWT contract を検証し、local assignment guard で接続、command、reliable delivery を fencing する。Cloud Host は heartbeat で複数 Session の割り当てを同期し、Venue Edge process は単一 assignment を環境変数から読み込む。
 
-Current の Control Plane は `Ended` Session の join / bootstrap を拒否し、Session end と accepted completion で active assignment を解放する。一方、既に起動した Realtime process へ `Ended` または assignment release を即時通知する control channel はなく、発行済み credential と local lease が有効な間は `Ended` だけで新規接続や既存接続を停止できない。Connection resume 自体も未実装である。Target では Cloud Agent または同等の channel で失効を伝え、新規接続、既存接続、resume を停止する。これを message ごとの Control Plane 問い合わせで実装しない。
+Current の Control Plane は `Ended` Session の join / bootstrap を拒否し、Session end と accepted completion で active assignment を解放する。Realtime は heartbeat / lease の定期取得で割り当ての失効を検出し、JWT が有効でも新規接続、既存接続、resume を停止する。Control Plane に到達できない間も、保持中の lease 期限を超えて継続しない。失効の検出は push による即時通知ではなく、定期取得の周期と通信時間に依存する。
 
 ### 4.4 Persistence boundary
 
@@ -229,14 +229,14 @@ Control PlaneはD1上の現行migrationとcontractをdurable authorityとし、R
 | ------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
 | Control Plane product API と generated OpenAPI / Hono RPC           | Current         | Component 内 drift check あり                                                    |
 | Realtime Protocol Buffers と Go generated code                      | Current         | Component 内 drift check あり                                                    |
-| Control Plane の Session directory と Venue Edge bootstrap          | Current         | Active assignmentのendpoint、fingerprint、lease-bound JWTを発行                  |
+| Control Plane の Session directory と Runtime bootstrap             | Current         | Active assignmentのendpoint、Venue Edge fingerprint、24時間のJWTを発行           |
 | Realtime の初期 gRPC process と in-memory fan-out                   | Partial         | JWT / assignment fencingはCurrent。full runtime stateとrecoveryは未実装          |
 | Control Plane-issued credential → authenticated Realtime connection | Partial         | Producer / verifier contractは一致。Unity consumerとrepository-level E2Eは未実装 |
 | Realtime → Control Plane persistence callback                       | Partial         | Control Plane受付とcompletion fencingはCurrent。sender / retryは未実装           |
 | Web / Unity → Control Plane resource flow                           | Partial         | Device Authorization UI の一部以外は未接続                                       |
 | Presentation / Asset → Session delivery projection                  | Not implemented | Contract 未定義                                                                  |
 | Venue Edge provisioning / registration / assignment                 | Current         | Control PlaneのD1 / route / OpenAPIに実装済み                                    |
-| Realtime assignment同期 / Session終了伝播                           | Not integrated  | Current processは環境変数を使用し、Cloud Agentは未実装                           |
+| Realtime assignment同期 / Session終了伝播                           | Current         | Cloud heartbeat / Venue Edge lease取得で失効を検出。push即時通知ではない         |
 | Unity / C# generated HTTP・gRPC clients                             | Not implemented | 配置予定地と手書きmodelはあるが生成・consumer接続は未導入                        |
 | Repository-level backend E2E                                        | Not implemented | `app/server/integration/` は未作成                                               |
 

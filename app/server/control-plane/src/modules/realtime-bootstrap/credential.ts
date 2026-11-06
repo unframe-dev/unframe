@@ -4,6 +4,7 @@ import {
 } from "./schema";
 
 const NOT_BEFORE_CLOCK_SKEW_SECONDS = 30;
+const CREDENTIAL_LIFETIME_SECONDS = 24 * 60 * 60;
 type CredentialOptions = {
   issuer: string;
   keyId: string;
@@ -92,10 +93,7 @@ export class RealtimeBootstrapCredentials {
   async issue(input: RealtimeBootstrapCredentialInput) {
     const participant = realtimeBootstrapCredentialInputSchema.parse(input);
     const iat = this.now();
-    if (participant.expiresAt <= iat) {
-      throw new RangeError("realtime credential expiry must be in the future");
-    }
-    const exp = participant.expiresAt;
+    const exp = iat + CREDENTIAL_LIFETIME_SECONDS;
     const header = encodeBase64Url(
       JSON.stringify({ alg: "EdDSA", typ: "JWT", kid: this.options.keyId }),
     );

@@ -95,6 +95,7 @@ export function createSessionRoutes(options: SessionRouteOptions) {
           issuer: config.REALTIME_ISSUER,
           keyId: config.REALTIME_SIGNING_KID,
           audience: config.REALTIME_AUDIENCE,
+          now: () => Math.floor(now().getTime() / 1_000),
         }),
       assignments: new RuntimeAssignmentService(new D1RuntimeAssignmentRepository(config.DB), now),
     };
@@ -248,32 +249,25 @@ export function createSessionRoutes(options: SessionRouteOptions) {
           )
             throw new SessionError("conflict");
           const assignment = await assignments.connectable(id);
-          const expiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
-          if (expiresAt <= Math.floor(now().getTime() / 1_000)) {
+          const leaseExpiresAt = Math.floor(new Date(assignment.leaseExpiresAt).getTime() / 1_000);
+          if (leaseExpiresAt <= Math.floor(now().getTime() / 1_000)) {
             throw new SessionError("conflict");
           }
-          let credential;
-          try {
-            credential = await credentials.issue({
-              sessionId: id,
-              userId: identity.userId,
-              role: participant.role,
-              runtimeId: assignment.runtimeId,
-              runtimeKind: assignment.runtimeKind,
-              assignmentEpoch: assignment.assignmentEpoch,
-              presentationId: session.presentationId,
-              presentationRevision: assignment.presentationRevision,
-              protocolVersion: 3,
-              scopes:
-                assignment.runtimeKind === "VenueEdge"
-                  ? ["realtime:connect", "assets:read"]
-                  : ["realtime:connect"],
-              expiresAt,
-            });
-          } catch (error) {
-            if (error instanceof RangeError) throw new SessionError("conflict");
-            throw error;
-          }
+          const credential = await credentials.issue({
+            sessionId: id,
+            userId: identity.userId,
+            role: participant.role,
+            runtimeId: assignment.runtimeId,
+            runtimeKind: assignment.runtimeKind,
+            assignmentEpoch: assignment.assignmentEpoch,
+            presentationId: session.presentationId,
+            presentationRevision: assignment.presentationRevision,
+            protocolVersion: 3,
+            scopes:
+              assignment.runtimeKind === "VenueEdge"
+                ? ["realtime:connect", "assets:read"]
+                : ["realtime:connect"],
+          });
           const current = await service.bootstrap(identity, id);
           const currentAssignment = await assignments.connectable(id);
           const currentPublication = await db

@@ -25,7 +25,6 @@ export const realtimeBootstrapCredentialInputSchema = z
       .min(1)
       .max(2)
       .refine((scopes) => new Set(scopes).size === scopes.length),
-    expiresAt: z.number().int().positive(),
   })
   .strict();
 

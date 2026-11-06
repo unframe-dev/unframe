@@ -41,7 +41,6 @@ describe("RealtimeBootstrapCredentials", () => {
         presentationId: "presentation-2",
         presentationRevision: 1,
         scopes: ["realtime:connect"],
-        expiresAt: 1_700_000_300,
         protocolVersion: 2 as unknown as 3,
       }),
     ).rejects.toThrow();
@@ -63,7 +62,6 @@ describe("RealtimeBootstrapCredentials", () => {
       presentationId: "presentation-2",
       presentationRevision: 1,
       scopes: ["realtime:connect"],
-      expiresAt: 1_700_000_300,
       protocolVersion: 3,
     });
     expect(decode<{ protocol_version: number }>(token.split(".")[1]!).protocol_version).toBe(3);
@@ -102,7 +100,6 @@ describe("RealtimeBootstrapCredentials", () => {
       presentationId: "presentation-1",
       presentationRevision: 7,
       scopes: ["realtime:connect", "assets:read"],
-      expiresAt: 1_700_000_300,
     });
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
 
@@ -124,11 +121,11 @@ describe("RealtimeBootstrapCredentials", () => {
       scope: "realtime:connect assets:read",
       iat: 1_700_000_000,
       nbf: 1_699_999_970,
-      exp: 1_700_000_300,
+      exp: 1_700_086_400,
       jti: "credential-id",
       protocol_version: 3,
     });
-    expect(expiresAt).toBe(1_700_000_300_000);
+    expect(expiresAt).toBe(1_700_086_400_000);
 
     const jwks = await credentials.jwks();
     expect(jwks).toEqual({
@@ -182,7 +179,6 @@ describe("RealtimeBootstrapCredentials", () => {
       presentationId: "presentation-1",
       presentationRevision: 7,
       scopes: ["realtime:connect"],
-      expiresAt: 1_700_000_300,
     });
     const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
 

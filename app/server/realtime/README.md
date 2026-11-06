@@ -4,7 +4,7 @@ Go 1.25.7 と gRPC を使う、Control Plane から独立した Cloud / Venue Ed
 
 Realtime Backend / Venue Edge の目標設計は [ARCHITECTURE.md](./ARCHITECTURE.md)、Control Plane との authority handoff は [`../ARCHITECTURE.md`](../ARCHITECTURE.md) を参照してください。
 
-native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の有効期限で閉じます。assignment lease の更新では既存 JWT の期限を延長しません。継続する client は新しい credential を取得して再接続してください。
+Runtime JWT の有効期間は発行時から24時間で、assignment lease の期限とは独立しています。native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の有効期限で閉じます。assignment lease の失効・変更は JWT の期限前でも接続を停止し、lease の更新では既存 JWT の期限を延長しません。24時間を超えて継続する client は新しい credential を取得して再接続してください。発行済み JWT は発行時の期限まで有効で、新しい有効期間を利用するには再取得が必要です。
 
 ## Venue Edge の起動
 
