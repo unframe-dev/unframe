@@ -122,6 +122,7 @@ const identityObject = (type: WireType, input: unknown, path: string): Record<st
           "visibleVariableIds",
           "requiredRuntimeCapabilities",
           "gestures",
+          "trackedPoseTargets",
         ].includes(field.name) ||
         field.name.endsWith("Features")
       ) {

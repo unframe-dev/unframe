@@ -31,7 +31,7 @@ Fly.io Machine の登録・起動と公開 endpoint、Venue Edge の Cloud Agent
 | message / rate protection                    | 部分実装 | v3 gRPC は message size と Tracking rate を制限する。全 message 種別に共通の invalid-message count 切断 policy は未接続                                                                                |
 | Venue Edge Asset cache / Range gateway       | 実装済み | `internal/assetgateway/`、`cmd/server/venue_edge.go`。Runtime JWT と Control Plane の都度認可、content hash cache、TLS / HTTP2 listener、証明書読み込み・更新手順を接続。実機は未検証                  |
 | Runtime pause / resume                       | 部分実装 | v3 Session は明示 pause / resume、Presenter 切断、lease 失効を扱う。`pauseTimeout` による自動終了は未実装                                                                                              |
-| State frame / latest-wins mailbox            | 部分実装 | v3 State stream の keyframe と Anchor patch は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                                                 |
+| State frame / latest-wins mailbox            | 部分実装 | v3 State stream の keyframe と target 別の追跡 Pose と凍結 Anchor は接続済み。`internal/state/mailbox.go` の field-merge primitive は State fan-out に未接続                                           |
 | Fly.io Cloud Runtime                         | 部分実装 | Docker image、H2C service profile と共通 binary はある。Machine lifecycle、公開 endpoint、deploy は未実装                                                                                              |
 | Unity Control / State gRPC                   | 実装済み | 生成 v3 client、HTTP/2 transport、nonce・reconnect・Snapshot / State・入力同期・一括置換を対象テストで検証。Quest 実機通信は未検証                                                                     |
 | Presenter Tracking / Input と evaluator      | 実装済み | Quest の Pose は追従用に送り、Gesture / Zone は端末で認識する。v3 admission と Cue / Action / Surface / Timeline / Media evaluator を接続。実機品質は未検証                                            |
@@ -519,7 +519,7 @@ Pose は連続演出に必要な latest-wins 入力として送信を続ける�
 
 割り当て済み Runtime から全 Quest へ送る。
 
-現在の実装は、Running 中に50 ms周期で visible な全 Node / Anchor binding の keyframe を送る。Timeline が所有する補間値は除外する。field-merge mailbox は fan-out に未接続であり、差分配信、`stateWriteBlockTimeout`、`stateMaxFrameAge` は未実装である。送信待ちは JWT / assignment lease の期限と接続の終了で打ち切る。以下の差分 frame と mailbox の記述は目標設計である。
+現在の実装は、Running 中に50 ms周期で 投影内の全 Node / 追跡 target と凍結 Anchor の keyframe を送る。Timeline が所有する補間値は除外する。field-merge mailbox は fan-out に未接続であり、差分配信、`stateWriteBlockTimeout`、`stateMaxFrameAge` は未実装である。送信待ちは JWT / assignment lease の期限と接続の終了で打ち切る。以下の差分 frame と mailbox の記述は目標設計である。
 
 ```text
 ElementStateFrame
@@ -529,15 +529,16 @@ ElementStateFrame
 ├─ oldestChangeAtRuntimeMonotonic
 ├─ presentationOriginVersion
 ├─ baseReliableSequence
-├─ anchorBindings[]
-│  ├─ nodeId
+├─ trackedPoses[]
+│  ├─ target
 │  └─ state
 │     ├─ unavailable
 │     └─ sample
 │        ├─ trackingFrameSequence
 │        ├─ observedAtRuntimeMonotonic
-│        ├─ position?  # followPositionだけ
-│        └─ rotation?  # followRotationだけ
+│        ├─ position?
+│        └─ rotation?
+├─ frozenAnchors[]  # Nodeごとの表示専用状態の完全一覧
 └─ elements[]
    ├─ elementId
    ├─ changedFields
@@ -553,7 +554,7 @@ ElementStateFrame
 - 初期検証範囲は 20–60 Hz とする。
 - viewerごとに、gRPCへ渡す前の未送信差分を保持するsingle-slot `StateMailbox`を持つ。
 - `StateMailbox`はframeを丸ごと置き換えず、`elementId`とfieldごとに差分をmergeして最新値を残す。これにより、別々のframeで更新されたElementやfieldをcoalesceしても変更を失わない。
-- `StateMailbox`はElementをelement / field単位、Anchor bindingをNode ID単位のsample / tombstone全体としてlatest-wins mergeし、position / rotationを別Tracking Frameから合成しない。両mapの未送信差分の最古monotonic時刻を`oldestChangeAtRuntimeMonotonic`として保持する。dequeueは一つのcritical sectionで両map、logical runtime time、Runtime monotonic time、Reliable / Origin fenceをimmutable frameへfreezeしてから`frameSequence`を採番し、coalesceしただけではsequence gapを作らない。
+- `StateMailbox`はElementをelement / field単位、追跡入力をtarget単位のsample / tombstone全体としてlatest-wins mergeし、position / rotationを別Tracking Frameから合成しない。両mapの未送信差分の最古monotonic時刻を`oldestChangeAtRuntimeMonotonic`として保持する。dequeueは一つのcritical sectionで両map、logical runtime time、Runtime monotonic time、Reliable / Origin fenceをimmutable frameへfreezeしてから`frameSequence`を採番し、coalesceしただけではsequence gapを作らない。
 - viewerごとに`Send`を実行するgoroutineを一つに限定し、同時に複数のframeをgRPCへ渡さない。送信中のframeはimmutableとし、その間の更新は次の`StateMailbox`へmergeする。
 - latest-winsが保証する範囲はgRPCの`Send`へ渡す前までとする。すでにHTTP/2またはTCP bufferへ渡した古いframeは取り消せない。
 - 変更された Element と field だけを送る。
@@ -566,10 +567,10 @@ ElementStateFrame
 - `baseReliableSequence`は、そのprojected State Frameが実際に前提にする、当該participantへ送信済みまたは同じ送信境界で先行するReliable sequenceである。participantに不可視なeventだけで値を進めない。clientの適用済みReliable sequenceより大きいframeは、その前提となる可視Reliable Eventまたは集約`ProjectionAdvance`を適用するまで、`elementId`とfieldごとの最新値だけをbufferする。
 - `baseReliableSequence`がclientの適用済みsequenceより小さいframe、または`presentationOriginVersion`が一致しないframeはstaleとして破棄し、Control Connection上でState keyframeを要求する。
 - Reliable Event適用後は、条件を満たしたbufferをfield単位でmergeして適用する。client側bufferの時間または容量上限を超えた場合はState Connectionを再確立し、Reliable ControlやSession全体をblockしない。
-- `anchorBindings` は raw Presenter Pose の一覧ではなく、projection profile で visible かつ Anchor parent を直接参照する Node ID だけを key にした親状態である。running 中の sample は ephemeral、採用設計の凍結表示は durable な共有状態と区別する。Nodeの`followPosition` / `followRotation`が要求する成分だけを運び、参照されないAnchor、profile外Node、追従しない成分を配信しない。追従しないpositionはzero translation、追従しないrotationはidentityとしてparent matrixを組み立てる。`trackingFrameSequence`は元Tracking Frame、`observedAtRuntimeMonotonic`はRuntimeが受理した時点の`producedAtRuntimeMonotonic`と同じmonotonic time domainとする。client申告の`capturedAt`をfreshness authorityにしない。
-- 現行 v2 の `anchorSampleMaxAgeMilliseconds` は protocol version に紐付く `500 ms` とする。採用設計でも通常 running の追跡欠損と freshness はこの規則で扱うが、pause 中と resume 後の有効 Pose 待ちには適用しない。frame生成時に`producedAtRuntimeMonotonic - observedAtRuntimeMonotonic > 500 ms`、tracking unavailable、またはOrigin version不一致ならRuntimeは`unavailable` tombstoneを送る。clientも同期済みRuntime monotonic timeで500 msを超えたsampleをlocal expiryし、次のfresh sampleまでAnchor childを描画せずhit-testしない。
-- 初回 / 再接続keyframeは全Element Stateに加えて、そのcutでvisibleな全Anchor-bound Nodeのfresh sampleまたは`unavailable`をexactly onceで含む。Projected Runtime Snapshot の凍結 Anchor を先に適用し、pause 中や resume 後の再開待ちを経年だけで非表示にしない。再開待ちの凍結位置を fresh sample のない keyframe で消去せず、有効 Pose の取得後に通常の sample / unavailable 規則へ戻す。
-- clientは一つのState FrameのElement patch、Anchor patch、`baseReliableSequence`、`presentationOriginVersion`をatomicに適用する。各render / hit sampleでは最後に適用したframeSequence、Control cut、Origin、Anchor setをfreezeし、一つのlogical runtime timeでactive Runを評価する。visual Transformとauthoritative hit-testに別のcutを使わない。
+- `trackedPoses` は projection profile の `trackedPoseTargets` だけを key にしたライブ入力である。Delivery が投影対象の Anchor と HandGlow から必要な target を導出し、`TRACKED_POSE_DELIVERY` capability を要求する。Anchor は必要な成分を選んで親 Transform を作り、演出は Node を経由せず入力を使う。`trackingFrameSequence` は元 TrackingFrame、`observedAtRuntimeMonotonic` は Runtime が受理した時刻とし、client 申告の `capturedAt` を freshness authority にしない。
+- ライブ入力はサーバーとクライアントの両方で500ms失効を適用する。追跡喪失、失効、Origin 不一致では `unavailable` とし、古い・重複した sequence で freshness を延長しない。pause／resume や入力再同期の境界でライブ入力を破棄し、境界後の TrackingFrame を待つ。TrackingFrame は採取時の `inputEpoch` と `baseReliableSequence` を持ち、入力同期世代または直近 RuntimeView 置換より前のフレームを受理しない。
+- keyframe は要求された全 target の sample または `unavailable` を一度ずつ含む。`frozenAnchors` は投影内 Node の凍結表示の完全一覧で、ライブ入力とは別に適用する。pause 中と resume 後の fresh Pose 待ちは凍結表示を保持し、新しい有効 Pose で解除する。凍結表示は演出入力にしない。
+- client は Element patch、追跡入力、凍結表示と Reliable / Origin fence を atomic に適用する。各描画・hit-test は同じ Control cut、Origin、追跡入力を使う。
 
 ### 8.5 Clock synchronization
 

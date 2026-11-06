@@ -94,6 +94,7 @@ namespace Unframe.Unity.PresentationRuntime
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            PresentationVisualOpacity.ManageExternally(geometry);
             entries.Add(new Entry { Node = node, Renderer = renderer, Color = material.GetColor("_BaseColor") });
             ConfigureTransparency(material, tint.a < 1);
         }
@@ -142,6 +143,7 @@ namespace Unframe.Unity.PresentationRuntime
             light.intensity = (float)intensity;
             light.color = new Color((float)color.Red, (float)color.Green, (float)color.Blue);
             light.shadows = shadows ? LightShadows.Soft : LightShadows.None;
+            PresentationVisualOpacity.ManageExternally(child);
             entries.Add(new Entry { Node = node, Light = light, Intensity = (float)intensity });
         }
 

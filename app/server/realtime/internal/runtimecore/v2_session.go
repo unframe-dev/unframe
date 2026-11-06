@@ -45,40 +45,41 @@ type V2CompletionWriter interface {
 
 // V2Session owns canonical progression and serializes command evaluation.
 type V2Session struct {
-	durability           checkpointState
-	operationMu          sync.Mutex
-	mu                   sync.Mutex
-	definition           v2Definition
-	rawDefinition        json.RawMessage
-	snapshot             *realtimev2.CanonicalRuntimeSnapshot
-	events               []*realtimev2.ProjectedReliableEvent
-	eventTimes           []time.Time
-	eventBytes           uint64
-	outcomes             map[string]v2OutcomeRecord
-	order                []string
-	commandEpoch         uint64
-	inputSynchronization *realtimev2.PresenterInputSynchronization
-	subscribers          map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription
-	checkpointWriter     V2CheckpointWriter
-	checkpointMetadata   *realtimev2.DurableCheckpointEnvelope
-	checkpointCatalog    *presentationv2.ProjectedRuntimeCatalog
-	validationCatalog    *presentationv2.ProjectedRuntimeCatalog
-	mediaSpecs           map[string]map[string]v2MediaSpec
-	modelClips           map[string]map[string]v2ModelClipSpec
-	tracking             v2TrackingEvaluator
-	completionWriter     V2CompletionWriter
-	resumeValidator      func(context.Context) error
-	waitingForStart      bool
-	lastTick             time.Time
-	now                  func() time.Time
-	emptySince           time.Time
-	pendingEmptySince    time.Time
-	presence             map[string]session.Role
-	participants         map[string]session.Role
-	startedAt            time.Time
-	capacityFault        *realtimev2.RuntimeCapacityFault
-	faultGeneration      uint64
-	committedRecovery    *realtimev2.RuntimeRecoveryMetadata
+	durability            checkpointState
+	operationMu           sync.Mutex
+	mu                    sync.Mutex
+	definition            v2Definition
+	rawDefinition         json.RawMessage
+	snapshot              *realtimev2.CanonicalRuntimeSnapshot
+	events                []*realtimev2.ProjectedReliableEvent
+	eventTimes            []time.Time
+	eventBytes            uint64
+	outcomes              map[string]v2OutcomeRecord
+	order                 []string
+	commandEpoch          uint64
+	inputSynchronization  *realtimev2.PresenterInputSynchronization
+	subscribers           map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription
+	checkpointWriter      V2CheckpointWriter
+	checkpointMetadata    *realtimev2.DurableCheckpointEnvelope
+	checkpointCatalog     *presentationv2.ProjectedRuntimeCatalog
+	validationCatalog     *presentationv2.ProjectedRuntimeCatalog
+	mediaSpecs            map[string]map[string]v2MediaSpec
+	modelClips            map[string]map[string]v2ModelClipSpec
+	tracking              v2TrackingEvaluator
+	trackingReliableFloor uint64
+	completionWriter      V2CompletionWriter
+	resumeValidator       func(context.Context) error
+	waitingForStart       bool
+	lastTick              time.Time
+	now                   func() time.Time
+	emptySince            time.Time
+	pendingEmptySince     time.Time
+	presence              map[string]session.Role
+	participants          map[string]session.Role
+	startedAt             time.Time
+	capacityFault         *realtimev2.RuntimeCapacityFault
+	faultGeneration       uint64
+	committedRecovery     *realtimev2.RuntimeRecoveryMetadata
 }
 
 func (s *V2Session) ConfigureResumeValidation(validate func(context.Context) error) {
@@ -647,6 +648,12 @@ func (s *V2Session) rollbackV2Fault(previous *realtimev2.CanonicalRuntimeSnapsho
 }
 
 func (s *V2Session) publishV2Events(events []*realtimev2.ProjectedReliableEvent) {
+	for _, event := range events {
+		if event.GetRuntimeViewReplaced() != nil {
+			clear(s.tracking.lastSamples)
+			s.trackingReliableFloor = event.Sequence
+		}
+	}
 	s.events = append(s.events, events...)
 	now := time.Now()
 	for _, event := range events {

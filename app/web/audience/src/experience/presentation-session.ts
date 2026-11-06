@@ -3,7 +3,7 @@ import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
 import { createRuntimeEffects } from "../rendering/runtime-effects";
-import { applyRuntimeAnchors } from "../rendering/runtime-anchors";
+import { applyRuntimeAnchors, runtimeHandPoses } from "../rendering/runtime-anchors";
 import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import { createPngTexturePool, type PngTextureLease } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
@@ -237,16 +237,17 @@ export function createPresentationSession(options: {
         delivery,
         present: (view) => present(delivery, view),
         clear: clearPresentation,
-        frame(view, runtimeTimeMilliseconds, bindings) {
+        frame(view, runtimeTimeMilliseconds, trackedPoses) {
           if (!presentation || presentationDelivery !== delivery) return;
           presentation.setPlaybackEnabled(options.canPlay());
           const sampled = presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
-          const poses = applyRuntimeAnchors(presentation.root, delivery, sampled, bindings);
+          applyRuntimeAnchors(presentation.root, delivery, sampled, trackedPoses);
+          const poses = runtimeHandPoses(trackedPoses);
           effects.frame(
             sampled,
             runtimeTimeMilliseconds,
             view.clock.lifecycle.kind === "running" ? poses : [],
-            host?.contentRoot.parent ?? undefined,
+            host?.contentRoot,
           );
           options.onPlaybackBlocked(presentation.playbackBlocked);
         },

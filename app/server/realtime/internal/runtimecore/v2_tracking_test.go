@@ -14,7 +14,14 @@ func trackingTestPose(x, y, z float64) *presentationv2.Pose {
 }
 
 func trackingTestFrame(sequence uint64, calibration *presentationv2.Pose, samples ...*realtimev2.TrackedPoseSample) *realtimev2.TrackingFrame {
-	return &realtimev2.TrackingFrame{FrameSequence: sequence, PresentationFromQuestLocal: calibration, Samples: samples}
+	return &realtimev2.TrackingFrame{FrameSequence: sequence, InputEpoch: 1, PresentationFromQuestLocal: calibration, Samples: samples}
+}
+
+func trackingFrameAtCut(core *V2Session, frame *realtimev2.TrackingFrame) *realtimev2.TrackingFrame {
+	cut := core.Snapshot()
+	frame.InputEpoch = cut.InputEpoch
+	frame.BaseReliableSequence = cut.ReliableSequence
+	return frame
 }
 
 func trackingTestSample(target realtimev2.TrackedTarget, pose *presentationv2.Pose) *realtimev2.TrackedPoseSample {

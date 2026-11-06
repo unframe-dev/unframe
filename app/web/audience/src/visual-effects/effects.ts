@@ -31,6 +31,8 @@ export interface EffectHandle {
 }
 export interface HandGlowHandle extends EffectHandle {
   updatePose(position: Vector3, runtimeMs: number): void;
+  clearPoses(): void;
+  retarget(target: Object3D): void;
   end(runtimeMs: number): void;
 }
 interface Run {
@@ -243,7 +245,9 @@ export class VisualEffects {
         ? this.wave(options, target)
         : options.effectId === "dissolve"
           ? this.dissolve(options, target)
-          : this.hand(options, target, handle);
+          : this.hand(options, target, handle, (next) => {
+              run.target = next;
+            });
     run = {
       options,
       target,
@@ -315,7 +319,12 @@ export class VisualEffects {
       release: () => releaseGroup(group),
     };
   }
-  private hand(options: EffectOptions, target: Object3D, base: EffectHandle) {
+  private hand(
+    options: EffectOptions,
+    target: Object3D,
+    base: EffectHandle,
+    onRetarget: (target: Object3D) => void,
+  ) {
     const group = new Group();
     group.visible = false;
     target.add(group);
@@ -329,6 +338,13 @@ export class VisualEffects {
     let released = false;
     const handle: HandGlowHandle = {
       cancel: base.cancel,
+      retarget(next) {
+        next.add(group);
+        onRetarget(next);
+      },
+      clearPoses() {
+        samples.length = 0;
+      },
       updatePose(position, at) {
         time(at);
         if (![position.x, position.y, position.z].every(Number.isFinite))

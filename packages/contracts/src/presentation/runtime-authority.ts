@@ -121,6 +121,32 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
     throw new TypeError("Delivery contract major is incompatible");
   if (name === "ProjectedRuntimeCatalog" && value["catalogContractVersion"] !== 3)
     throw new TypeError("Runtime catalog contract major is incompatible");
+  if (name === "ProjectedRuntimeCatalog") {
+    const targets = value["trackedPoseTargets"];
+    if (
+      Array.isArray(targets) &&
+      targets.some((target, index) => index > 0 && target <= targets[index - 1])
+    )
+      throw new TypeError("Tracked pose targets must be ordered and unique");
+  }
+  if (
+    name === "ProjectedTrackedPoseSample" &&
+    (!positiveInteger(value["trackingFrameSequence"]) ||
+      (value["position"] === undefined && value["rotation"] === undefined))
+  )
+    throw new TypeError("Tracked pose sample requires a sequence and position or rotation");
+  if (name === "TrackingFrame" && !positiveInteger(value["inputEpoch"]))
+    throw new TypeError("Tracking frame requires a positive input epoch");
+  if (name === "ProjectionProfileDescriptor") {
+    const catalog = value["runtimeCatalog"] as Record<string, unknown> | undefined;
+    const targets = catalog?.["trackedPoseTargets"];
+    const capabilities = value["requiredRuntimeCapabilities"];
+    if (
+      (Array.isArray(targets) && targets.length > 0) !==
+      (Array.isArray(capabilities) && capabilities.includes(12))
+    )
+      throw new TypeError("Tracked pose delivery capability must match the catalog targets");
+  }
   if (name === "CanonicalRuntimeSnapshot" && !positiveInteger(value["inputEpoch"]))
     throw new TypeError("Canonical Snapshot requires a positive input epoch");
   if (
@@ -214,12 +240,6 @@ export function validateAuthorityWireValue(typeName: string, value: Record<strin
     throw new TypeError("Frozen Anchor requires a node and at least one display component");
   if (name === "RuntimeViewReplaced" && !value["runtimeView"])
     throw new TypeError("Atomic Runtime replacement requires a projected view");
-  if (
-    name === "ProjectedAnchorBindingPatch" &&
-    value["frozen"] &&
-    (value["frozen"] as Record<string, unknown>)["nodeId"] !== value["nodeId"]
-  )
-    throw new TypeError("Frozen Anchor node must match its binding");
   if (name === "RuntimeCommandHistory") {
     const match =
       typeof value["clientEventId"] === "string"

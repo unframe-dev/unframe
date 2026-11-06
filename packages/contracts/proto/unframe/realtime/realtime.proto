@@ -1005,6 +1005,8 @@ message TrackingFrame {
   repeated TrackedPoseSample samples = 3;
   unframe.presentation.Pose presentation_from_quest_local = 4;
   uint64 presentation_origin_version = 5;
+  uint64 input_epoch = 6;
+  uint64 base_reliable_sequence = 7;
 }
 
 message StateServerItem {
@@ -1032,21 +1034,20 @@ message ElementStatePatch {
   NodeStatePatch node = 2;
 }
 
-message AnchorBindingUnavailable {}
+message TrackedPoseUnavailable {}
 
-message ProjectedAnchorBindingSample {
+message ProjectedTrackedPoseSample {
   uint64 tracking_frame_sequence = 1;
   uint64 observed_at_runtime_monotonic_ms = 2;
   optional unframe.presentation.Vector3 position = 3;
   optional unframe.presentation.Quaternion rotation = 4;
 }
 
-message ProjectedAnchorBindingPatch {
-  string node_id = 1;
+message ProjectedTrackedPose {
+  unframe.presentation.AnchorTarget target = 1;
   oneof state {
-    AnchorBindingUnavailable unavailable = 2;
-    ProjectedAnchorBindingSample sample = 3;
-    FrozenAnchorDisplayState frozen = 4;
+    TrackedPoseUnavailable unavailable = 2;
+    ProjectedTrackedPoseSample sample = 3;
   }
 }
 
@@ -1058,8 +1059,11 @@ message ElementStateFrame {
   uint64 base_reliable_sequence = 5;
   StateFrameKind kind = 6;
   repeated ElementStatePatch elements = 7;
-  repeated ProjectedAnchorBindingPatch anchor_bindings = 8;
+  reserved 8;
+  reserved "anchor_bindings";
   uint64 produced_at_runtime_monotonic_ms = 9;
+  repeated ProjectedTrackedPose tracked_poses = 10;
+  repeated FrozenAnchorDisplayState frozen_anchors = 11;
 }
 
 enum EffectRunStatus {

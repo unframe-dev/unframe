@@ -28,8 +28,8 @@ beforeEach(() => {
     applyState: vi.fn(),
     restartState: vi.fn(),
     reset: vi.fn(),
-    getAnchorBindings: () => ({}),
-    getAnchorBindingsSnapshot: () => ({}),
+    getTrackedPoses: () => ({}),
+    getTrackedPosesSnapshot: () => ({}),
     getSnapshot: () => structuredClone(snapshot),
   });
 });

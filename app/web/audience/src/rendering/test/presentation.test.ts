@@ -309,8 +309,8 @@ it.each([false, true])(
     expect(presentation.applyView(view)).toBe(true);
     presentation.applyAnimationFrame(view, 500);
     applyRuntimeAnchors(presentation.root, delivery, view, {
-      "test-shape": {
-        nodeId: "test-shape",
+      2: {
+        target: 2,
         sample: { trackingFrameSequence: "2", position: { x: 5, y: 3, z: -2 } },
       },
     });

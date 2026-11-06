@@ -562,6 +562,7 @@ export interface ProjectedRuntimeCatalogWireFields {
   timelines?: ProjectedTimelineDefinitionWire[];
   modelClips?: ProjectedModelClipDefinitionWire[];
   presenterRecognition?: PresenterRecognitionCatalogWire;
+  trackedPoseTargets?: number[];
 }
 export type ProjectedRuntimeCatalogWire__placementReferencePoint = { placementReferencePoint: Vector3Wire;  } | { placementReferencePoint?: never };
 export type ProjectedRuntimeCatalogWire = ProjectedRuntimeCatalogWireFields & ProjectedRuntimeCatalogWire__placementReferencePoint;
@@ -793,9 +794,6 @@ export interface LocalPreviewProjectionWire {
   nativeUiResidency?: NativeUiResidencyPlanWire;
 }
 
-export interface AnchorBindingUnavailableWire {
-}
-
 export interface ArmedTimerWire {
   cueId?: string;
   deadlineRuntimeTimeMs?: string;
@@ -962,8 +960,9 @@ export interface ElementStateFrameWire {
   baseReliableSequence?: string;
   kind?: number;
   elements?: ElementStatePatchWire[];
-  anchorBindings?: ProjectedAnchorBindingPatchWire[];
   producedAtRuntimeMonotonicMs?: string;
+  trackedPoses?: ProjectedTrackedPoseWire[];
+  frozenAnchors?: FrozenAnchorDisplayStateWire[];
 }
 
 export interface ElementStatePatchWire {
@@ -1324,20 +1323,6 @@ export interface ProgressionRuntimeStateWireFields {
 export type ProgressionRuntimeStateWire_phase = { stable: StableProgressionWire; transitioning?: never } | { transitioning: TransitioningProgressionWire; stable?: never };
 export type ProgressionRuntimeStateWire = ProgressionRuntimeStateWireFields & ProgressionRuntimeStateWire_phase;
 
-export interface ProjectedAnchorBindingPatchWireFields {
-  nodeId?: string;
-}
-export type ProjectedAnchorBindingPatchWire_state = { unavailable: AnchorBindingUnavailableWire; sample?: never; frozen?: never } | { sample: ProjectedAnchorBindingSampleWire; unavailable?: never; frozen?: never } | { frozen: FrozenAnchorDisplayStateWire; unavailable?: never; sample?: never };
-export type ProjectedAnchorBindingPatchWire = ProjectedAnchorBindingPatchWireFields & ProjectedAnchorBindingPatchWire_state;
-
-export interface ProjectedAnchorBindingSampleWireFields {
-  trackingFrameSequence?: string;
-  observedAtRuntimeMonotonicMs?: string;
-}
-export type ProjectedAnchorBindingSampleWire__position = { position: Vector3Wire;  } | { position?: never };
-export type ProjectedAnchorBindingSampleWire__rotation = { rotation: QuaternionWire;  } | { rotation?: never };
-export type ProjectedAnchorBindingSampleWire = ProjectedAnchorBindingSampleWireFields & ProjectedAnchorBindingSampleWire__position & ProjectedAnchorBindingSampleWire__rotation;
-
 export interface ProjectedParticipantPresenceWire {
   participantId?: string;
   role?: number;
@@ -1364,6 +1349,20 @@ export interface ProjectedRuntimeSnapshotWire {
   reliableSequence?: string;
   runtimeView?: ParticipantRuntimeViewWire;
 }
+
+export interface ProjectedTrackedPoseWireFields {
+  target?: number;
+}
+export type ProjectedTrackedPoseWire_state = { unavailable: TrackedPoseUnavailableWire; sample?: never } | { sample: ProjectedTrackedPoseSampleWire; unavailable?: never };
+export type ProjectedTrackedPoseWire = ProjectedTrackedPoseWireFields & ProjectedTrackedPoseWire_state;
+
+export interface ProjectedTrackedPoseSampleWireFields {
+  trackingFrameSequence?: string;
+  observedAtRuntimeMonotonicMs?: string;
+}
+export type ProjectedTrackedPoseSampleWire__position = { position: Vector3Wire;  } | { position?: never };
+export type ProjectedTrackedPoseSampleWire__rotation = { rotation: QuaternionWire;  } | { rotation?: never };
+export type ProjectedTrackedPoseSampleWire = ProjectedTrackedPoseSampleWireFields & ProjectedTrackedPoseSampleWire__position & ProjectedTrackedPoseSampleWire__rotation;
 
 export interface ProjectionAdvanceWire {
   fence?: RuntimeProjectionFenceWire;
@@ -1646,12 +1645,17 @@ export interface TrackedPoseSampleWire {
   rotationAvailable?: boolean;
 }
 
+export interface TrackedPoseUnavailableWire {
+}
+
 export interface TrackingFrameWire {
   frameSequence?: string;
   capturedAtClientMonotonicMs?: string;
   samples?: TrackedPoseSampleWire[];
   presentationFromQuestLocal?: PoseWire;
   presentationOriginVersion?: string;
+  inputEpoch?: string;
+  baseReliableSequence?: string;
 }
 
 export interface TransitioningProgressionWire {

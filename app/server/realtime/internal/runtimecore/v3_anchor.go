@@ -111,15 +111,6 @@ func (s *V2Session) prepareV3Pause(previous *realtimev2.CanonicalRuntimeSnapshot
 	return events, nil
 }
 
-func (s *V2Session) ProjectedAnchorBindingsAtCut(nodes []*realtimev2.NodeRuntimeState, nowMs, expectedReliableSequence uint64) ([]*realtimev2.ProjectedAnchorBindingPatch, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.snapshot.ReliableSequence != expectedReliableSequence {
-		return nil, ErrV3StateCutChanged
-	}
-	return s.projectedV3AnchorBindings(nodes, nowMs)
-}
-
 func frozenV3ByNode(states []*realtimev2.FrozenAnchorDisplayState, id string) *realtimev2.FrozenAnchorDisplayState {
 	index := sort.Search(len(states), func(index int) bool { return states[index].NodeId >= id })
 	if index < len(states) && states[index].NodeId == id {

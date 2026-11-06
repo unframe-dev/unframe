@@ -323,8 +323,8 @@ describe("presentation session resources", () => {
         const target = spatial.root.getObjectByName("spatial-node:model")!;
         for (const time of [250, 500, 750]) {
           frame(canonical, time, {
-            model: {
-              nodeId: "model",
+            2: {
+              target: 2,
               sample: { trackingFrameSequence: "1", position: { x: 5, y: 0, z: 0 } },
             },
           });

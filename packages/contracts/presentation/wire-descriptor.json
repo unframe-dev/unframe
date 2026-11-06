@@ -27,7 +27,8 @@
                 "RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION": 8,
                 "RUNTIME_CAPABILITY_FROZEN_ANCHORS": 9,
                 "RUNTIME_CAPABILITY_STEP_RESTORE": 10,
-                "RUNTIME_CAPABILITY_EFFECT_PLAYBACK": 11
+                "RUNTIME_CAPABILITY_EFFECT_PLAYBACK": 11,
+                "RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY": 12
               }
             },
             "PublicationFence": {
@@ -911,6 +912,11 @@
                   "options": {
                     "proto3_optional": true
                   }
+                },
+                "trackedPoseTargets": {
+                  "rule": "repeated",
+                  "type": "AnchorTarget",
+                  "id": 10
                 }
               },
               "reserved": [[7, 7], "motion_guides"]
@@ -5546,6 +5552,14 @@
                 "presentationOriginVersion": {
                   "type": "uint64",
                   "id": 5
+                },
+                "inputEpoch": {
+                  "type": "uint64",
+                  "id": 6
+                },
+                "baseReliableSequence": {
+                  "type": "uint64",
+                  "id": 7
                 }
               }
             },
@@ -5631,10 +5645,10 @@
                 }
               }
             },
-            "AnchorBindingUnavailable": {
+            "TrackedPoseUnavailable": {
               "fields": {}
             },
-            "ProjectedAnchorBindingSample": {
+            "ProjectedTrackedPoseSample": {
               "oneofs": {
                 "_position": {
                   "oneof": ["position"]
@@ -5668,28 +5682,24 @@
                 }
               }
             },
-            "ProjectedAnchorBindingPatch": {
+            "ProjectedTrackedPose": {
               "oneofs": {
                 "state": {
-                  "oneof": ["unavailable", "sample", "frozen"]
+                  "oneof": ["unavailable", "sample"]
                 }
               },
               "fields": {
-                "nodeId": {
-                  "type": "string",
+                "target": {
+                  "type": "unframe.presentation.AnchorTarget",
                   "id": 1
                 },
                 "unavailable": {
-                  "type": "AnchorBindingUnavailable",
+                  "type": "TrackedPoseUnavailable",
                   "id": 2
                 },
                 "sample": {
-                  "type": "ProjectedAnchorBindingSample",
+                  "type": "ProjectedTrackedPoseSample",
                   "id": 3
-                },
-                "frozen": {
-                  "type": "FrozenAnchorDisplayState",
-                  "id": 4
                 }
               }
             },
@@ -5724,16 +5734,22 @@
                   "type": "ElementStatePatch",
                   "id": 7
                 },
-                "anchorBindings": {
-                  "rule": "repeated",
-                  "type": "ProjectedAnchorBindingPatch",
-                  "id": 8
-                },
                 "producedAtRuntimeMonotonicMs": {
                   "type": "uint64",
                   "id": 9
+                },
+                "trackedPoses": {
+                  "rule": "repeated",
+                  "type": "ProjectedTrackedPose",
+                  "id": 10
+                },
+                "frozenAnchors": {
+                  "rule": "repeated",
+                  "type": "FrozenAnchorDisplayState",
+                  "id": 11
                 }
-              }
+              },
+              "reserved": [[8, 8], "anchor_bindings"]
             },
             "EffectRunStatus": {
               "values": {

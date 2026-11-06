@@ -28,6 +28,8 @@ public sealed class PresentationRuntimePauseEditModeTests
         foreach (var surface in delivery.ProjectionProfile.RuntimeCatalog.Surfaces) surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         string id = delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId;
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true } };
+        delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets.Add(AnchorTarget.Head);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackedPoseDelivery);
         var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
         view.FrozenAnchors.Add(new FrozenAnchorDisplayState { NodeId = id, Position = new Vector3 { X = 7, Y = 2 } });
@@ -61,8 +63,8 @@ public sealed class PresentationRuntimePauseEditModeTests
         var late = new PresentationRuntimeDataStore();
         Assert.That(late.TryReceiveDelivery(delivery, out error), Is.True, error);
         Assert.That(late.TryReceiveControl(latest, out error), Is.True, error);
-        Assert.That(live.TryGetAnchorSample(id, out var existingAnchor), Is.True);
-        Assert.That(late.TryGetAnchorSample(id, out var joiningAnchor), Is.True);
+        Assert.That(live.TryGetFrozenAnchor(id, out var existingAnchor), Is.True);
+        Assert.That(late.TryGetFrozenAnchor(id, out var joiningAnchor), Is.True);
         Assert.That(existingAnchor.Position, Is.EqualTo(joiningAnchor.Position));
         Assert.That(existingAnchor.Position.X, Is.EqualTo(7));
         Assert.That(existingAnchor.Position.Y + live.StageOrigin.Position.Y, Is.EqualTo(2));
@@ -137,15 +139,17 @@ public sealed class PresentationRuntimePauseEditModeTests
         foreach (var surface in delivery.ProjectionProfile.RuntimeCatalog.Surfaces) surface.Owner = new ResourceOwner { Presentation = new PresentationResourceOwner() };
         string id = delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId;
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true } };
+        delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets.Add(AnchorTarget.Head);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackedPoseDelivery);
         var view = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
         view.Clock.Paused = new Paused { Reason = PauseReason.ExplicitPause };
         view.FrozenAnchors.Add(new FrozenAnchorDisplayState { NodeId = id, Position = new Vector3 { X = 7 } });
         var store = new PresentationRuntimeDataStore();
         Require(store.TryReceiveDelivery(delivery, out string error), error);
         Require(store.TryReceiveControl(snapshot, out error), error);
-        Require(store.TryGetAnchorSample(id, out var sample) && sample.Position.X == 7, "snapshot frozen anchor is not visible");
+        Require(store.TryGetFrozenAnchor(id, out var sample) && sample.Position.X == 7, "snapshot frozen anchor is not visible");
         System.Threading.Thread.Sleep(510);
-        Require(store.TryGetAnchorSample(id, out _), "frozen anchor expired during pause");
+        Require(store.TryGetFrozenAnchor(id, out _), "frozen anchor expired during pause");
         ParticipantRuntimeView resumed = view.Clone();
         resumed.BaseReliableSequence = 1;
 
@@ -162,7 +166,7 @@ public sealed class PresentationRuntimePauseEditModeTests
         };
         Require(store.TryReceiveNetworkControl(replacement, out error), error);
         Require(store.TryGetNodeState(id, out var state) && state.Opacity == 0.25, "replacement did not replace node state");
-        Require(store.TryGetAnchorSample(id, out sample) && sample.Position.X == 7, "resume lost frozen display while waiting for fresh pose");
+        Require(store.TryGetFrozenAnchor(id, out sample) && sample.Position.X == 7, "resume lost frozen display while waiting for fresh pose");
         Require(store.TryReceiveNetworkControl(new ControlServerItem
         {
             ReliableEvent = new ProjectedReliableEvent
@@ -173,7 +177,7 @@ public sealed class PresentationRuntimePauseEditModeTests
                 RuntimeStatusChanged = new RuntimeStatusChanged { Running = new Running() },
             }
         }, out error), error);
-        Require(store.TryGetAnchorSample(id, out _), "resume status discarded frozen display");
+        Require(store.TryGetFrozenAnchor(id, out _), "resume status discarded frozen display");
         var frame = new ElementStateFrame
         {
             Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
@@ -196,21 +200,22 @@ public sealed class PresentationRuntimePauseEditModeTests
                     Transform = node.Transform.Clone(),
                 }
             });
-        frame.AnchorBindings.Add(new ProjectedAnchorBindingPatch { NodeId = id, Unavailable = new AnchorBindingUnavailable() });
+        frame.TrackedPoses.Add(new ProjectedTrackedPose { Target = AnchorTarget.Head, Unavailable = new TrackedPoseUnavailable() });
         Require(!store.TryReceiveState(new StateServerItem { StateFrame = frame }, out _), "old state cut replaced the new view");
-        Require(store.TryGetAnchorSample(id, out _), "old state removed frozen display");
+        Require(store.TryGetFrozenAnchor(id, out _), "old state removed frozen display");
         frame.BaseReliableSequence = 1;
         Require(!store.TryReceiveState(new StateServerItem { StateFrame = frame }, out _), "pre-resume state cut replaced the resumed view");
         frame.BaseReliableSequence = 2;
-        frame.AnchorBindings[0].Frozen = resumed.FrozenAnchors[0].Clone();
+        frame.FrozenAnchors.Add(resumed.FrozenAnchors[0].Clone());
         Require(store.TryValidateNetworkStateFrame(frame, out error), error);
         Require(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), error);
-        Require(store.TryGetAnchorSample(id, out sample) && sample.Position.X == 7, "frozen keyframe did not converge");
+        Require(store.TryGetFrozenAnchor(id, out sample) && sample.Position.X == 7, "frozen keyframe did not converge");
         frame.FrameSequence = 2;
-        frame.AnchorBindings[0].Frozen.NodeId = "node:unknown";
+        frame.FrozenAnchors[0].NodeId = "node:unknown";
         Require(!store.TryReceiveState(new StateServerItem { StateFrame = frame }, out _), "mismatched frozen node identity accepted");
-        Require(store.TryGetAnchorSample(id, out sample) && sample.Position.X == 7, "invalid frozen patch partially changed display");
-        frame.AnchorBindings[0].Sample = new ProjectedAnchorBindingSample
+        Require(store.TryGetFrozenAnchor(id, out sample) && sample.Position.X == 7, "invalid frozen patch partially changed display");
+        frame.FrozenAnchors.Clear();
+        frame.TrackedPoses[0].Sample = new ProjectedTrackedPoseSample
         {
             TrackingFrameSequence = 2,
             ObservedAtRuntimeMonotonicMs = 10000,
@@ -218,23 +223,24 @@ public sealed class PresentationRuntimePauseEditModeTests
         };
         Require(store.TryValidateNetworkStateFrame(frame, out error), error);
         Require(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), error);
-        Require(store.TryGetAnchorSample(id, out sample) && sample.Position.X == 9, "fresh pose did not replace frozen anchor");
+        Require(!store.TryGetFrozenAnchor(id, out _) && store.TryGetTrackedPose(AnchorTarget.Head, out var fresh) && fresh.Position.X == 9, "fresh pose did not replace frozen anchor");
         System.Threading.Thread.Sleep(510);
-        Require(!store.TryGetAnchorSample(id, out _), "tracking sample did not return to normal freshness");
+        Require(!store.TryGetTrackedPose(AnchorTarget.Head, out _), "tracking sample did not return to normal freshness");
         frame.FrameSequence = 3;
-        frame.AnchorBindings[0].Frozen = resumed.FrozenAnchors[0].Clone();
+        frame.FrozenAnchors.Add(resumed.FrozenAnchors[0].Clone());
         Require(store.TryValidateNetworkStateFrame(frame, out error), error);
         Require(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), error);
         frame.FrameSequence = 4;
-        frame.AnchorBindings[0].Unavailable = new AnchorBindingUnavailable();
+        frame.FrozenAnchors.Clear();
+        frame.TrackedPoses[0].Unavailable = new TrackedPoseUnavailable();
         Require(store.TryValidateNetworkStateFrame(frame, out error), error);
         Require(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out error), error);
-        Require(!store.TryGetAnchorSample(id, out _), "unavailable keyframe retained frozen anchor");
+        Require(!store.TryGetFrozenAnchor(id, out _), "unavailable keyframe retained frozen anchor");
         replacement.ReliableEvent.Sequence = 3;
         resumed.BaseReliableSequence = 3;
         resumed.FrozenAnchors[0].NodeId = "node:unknown";
         Require(!store.TryReceiveNetworkControl(replacement, out _), "invalid replacement accepted");
-        Require(store.LastReliableSequence == 2 && !store.TryGetAnchorSample(id, out _), "invalid replacement partially changed state");
+        Require(store.LastReliableSequence == 2 && !store.TryGetFrozenAnchor(id, out _), "invalid replacement partially changed state");
         resumed.Progression = null;
         Require(!store.TryReceiveNetworkControl(replacement, out _), "replacement without progression accepted");
 

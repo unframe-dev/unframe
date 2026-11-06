@@ -6,52 +6,6 @@ using UnityEngine;
 
 public sealed class PresentationEffectPlayerTests
 {
-    [Test]
-    public void HandGlowAcceptsIndependentWorldPosesAndUsesTheNewestSampleWithoutAnchors()
-    {
-        Assert.IsTrue(PresentationLocalPreviewAdapter.TryCreate(PresentationPreviewTestFixture.Create(), out var input, out string error), error);
-        var root = new GameObject("Effects");
-        root.transform.position = new UnityEngine.Vector3(10, 0, 0);
-        var hierarchy = new PresentationNodeHierarchy();
-        using var effects = new PresentationEffectPlayer();
-        try
-        {
-            Assert.IsTrue(hierarchy.TryReplace(input, root.transform, out error), error);
-            var run = new EffectRunSnapshot
-            {
-                RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 },
-                NodeId = "node:stage",
-                Configuration = new EffectConfiguration
-                {
-                    Kind = EffectKind.HandGlow,
-                    Hand = EffectHand.Left,
-                    Size = 1,
-                    Speed = 1,
-                    DurationMs = 1000,
-                    Color = new Unframe.Presentation.SrgbaColor { Alpha = 1 },
-                },
-            };
-            Assert.IsTrue(hierarchy.Registry.TryGet(run.NodeId, out var target));
-            Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 0, out error,
-                new[] { new PresentationHandPose(EffectHand.Left, 1, new UnityEngine.Vector3(11, 0, 0)) }), error);
-            var lines = target.GetComponentsInChildren<LineRenderer>(true);
-            Assert.IsFalse(lines[0].gameObject.activeInHierarchy);
-            Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 10, out error,
-                new[] {
-                    new PresentationHandPose(EffectHand.Left, 1, new UnityEngine.Vector3(11, 0, 0)),
-                    new PresentationHandPose(EffectHand.Left, 3, new UnityEngine.Vector3(13, 0, 0)),
-                    new PresentationHandPose(EffectHand.Left, 2, new UnityEngine.Vector3(12, 0, 0)),
-                }), error);
-            Assert.IsTrue(lines[0].gameObject.activeInHierarchy);
-            Assert.IsTrue(lines[0].useWorldSpace);
-            Assert.That(lines[0].GetPosition(0).x, Is.EqualTo(13).Within(0.001));
-            Assert.IsTrue(effects.TryUpdate(input, new[] { run }, hierarchy, 1010, out error,
-                System.Array.Empty<PresentationHandPose>()), error);
-            Assert.IsFalse(lines[0].gameObject.activeInHierarchy);
-        }
-        finally { effects.Clear(); hierarchy.Clear(); Object.DestroyImmediate(root); }
-    }
-
     [TestCase(false)]
     [TestCase(true)]
     public void WaveUsesTimelineOpacityOnItsEmptyNodeIncludingInitialMidFadeSeek(bool startBeforeFade)

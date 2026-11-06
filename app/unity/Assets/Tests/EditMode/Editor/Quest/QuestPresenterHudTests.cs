@@ -146,6 +146,9 @@ public sealed class QuestPresenterHudTests
         public bool TryGetSurface(string id, out ProjectedSurfaceDefinition value) { value = null; return false; }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { value = null; return false; }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) => States.TryGetValue(id, out value);
-        public bool TryGetAnchorSample(string id, out ProjectedAnchorBindingSample value) { value = null; return false; }
+        public ulong TrackingGeneration => 0;
+        public ulong TrackedPositionContinuity(AnchorTarget target) => 0;
+        public bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value) { value = null; return false; }
+        public bool TryGetFrozenAnchor(string id, out FrozenAnchorDisplayState value) { value = null; return false; }
     }
 }

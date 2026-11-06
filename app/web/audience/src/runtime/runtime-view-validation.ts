@@ -228,8 +228,8 @@ export function validateRuntimeView(
     requireValue(
       anchor &&
         !frozenIds.has(frozen.nodeId) &&
-        (!anchor.followPosition || frozen.position) &&
-        (!anchor.followRotation || frozen.rotation),
+        !!anchor.followPosition === !!frozen.position &&
+        !!anchor.followRotation === !!frozen.rotation,
     );
     frozenIds.add(frozen.nodeId);
   }

@@ -146,8 +146,15 @@ const authorityFixtures = [
     },
   },
   {
-    typeName: "unframe.realtime.ProjectedAnchorBindingPatch",
-    value: { nodeId: "follow", frozen: { nodeId: "follow", position: { x: 1, y: 2, z: 3 } } },
+    typeName: "unframe.realtime.ProjectedTrackedPose",
+    value: {
+      target: 2,
+      sample: {
+        trackingFrameSequence: "1",
+        observedAtRuntimeMonotonicMs: "1",
+        position: { x: 1, y: 2, z: 3 },
+      },
+    },
   },
   {
     typeName: "unframe.realtime.RuntimeViewReplaced",

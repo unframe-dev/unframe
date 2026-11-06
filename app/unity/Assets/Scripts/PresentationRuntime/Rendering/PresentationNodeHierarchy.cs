@@ -37,6 +37,9 @@ namespace Unframe.Unity.PresentationRuntime
             generatedRoot.localRotation = PresentationUnityCoordinates.Rotation(origin.Rotation);
         }
 
+        internal Vector3 StageToWorld(Unframe.Presentation.Vector3 position) =>
+            generatedRoot.TransformPoint(PresentationUnityCoordinates.Position(position));
+
         public void Clear()
         {
             DestroyRoot(generatedRoot);

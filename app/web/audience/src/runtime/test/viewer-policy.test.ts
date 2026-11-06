@@ -25,12 +25,12 @@ it("keeps Viewer logical inputs disabled and rejects Presenter input state", () 
 });
 
 it("advertises only Viewer runtime capabilities, including mandatory v3 replacement support", () => {
-  expect(viewerRuntimeCapabilities).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10, 11]);
+  expect(viewerRuntimeCapabilities).toEqual([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12]);
   expect(() => assertViewerRuntimeCapabilities([1, 4, 5, 8, 9, 10, 11])).not.toThrow();
 });
 it("accepts the required capabilities of a Viewer projection with Presenter Anchors", () => {
-  expect(() => assertViewerRuntimeCapabilities([1, 2, 3, 6, 8, 9, 10, 11])).not.toThrow();
+  expect(() => assertViewerRuntimeCapabilities([1, 2, 3, 6, 8, 9, 10, 11, 12])).not.toThrow();
 });
-it.each([0, 7, 12])("rejects unsupported required runtime capability %s", (capability) => {
+it.each([0, 7, 13])("rejects unsupported required runtime capability %s", (capability) => {
   expect(() => assertViewerRuntimeCapabilities([capability])).toThrow(/unsupported/);
 });
