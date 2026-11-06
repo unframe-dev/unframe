@@ -18,7 +18,7 @@ for source in "$runtime/Rendering/"*.cs; do
   cp "$source" "$assets/Unframe/Scripts/Rendering/"
 done
 cp "$runtime/State/IPresentationRenderView.cs" "$runtime/State/PresentationMediaPlaybackValidation.cs" "$runtime/State/PresentationEffectValidation.cs" "$assets/Unframe/Scripts/State/"
-cp "$runtime/Delivery/PresentationDeliveryCatalog.cs" "$runtime/Delivery/PresentationBakedDeliveryValidation.cs" "$runtime/Delivery/PresentationCoordinateValidation.cs" "$assets/Unframe/Scripts/Delivery/"
+cp "$runtime/Delivery/PresentationDeliveryCatalog.cs" "$runtime/Delivery/PresentationBakedDeliveryValidation.cs" "$runtime/Delivery/PresentationCoordinateValidation.cs" "$runtime/Delivery/PresentationSpatialNodeValidation.cs" "$assets/Unframe/Scripts/Delivery/"
 for source in Runtime Delivery Realtime Preview; do
   cp "$runtime/Generated/$source.cs" "$assets/Unframe/Generated/"
 done
