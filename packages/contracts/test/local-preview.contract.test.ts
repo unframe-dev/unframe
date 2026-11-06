@@ -56,6 +56,7 @@ test("Preview reuses the catalog and state messages without a publication or ses
         variables: [],
         timelines: [],
         modelClips: [],
+        trackedPoseTargets: [],
       },
       visibleNodeIds: [],
       visibleSurfaceIds: [],
