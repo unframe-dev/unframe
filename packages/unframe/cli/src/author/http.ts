@@ -178,9 +178,21 @@ export const startAuthorHost = async ({
         return;
       }
       if (path === "/api/project" && request.method === "GET") {
-        const project = await service.project();
-        response.setHeader("etag", `"${project.revision}"`);
-        sendJson(response, 200, project);
+        const controller = new AbortController();
+        const disconnected = () => {
+          if (!response.writableEnded) controller.abort();
+        };
+        response.on("close", disconnected);
+        if (response.destroyed) disconnected();
+        try {
+          const project = await service.project(controller.signal);
+          if (!response.destroyed) {
+            response.setHeader("etag", `"${project.revision}"`);
+            sendJson(response, 200, project);
+          }
+        } finally {
+          response.removeListener("close", disconnected);
+        }
         return;
       }
       if (path === "/api/publication-auth") {

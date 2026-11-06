@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   checkAuthoringProject,
+  createAuthoringProjectChecker,
   type PairedAuthoringDeclarationCatalog,
   type PairedComponentDeclaration,
 } from "../src/index.js";
@@ -149,4 +150,16 @@ describe("checkAuthoringProject", () => {
       checkAuthoringProject(project([...files].reverse())),
     );
   });
+});
+
+it("reuses a scoped check while invalidating changed source content", () => {
+  const check = createAuthoringProjectChecker();
+  const source = project();
+  const initial = check(source);
+  expect(initial.valid).toBe(true);
+  expect(check(source)).toBe(initial);
+  source.files[0]!.sourceText = "export default ;";
+  const changed = check(source);
+  expect(changed.valid).toBe(false);
+  expect(changed).not.toBe(initial);
 });

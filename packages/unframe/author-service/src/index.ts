@@ -36,7 +36,7 @@ export class AuthorError extends Error {
   }
 }
 export type AuthorService = {
-  project(): Promise<ProjectSnapshot>;
+  project(signal?: AbortSignal): Promise<ProjectSnapshot>;
   patch(revision: string, request: PatchRequest): Promise<SavedCommand>;
   build(
     revision: string,
@@ -256,6 +256,7 @@ const authorSourceDiagnostic = (item: {
     : {}),
 });
 export async function createAuthorProjectSnapshot(input: {
+  checkSource?: typeof checkAuthoringProject;
   revision: string;
   sourceText: string;
   files: readonly { fileName: string; sourceText: string }[];
@@ -308,6 +309,7 @@ export async function createAuthorProjectSnapshot(input: {
           source,
           createSourceAssetAssemblyCarrier(input.carrier, sourceAssets.value.assets),
           sourceAssets.value.sourceAssetBytes,
+          input.checkSource,
         )
       : undefined;
   const diagnostics: AuthorDiagnostic[] = [
@@ -335,6 +337,7 @@ export async function createAuthorProjectSnapshot(input: {
     source,
     sourceText: input.sourceText,
     semanticValid: checked?.valid === true,
+    ...(input.checkSource ? { checkSource: input.checkSource } : {}),
   });
   diagnostics.push(...inspected.diagnostics);
   return {
@@ -422,10 +425,12 @@ export const createAuthorService = async (
     if (closed) fail(409, "author-service-closed", "Author host is closed.");
   };
   return {
-    project: async () => {
+    project: async (signal) => {
       requireOpen();
       try {
-        const project = await ports.project(shutdown.signal);
+        const project = await ports.project(
+          signal ? AbortSignal.any([signal, shutdown.signal]) : shutdown.signal,
+        );
         requireOpen();
         return structuredClone(project);
       } catch (error) {
@@ -458,11 +463,12 @@ export type AuthorSourceInspection = {
   diagnostics: AuthorDiagnostic[];
 };
 export function inspectAuthorSource(input: {
+  checkSource?: typeof checkAuthoringProject;
   source: unknown;
   sourceText: string;
   semanticValid: boolean;
 }): AuthorSourceInspection {
-  const catalog = checkAuthoringProject(input.source);
+  const catalog = (input.checkSource ?? checkAuthoringProject)(input.source);
   const diagnostics: AuthorDiagnostic[] = !catalog.valid
     ? catalog.diagnostics.map((item) => ({
         code: item.code,

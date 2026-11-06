@@ -38,7 +38,18 @@ it("rejects an already cancelled analysis before starting work", async () => {
 });
 
 it("returns a validated project snapshot from the generated worker", async () => {
-  const { snapshot: project, preparedInputs } = await runAnalysisOperation("project", input);
+  const stages: string[] = [];
+  const { snapshot: project, preparedInputs } = await runAnalysisOperation(
+    "project",
+    input,
+    undefined,
+    sourceAssetPorts,
+    {
+      onProfile: (event) => stages.push(event.stage),
+    },
+  );
+  expect(stages.filter((stage) => stage === "source-parse")).toHaveLength(1);
+  expect(stages.at(-1)).toBe("host-cleanup-complete");
   expect(project.revision).toBe(input.found.revision);
   expect(project.irHash, JSON.stringify(project.diagnostics)).not.toBeNull();
   expect(project.definition).not.toBeNull();
@@ -280,3 +291,61 @@ it.each(["project", "prepare"] as const)(
   },
   30_000,
 );
+
+it("rejects oversized input before creating an analysis process", async () => {
+  await expect(
+    runAnalysisOperation(
+      "assemble",
+      {
+        source: { text: "a".repeat(1024) },
+        carrier: {},
+        sourceAssetBytes: {},
+      },
+      undefined,
+      sourceAssetPorts,
+      { maxInputBytes: 100 },
+    ),
+  ).rejects.toMatchObject({
+    status: 413,
+    code: "cli-analysis-input-limit",
+  });
+});
+
+it("terminates an analysis which exceeds its deadline", async () => {
+  await expect(
+    runAnalysisOperation("project", input, undefined, sourceAssetPorts, {
+      timeoutMilliseconds: 1,
+    }),
+  ).rejects.toMatchObject({ status: 503, code: "cli-analysis-time-limit" });
+});
+
+it("bounds process admission and releases capacity after completion", async () => {
+  const operation = () =>
+    runAnalysisOperation("assemble", { source: {}, carrier: {}, sourceAssetBytes: {} });
+  const first = operation();
+  const second = operation();
+  await expect(operation()).rejects.toMatchObject({ status: 503, code: "cli-analysis-busy" });
+  expect((await first).valid).toBe(false);
+  expect((await second).valid).toBe(false);
+  expect((await operation()).valid).toBe(false);
+});
+
+it("counts repeated references against the serialized input budget", async () => {
+  const shared = { text: "a".repeat(256) };
+  await expect(
+    runAnalysisOperation(
+      "assemble",
+      {
+        source: { first: shared, second: shared },
+        carrier: {},
+        sourceAssetBytes: {},
+      },
+      undefined,
+      sourceAssetPorts,
+      { maxInputBytes: 500 },
+    ),
+  ).rejects.toMatchObject({
+    status: 413,
+    code: "cli-analysis-input-limit",
+  });
+});

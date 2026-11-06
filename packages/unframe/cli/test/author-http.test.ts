@@ -910,3 +910,40 @@ it.each(["dev", "dist"] as const)(
     expect(run).toHaveBeenCalledOnce();
   },
 );
+
+it("cancels the project subscriber when its HTTP connection closes", async () => {
+  const { host, service } = await setup();
+  const started = Promise.withResolvers<AbortSignal>();
+  const disconnected = Promise.withResolvers<void>();
+  vi.mocked(service.project).mockImplementationOnce(async (signal) => {
+    if (!signal) throw new Error("Project request requires a subscriber signal.");
+    started.resolve(signal);
+    await new Promise<void>((done) =>
+      signal.addEventListener(
+        "abort",
+        () => {
+          disconnected.resolve();
+          done();
+        },
+        { once: true },
+      ),
+    );
+    throw new AuthorError(409, "cli-cancelled", "Project analysis was cancelled.");
+  });
+  const controller = new AbortController();
+  const pending = fetch(`${host.origin}/api/project`, {
+    headers: { authorization: `Bearer ${host.token}` },
+    signal: controller.signal,
+  });
+  const rejected = expect(pending).rejects.toBeDefined();
+  const signal = await started.promise;
+  controller.abort();
+  await rejected;
+  await disconnected.promise;
+  expect(signal.aborted).toBe(true);
+  const next = await fetch(`${host.origin}/api/project`, {
+    headers: { authorization: `Bearer ${host.token}` },
+  });
+  expect(next.status).toBe(200);
+  await next.body?.cancel();
+});
