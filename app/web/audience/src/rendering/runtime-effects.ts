@@ -8,6 +8,14 @@ export interface RuntimeHandPose {
   position: readonly [number, number, number];
 }
 
+function freshestPose(poses: readonly RuntimeHandPose[], hand: RuntimeHandPose["hand"]) {
+  return poses.reduce<RuntimeHandPose | undefined>(
+    (latest, pose) =>
+      pose.hand === hand && (!latest || pose.sequence > latest.sequence) ? pose : latest,
+    undefined,
+  );
+}
+
 export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | undefined) {
   const effects = new VisualEffects();
   const runs = new Map<
@@ -78,7 +86,7 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
               handle: hand ?? effects.play(options, target, completed),
               sequence:
                 configuration.kind === "handGlow"
-                  ? (poses.find((pose) => pose.hand === configuration.hand)?.sequence ?? -1)
+                  ? (freshestPose(poses, configuration.hand)?.sequence ?? -1)
                   : -1,
               completed: false,
               ...(hand ? { hand } : {}),
@@ -92,7 +100,7 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
           effects.setWaveOpacity(id, view.nodeStates[run.nodeId]?.opacity ?? 1);
         if (run.effect.kind === "handGlow" && entry.hand && !entry.completed) {
           const hand = run.effect.hand;
-          const sample = poses.find((value) => value.hand === hand);
+          const sample = freshestPose(poses, hand);
           if (
             sample &&
             sample.sequence > entry.sequence &&

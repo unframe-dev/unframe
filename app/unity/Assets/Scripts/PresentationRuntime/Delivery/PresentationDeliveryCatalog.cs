@@ -133,6 +133,7 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     return Fail("delivery node is incomplete.", out error);
                 }
+                if (!PresentationSpatialNodeValidation.IsValid(node)) return Fail("delivery spatial node is invalid.", out error);
                 if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Shape)
                 {
                     UnlitShapeMaterial material = node.Shape.Material;

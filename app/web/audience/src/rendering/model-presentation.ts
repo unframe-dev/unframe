@@ -39,6 +39,12 @@ export async function createModelPresentation(options: {
   const key = new DirectionalLight(0xffffff, 2);
   key.position.set(2, 3, 4);
   root.add(fill, key);
+  const authoredShadows = options.delivery.projectionProfile?.runtimeCatalog?.nodes?.some(
+    (node) =>
+      node.light?.directional?.castsShadows ||
+      node.light?.point?.castsShadows ||
+      node.light?.spot?.castsShadows,
+  );
   const residentAssets = buildResidentModelAssets(options.delivery);
   const assetMetadata = new Map(residentAssets.map((asset) => [asset.assetId, asset]));
   const loaded = new Map<string, Loaded>(),
@@ -106,6 +112,13 @@ export async function createModelPresentation(options: {
     root.clear();
   }
   function applyPlan(next: ModelPlan, view: ParticipantRuntimeView) {
+    const authoredLight = options.delivery.projectionProfile?.runtimeCatalog?.nodes?.some(
+      (node) =>
+        node.light &&
+        (node.owner?.presentation ||
+          node.owner?.group?.groupId === view.progression.currentGroupId),
+    );
+    fill.visible = key.visible = !authoredLight;
     for (const node of next.nodes) {
       let group = groups.get(node.id);
       if (!group) {
@@ -249,6 +262,10 @@ export async function createModelPresentation(options: {
       }[] = [];
       scene.traverse((object) => {
         if (!(object instanceof Mesh)) return;
+        if (authoredShadows) {
+          object.castShadow = true;
+          object.receiveShadow = true;
+        }
         const cloned = (Array.isArray(object.material) ? object.material : [object.material]).map(
           (material) => {
             const copy = material.clone();

@@ -130,6 +130,7 @@ namespace Unframe.Unity.PresentationRuntime
                     await sceneRenderer.LoadAsync(store, hierarchy,
                         (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation, certFingerprint == null ? null : realtimeEndpoint, manifest.SessionId, bearerProvider), token), lifetime.Token);
                 playback.Models = sceneRenderer.Models;
+                playback.Spatial = sceneRenderer.Spatial;
                 playback.Videos = sceneRenderer.Videos;
                 DownloadReady = true;
                 diagnostics?.Record("assets.ready", direction: "receive", count: selectedAssets.Count);

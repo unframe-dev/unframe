@@ -202,3 +202,15 @@ it("starts a new or reconnected HandGlow only from a pose received after that ru
   frame(effects, [run("handGlow")], 130, [{ ...oldPose, sequence: 2 }]);
   expect(target.children[0]!.visible).toBe(true);
 });
+
+it("uses the freshest hand sample when several anchor bindings describe one hand", () => {
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const old = { hand: "left" as const, sequence: 1, position: [0, 0, 0] as const };
+  frame(effects, [run("handGlow")], 100, [old]);
+  frame(effects, [run("handGlow")], 110, [old, { ...old, sequence: 2, position: [3, 0, 0] }]);
+  expect(target.children[0]!.visible).toBe(true);
+  const halo = target.children[0]!.children[0] as Mesh;
+  expect(halo.geometry.getAttribute("position").getX(0)).toBeCloseTo(3.035);
+  effects.dispose();
+});

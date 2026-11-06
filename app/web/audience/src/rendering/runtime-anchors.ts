@@ -12,7 +12,6 @@ export function applyRuntimeAnchors(
   view: ParticipantRuntimeView,
   bindings: AnchorBindings,
 ): RuntimeHandPose[] {
-  const hands: RuntimeHandPose[] = [];
   for (const node of delivery.projectionProfile?.runtimeCatalog?.nodes ?? []) {
     const anchor = node.parent?.presenterAnchor;
     if (!anchor || !node.nodeId) continue;
@@ -75,6 +74,7 @@ export function applyRuntimeAnchors(
     for (const object of [
       root.getObjectByName(node.nodeId),
       root.getObjectByName(`model-node:${node.nodeId}`),
+      root.getObjectByName(`spatial-node:${node.nodeId}`),
     ]) {
       if (!object) continue;
       object.visible = available && state.active && state.visible;
@@ -90,17 +90,24 @@ export function applyRuntimeAnchors(
       object.matrix.decompose(object.position, object.quaternion, object.scale);
       object.matrixWorldNeedsUpdate = true;
     }
-    if (available && binding?.sample?.position && (anchor.target === 2 || anchor.target === 3)) {
-      hands.push({
-        hand: anchor.target === 2 ? "left" : "right",
-        sequence: Number(binding.sample.trackingFrameSequence ?? 0),
-        position: [
-          binding.sample.position.x ?? 0,
-          binding.sample.position.y ?? 0,
-          binding.sample.position.z ?? 0,
-        ],
-      });
-    }
+  }
+  return collectRuntimeHandPoses(delivery, bindings);
+}
+
+export function collectRuntimeHandPoses(
+  delivery: DeliveryManifestWire,
+  bindings: AnchorBindings,
+): RuntimeHandPose[] {
+  const hands: RuntimeHandPose[] = [];
+  for (const node of delivery.projectionProfile?.runtimeCatalog?.nodes ?? []) {
+    const target = node.parent?.presenterAnchor?.target;
+    const sample = bindings[node.nodeId ?? ""]?.sample;
+    if (!sample?.position || (target !== 2 && target !== 3)) continue;
+    hands.push({
+      hand: target === 2 ? "left" : "right",
+      sequence: Number(sample.trackingFrameSequence ?? 0),
+      position: [sample.position.x ?? 0, sample.position.y ?? 0, sample.position.z ?? 0],
+    });
   }
   return hands;
 }

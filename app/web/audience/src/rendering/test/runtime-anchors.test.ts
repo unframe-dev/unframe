@@ -4,7 +4,7 @@ import type {
   DeliveryManifestWire,
   ParticipantRuntimeView,
 } from "@unframe-dev/contracts/presentation";
-import { applyRuntimeAnchors } from "../runtime-anchors";
+import { applyRuntimeAnchors, collectRuntimeHandPoses } from "../runtime-anchors";
 const delivery: DeliveryManifestWire = {
   projectionProfile: {
     runtimeCatalog: {
@@ -58,4 +58,25 @@ it("renders a frozen anchor without emitting an old hand pose", () => {
   expect(node.visible).toBe(true);
   expect(node.position.x).toBe(3);
   expect(poses).toEqual([]);
+});
+
+it("collects fresh hand tracking without requiring a visible anchor node", () => {
+  expect(
+    collectRuntimeHandPoses(delivery, {
+      hand: { nodeId: "hand", sample: { trackingFrameSequence: "8", position: { x: 12 } } },
+    }),
+  ).toEqual([{ hand: "left", sequence: 8, position: [12, 0, 0] }]);
+});
+it("applies anchors to spatial effect targets", () => {
+  const root = new Group();
+  const node = new Group();
+  node.name = "spatial-node:hand";
+  root.add(node);
+  applyRuntimeAnchors(root, delivery, view, {
+    hand: { nodeId: "hand", sample: { trackingFrameSequence: "5", position: { x: 12 } } },
+  });
+  expect(node.position.x).toBe(3);
+  expect(node.visible).toBe(true);
+  applyRuntimeAnchors(root, delivery, view, {});
+  expect(node.visible).toBe(false);
 });

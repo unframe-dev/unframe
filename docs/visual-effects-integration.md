@@ -26,6 +26,10 @@ Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active�
 
 HandGlow は既存の projected anchor binding を利用する。Source に指定した左右の手へ追従する Anchor Node（followPosition: true）が必要で、その Node を対象クライアントの投影に含めること。配列形式の Model では `parent: { kind: "anchor", owner: { kind: "presenter" }, target: "rightHand", followPosition: true, followRotation: false }` のように指定する。手の Anchor がない場合や Pose が無効・古い場合、新しい残光は追加されない。演出対象 Node はその Anchor とは別でもよい。
 
+描画側の手位置入力は Anchor の表示処理から分離している。Unity の `PresentationEffectPlayer.TryUpdate` は `PresentationHandPose`（左右、sequence、Unity world 座標）の列を受け取り、未指定時は既存の Anchor adapter を使う。Audience の `createRuntimeEffects().frame` は `RuntimeHandPose`（左右、sequence、Presentation 座標）を受け取る。どちらも同じ手の最新 sequence を使用し、Run の初回適用時に存在したサンプルは再利用しない。位置入力がない間は新しい残光を追加せず、既存の軌跡だけが寿命に従って消える。
+
+Anchor Node を持たない Dist への手位置配送は未実装で、[Issue #294](https://github.com/unframe-dev/unframe/issues/294) で追跡する。上記の描画入力境界だけでは、現在の Delivery / Realtime が送らない手位置を取得できない。
+
 Audience は描画準備済みの View と同じ時点の Anchor を使い、受信後もサンプルの500ms失効を判定する。RuntimeView の置換時は以前のライブ座標を破棄し、サーバーが確定した凍結座標を使う。
 
 認識のサンプル時刻は秒、描画はミリ秒。Unity 認識器へは Unity 座標、通信へは Presentation 座標を渡す。Unity の HandGlow は world 座標、Web は対象のローカル座標へ変換する。seed は再現性のために使うが、Unity と Web のピクセル一致は保証しない。
