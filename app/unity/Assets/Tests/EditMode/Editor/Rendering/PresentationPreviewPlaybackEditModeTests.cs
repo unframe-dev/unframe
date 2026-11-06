@@ -108,10 +108,63 @@ public sealed class PresentationPreviewPlaybackEditModeTests
         var envelope = PresentationPreviewTestFixture.Create();
         envelope.Projection.RuntimeCatalog.Nodes[0].Parent = new SpatialParent { PresenterAnchor = new PresenterAnchorParent { Target = target, FollowPosition = true, FollowRotation = true } };
         Assert.That(PresentationLocalPreviewAdapter.TryCreate(envelope, out var input, out string error), Is.True, error);
-        Assert.That(input.TryGetAnchorSample("node:stage", out var sample), Is.True);
+        Assert.That(input.TryGetTrackedPose(target, out var sample), Is.True);
         Assert.That(sample.Position.X, Is.EqualTo(x).Within(0.0001));
         Assert.That(sample.Position.Y, Is.EqualTo(y).Within(0.0001));
         Assert.That(sample.Position.Z, Is.EqualTo(z).Within(0.0001));
+    }
+
+    [UnityTest]
+    public IEnumerator HandGlowUsesTheSelectedHandWithoutAnAnchorNode()
+    {
+        var envelope = PresentationPreviewTestFixture.Create();
+        var state = State(envelope, 1, 100);
+        state.EffectRuns.Add(new EffectRunSnapshot
+        {
+            RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 },
+            EffectId = "effect:hand",
+            NodeId = "node:stage",
+            StartedAtRuntimeTimeMs = 100,
+            Owner = new RuntimeRunOwner { Presentation = new PresentationRunOwner() },
+            Cause = new RuntimeRunCause { CueId = "cue:hand" },
+            Status = EffectRunStatus.Active,
+            Configuration = new EffectConfiguration
+            {
+                Kind = EffectKind.HandGlow,
+                Hand = EffectHand.Left,
+                Size = 1,
+                Speed = 1,
+                DurationMs = 1000,
+                Color = new SrgbaColor { Alpha = 1 },
+            },
+        });
+        var root = new GameObject("HandGlow rehearsal");
+        using var transaction = new PresentationPreviewTransaction(root.transform);
+        try
+        {
+            var load = transaction.PrepareAsync(envelope, (_, __, ___) => Task.FromResult<PresentationPreviewAssetData>(null), CancellationToken.None);
+            while (!load.IsCompleted) yield return null;
+            load.GetAwaiter().GetResult();
+            transaction.Commit(envelope.RequestId);
+            Assert.That(transaction.TryPlayback(state, 0, out var error), Is.True, error);
+            Assert.That(root.GetComponentsInChildren<LineRenderer>(), Is.Empty);
+
+            string json = "{\"requestId\":\"" + envelope.RequestId + "\",\"sequence\":\"1\",\"presenterPosition\":[2,1,3],\"presenterRotation\":[0,0,0,1],\"zones\":[]}";
+            Assert.That(PresentationPreviewSpatialState.TryParse(json, out var pose), Is.True);
+            Assert.That(transaction.TryApplySpatial(pose, out error), Is.True, error);
+            Assert.That(transaction.TryUpdate(.1, out error), Is.True, error);
+            var lines = root.GetComponentsInChildren<LineRenderer>();
+            Assert.That(lines, Has.Length.EqualTo(2));
+            var trail = System.Array.Find(lines, line => line.positionCount == 1);
+            Assert.That(trail, Is.Not.Null);
+            var point = trail.GetPosition(0);
+            Assert.That(point.x, Is.EqualTo(1.65).Within(.0001));
+            Assert.That(point.y, Is.EqualTo(1.25).Within(.0001));
+            Assert.That(point.z, Is.EqualTo(-3.25).Within(.0001));
+            Assert.That(transaction.TryUpdate(.2, out error), Is.True, error);
+            Assert.That(trail.positionCount, Is.EqualTo(1));
+        }
+        finally { Object.DestroyImmediate(root); }
     }
 
     [UnityTest]

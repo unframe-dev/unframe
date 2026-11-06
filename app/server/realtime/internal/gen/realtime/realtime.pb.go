@@ -10368,6 +10368,8 @@ type TrackingFrame struct {
 	Samples                     []*TrackedPoseSample   `protobuf:"bytes,3,rep,name=samples,proto3" json:"samples,omitempty"`
 	PresentationFromQuestLocal  *presentation.Pose     `protobuf:"bytes,4,opt,name=presentation_from_quest_local,json=presentationFromQuestLocal,proto3" json:"presentation_from_quest_local,omitempty"`
 	PresentationOriginVersion   uint64                 `protobuf:"varint,5,opt,name=presentation_origin_version,json=presentationOriginVersion,proto3" json:"presentation_origin_version,omitempty"`
+	InputEpoch                  uint64                 `protobuf:"varint,6,opt,name=input_epoch,json=inputEpoch,proto3" json:"input_epoch,omitempty"`
+	BaseReliableSequence        uint64                 `protobuf:"varint,7,opt,name=base_reliable_sequence,json=baseReliableSequence,proto3" json:"base_reliable_sequence,omitempty"`
 	unknownFields               protoimpl.UnknownFields
 	sizeCache                   protoimpl.SizeCache
 }
@@ -10433,6 +10435,20 @@ func (x *TrackingFrame) GetPresentationFromQuestLocal() *presentation.Pose {
 func (x *TrackingFrame) GetPresentationOriginVersion() uint64 {
 	if x != nil {
 		return x.PresentationOriginVersion
+	}
+	return 0
+}
+
+func (x *TrackingFrame) GetInputEpoch() uint64 {
+	if x != nil {
+		return x.InputEpoch
+	}
+	return 0
+}
+
+func (x *TrackingFrame) GetBaseReliableSequence() uint64 {
+	if x != nil {
+		return x.BaseReliableSequence
 	}
 	return 0
 }
@@ -10639,26 +10655,26 @@ func (x *ElementStatePatch) GetNode() *NodeStatePatch {
 	return nil
 }
 
-type AnchorBindingUnavailable struct {
+type TrackedPoseUnavailable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AnchorBindingUnavailable) Reset() {
-	*x = AnchorBindingUnavailable{}
+func (x *TrackedPoseUnavailable) Reset() {
+	*x = TrackedPoseUnavailable{}
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AnchorBindingUnavailable) String() string {
+func (x *TrackedPoseUnavailable) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AnchorBindingUnavailable) ProtoMessage() {}
+func (*TrackedPoseUnavailable) ProtoMessage() {}
 
-func (x *AnchorBindingUnavailable) ProtoReflect() protoreflect.Message {
+func (x *TrackedPoseUnavailable) ProtoReflect() protoreflect.Message {
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -10670,12 +10686,12 @@ func (x *AnchorBindingUnavailable) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AnchorBindingUnavailable.ProtoReflect.Descriptor instead.
-func (*AnchorBindingUnavailable) Descriptor() ([]byte, []int) {
+// Deprecated: Use TrackedPoseUnavailable.ProtoReflect.Descriptor instead.
+func (*TrackedPoseUnavailable) Descriptor() ([]byte, []int) {
 	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{127}
 }
 
-type ProjectedAnchorBindingSample struct {
+type ProjectedTrackedPoseSample struct {
 	state                        protoimpl.MessageState   `protogen:"open.v1"`
 	TrackingFrameSequence        uint64                   `protobuf:"varint,1,opt,name=tracking_frame_sequence,json=trackingFrameSequence,proto3" json:"tracking_frame_sequence,omitempty"`
 	ObservedAtRuntimeMonotonicMs uint64                   `protobuf:"varint,2,opt,name=observed_at_runtime_monotonic_ms,json=observedAtRuntimeMonotonicMs,proto3" json:"observed_at_runtime_monotonic_ms,omitempty"`
@@ -10685,20 +10701,20 @@ type ProjectedAnchorBindingSample struct {
 	sizeCache                    protoimpl.SizeCache
 }
 
-func (x *ProjectedAnchorBindingSample) Reset() {
-	*x = ProjectedAnchorBindingSample{}
+func (x *ProjectedTrackedPoseSample) Reset() {
+	*x = ProjectedTrackedPoseSample{}
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProjectedAnchorBindingSample) String() string {
+func (x *ProjectedTrackedPoseSample) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProjectedAnchorBindingSample) ProtoMessage() {}
+func (*ProjectedTrackedPoseSample) ProtoMessage() {}
 
-func (x *ProjectedAnchorBindingSample) ProtoReflect() protoreflect.Message {
+func (x *ProjectedTrackedPoseSample) ProtoReflect() protoreflect.Message {
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -10710,66 +10726,65 @@ func (x *ProjectedAnchorBindingSample) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProjectedAnchorBindingSample.ProtoReflect.Descriptor instead.
-func (*ProjectedAnchorBindingSample) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProjectedTrackedPoseSample.ProtoReflect.Descriptor instead.
+func (*ProjectedTrackedPoseSample) Descriptor() ([]byte, []int) {
 	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{128}
 }
 
-func (x *ProjectedAnchorBindingSample) GetTrackingFrameSequence() uint64 {
+func (x *ProjectedTrackedPoseSample) GetTrackingFrameSequence() uint64 {
 	if x != nil {
 		return x.TrackingFrameSequence
 	}
 	return 0
 }
 
-func (x *ProjectedAnchorBindingSample) GetObservedAtRuntimeMonotonicMs() uint64 {
+func (x *ProjectedTrackedPoseSample) GetObservedAtRuntimeMonotonicMs() uint64 {
 	if x != nil {
 		return x.ObservedAtRuntimeMonotonicMs
 	}
 	return 0
 }
 
-func (x *ProjectedAnchorBindingSample) GetPosition() *presentation.Vector3 {
+func (x *ProjectedTrackedPoseSample) GetPosition() *presentation.Vector3 {
 	if x != nil {
 		return x.Position
 	}
 	return nil
 }
 
-func (x *ProjectedAnchorBindingSample) GetRotation() *presentation.Quaternion {
+func (x *ProjectedTrackedPoseSample) GetRotation() *presentation.Quaternion {
 	if x != nil {
 		return x.Rotation
 	}
 	return nil
 }
 
-type ProjectedAnchorBindingPatch struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	NodeId string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+type ProjectedTrackedPose struct {
+	state  protoimpl.MessageState    `protogen:"open.v1"`
+	Target presentation.AnchorTarget `protobuf:"varint,1,opt,name=target,proto3,enum=unframe.presentation.AnchorTarget" json:"target,omitempty"`
 	// Types that are valid to be assigned to State:
 	//
-	//	*ProjectedAnchorBindingPatch_Unavailable
-	//	*ProjectedAnchorBindingPatch_Sample
-	//	*ProjectedAnchorBindingPatch_Frozen
-	State         isProjectedAnchorBindingPatch_State `protobuf_oneof:"state"`
+	//	*ProjectedTrackedPose_Unavailable
+	//	*ProjectedTrackedPose_Sample
+	State         isProjectedTrackedPose_State `protobuf_oneof:"state"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ProjectedAnchorBindingPatch) Reset() {
-	*x = ProjectedAnchorBindingPatch{}
+func (x *ProjectedTrackedPose) Reset() {
+	*x = ProjectedTrackedPose{}
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProjectedAnchorBindingPatch) String() string {
+func (x *ProjectedTrackedPose) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProjectedAnchorBindingPatch) ProtoMessage() {}
+func (*ProjectedTrackedPose) ProtoMessage() {}
 
-func (x *ProjectedAnchorBindingPatch) ProtoReflect() protoreflect.Message {
+func (x *ProjectedTrackedPose) ProtoReflect() protoreflect.Message {
 	mi := &file_unframe_realtime_realtime_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -10781,73 +10796,58 @@ func (x *ProjectedAnchorBindingPatch) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProjectedAnchorBindingPatch.ProtoReflect.Descriptor instead.
-func (*ProjectedAnchorBindingPatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProjectedTrackedPose.ProtoReflect.Descriptor instead.
+func (*ProjectedTrackedPose) Descriptor() ([]byte, []int) {
 	return file_unframe_realtime_realtime_proto_rawDescGZIP(), []int{129}
 }
 
-func (x *ProjectedAnchorBindingPatch) GetNodeId() string {
+func (x *ProjectedTrackedPose) GetTarget() presentation.AnchorTarget {
 	if x != nil {
-		return x.NodeId
+		return x.Target
 	}
-	return ""
+	return presentation.AnchorTarget(0)
 }
 
-func (x *ProjectedAnchorBindingPatch) GetState() isProjectedAnchorBindingPatch_State {
+func (x *ProjectedTrackedPose) GetState() isProjectedTrackedPose_State {
 	if x != nil {
 		return x.State
 	}
 	return nil
 }
 
-func (x *ProjectedAnchorBindingPatch) GetUnavailable() *AnchorBindingUnavailable {
+func (x *ProjectedTrackedPose) GetUnavailable() *TrackedPoseUnavailable {
 	if x != nil {
-		if x, ok := x.State.(*ProjectedAnchorBindingPatch_Unavailable); ok {
+		if x, ok := x.State.(*ProjectedTrackedPose_Unavailable); ok {
 			return x.Unavailable
 		}
 	}
 	return nil
 }
 
-func (x *ProjectedAnchorBindingPatch) GetSample() *ProjectedAnchorBindingSample {
+func (x *ProjectedTrackedPose) GetSample() *ProjectedTrackedPoseSample {
 	if x != nil {
-		if x, ok := x.State.(*ProjectedAnchorBindingPatch_Sample); ok {
+		if x, ok := x.State.(*ProjectedTrackedPose_Sample); ok {
 			return x.Sample
 		}
 	}
 	return nil
 }
 
-func (x *ProjectedAnchorBindingPatch) GetFrozen() *FrozenAnchorDisplayState {
-	if x != nil {
-		if x, ok := x.State.(*ProjectedAnchorBindingPatch_Frozen); ok {
-			return x.Frozen
-		}
-	}
-	return nil
+type isProjectedTrackedPose_State interface {
+	isProjectedTrackedPose_State()
 }
 
-type isProjectedAnchorBindingPatch_State interface {
-	isProjectedAnchorBindingPatch_State()
+type ProjectedTrackedPose_Unavailable struct {
+	Unavailable *TrackedPoseUnavailable `protobuf:"bytes,2,opt,name=unavailable,proto3,oneof"`
 }
 
-type ProjectedAnchorBindingPatch_Unavailable struct {
-	Unavailable *AnchorBindingUnavailable `protobuf:"bytes,2,opt,name=unavailable,proto3,oneof"`
+type ProjectedTrackedPose_Sample struct {
+	Sample *ProjectedTrackedPoseSample `protobuf:"bytes,3,opt,name=sample,proto3,oneof"`
 }
 
-type ProjectedAnchorBindingPatch_Sample struct {
-	Sample *ProjectedAnchorBindingSample `protobuf:"bytes,3,opt,name=sample,proto3,oneof"`
-}
+func (*ProjectedTrackedPose_Unavailable) isProjectedTrackedPose_State() {}
 
-type ProjectedAnchorBindingPatch_Frozen struct {
-	Frozen *FrozenAnchorDisplayState `protobuf:"bytes,4,opt,name=frozen,proto3,oneof"`
-}
-
-func (*ProjectedAnchorBindingPatch_Unavailable) isProjectedAnchorBindingPatch_State() {}
-
-func (*ProjectedAnchorBindingPatch_Sample) isProjectedAnchorBindingPatch_State() {}
-
-func (*ProjectedAnchorBindingPatch_Frozen) isProjectedAnchorBindingPatch_State() {}
+func (*ProjectedTrackedPose_Sample) isProjectedTrackedPose_State() {}
 
 type ElementStateFrame struct {
 	state                            protoimpl.MessageState               `protogen:"open.v1"`
@@ -10858,8 +10858,9 @@ type ElementStateFrame struct {
 	BaseReliableSequence             uint64                               `protobuf:"varint,5,opt,name=base_reliable_sequence,json=baseReliableSequence,proto3" json:"base_reliable_sequence,omitempty"`
 	Kind                             StateFrameKind                       `protobuf:"varint,6,opt,name=kind,proto3,enum=unframe.realtime.StateFrameKind" json:"kind,omitempty"`
 	Elements                         []*ElementStatePatch                 `protobuf:"bytes,7,rep,name=elements,proto3" json:"elements,omitempty"`
-	AnchorBindings                   []*ProjectedAnchorBindingPatch       `protobuf:"bytes,8,rep,name=anchor_bindings,json=anchorBindings,proto3" json:"anchor_bindings,omitempty"`
 	ProducedAtRuntimeMonotonicMs     uint64                               `protobuf:"varint,9,opt,name=produced_at_runtime_monotonic_ms,json=producedAtRuntimeMonotonicMs,proto3" json:"produced_at_runtime_monotonic_ms,omitempty"`
+	TrackedPoses                     []*ProjectedTrackedPose              `protobuf:"bytes,10,rep,name=tracked_poses,json=trackedPoses,proto3" json:"tracked_poses,omitempty"`
+	FrozenAnchors                    []*FrozenAnchorDisplayState          `protobuf:"bytes,11,rep,name=frozen_anchors,json=frozenAnchors,proto3" json:"frozen_anchors,omitempty"`
 	unknownFields                    protoimpl.UnknownFields
 	sizeCache                        protoimpl.SizeCache
 }
@@ -10943,18 +10944,25 @@ func (x *ElementStateFrame) GetElements() []*ElementStatePatch {
 	return nil
 }
 
-func (x *ElementStateFrame) GetAnchorBindings() []*ProjectedAnchorBindingPatch {
-	if x != nil {
-		return x.AnchorBindings
-	}
-	return nil
-}
-
 func (x *ElementStateFrame) GetProducedAtRuntimeMonotonicMs() uint64 {
 	if x != nil {
 		return x.ProducedAtRuntimeMonotonicMs
 	}
 	return 0
+}
+
+func (x *ElementStateFrame) GetTrackedPoses() []*ProjectedTrackedPose {
+	if x != nil {
+		return x.TrackedPoses
+	}
+	return nil
+}
+
+func (x *ElementStateFrame) GetFrozenAnchors() []*FrozenAnchorDisplayState {
+	if x != nil {
+		return x.FrozenAnchors
+	}
+	return nil
 }
 
 type EffectRunSnapshot struct {
@@ -11831,13 +11839,16 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\x0e2\x1f.unframe.realtime.TrackedTargetR\x06target\x12D\n" +
 	"\x10quest_local_pose\x18\x02 \x01(\v2\x1a.unframe.presentation.PoseR\x0equestLocalPose\x12-\n" +
 	"\x12position_available\x18\x03 \x01(\bR\x11positionAvailable\x12-\n" +
-	"\x12rotation_available\x18\x04 \x01(\bR\x11rotationAvailable\"\xda\x02\n" +
+	"\x12rotation_available\x18\x04 \x01(\bR\x11rotationAvailable\"\xb1\x03\n" +
 	"\rTrackingFrame\x12%\n" +
 	"\x0eframe_sequence\x18\x01 \x01(\x04R\rframeSequence\x12D\n" +
 	"\x1fcaptured_at_client_monotonic_ms\x18\x02 \x01(\x04R\x1bcapturedAtClientMonotonicMs\x12=\n" +
 	"\asamples\x18\x03 \x03(\v2#.unframe.realtime.TrackedPoseSampleR\asamples\x12]\n" +
 	"\x1dpresentation_from_quest_local\x18\x04 \x01(\v2\x1a.unframe.presentation.PoseR\x1apresentationFromQuestLocal\x12>\n" +
-	"\x1bpresentation_origin_version\x18\x05 \x01(\x04R\x19presentationOriginVersion\"\xa3\x01\n" +
+	"\x1bpresentation_origin_version\x18\x05 \x01(\x04R\x19presentationOriginVersion\x12\x1f\n" +
+	"\vinput_epoch\x18\x06 \x01(\x04R\n" +
+	"inputEpoch\x124\n" +
+	"\x16base_reliable_sequence\x18\a \x01(\x04R\x14baseReliableSequence\"\xa3\x01\n" +
 	"\x0fStateServerItem\x12@\n" +
 	"\tconnected\x18\x01 \x01(\v2 .unframe.realtime.StateConnectedH\x00R\tconnected\x12F\n" +
 	"\vstate_frame\x18\x02 \x01(\v2#.unframe.realtime.ElementStateFrameH\x00R\n" +
@@ -11858,21 +11869,20 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"\x11ElementStatePatch\x12\x1d\n" +
 	"\n" +
 	"element_id\x18\x01 \x01(\tR\telementId\x124\n" +
-	"\x04node\x18\x02 \x01(\v2 .unframe.realtime.NodeStatePatchR\x04node\"\x1a\n" +
-	"\x18AnchorBindingUnavailable\"\xbb\x02\n" +
-	"\x1cProjectedAnchorBindingSample\x126\n" +
+	"\x04node\x18\x02 \x01(\v2 .unframe.realtime.NodeStatePatchR\x04node\"\x18\n" +
+	"\x16TrackedPoseUnavailable\"\xb9\x02\n" +
+	"\x1aProjectedTrackedPoseSample\x126\n" +
 	"\x17tracking_frame_sequence\x18\x01 \x01(\x04R\x15trackingFrameSequence\x12F\n" +
 	" observed_at_runtime_monotonic_ms\x18\x02 \x01(\x04R\x1cobservedAtRuntimeMonotonicMs\x12>\n" +
 	"\bposition\x18\x03 \x01(\v2\x1d.unframe.presentation.Vector3H\x00R\bposition\x88\x01\x01\x12A\n" +
 	"\brotation\x18\x04 \x01(\v2 .unframe.presentation.QuaternionH\x01R\brotation\x88\x01\x01B\v\n" +
 	"\t_positionB\v\n" +
-	"\t_rotation\"\x9f\x02\n" +
-	"\x1bProjectedAnchorBindingPatch\x12\x17\n" +
-	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12N\n" +
-	"\vunavailable\x18\x02 \x01(\v2*.unframe.realtime.AnchorBindingUnavailableH\x00R\vunavailable\x12H\n" +
-	"\x06sample\x18\x03 \x01(\v2..unframe.realtime.ProjectedAnchorBindingSampleH\x00R\x06sample\x12D\n" +
-	"\x06frozen\x18\x04 \x01(\v2*.unframe.realtime.FrozenAnchorDisplayStateH\x00R\x06frozenB\a\n" +
-	"\x05state\"\xda\x04\n" +
+	"\t_rotation\"\xf1\x01\n" +
+	"\x14ProjectedTrackedPose\x12:\n" +
+	"\x06target\x18\x01 \x01(\x0e2\".unframe.presentation.AnchorTargetR\x06target\x12L\n" +
+	"\vunavailable\x18\x02 \x01(\v2(.unframe.realtime.TrackedPoseUnavailableH\x00R\vunavailable\x12F\n" +
+	"\x06sample\x18\x03 \x01(\v2,.unframe.realtime.ProjectedTrackedPoseSampleH\x00R\x06sampleB\a\n" +
+	"\x05state\"\xb9\x05\n" +
 	"\x11ElementStateFrame\x12B\n" +
 	"\x05fence\x18\x01 \x01(\v2,.unframe.presentation.RuntimeProjectionFenceR\x05fence\x12%\n" +
 	"\x0eframe_sequence\x18\x02 \x01(\x04R\rframeSequence\x12<\n" +
@@ -11880,9 +11890,11 @@ const file_unframe_realtime_realtime_proto_rawDesc = "" +
 	"%oldest_change_at_runtime_monotonic_ms\x18\x04 \x01(\x04R oldestChangeAtRuntimeMonotonicMs\x124\n" +
 	"\x16base_reliable_sequence\x18\x05 \x01(\x04R\x14baseReliableSequence\x124\n" +
 	"\x04kind\x18\x06 \x01(\x0e2 .unframe.realtime.StateFrameKindR\x04kind\x12?\n" +
-	"\belements\x18\a \x03(\v2#.unframe.realtime.ElementStatePatchR\belements\x12V\n" +
-	"\x0fanchor_bindings\x18\b \x03(\v2-.unframe.realtime.ProjectedAnchorBindingPatchR\x0eanchorBindings\x12F\n" +
-	" produced_at_runtime_monotonic_ms\x18\t \x01(\x04R\x1cproducedAtRuntimeMonotonicMs\"\xda\x03\n" +
+	"\belements\x18\a \x03(\v2#.unframe.realtime.ElementStatePatchR\belements\x12F\n" +
+	" produced_at_runtime_monotonic_ms\x18\t \x01(\x04R\x1cproducedAtRuntimeMonotonicMs\x12K\n" +
+	"\rtracked_poses\x18\n" +
+	" \x03(\v2&.unframe.realtime.ProjectedTrackedPoseR\ftrackedPoses\x12Q\n" +
+	"\x0efrozen_anchors\x18\v \x03(\v2*.unframe.realtime.FrozenAnchorDisplayStateR\rfrozenAnchorsJ\x04\b\b\x10\tR\x0fanchor_bindings\"\xda\x03\n" +
 	"\x11EffectRunSnapshot\x129\n" +
 	"\x06run_id\x18\x01 \x01(\v2\".unframe.presentation.RuntimeRunIdR\x05runId\x12;\n" +
 	"\x05owner\x18\x02 \x01(\v2%.unframe.presentation.RuntimeRunOwnerR\x05owner\x12;\n" +
@@ -12158,9 +12170,9 @@ var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(*StateServerItem)(nil),                          // 140: unframe.realtime.StateServerItem
 	(*NodeStatePatch)(nil),                           // 141: unframe.realtime.NodeStatePatch
 	(*ElementStatePatch)(nil),                        // 142: unframe.realtime.ElementStatePatch
-	(*AnchorBindingUnavailable)(nil),                 // 143: unframe.realtime.AnchorBindingUnavailable
-	(*ProjectedAnchorBindingSample)(nil),             // 144: unframe.realtime.ProjectedAnchorBindingSample
-	(*ProjectedAnchorBindingPatch)(nil),              // 145: unframe.realtime.ProjectedAnchorBindingPatch
+	(*TrackedPoseUnavailable)(nil),                   // 143: unframe.realtime.TrackedPoseUnavailable
+	(*ProjectedTrackedPoseSample)(nil),               // 144: unframe.realtime.ProjectedTrackedPoseSample
+	(*ProjectedTrackedPose)(nil),                     // 145: unframe.realtime.ProjectedTrackedPose
 	(*ElementStateFrame)(nil),                        // 146: unframe.realtime.ElementStateFrame
 	(*EffectRunSnapshot)(nil),                        // 147: unframe.realtime.EffectRunSnapshot
 	(*EffectRunsChanged)(nil),                        // 148: unframe.realtime.EffectRunsChanged
@@ -12182,7 +12194,8 @@ var file_unframe_realtime_realtime_proto_goTypes = []any{
 	(*presentation.Vector3)(nil),                     // 164: unframe.presentation.Vector3
 	(*presentation.Quaternion)(nil),                  // 165: unframe.presentation.Quaternion
 	(*presentation.PublicationFence)(nil),            // 166: unframe.presentation.PublicationFence
-	(*presentation.EffectConfiguration)(nil),         // 167: unframe.presentation.EffectConfiguration
+	(presentation.AnchorTarget)(0),                   // 167: unframe.presentation.AnchorTarget
+	(*presentation.EffectConfiguration)(nil),         // 168: unframe.presentation.EffectConfiguration
 }
 var file_unframe_realtime_realtime_proto_depIdxs = []int32{
 	17,  // 0: unframe.realtime.ControlClientItem.handshake:type_name -> unframe.realtime.ControlHandshake
@@ -12448,30 +12461,31 @@ var file_unframe_realtime_realtime_proto_depIdxs = []int32{
 	146, // 260: unframe.realtime.StateServerItem.state_frame:type_name -> unframe.realtime.ElementStateFrame
 	158, // 261: unframe.realtime.NodeStatePatch.transform:type_name -> unframe.presentation.Transform
 	141, // 262: unframe.realtime.ElementStatePatch.node:type_name -> unframe.realtime.NodeStatePatch
-	164, // 263: unframe.realtime.ProjectedAnchorBindingSample.position:type_name -> unframe.presentation.Vector3
-	165, // 264: unframe.realtime.ProjectedAnchorBindingSample.rotation:type_name -> unframe.presentation.Quaternion
-	143, // 265: unframe.realtime.ProjectedAnchorBindingPatch.unavailable:type_name -> unframe.realtime.AnchorBindingUnavailable
-	144, // 266: unframe.realtime.ProjectedAnchorBindingPatch.sample:type_name -> unframe.realtime.ProjectedAnchorBindingSample
-	122, // 267: unframe.realtime.ProjectedAnchorBindingPatch.frozen:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	164, // 263: unframe.realtime.ProjectedTrackedPoseSample.position:type_name -> unframe.presentation.Vector3
+	165, // 264: unframe.realtime.ProjectedTrackedPoseSample.rotation:type_name -> unframe.presentation.Quaternion
+	167, // 265: unframe.realtime.ProjectedTrackedPose.target:type_name -> unframe.presentation.AnchorTarget
+	143, // 266: unframe.realtime.ProjectedTrackedPose.unavailable:type_name -> unframe.realtime.TrackedPoseUnavailable
+	144, // 267: unframe.realtime.ProjectedTrackedPose.sample:type_name -> unframe.realtime.ProjectedTrackedPoseSample
 	150, // 268: unframe.realtime.ElementStateFrame.fence:type_name -> unframe.presentation.RuntimeProjectionFence
 	14,  // 269: unframe.realtime.ElementStateFrame.kind:type_name -> unframe.realtime.StateFrameKind
 	142, // 270: unframe.realtime.ElementStateFrame.elements:type_name -> unframe.realtime.ElementStatePatch
-	145, // 271: unframe.realtime.ElementStateFrame.anchor_bindings:type_name -> unframe.realtime.ProjectedAnchorBindingPatch
-	156, // 272: unframe.realtime.EffectRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
-	160, // 273: unframe.realtime.EffectRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
-	161, // 274: unframe.realtime.EffectRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
-	167, // 275: unframe.realtime.EffectRunSnapshot.configuration:type_name -> unframe.presentation.EffectConfiguration
-	15,  // 276: unframe.realtime.EffectRunSnapshot.status:type_name -> unframe.realtime.EffectRunStatus
-	147, // 277: unframe.realtime.EffectRunsChanged.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
-	16,  // 278: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
-	135, // 279: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
-	43,  // 280: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
-	140, // 281: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
-	280, // [280:282] is the sub-list for method output_type
-	278, // [278:280] is the sub-list for method input_type
-	278, // [278:278] is the sub-list for extension type_name
-	278, // [278:278] is the sub-list for extension extendee
-	0,   // [0:278] is the sub-list for field type_name
+	145, // 271: unframe.realtime.ElementStateFrame.tracked_poses:type_name -> unframe.realtime.ProjectedTrackedPose
+	122, // 272: unframe.realtime.ElementStateFrame.frozen_anchors:type_name -> unframe.realtime.FrozenAnchorDisplayState
+	156, // 273: unframe.realtime.EffectRunSnapshot.run_id:type_name -> unframe.presentation.RuntimeRunId
+	160, // 274: unframe.realtime.EffectRunSnapshot.owner:type_name -> unframe.presentation.RuntimeRunOwner
+	161, // 275: unframe.realtime.EffectRunSnapshot.cause:type_name -> unframe.presentation.RuntimeRunCause
+	168, // 276: unframe.realtime.EffectRunSnapshot.configuration:type_name -> unframe.presentation.EffectConfiguration
+	15,  // 277: unframe.realtime.EffectRunSnapshot.status:type_name -> unframe.realtime.EffectRunStatus
+	147, // 278: unframe.realtime.EffectRunsChanged.effect_runs:type_name -> unframe.realtime.EffectRunSnapshot
+	16,  // 279: unframe.realtime.RealtimeService.ConnectControl:input_type -> unframe.realtime.ControlClientItem
+	135, // 280: unframe.realtime.RealtimeService.ConnectState:input_type -> unframe.realtime.StateClientItem
+	43,  // 281: unframe.realtime.RealtimeService.ConnectControl:output_type -> unframe.realtime.ControlServerItem
+	140, // 282: unframe.realtime.RealtimeService.ConnectState:output_type -> unframe.realtime.StateServerItem
+	281, // [281:283] is the sub-list for method output_type
+	279, // [279:281] is the sub-list for method input_type
+	279, // [279:279] is the sub-list for extension type_name
+	279, // [279:279] is the sub-list for extension extendee
+	0,   // [0:279] is the sub-list for field type_name
 }
 
 func init() { file_unframe_realtime_realtime_proto_init() }
@@ -12623,9 +12637,8 @@ func file_unframe_realtime_realtime_proto_init() {
 	file_unframe_realtime_realtime_proto_msgTypes[125].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[128].OneofWrappers = []any{}
 	file_unframe_realtime_realtime_proto_msgTypes[129].OneofWrappers = []any{
-		(*ProjectedAnchorBindingPatch_Unavailable)(nil),
-		(*ProjectedAnchorBindingPatch_Sample)(nil),
-		(*ProjectedAnchorBindingPatch_Frozen)(nil),
+		(*ProjectedTrackedPose_Unavailable)(nil),
+		(*ProjectedTrackedPose_Sample)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

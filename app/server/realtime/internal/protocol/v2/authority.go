@@ -148,17 +148,9 @@ func validateAuthority(message protoreflect.Message, path string) error {
 		if message.Has(nextField) && (get("phase").Enum() == 2 || get("command_epoch").Uint() == ^uint64(0) || get("next_command_epoch").Uint() != get("command_epoch").Uint()+1) {
 			return invalid()
 		}
-	case "FrozenAnchorDisplayState", "ProjectedAnchorBindingSample":
+	case "FrozenAnchorDisplayState", "ProjectedTrackedPoseSample":
 		if !message.Has(message.Descriptor().Fields().ByName("position")) && !message.Has(message.Descriptor().Fields().ByName("rotation")) {
 			return invalid()
-		}
-	case "ProjectedAnchorBindingPatch":
-		field := message.Descriptor().Fields().ByName("frozen")
-		if message.Has(field) {
-			frozen := get("frozen").Message()
-			if frozen.Get(frozen.Descriptor().Fields().ByName("node_id")).String() != get("node_id").String() {
-				return invalid()
-			}
 		}
 	case "ProjectedReliableEvent":
 		field := message.Descriptor().Fields().ByName("runtime_view_replaced")

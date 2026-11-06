@@ -28,17 +28,32 @@ namespace Unframe.Unity.PresentationRuntime
             if (view == null || hierarchy?.Registry == null) return;
             foreach (var entry in hierarchy.Registry.AnchorParents)
             {
-                GameObject parent = entry.Value;
-                if (!view.TryGetAnchorSample(entry.Key, out Unframe.Realtime.ProjectedAnchorBindingSample sample))
+                var (parent, anchor) = entry.Value;
+
+                Unframe.Presentation.Vector3 position = null;
+                Unframe.Presentation.Quaternion rotation = null;
+                bool isFrozen = view.TryGetFrozenAnchor(entry.Key, out var frozen);
+                if (isFrozen)
                 {
-                    parent.SetActive(false);
-                    continue;
+                    position = frozen.Position;
+                    rotation = frozen.Rotation;
                 }
-                if (sample.Position != null)
-                    parent.transform.localPosition = PresentationUnityCoordinates.Position(sample.Position);
-                if (sample.Rotation != null)
-                    parent.transform.localRotation = PresentationUnityCoordinates.Rotation(sample.Rotation);
-                parent.SetActive(true);
+                else if (view.TryGetTrackedPose(anchor.Target, out var sample))
+                {
+                    position = sample.Position;
+                    rotation = sample.Rotation;
+                }
+
+                bool available = isFrozen || ((!anchor.FollowPosition || position != null)
+                    && (!anchor.FollowRotation || rotation != null));
+                if (available)
+                {
+                    if (anchor.FollowPosition && position != null)
+                        parent.transform.localPosition = PresentationUnityCoordinates.Position(position);
+                    if (anchor.FollowRotation && rotation != null)
+                        parent.transform.localRotation = PresentationUnityCoordinates.Rotation(rotation);
+                }
+                parent.SetActive(available);
             }
         }
 
@@ -64,6 +79,7 @@ namespace Unframe.Unity.PresentationRuntime
         private static void ApplyVisibility(GameObject nodeObject, bool visible)
         {
             foreach (Canvas canvas in nodeObject.GetComponentsInChildren<Canvas>(true)) canvas.enabled = visible;
+            foreach (Light light in nodeObject.GetComponentsInChildren<Light>(true)) light.enabled = visible;
             foreach (Renderer renderer in nodeObject.GetComponentsInChildren<Renderer>(true))
             {
                 renderer.enabled = visible;

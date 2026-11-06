@@ -56,7 +56,7 @@ func TestProjectedViewRejectsUnreachableSurfaceState(t *testing.T) {
 		t.Fatal("unknown projected Timeline run admitted")
 	}
 }
-func connectionFixture(t *testing.T) *ConnectionCursor {
+func connectionFixture(t *testing.T, targets ...presentationv2.AnchorTarget) *ConnectionCursor {
 	t.Helper()
 	canonical := snapshotFixture()
 	fence := &presentationv2.RuntimeProjectionFence{SessionId: "session", Publication: publication(), AssignmentEpoch: 1, ProjectionProfileId: "profile", PresentationOriginVersion: 0}
@@ -66,7 +66,7 @@ func connectionFixture(t *testing.T) *ConnectionCursor {
 	if _, err := NewConnectionCursor(invalidView, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3}); err == nil {
 		t.Fatal("profile-external snapshot state admitted")
 	}
-	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3})
+	cursor, err := NewConnectionCursor(snapshot, fence, &presentationv2.ProjectedRuntimeCatalog{CatalogContractVersion: 3, TrackedPoseTargets: targets})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestStateFrameCannotAddressProfileExternalNode(t *testing.T) {
 
 func TestAnchorFrameCannotAddressProfileExternalNode(t *testing.T) {
 	cursor := connectionFixture(t)
-	frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, AnchorBindings: []*realtimev2.ProjectedAnchorBindingPatch{{NodeId: "hidden", State: &realtimev2.ProjectedAnchorBindingPatch_Unavailable{Unavailable: &realtimev2.AnchorBindingUnavailable{}}}}}
+	frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, FrozenAnchors: []*realtimev2.FrozenAnchorDisplayState{{NodeId: "hidden", Position: &presentationv2.Vector3{}}}}
 	if err := cursor.AdmitState(frame); err == nil {
 		t.Fatal("Anchor frame addresses hidden Node")
 	}
@@ -210,7 +210,7 @@ func TestFrozenAnchorStateUsesOnlyFollowComponentsWithoutATimeout(t *testing.T) 
 		t.Fatal(err)
 	}
 	frozen := &realtimev2.FrozenAnchorDisplayState{NodeId: "anchor", Position: &presentationv2.Vector3{X: 2}}
-	frame := &realtimev2.ElementStateFrame{Fence: fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: 3600000, AnchorBindings: []*realtimev2.ProjectedAnchorBindingPatch{{NodeId: "anchor", State: &realtimev2.ProjectedAnchorBindingPatch_Frozen{Frozen: frozen}}}}
+	frame := &realtimev2.ElementStateFrame{Fence: fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: 3600000, FrozenAnchors: []*realtimev2.FrozenAnchorDisplayState{frozen}}
 	if err := cursor.AdmitState(frame); err != nil {
 		t.Fatal("frozen display expired:", err)
 	}
@@ -259,5 +259,38 @@ func TestPresentationOriginTransitionsFenceAtReliableCut(t *testing.T) {
 	}
 	if cursor.Resume().AppliedReliableSequence != 4 {
 		t.Fatal("invalid origin advanced reliable cut")
+	}
+}
+
+func TestTrackedPoseFrameAdmission(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*realtimev2.ElementStateFrame)
+	}{
+		{"missing", func(f *realtimev2.ElementStateFrame) { f.TrackedPoses = nil }},
+		{"duplicate", func(f *realtimev2.ElementStateFrame) {
+			f.TrackedPoses = append(f.TrackedPoses, proto.Clone(f.TrackedPoses[0]).(*realtimev2.ProjectedTrackedPose))
+		}},
+		{"unrequested", func(f *realtimev2.ElementStateFrame) {
+			f.TrackedPoses[0].Target = presentationv2.AnchorTarget_ANCHOR_TARGET_RIGHT_HAND
+		}},
+		{"expired", func(f *realtimev2.ElementStateFrame) { f.ProducedAtRuntimeMonotonicMs = 602 }},
+		{"future", func(f *realtimev2.ElementStateFrame) {
+			f.TrackedPoses[0].GetSample().ObservedAtRuntimeMonotonicMs = 601
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cursor := connectionFixture(t, presentationv2.AnchorTarget_ANCHOR_TARGET_LEFT_HAND)
+			frame := &realtimev2.ElementStateFrame{Fence: cursor.Resume().Fence, FrameSequence: 1, BaseReliableSequence: 3, Kind: realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME, ProducedAtRuntimeMonotonicMs: 600,
+				TrackedPoses: []*realtimev2.ProjectedTrackedPose{{Target: presentationv2.AnchorTarget_ANCHOR_TARGET_LEFT_HAND, State: &realtimev2.ProjectedTrackedPose_Sample{Sample: &realtimev2.ProjectedTrackedPoseSample{TrackingFrameSequence: 1, ObservedAtRuntimeMonotonicMs: 100, Position: &presentationv2.Vector3{X: 2}}}}}}
+			invalid := proto.Clone(frame).(*realtimev2.ElementStateFrame)
+			test.mutate(invalid)
+			if err := cursor.AdmitState(invalid); err == nil {
+				t.Fatal("invalid tracking frame admitted")
+			}
+			if err := cursor.AdmitState(frame); err != nil {
+				t.Fatalf("500ms sample or rejected-frame sequence was corrupted: %v", err)
+			}
+		})
 	}
 }

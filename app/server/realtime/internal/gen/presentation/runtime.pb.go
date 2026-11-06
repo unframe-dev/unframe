@@ -85,6 +85,7 @@ const (
 	RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS        RuntimeCapability = 9
 	RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE          RuntimeCapability = 10
 	RuntimeCapability_RUNTIME_CAPABILITY_EFFECT_PLAYBACK       RuntimeCapability = 11
+	RuntimeCapability_RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY RuntimeCapability = 12
 )
 
 // Enum value maps for RuntimeCapability.
@@ -102,6 +103,7 @@ var (
 		9:  "RUNTIME_CAPABILITY_FROZEN_ANCHORS",
 		10: "RUNTIME_CAPABILITY_STEP_RESTORE",
 		11: "RUNTIME_CAPABILITY_EFFECT_PLAYBACK",
+		12: "RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY",
 	}
 	RuntimeCapability_value = map[string]int32{
 		"RUNTIME_CAPABILITY_UNSPECIFIED":           0,
@@ -116,6 +118,7 @@ var (
 		"RUNTIME_CAPABILITY_FROZEN_ANCHORS":        9,
 		"RUNTIME_CAPABILITY_STEP_RESTORE":          10,
 		"RUNTIME_CAPABILITY_EFFECT_PLAYBACK":       11,
+		"RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY": 12,
 	}
 )
 
@@ -3781,7 +3784,8 @@ type ProjectedRuntimeCatalog struct {
 	ModelClips             []*ProjectedModelClipDefinition `protobuf:"bytes,6,rep,name=model_clips,json=modelClips,proto3" json:"model_clips,omitempty"`
 	PresenterRecognition   *PresenterRecognitionCatalog    `protobuf:"bytes,8,opt,name=presenter_recognition,json=presenterRecognition,proto3" json:"presenter_recognition,omitempty"`
 	// Stage-local center used by Presenter placement. Included in Delivery catalogs.
-	PlacementReferencePoint *Vector3 `protobuf:"bytes,9,opt,name=placement_reference_point,json=placementReferencePoint,proto3,oneof" json:"placement_reference_point,omitempty"`
+	PlacementReferencePoint *Vector3       `protobuf:"bytes,9,opt,name=placement_reference_point,json=placementReferencePoint,proto3,oneof" json:"placement_reference_point,omitempty"`
+	TrackedPoseTargets      []AnchorTarget `protobuf:"varint,10,rep,packed,name=tracked_pose_targets,json=trackedPoseTargets,proto3,enum=unframe.presentation.AnchorTarget" json:"tracked_pose_targets,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -3868,6 +3872,13 @@ func (x *ProjectedRuntimeCatalog) GetPresenterRecognition() *PresenterRecognitio
 func (x *ProjectedRuntimeCatalog) GetPlacementReferencePoint() *Vector3 {
 	if x != nil {
 		return x.PlacementReferencePoint
+	}
+	return nil
+}
+
+func (x *ProjectedRuntimeCatalog) GetTrackedPoseTargets() []AnchorTarget {
+	if x != nil {
+		return x.TrackedPoseTargets
 	}
 	return nil
 }
@@ -4173,7 +4184,7 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\x06center\x18\x02 \x01(\v2\x1d.unframe.presentation.Vector3R\x06center\"\xa2\x01\n" +
 	"\x1bPresenterRecognitionCatalog\x12=\n" +
 	"\bgestures\x18\x01 \x03(\x0e2!.unframe.presentation.GestureKindR\bgestures\x12D\n" +
-	"\x05zones\x18\x02 \x03(\v2..unframe.presentation.PresenterRecognitionZoneR\x05zones\"\xd8\x05\n" +
+	"\x05zones\x18\x02 \x03(\v2..unframe.presentation.PresenterRecognitionZoneR\x05zones\"\xae\x06\n" +
 	"\x17ProjectedRuntimeCatalog\x128\n" +
 	"\x18catalog_contract_version\x18\x01 \x01(\rR\x16catalogContractVersion\x12C\n" +
 	"\x05nodes\x18\x02 \x03(\v2-.unframe.presentation.ProjectedNodeDefinitionR\x05nodes\x12L\n" +
@@ -4183,7 +4194,9 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\vmodel_clips\x18\x06 \x03(\v22.unframe.presentation.ProjectedModelClipDefinitionR\n" +
 	"modelClips\x12f\n" +
 	"\x15presenter_recognition\x18\b \x01(\v21.unframe.presentation.PresenterRecognitionCatalogR\x14presenterRecognition\x12^\n" +
-	"\x19placement_reference_point\x18\t \x01(\v2\x1d.unframe.presentation.Vector3H\x00R\x17placementReferencePoint\x88\x01\x01B\x1c\n" +
+	"\x19placement_reference_point\x18\t \x01(\v2\x1d.unframe.presentation.Vector3H\x00R\x17placementReferencePoint\x88\x01\x01\x12T\n" +
+	"\x14tracked_pose_targets\x18\n" +
+	" \x03(\x0e2\".unframe.presentation.AnchorTargetR\x12trackedPoseTargetsB\x1c\n" +
 	"\x1a_placement_reference_pointJ\x04\b\a\x10\bR\rmotion_guides\"\xa5\x02\n" +
 	"\x13EffectConfiguration\x124\n" +
 	"\x04kind\x18\x01 \x01(\x0e2 .unframe.presentation.EffectKindR\x04kind\x12\x12\n" +
@@ -4198,7 +4211,7 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"\vSessionRole\x12\x1c\n" +
 	"\x18SESSION_ROLE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SESSION_ROLE_PRESENTER\x10\x01\x12\x17\n" +
-	"\x13SESSION_ROLE_VIEWER\x10\x02*\xec\x03\n" +
+	"\x13SESSION_ROLE_VIEWER\x10\x02*\x9a\x04\n" +
 	"\x11RuntimeCapability\x12\"\n" +
 	"\x1eRUNTIME_CAPABILITY_UNSPECIFIED\x10\x00\x12(\n" +
 	"$RUNTIME_CAPABILITY_RUNTIME_TRANSPORT\x10\x01\x12#\n" +
@@ -4212,7 +4225,8 @@ const file_unframe_presentation_runtime_proto_rawDesc = "" +
 	"!RUNTIME_CAPABILITY_FROZEN_ANCHORS\x10\t\x12#\n" +
 	"\x1fRUNTIME_CAPABILITY_STEP_RESTORE\x10\n" +
 	"\x12&\n" +
-	"\"RUNTIME_CAPABILITY_EFFECT_PLAYBACK\x10\v*\x88\x01\n" +
+	"\"RUNTIME_CAPABILITY_EFFECT_PLAYBACK\x10\v\x12,\n" +
+	"(RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY\x10\f*\x88\x01\n" +
 	"\n" +
 	"ScalarType\x12\x1b\n" +
 	"\x17SCALAR_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -4417,14 +4431,15 @@ var file_unframe_presentation_runtime_proto_depIdxs = []int32{
 	57, // 58: unframe.presentation.ProjectedRuntimeCatalog.model_clips:type_name -> unframe.presentation.ProjectedModelClipDefinition
 	59, // 59: unframe.presentation.ProjectedRuntimeCatalog.presenter_recognition:type_name -> unframe.presentation.PresenterRecognitionCatalog
 	16, // 60: unframe.presentation.ProjectedRuntimeCatalog.placement_reference_point:type_name -> unframe.presentation.Vector3
-	10, // 61: unframe.presentation.EffectConfiguration.kind:type_name -> unframe.presentation.EffectKind
-	47, // 62: unframe.presentation.EffectConfiguration.color:type_name -> unframe.presentation.SrgbaColor
-	11, // 63: unframe.presentation.EffectConfiguration.hand:type_name -> unframe.presentation.EffectHand
-	64, // [64:64] is the sub-list for method output_type
-	64, // [64:64] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	6,  // 61: unframe.presentation.ProjectedRuntimeCatalog.tracked_pose_targets:type_name -> unframe.presentation.AnchorTarget
+	10, // 62: unframe.presentation.EffectConfiguration.kind:type_name -> unframe.presentation.EffectKind
+	47, // 63: unframe.presentation.EffectConfiguration.color:type_name -> unframe.presentation.SrgbaColor
+	11, // 64: unframe.presentation.EffectConfiguration.hand:type_name -> unframe.presentation.EffectHand
+	65, // [65:65] is the sub-list for method output_type
+	65, // [65:65] is the sub-list for method input_type
+	65, // [65:65] is the sub-list for extension type_name
+	65, // [65:65] is the sub-list for extension extendee
+	0,  // [0:65] is the sub-list for field type_name
 }
 
 func init() { file_unframe_presentation_runtime_proto_init() }

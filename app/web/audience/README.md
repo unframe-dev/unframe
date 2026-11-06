@@ -157,6 +157,8 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 - PNG: sRGB、透過、contain／cover／stretch、メートル配置、親子TRS、visibility／opacity、Surface合成とcrossfade。unique textureはSurfaceのcomposite shaderで最大8枚。
 - 動画: opaque H.264 MP4、Runtime時計による再生／停止／seek／途中参加。再生許可が必要な場合は明示操作。追跡低下・非表示ではpauseする。
 - GLB: 自己完結GLB、PBR／unlit、skin／morph、clip／crossfade／held。埋込PNG／JPEGとKHR_materials_unlitに対応。
+- 空間 Shape: box／sphere、unlit sRGBA、doubleSided、親子TRS、visibility／opacity、Timeline、Presenter Anchor に対応。Surface 内へ焼き込む2D Shapeとは別の空間ノードとして描画する。
+- 空間 Light: directional（lux）／point・spot（candela）、色、range、spot内外角、影を適用する。光源はノードのローカル -Z 方向を向き、親子TRS・表示状態・opacity に従う。現在の Group で有効な明示 Light 定義がある場合はモデル用の既定照明を使用せず、非表示の Light を既定照明で補わない。
 - Runtime: Snapshot、Control／State、sequence・fence、Group／Step、変数、Timeline、Surface／media／modelの進行適用。Cue／Flowの進行判断をクライアントで再実行しない。
 - Presenter Anchor は Realtime から配信される位置・回転を描画に適用する。
 - 未対応: native-ui、Local Overlay、VP9／AV1／動画alpha、外部URIやDraco／Meshopt／KTX2等のGLB拡張。必須の未対応表現を黙って省略しない。

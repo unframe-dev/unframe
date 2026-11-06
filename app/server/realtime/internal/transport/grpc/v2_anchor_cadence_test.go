@@ -29,9 +29,10 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	catalog.TrackedPoseTargets = []presentationv2.AnchorTarget{presentationv2.AnchorTarget_ANCHOR_TARGET_BODY}
 	publication := persistencehttp.BootstrapPublication{PresentationID: "presentation-1", PublicationEpoch: 2, PublicationManifestHash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	bootstrap := persistencehttp.RuntimeBootstrap{Assignment: persistencehttp.BootstrapAssignment{SessionID: "session-1", RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationRevision: 4}, Publication: publication, Definition: definition}
-	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 3, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, VisibleNodeIds: []string{"badge"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE}, RuntimeCatalog: catalog}
+	profile := &deliveryv2.ProjectionProfileDescriptor{ProjectionProfileId: "profile-1", Key: &deliveryv2.ProjectionProfileKey{Publication: &presentationv2.PublicationFence{PresentationId: publication.PresentationID, PublicationEpoch: publication.PublicationEpoch, PublicationManifestHash: publication.PublicationManifestHash}, ProjectionContractVersion: 3, Role: presentationv2.SessionRole_SESSION_ROLE_PRESENTER, CapabilityProfileId: "capability-1"}, VisibleNodeIds: []string{"badge"}, RequiredRuntimeCapabilities: []presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_RUNTIME_TRANSPORT, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_TRACKING, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_INPUT_SYNCHRONIZATION, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_FROZEN_ANCHORS, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_STEP_RESTORE, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY}, RuntimeCatalog: catalog}
 	identity := session.Identity{SessionID: "session-1", ParticipantID: "presenter-1", Role: session.RolePresenter, RuntimeID: "runtime-1", RuntimeKind: assignment.RuntimeKindCloud, AssignmentEpoch: 3, PresentationID: "presentation-1", PresentationRevision: 4, ProtocolVersion: 3}
 	service, err := NewV2Service(runtime, bootstrap, v2TestProjection{persistencehttp.RuntimeProjection{Role: "presenter", Profile: profile}}, testIdentityResolver{identity}, allowAllAssignment{})
 	if err != nil {
@@ -87,13 +88,13 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	if err := control.Send(&realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_StateReady{StateReady: &realtimev2.StateReady{AppliedReliableSequence: cut.ReliableSequence, PresentationOriginVersion: cut.Snapshot.RuntimeView.PresentationOrigin.Version}}}); err != nil {
 		t.Fatal(err)
 	}
-	if first, err := state.Recv(); err != nil || len(first.GetStateFrame().GetAnchorBindings()) != 1 {
+	if first, err := state.Recv(); err != nil || len(first.GetStateFrame().GetTrackedPoses()) != 1 {
 		t.Fatalf("initial anchor frame=%#v err=%v", first, err)
 	}
 	pose := &presentationv2.Pose{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}}
 	started := time.Now()
 	for sequence := uint64(1); sequence <= 3; sequence++ {
-		tracking := &realtimev2.TrackingFrame{FrameSequence: sequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
+		tracking := &realtimev2.TrackingFrame{FrameSequence: sequence, InputEpoch: runtime.Snapshot().InputEpoch, BaseReliableSequence: runtime.Snapshot().ReliableSequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
 		if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: tracking}}); err != nil {
 			t.Fatal(err)
 		}
@@ -106,10 +107,10 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 	select {
 	case item := <-result:
 		frame := item.GetStateFrame()
-		if frame == nil || len(frame.AnchorBindings) != 1 || frame.AnchorBindings[0].GetSample() == nil || time.Since(started) >= 450*time.Millisecond {
+		if frame == nil || len(frame.TrackedPoses) != 1 || frame.TrackedPoses[0].GetSample() == nil || time.Since(started) >= 450*time.Millisecond {
 			t.Fatalf("fresh anchor frame=%#v elapsed=%v", item, time.Since(started))
 		}
-		observed := frame.AnchorBindings[0].GetSample().ObservedAtRuntimeMonotonicMs
+		observed := frame.TrackedPoses[0].GetSample().ObservedAtRuntimeMonotonicMs
 		if produced := frame.ProducedAtRuntimeMonotonicMs; observed == 0 || produced < observed || produced-observed > 500 {
 			t.Fatalf("anchor sample outside frame clock: observed=%d produced=%d", observed, produced)
 		}
@@ -134,12 +135,12 @@ func TestV2AnchorFrameFollowsFreshTrackingBeforeSampleExpires(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(item.GetStateFrame().GetAnchorBindings()) == 0 {
+		if len(item.GetStateFrame().GetElements()) == 0 {
 			break
 		}
 	}
 	withoutAnchorAt := time.Now()
-	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) >= 400*time.Millisecond || len(next.GetStateFrame().GetAnchorBindings()) != 0 {
+	if next, err := state.Recv(); err != nil || time.Since(withoutAnchorAt) >= 400*time.Millisecond || len(next.GetStateFrame().GetElements()) != 0 || len(next.GetStateFrame().GetTrackedPoses()) != 1 {
 		t.Fatalf("keyframe cadence slowed after leaving the anchor: frame=%#v elapsed=%v err=%v", next, time.Since(withoutAnchorAt), err)
 	}
 }

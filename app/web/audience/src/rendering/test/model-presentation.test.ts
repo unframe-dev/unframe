@@ -459,3 +459,51 @@ describe("model animation storage", () => {
     }
   });
 });
+
+it("uses authored lights and enables model shadow participation without changing source assets", async () => {
+  const { delivery, view } = fixture();
+  delivery.projectionProfile!.runtimeCatalog!.nodes!.push({
+    nodeId: "light",
+    parent: { stage: {} },
+    owner: { presentation: {} },
+    light: {
+      directional: { color: { red: 1, green: 1, blue: 1 }, intensityLux: 10, castsShadows: true },
+    },
+  });
+  view.nodeStates.light = structuredClone(view.nodeStates.model!);
+  const source = new Group();
+  const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial());
+  mesh.name = "shadow-model";
+  source.add(mesh);
+  const scene = await createModelPresentation({
+    delivery,
+    view,
+    host: { contentRoot: new Group(), setPresentationOrigin: vi.fn() },
+    loadAsset: async () => ({ scene: source, animations: [], dispose() {} }),
+  });
+  expect(
+    scene.root.children.filter((child) => "isLight" in child).every((light) => !light.visible),
+  ).toBe(true);
+  const rendered = scene.root.getObjectByName("shadow-model") as Mesh;
+  expect(rendered.castShadow).toBe(true);
+  expect(rendered.receiveShadow).toBe(true);
+  expect(mesh.castShadow).toBe(false);
+  expect(mesh.receiveShadow).toBe(false);
+  const lightDefinition = delivery.projectionProfile!.runtimeCatalog!.nodes!.find(
+    (node) => node.nodeId === "light",
+  )!;
+  lightDefinition.owner = { group: { groupId: "next" } };
+  expect(scene.applyView(view)).toBe(true);
+  expect(
+    scene.root.children.filter((child) => "isLight" in child).every((light) => light.visible),
+  ).toBe(true);
+  view.progression.currentGroupId = "next";
+  view.nodeStates.light!.visible = false;
+  expect(scene.applyView(view)).toBe(true);
+  expect(
+    scene.root.children.filter((child) => "isLight" in child).every((light) => !light.visible),
+  ).toBe(true);
+  scene.dispose();
+  mesh.geometry.dispose();
+  mesh.material.dispose();
+});

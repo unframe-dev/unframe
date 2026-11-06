@@ -601,12 +601,21 @@ namespace Unframe.Unity.PresentationRuntime
             finally { writes.Release(); }
         }
 
+        internal ulong TrackingInputEpoch =>
+            SessionReady && state != null && store.Delivery?.ProjectionProfile.Key.Role == SessionRole.Presenter
+                ? InputSynchronization.ReadyInputEpoch : 0;
+
+        internal bool MatchesTrackingCapture(TrackingFrame frame) =>
+            frame != null && frame.InputEpoch != 0 && frame.InputEpoch == TrackingInputEpoch
+            && frame.BaseReliableSequence <= store.LastReliableSequence
+            && frame.PresentationOriginVersion == (store.PresentationOrigin?.Version ?? 0);
+
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
         {
             RequireResidency();
-            if (!SessionReady || state == null || store.Delivery.ProjectionProfile.Key.Role != SessionRole.Presenter)
-                throw new InvalidOperationException("Tracking requires a ready Presenter State connection.");
-            if (frame == null || frame.Samples.Count > 4 || frame.CalculateSize() > 256 * 1024
+            if (!MatchesTrackingCapture(frame))
+                throw new InvalidOperationException("Tracking requires a synchronized Presenter capture on the current State connection.");
+            if (frame.Samples.Count > 4 || frame.CalculateSize() > 256 * 1024
                 || !IsCanonicalTrackingPose(frame.PresentationFromQuestLocal))
                 throw new InvalidOperationException("Tracking requires canonical calibration and at most four samples.");
             var targets = new HashSet<TrackedTarget>();
@@ -625,7 +634,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 RequireResidency();
-                if (!SessionReady || state != expectedState || trackingFrameSequence == ulong.MaxValue)
+                if (state != expectedState || !MatchesTrackingCapture(frame) || trackingFrameSequence == ulong.MaxValue)
                     throw new InvalidOperationException("The Tracking State connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 frame.FrameSequence = ++trackingFrameSequence;

@@ -248,14 +248,14 @@ func TestV3SynchronizationResetsPoseSequenceOnlyAtConnectionAndCalibration(t *te
 			identity := session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}
 			at := time.Now()
 			frame := trackingTestFrame(5, trackingTestPose(0, 0, 0), trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(1, 0, 0)))
-			if _, _, err := core.AcceptTracking(context.Background(), identity, frame, at, 50); err != nil {
+			if _, _, err := core.AcceptTracking(context.Background(), identity, trackingFrameAtCut(core, frame), at, 50); err != nil {
 				t.Fatal(err)
 			}
 			if err := core.BeginInputSynchronization(context.Background(), reason, reason == realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED); err != nil {
 				t.Fatal(err)
 			}
 			frame.FrameSequence = 1
-			if _, _, err := core.AcceptTracking(context.Background(), identity, frame, at.Add(time.Second), 1); err != nil {
+			if _, _, err := core.AcceptTracking(context.Background(), identity, trackingFrameAtCut(core, frame), at.Add(time.Second), 1); err != nil {
 				t.Fatalf("new stream could not restart sequence: %v", err)
 			}
 		})

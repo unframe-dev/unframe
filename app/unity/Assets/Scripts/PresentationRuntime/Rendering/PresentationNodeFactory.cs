@@ -67,8 +67,9 @@ namespace Unframe.Unity.PresentationRuntime
                 foreach (ProjectedNodeDefinition definition in definitions)
                 {
                     registry.Register(definition.NodeId, created[definition.NodeId]);
+                    if (anchors.TryGetValue(definition.NodeId, out var anchor))
+                        registry.RegisterAnchor(definition.NodeId, anchor, definition.Parent.PresenterAnchor);
                 }
-                foreach (KeyValuePair<string, GameObject> anchor in anchors) registry.RegisterAnchor(anchor.Key, anchor.Value);
 
                 error = null;
                 return true;

@@ -17,13 +17,28 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly List<ColorBinding> bindings = new List<ColorBinding>();
         private readonly List<Material> ownedMaterials = new List<Material>();
         private bool initialized;
+        private bool managedExternally;
+        private Light lightSource;
+        private float originalIntensity;
         internal float Opacity { get; private set; } = 1f;
+
+        internal static void ManageExternally(GameObject visual)
+        {
+            visual.AddComponent<PresentationVisualOpacity>().managedExternally = true;
+        }
 
         public static void Apply(GameObject root, float opacity)
         {
             PresentationVisualOpacity rootController = root.GetComponent<PresentationVisualOpacity>();
             if (rootController == null) rootController = root.AddComponent<PresentationVisualOpacity>();
             rootController.SetOpacity(opacity);
+            foreach (Light light in root.GetComponentsInChildren<Light>(true))
+            {
+                if (light.gameObject == root) continue;
+                var controller = light.GetComponent<PresentationVisualOpacity>();
+                if (controller == null) controller = light.gameObject.AddComponent<PresentationVisualOpacity>();
+                controller.SetOpacity(opacity);
+            }
             foreach (CanvasGroup canvas in root.GetComponentsInChildren<CanvasGroup>(true)) canvas.alpha = Mathf.Clamp01(opacity);
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
             {
@@ -40,9 +55,11 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void SetOpacity(float opacity)
         {
+            if (managedExternally) return;
             Initialize();
             float clampedOpacity = Mathf.Clamp01(opacity);
             Opacity = clampedOpacity;
+            if (lightSource != null) lightSource.intensity = originalIntensity * clampedOpacity;
             foreach (ColorBinding binding in bindings)
             {
                 Color color = binding.Original;
@@ -71,6 +88,8 @@ namespace Unframe.Unity.PresentationRuntime
             }
 
             initialized = true;
+            lightSource = GetComponent<Light>();
+            if (lightSource != null) originalIntensity = lightSource.intensity;
             Renderer renderer = GetComponent<Renderer>();
             if (renderer == null) return;
             Material[] materials = renderer.sharedMaterials;

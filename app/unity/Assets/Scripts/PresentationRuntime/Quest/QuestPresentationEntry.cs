@@ -328,9 +328,10 @@ namespace Unframe.Unity.PresentationRuntime
             else ResetRecognition();
 
             if (!PresentationInputEnabled || !runtime.CanSendInput) trackingSchedule.DiscardRequests();
-            if (trackingSchedule.TryBeginFrame(Time.realtimeSinceStartupAsDouble, runtime.CanSendTracking,
-                tracking != null && !tracking.IsCompleted))
+            bool trackingReady = runtime.TryCaptureTrackingContext(out ulong inputEpoch, out ulong reliableSequence, out ulong originVersion);
+            if (trackingSchedule.TryBeginFrame(Time.realtimeSinceStartupAsDouble, trackingReady, tracking != null && !tracking.IsCompleted))
             {
+                var capturedCalibration = calibration.PresentationFromQuestLocal;
                 var samples = new List<QuestPoseSample>(4);
                 QuestPresentationTracking.TrySample(XRNode.Head, TrackedTarget.Head, out QuestPoseSample head);
                 QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out QuestPoseSample left);
@@ -341,7 +342,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion bodyRotation))
                     samples.Add(new QuestPoseSample(TrackedTarget.Body, bodyPosition, bodyRotation));
                 else samples.Add(QuestPoseSample.Unavailable(TrackedTarget.Body));
-                tracking = SendTrackingAsync(QuestPresentationTracking.CreateFrame(calibration.PresentationFromQuestLocal, samples.ToArray()), interactionLifetime.Token);
+                tracking = SendTrackingAsync(QuestPresentationTracking.CreateFrame(capturedCalibration, inputEpoch, reliableSequence,
+                    originVersion, samples.ToArray()), interactionLifetime.Token);
             }
         }
 
@@ -401,7 +403,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             try { await runtime.SendTrackingAsync(frame, token); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-            catch (InvalidOperationException) when (!runtime.CanSendTracking) { }
+            catch (InvalidOperationException) when (!runtime.CanSendTrackingCapture(frame)) { }
             catch (Exception exception) { LastErrorCode = PresentationConnectionErrors.FromException(exception); }
         }
 

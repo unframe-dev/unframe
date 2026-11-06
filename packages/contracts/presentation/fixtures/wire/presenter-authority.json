@@ -95,11 +95,12 @@
     "hex": "088180808080808010121408071205696e74726f180222057374617274280318052083808080808080102801"
   },
   {
-    "typeName": "unframe.realtime.ProjectedAnchorBindingPatch",
+    "typeName": "unframe.realtime.ProjectedTrackedPose",
     "value": {
-      "nodeId": "follow",
-      "frozen": {
-        "nodeId": "follow",
+      "target": 2,
+      "sample": {
+        "trackingFrameSequence": "1",
+        "observedAtRuntimeMonotonicMs": "1",
         "position": {
           "x": 1,
           "y": 2,
@@ -107,7 +108,7 @@
         }
       }
     },
-    "hex": "0a06666f6c6c6f7722250a06666f6c6c6f77121b09000000000000f03f110000000000000040190000000000000840"
+    "hex": "08021a21080110011a1b09000000000000f03f110000000000000040190000000000000840"
   },
   {
     "typeName": "unframe.realtime.RuntimeViewReplaced",

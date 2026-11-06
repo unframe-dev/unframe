@@ -406,8 +406,25 @@ const runtimeCatalog = (
             .map((zoneId) => ({ zoneId, center: vec3(definition.stage.zones[zoneId]!.center) })),
         };
 
+  const trackedPoseTargets = new Set<number>(
+    nodes.flatMap((node) =>
+      "presenterAnchor" in node.parent ? [node.parent.presenterAnchor!.target] : [],
+    ),
+  );
+  for (const group of Object.values(definition.flow.groups))
+    for (const step of Object.values(group.steps))
+      for (const cue of step.cues)
+        for (const action of cue.actions)
+          if (
+            action.kind === "effect.start" &&
+            action.effect.kind === "handGlow" &&
+            visibleNodes.has(action.nodeId)
+          )
+            trackedPoseTargets.add(action.effect.hand === "left" ? 2 : 3);
+
   return {
     catalogContractVersion: 3,
+    trackedPoseTargets: [...trackedPoseTargets].sort((a, b) => a - b),
     placementReferencePoint: vec3(resolvePlacementReferencePoint(definition, bundle)),
     nodes,
     surfaces,
@@ -510,12 +527,23 @@ const buildProjection = (
     };
   });
   const catalog = runtimeCatalog(definition, bundle, selection, role);
+  const effectStarts = Object.values(definition.flow.groups).flatMap((group) =>
+    Object.values(group.steps).flatMap((step) =>
+      step.cues.flatMap((cue) => cue.actions.filter((action) => action.kind === "effect.start")),
+    ),
+  );
   const capabilities = [1];
   if (catalog.timelines.length) capabilities.push(2);
   if (semanticSurfaces.some((surface) => surface.states.length > 1)) capabilities.push(3);
   if (catalog.surfaces.some((surface) => surface.hasVideo)) capabilities.push(4);
   if (catalog.modelClips.length) capabilities.push(5);
-  if (catalog.nodes.some((node) => "presenterAnchor" in node.parent)) capabilities.push(6);
+  if (
+    catalog.nodes.some((node) => "presenterAnchor" in node.parent) ||
+    (role === "presenter" &&
+      (Object.values(definition.scene.nodes).some((node) => node.parent.kind === "anchor") ||
+        effectStarts.some((action) => action.effect.kind === "handGlow")))
+  )
+    capabilities.push(6);
   if (
     role === "presenter" &&
     (catalog.presenterRecognition?.gestures.length || catalog.presenterRecognition?.zones.length)
@@ -523,18 +551,8 @@ const buildProjection = (
     capabilities.push(7);
   capabilities.push(8, 9, 10);
   const visibleNodes = new Set(selection.visibleNodeIds);
-  if (
-    Object.values(definition.flow.groups).some((group) =>
-      Object.values(group.steps).some((step) =>
-        step.cues.some((cue) =>
-          cue.actions.some(
-            (action) => action.kind === "effect.start" && visibleNodes.has(action.nodeId),
-          ),
-        ),
-      ),
-    )
-  )
-    capabilities.push(11);
+  if (effectStarts.some((action) => visibleNodes.has(action.nodeId))) capabilities.push(11);
+  if (catalog.trackedPoseTargets.length) capabilities.push(12);
   const projection: RuntimeProjection = {
     visibleNodeIds: selection.visibleNodeIds,
     visibleSurfaceIds: selection.visibleSurfaceIds,

@@ -278,6 +278,8 @@ func (s *V2Session) resetV3TrackingForSynchronization(recovery *realtimev2.Runti
 		return
 	}
 	switch current.Reason {
+	case realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_PAUSED, realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RESUMED:
+		clear(s.tracking.lastSamples)
 	case realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECONNECTED, realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_RECALIBRATED, realtimev2.InputSynchronizationReason_INPUT_SYNCHRONIZATION_REASON_PROCESS_RECOVERED:
 		s.tracking = v2TrackingEvaluator{}
 	}

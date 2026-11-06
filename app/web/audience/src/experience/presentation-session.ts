@@ -3,13 +3,15 @@ import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import type { createLiveTagAnchor } from "../rendering/live-tag-anchor";
 import { createPresentation } from "../rendering/presentation";
 import { createRuntimeEffects } from "../rendering/runtime-effects";
-import { applyRuntimeAnchors } from "../rendering/runtime-anchors";
+import { applyRuntimeAnchors, runtimeHandPoses } from "../rendering/runtime-anchors";
 import { participantRuntimeViewSchema } from "@unframe-dev/contracts/presentation";
 import { createPngTexturePool, type PngTextureLease } from "../assets/png-texture-pool";
 import { createRuntimePlayback } from "../runtime/playback";
 
 type PresentationHost = ReturnType<typeof createLiveTagAnchor>;
-type SceneRenderer = Pick<WebGLRenderer, "resetState" | "initTexture">;
+type SceneRenderer = Pick<WebGLRenderer, "resetState" | "initTexture"> & {
+  shadowMap?: Pick<WebGLRenderer["shadowMap"], "enabled">;
+};
 
 export function createPresentationSession(options: {
   canPlay(): boolean;
@@ -21,14 +23,32 @@ export function createPresentationSession(options: {
   let renderer: SceneRenderer | null = null;
   let presentation: Awaited<ReturnType<typeof createPresentation>> | null = null;
   let presentationDelivery: DeliveryManifestWire | null = null;
+  let previousShadowsEnabled: boolean | null = null;
+  function updateShadows(required: boolean) {
+    if (!renderer?.shadowMap) return;
+    if (required) {
+      previousShadowsEnabled ??= renderer.shadowMap.enabled;
+      renderer.shadowMap.enabled = true;
+    } else if (previousShadowsEnabled !== null) {
+      renderer.shadowMap.enabled = previousShadowsEnabled;
+      previousShadowsEnabled = null;
+    }
+  }
   let texturePool: Awaited<ReturnType<typeof createPngTexturePool>> | null = null;
   let textureLease: PngTextureLease | null = null;
   let runtime: ReturnType<typeof createRuntimePlayback> | null = null;
-  const effects = createRuntimeEffects(
-    (nodeId) =>
+  const effects = createRuntimeEffects((nodeId) => {
+    const node = presentationDelivery?.projectionProfile?.runtimeCatalog?.nodes?.find(
+      (item) => item.nodeId === nodeId,
+    );
+    return (
+      (node?.shape || node?.light
+        ? presentation?.root.getObjectByName(`spatial-node:${nodeId}`)
+        : undefined) ??
       presentation?.root.getObjectByName(`model-node:${nodeId}`) ??
-      presentation?.root.getObjectByName(nodeId),
-  );
+      presentation?.root.getObjectByName(nodeId)
+    );
+  });
   let request: AbortController | null = null;
   let work: Promise<void> = Promise.resolve();
 
@@ -40,6 +60,7 @@ export function createPresentationSession(options: {
     presentation?.dispose();
     presentation = null;
     presentationDelivery = null;
+    updateShadows(false);
     textureLease?.release();
     textureLease = null;
     texturePool?.dispose();
@@ -55,6 +76,15 @@ export function createPresentationSession(options: {
     const currentRenderer = renderer;
     if (!active || !currentHost || !currentRenderer)
       throw new Error("Presentation requires an active XR scene");
+    const requiresShadows =
+      delivery.projectionProfile?.runtimeCatalog?.nodes?.some(
+        (node) =>
+          node.light?.directional?.castsShadows ||
+          node.light?.point?.castsShadows ||
+          node.light?.spot?.castsShadows,
+      ) ?? false;
+    if (requiresShadows && !currentRenderer.shadowMap)
+      throw new Error("XR renderer does not support authored shadows");
     request?.abort();
     const pending = new AbortController();
     request = pending;
@@ -107,6 +137,7 @@ export function createPresentationSession(options: {
           previousPool?.dispose();
           texturePool = null;
           presentationDelivery = null;
+          updateShadows(false);
         }
         previousResources = { gpuBytes: 0, bindings: 0, videoDecoders: 0 };
       }
@@ -166,6 +197,7 @@ export function createPresentationSession(options: {
         lease = null;
         texturePool = pool;
         presentationDelivery = delivery;
+        updateShadows(requiresShadows);
       } finally {
         next?.dispose();
         lease?.release();
@@ -205,16 +237,17 @@ export function createPresentationSession(options: {
         delivery,
         present: (view) => present(delivery, view),
         clear: clearPresentation,
-        frame(view, runtimeTimeMilliseconds, bindings) {
+        frame(view, runtimeTimeMilliseconds, trackedPoses) {
           if (!presentation || presentationDelivery !== delivery) return;
           presentation.setPlaybackEnabled(options.canPlay());
           const sampled = presentation.applyAnimationFrame(view, runtimeTimeMilliseconds);
-          const poses = applyRuntimeAnchors(presentation.root, delivery, view, bindings);
+          applyRuntimeAnchors(presentation.root, delivery, sampled, trackedPoses);
+          const poses = runtimeHandPoses(trackedPoses);
           effects.frame(
             sampled,
             runtimeTimeMilliseconds,
             view.clock.lifecycle.kind === "running" ? poses : [],
-            host?.contentRoot.parent ?? undefined,
+            host?.contentRoot,
           );
           options.onPlaybackBlocked(presentation.playbackBlocked);
         },

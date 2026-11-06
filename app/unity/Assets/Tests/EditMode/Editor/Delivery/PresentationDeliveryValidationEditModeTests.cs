@@ -57,6 +57,8 @@ public sealed class PresentationDeliveryValidationEditModeTests
     {
         DeliveryManifest delivery = CreateFixture();
         delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.Tracking);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackedPoseDelivery);
+        delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets.Add(AnchorTarget.Head);
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
         {
             PresenterAnchor = new PresenterAnchorParent

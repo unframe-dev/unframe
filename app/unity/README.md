@@ -96,3 +96,9 @@ Throw / Circle は文章で案内し、腕アニメーションはありませ�
 一時停止・同じ接続インスタンスでの再接続中も継続します。Session の切替でリセットします。
 途中参加やアプリ再起動をまたぐサーバー上の発表開始時刻の復元には対応していません。
 Quest 実機での可読性・視野端の見え方は端末で確認が必要です。
+
+## 空間ノードの描画
+
+空間 Shape（box／sphere、unlit sRGBA、doubleSided）と Light（directional／point／spot）も、同じ配信ノード階層へ生成します。Shape は影を投影・受信せず、Light は lux／candela、range、spot内外角、影の指定を適用します。ノードのローカル -Z 方向は Unity の +Z へ変換し、親子TRS・表示状態・opacity・Timeline に従います。通常 Runtime と Local Preview は同じ空間描画を使用します。Unity が指定された spot 内外角を保持できない場合は、角度を黙って変更せず読み込みを拒否します。
+
+GLB のインスタンスには、glTFast の X 軸反転と Unframe の Z 軸反転の差を補う Y 軸180°回転を適用します。ノード自体の配置・回転とは分離し、モデル内部のオフセットや非対称な形状も Presentation 座標に一致させます。

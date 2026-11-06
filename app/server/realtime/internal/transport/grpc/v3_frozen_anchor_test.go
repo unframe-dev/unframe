@@ -31,6 +31,9 @@ func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	profile.RuntimeCatalog.TrackedPoseTargets = []presentationv2.AnchorTarget{presentationv2.AnchorTarget_ANCHOR_TARGET_BODY}
+	profile.RequiredRuntimeCapabilities = append(profile.RequiredRuntimeCapabilities, presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY)
+	profile.RequiredRuntimeCapabilities = append(profile.RequiredRuntimeCapabilities[:1], append([]presentationv2.RuntimeCapability{presentationv2.RuntimeCapability_RUNTIME_CAPABILITY_TRACKING}, profile.RequiredRuntimeCapabilities[1:]...)...)
 	metadata := &realtimev2.DurableCheckpointEnvelope{SchemaVersion: 1, SessionId: service.bootstrap.Assignment.SessionID, RuntimeId: service.bootstrap.Assignment.RuntimeID, RuntimeKind: realtimev2.RuntimeKind_RUNTIME_KIND_CLOUD, AssignmentEpoch: service.bootstrap.Assignment.AssignmentEpoch, Publication: &presentationv2.PublicationFence{PresentationId: service.bootstrap.Publication.PresentationID, PublicationEpoch: service.bootstrap.Publication.PublicationEpoch, PublicationManifestHash: service.bootstrap.Publication.PublicationManifestHash}, DefinitionHash: "sha256:" + strings.Repeat("b", 64), RenderBundleHash: "sha256:" + strings.Repeat("c", 64)}
 	if err := core.ConfigureDurability(&switchableV2Checkpoint{}, metadata, profile.RuntimeCatalog); err != nil {
 		t.Fatal(err)
@@ -40,7 +43,7 @@ func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	pose := &presentationv2.Pose{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}}
-	tracking := &realtimev2.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: &presentationv2.Pose{Position: &presentationv2.Vector3{X: 1}, Rotation: &presentationv2.Quaternion{W: 1}}, PositionAvailable: true, RotationAvailable: true}}}
+	tracking := &realtimev2.TrackingFrame{FrameSequence: 1, InputEpoch: core.Snapshot().InputEpoch, BaseReliableSequence: core.Snapshot().ReliableSequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: &presentationv2.Pose{Position: &presentationv2.Vector3{X: 1}, Rotation: &presentationv2.Quaternion{W: 1}}, PositionAvailable: true, RotationAvailable: true}}}
 	if _, _, err := core.AcceptTracking(context.Background(), identity, tracking, time.Now(), 1); err != nil {
 		t.Fatal(err)
 	}
@@ -91,13 +94,15 @@ func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 	select {
 	case item := <-connection.stateOutput:
 		frame := item.GetStateFrame()
-		if len(frame.GetAnchorBindings()) != 1 || frame.AnchorBindings[0].GetFrozen().GetPosition().GetX() != 1 || frame.BaseReliableSequence <= replacement.Sequence {
+		if len(frame.GetFrozenAnchors()) != 1 || frame.FrozenAnchors[0].GetPosition().GetX() != 1 || frame.BaseReliableSequence <= replacement.Sequence {
 			t.Fatalf("resume waiting for Pose: %v", frame)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("resume frozen keyframe timed out")
 	}
 	tracking.FrameSequence = 2
+	tracking.InputEpoch = core.Snapshot().InputEpoch
+	tracking.BaseReliableSequence = core.Snapshot().ReliableSequence
 	tracking.Samples[0].QuestLocalPose.Position.X = 2
 	observed := uint64(time.Since(service.trackingStarted)/time.Millisecond) + 1
 	if _, _, err := core.AcceptTracking(context.Background(), identity, tracking, time.Now(), observed); err != nil {
@@ -108,8 +113,8 @@ func TestPauseReplacementAndResumeStateShareFrozenDisplay(t *testing.T) {
 		select {
 		case item := <-connection.stateOutput:
 			frame := item.GetStateFrame()
-			if len(frame.GetAnchorBindings()) == 1 && frame.AnchorBindings[0].GetSample() != nil {
-				if frame.AnchorBindings[0].GetSample().GetPosition().GetX() != 2 || len(core.Snapshot().FrozenAnchors) != 0 {
+			if len(frame.GetTrackedPoses()) == 1 && frame.TrackedPoses[0].GetSample() != nil {
+				if frame.TrackedPoses[0].GetSample().GetPosition().GetX() != 2 || len(core.Snapshot().FrozenAnchors) != 0 {
 					t.Fatalf("fresh Pose did not replace frozen display: %v", frame)
 				}
 				return

@@ -83,6 +83,7 @@ public sealed class QuestPresentationEntryEditModeTests
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
         { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
+            3, 9, 1,
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.RightHand, new Vector3(4, 5, 6), Quaternion.identity));
 
@@ -93,6 +94,9 @@ public sealed class QuestPresentationEntryEditModeTests
         Assert.That(frame.Samples[1].QuestLocalPose.Position.Z, Is.EqualTo(-6));
         Assert.That(frame.Samples.Any(sample => sample.Target == TrackedTarget.Body), Is.False);
         Assert.That(frame.PresentationFromQuestLocal.Rotation.W, Is.EqualTo(1));
+        Assert.That(frame.InputEpoch, Is.EqualTo(3));
+        Assert.That(frame.BaseReliableSequence, Is.EqualTo(9));
+        Assert.That(frame.PresentationOriginVersion, Is.EqualTo(1));
     }
 
     [Test]
@@ -100,6 +104,7 @@ public sealed class QuestPresentationEntryEditModeTests
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
         { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
+            1, 0, 0,
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.Body, new Vector3(9, 9, 9), Quaternion.identity, false));
         Assert.That(frame.Samples[1].Target, Is.EqualTo(TrackedTarget.Body));
