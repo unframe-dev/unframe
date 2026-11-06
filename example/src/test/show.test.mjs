@@ -161,7 +161,11 @@ test("6から9枚目は成立条件、内容と操作、空間と共有、まと
     state = tick(started.state, 1201);
     assert.equal(state.currentStepId, group + "-ready");
     assert.equal(state.activeRuns.length, 0);
-    for (const id of visible) assert.equal(node(state, id).opacity, 1, id);
+    for (const id of visible) {
+      const surface = node(state, id);
+      assert.equal(surface.opacity, 1, id);
+      assert.equal(surface.transform.position[2], 0, id);
+    }
     for (const id of previous) assert.equal(node(state, id), undefined, id);
     previous = visible;
   }

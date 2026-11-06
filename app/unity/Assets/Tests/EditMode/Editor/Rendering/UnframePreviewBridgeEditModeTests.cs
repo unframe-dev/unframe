@@ -147,7 +147,7 @@ public sealed class UnframePreviewBridgeEditModeTests
             Assert.That(camera.orthographic, Is.True);
             bridge.ResetCamera("");
             Assert.That(controls.IsOverhead, Is.False);
-            Assert.That(cameraObject.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+            Assert.That(cameraObject.transform.position, Is.EqualTo(new Vector3(0, 1.6f, -4)));
             Assert.That(Quaternion.Angle(cameraObject.transform.rotation, Quaternion.identity), Is.LessThan(0.001f));
             Assert.That(guides.gameObject.activeSelf, Is.False);
             bridge.Spatial(spatial);
