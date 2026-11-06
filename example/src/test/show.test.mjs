@@ -36,7 +36,7 @@ test("Zoneに入って枠を表示し、両手を広げると内容が空間へ�
   assert.equal(gesture(waiting, "spreadHands").outcome.kind, "none");
   assert.equal(zone(waiting, "exit").outcome.kind, "none");
   assert.equal(input(waiting).outcome.kind, "none");
-  assert.deepEqual(definition.stage.zones["journey-stage"].center, [-1.8, 0, 0]);
+  assert.deepEqual(definition.stage.zones["journey-stage"].center, [-1.8, 0.8, 0]);
   const entered = zone(waiting).state;
   assert.equal(zone(entered).outcome.kind, "none");
   const entering = tick(entered, 401);
@@ -458,7 +458,7 @@ test("浮遊感を止めて感性を表示し、右Zoneで視線移動を強調�
   assert.equal(node(state, "reaction-sense-text").opacity, 1);
   assert.deepEqual(node(state, "reaction-float-text").transform.position, heldPosition);
   assert.equal(reactionZone(state, "exit").outcome.kind, "none");
-  assert.ok(definition.stage.zones["reaction-gaze-stage"].center[0] > 0);
+  assert.deepEqual(definition.stage.zones["reaction-gaze-stage"].center, [1.8, 0.8, 0]);
 
   state = tick(reactionZone(state).state, 401);
   const zoomRun = state.activeRuns[0];
@@ -507,7 +507,7 @@ test("反応の実演後は左Zoneを待ち、中央のブランド表示で閉�
   assert.equal(state.activeRuns.length, 0);
   assert.equal(node(state, "brand").opacity, 0);
   assert.equal(input(state).outcome.kind, "none");
-  assert.deepEqual(definition.stage.zones["closing-stage"].center, [-1.8, 0, 0]);
+  assert.deepEqual(definition.stage.zones["closing-stage"].center, [-1.8, 0.8, 0]);
   const closingZone = (current, edge = "enter") =>
     executeCueEvent(definition, current, {
       kind: "zoneEdge",

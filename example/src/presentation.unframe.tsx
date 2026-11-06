@@ -23,17 +23,17 @@ export default definePresentation({
       "closing-stage": {
         id: "closing-stage",
         owner: { kind: "group", groupId: "closing-wait" },
-        center: [-1.8, 0, 0],
+        center: [-1.8, 0.8, 0],
       },
       "reaction-gaze-stage": {
         id: "reaction-gaze-stage",
         owner: { kind: "group", groupId: "reaction-sense" },
-        center: [1.8, 0, 0],
+        center: [1.8, 0.8, 0],
       },
       "journey-stage": {
         id: "journey-stage",
         owner: { kind: "group", groupId: "journey" },
-        center: [-1.8, 0, 0],
+        center: [-1.8, 0.8, 0],
       },
     },
   },
