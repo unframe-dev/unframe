@@ -363,7 +363,7 @@ Runtime は Gesture / Zone を再認識せず、認証済み Presenter の独立
 - Projected Runtime Snapshot / Event / State Frameのprofile・assignment fence検証
 - ConnectionSnapshotEnvelopeだけを再接続入力として適用し、DurableCheckpointEnvelopeをclientへ配信しない
 - Timelineのlocal interpolation
-- Presenter client 内の8種類 Gesture と腰位置による2m Zone 出入りの認識、device input から成立イベントへの変換
+- Presenter client 内の8種類 Gesture とQuest のヘッドセット位置による2m Zone 出入りの認識、device input から成立イベントへの変換
 - 認識開始時の Step / 入場世代 / server 入力世代への拘束、世代変更時の途中認識と旧 queue 破棄、Zone の無通知 seed
 - 認識とは独立した latest-wins Pose 送信、Pause の凍結表示と resume 後の fresh Pose 待ち
 - calibration、viewport、selection、personal annotation、Local Overlay stateのClient-local ownership

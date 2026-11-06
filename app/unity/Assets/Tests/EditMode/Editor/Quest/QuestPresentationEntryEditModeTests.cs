@@ -100,6 +100,51 @@ public sealed class QuestPresentationEntryEditModeTests
     }
 
     [Test]
+    public void ZoneHeadPositionUsesTheSharedStageHeight()
+    {
+        var markerFromQuestLocal = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+        var markerFromStage = QuestPresentationTracking.ToCanonicalPose(new Vector3(0, 1.3f, 0), Quaternion.identity);
+        var sample = new QuestPoseSample(TrackedTarget.Head, new Vector3(0, 1.6f, 0), Quaternion.identity);
+
+        var position = QuestPresentationTracking.PositionInStage(sample, markerFromQuestLocal, markerFromStage);
+
+        Assert.That(position.X, Is.Zero);
+        Assert.That(position.Y, Is.EqualTo(.3).Within(.00001));
+        Assert.That(position.Z, Is.Zero);
+    }
+
+    [Test]
+    public void ZoneHeadPositionAppliesCalibrationAndTheInverseSharedStageTransform()
+    {
+        var calibration = new UnityEngine.Pose(new Vector3(1, 2, 3), Quaternion.Euler(0, 90, 0));
+        var stage = new UnityEngine.Pose(new Vector3(4, 5, 6), Quaternion.Euler(0, -45, 0));
+        var expected = new Vector3(1.4f, .3f, 2);
+        Vector3 markerPosition = stage.position + stage.rotation * expected;
+        Vector3 questLocalPosition = Quaternion.Inverse(calibration.rotation) * (markerPosition - calibration.position);
+        var sample = new QuestPoseSample(TrackedTarget.Head, questLocalPosition, Quaternion.identity);
+
+        var position = QuestPresentationTracking.PositionInStage(sample,
+            QuestPresentationTracking.ToCanonicalPose(calibration.position, calibration.rotation),
+            QuestPresentationTracking.ToCanonicalPose(stage.position, stage.rotation));
+
+        Assert.That(position.X, Is.EqualTo(expected.x).Within(.00001));
+        Assert.That(position.Y, Is.EqualTo(expected.y).Within(.00001));
+        Assert.That(position.Z, Is.EqualTo(-expected.z).Within(.00001));
+    }
+
+    [TestCase("tracking")]
+    [TestCase("calibration")]
+    [TestCase("stage")]
+    public void ZoneHeadPositionIsUnavailableWithoutTrackingOrCoordinateFrames(string unavailable)
+    {
+        var identity = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity);
+        var sample = new QuestPoseSample(TrackedTarget.Head, Vector3.one, Quaternion.identity, unavailable != "tracking");
+
+        Assert.That(QuestPresentationTracking.PositionInStage(sample,
+            unavailable == "calibration" ? null : identity, unavailable == "stage" ? null : identity), Is.Null);
+    }
+
+    [Test]
     public void UnavailableBodyIsExplicitlyClearedWithoutBorrowingHeadPose()
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose

@@ -14,7 +14,7 @@ Accepted — 2026-10-21。Presenter 認識・入力同期・凍結表示・到�
 
 - Presenter client が Gesture と Zone の出入りを認識する。Runtime は認証済み Presenter の成立イベントを受け、入力の有効性、Guard、Cue の選択、Action、Timeline / Timer の進行・完了、Step 遷移を確定する。Viewer は確定状態を適用し、Timeline をローカル補間する。
 - Gesture は `swipeLeft`、`swipeRight`、`swipeUp`、`swipeDown`、`pushForward`、`pullBackward`、`spreadHands`、`closeHands` の8種類。片手動作は左右どちらでも同じ種類とし、一動作を一種類に分類する。上下は空間の鉛直、前後左右は動作開始時の頭の水平向きを基準にする。距離・速度・時間窓・終了判定は client 内部の調整値とし、Definition のユーザー設定にしない。client は種類を送り、Cue や変更後の共有状態を指定しない。
-- Zone の初期標準は Presentation Space の軸に平行な一辺2mの箱とし、ユーザーが設定するのは中心位置だけとする。client へ Zone ID と位置を配布し、Body tracking の腰位置で内外を判定する。形状・寸法は現行判定とテスト値を基にした採用値であり、実機の妥当性検証済み値ではない。腰位置を取得できない間は認識を停止し、別の部位へ代替しない。境界の揺れ対策は client 内部に置き、server で再認識・滞在時間の再計測をしない。
+- Zone の初期標準は Presentation Space の軸に平行な一辺2mの箱とし、ユーザーが設定するのは中心位置だけとする。client へ Zone ID と位置を配布し、Quest ではヘッドセットの位置で内外を判定する。形状・寸法は現行判定とテスト値を基にした採用値であり、実機の妥当性検証済み値ではない。ヘッドトラッキングが無効な間は判定を停止する。境界の揺れ対策は client 内部に置き、server で再認識・滞在時間の再計測をしない。
 - 各認識結果は別のイベント ID で送る。同時成立 batch は作らず、Runtime の受理順にその時点の状態で評価する。同じ Step で両方が有効ならそれぞれ実行し、先のイベントで Step が変われば後続の旧入力を拒否する。一イベント内の Cue 候補は既存の優先順位・order・ID 順で一つ選ぶ。`transitioning` 中の通常入力は受け付けず、後回しにもしない。
 - server cooldown を廃止する。client は一動作一通知とし、動作終了後に次の動作を受け付ける。固定の待ち時間や不採用動作の新 ID による再発行は設けない。Cue の `oncePerStepEntry` と `repeatable` は残し、通常は前者、繰り返しが必要な Cue は後者を明示する。
 
