@@ -1223,8 +1223,33 @@ function animatedSetup() {
 }
 
 describe("runtime animation runs", () => {
-  it("accepts a timeline run and commits its final track values on completion", () => {
-    const { store, snapshot, fence, started, runId, timelineId, nodeId } = animatedSetup();
+  it("accepts a timeline run and commits its final opacity and transform on completion", () => {
+    const { delivery, snapshot, fence, started, runId, timelineId, nodeId, transform } =
+      animatedSetup();
+    delivery.projectionProfile!.runtimeCatalog!.timelines![0]!.tracks!.push(
+      {
+        target: { nodeId, property: 2 },
+        keyframes: [
+          { timeMs: "0", easingToNext: 1, vector3: { value: transform.position } },
+          { timeMs: "1000", vector3: { value: { x: 2, y: -1, z: 3 } } },
+        ],
+      },
+      {
+        target: { nodeId, property: 3 },
+        keyframes: [
+          { timeMs: "0", easingToNext: 1, quaternion: { value: transform.rotation } },
+          { timeMs: "1000", quaternion: { value: { y: 1 } } },
+        ],
+      },
+      {
+        target: { nodeId, property: 4 },
+        keyframes: [
+          { timeMs: "0", easingToNext: 1, vector3: { value: transform.scale } },
+          { timeMs: "1000", vector3: { value: { x: 2, y: 3, z: 4 } } },
+        ],
+      },
+    );
+    const store = createRuntimeStore(delivery);
     store.applyControl({ connectionSnapshot: snapshot });
     store.applyControl({
       reliableEvent: {
@@ -1248,7 +1273,14 @@ describe("runtime animation runs", () => {
     });
     expect(store.getSnapshot().phase).toBe("ready");
     expect(store.getSnapshot().view!.activeRuns).toHaveLength(0);
-    expect(store.getSnapshot().view!.nodeStates[nodeId]!.opacity).toBe(0.5);
+    expect(store.getSnapshot().view!.nodeStates[nodeId]).toMatchObject({
+      opacity: 0.5,
+      transform: {
+        position: [2, -1, 3],
+        rotation: [0, 1, 0, 0],
+        scale: [2, 3, 4],
+      },
+    });
   });
   it("rejects a completion before its deadline", () => {
     const { store, snapshot, fence, started, runId, timelineId } = animatedSetup();
