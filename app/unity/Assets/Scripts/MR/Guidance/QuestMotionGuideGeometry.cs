@@ -22,7 +22,7 @@ namespace Unframe.Unity.PresentationRuntime
         private static Vector3 GetPeripheralPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect, float side)
         {
             float halfHeight = Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-            Vector3 direction = new Vector3(side * .62f * halfHeight * aspect, -.58f * halfHeight, 1).normalized;
+            Vector3 direction = new Vector3(side * .42f * halfHeight * aspect, -.46f * halfHeight, 1).normalized;
             return headPosition + headRotation * direction * Distance;
         }
 

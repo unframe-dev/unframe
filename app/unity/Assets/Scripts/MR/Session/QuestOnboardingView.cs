@@ -183,7 +183,7 @@ namespace Unframe.Unity.PresentationRuntime
                 Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
                 panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
             }
-            Label("Brand", "unframe", new Vector2(0, 365), new Vector2(920, 60), 28, QuestUiTheme.Primary);
+            QuestUiBrand.Create(panel.transform, new Vector2(0, 365));
             DrawPage();
             Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role)

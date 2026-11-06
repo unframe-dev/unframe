@@ -5,11 +5,11 @@ namespace Unframe.Unity.PresentationRuntime
 {
     public static class QuestUiTheme
     {
-        public static readonly Color Surface = new Color32(246, 243, 255, 255);
-        public static readonly Color Text = new Color32(31, 27, 48, 255);
-        public static readonly Color Muted = new Color32(90, 85, 110, 255);
-        public static readonly Color Primary = new Color32(92, 71, 192, 255);
-        public static readonly Color Container = new Color32(229, 221, 255, 255);
+        public static readonly Color Surface = new Color32(247, 247, 245, 255);
+        public static readonly Color Text = new Color32(23, 24, 28, 255);
+        public static readonly Color Muted = new Color32(85, 89, 99, 255);
+        public static readonly Color Primary = new Color32(152, 68, 75, 255);
+        public static readonly Color Container = new Color32(248, 230, 232, 255);
         private static Sprite rounded;
         public static void ApplySurface(Image image) => Apply(image, Surface);
         public static void ApplyButton(Image image, bool primary = true) => Apply(image, primary ? Primary : Container);
