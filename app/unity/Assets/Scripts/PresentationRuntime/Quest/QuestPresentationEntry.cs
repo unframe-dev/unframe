@@ -476,38 +476,44 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
             if (command == null) return;
-            try
+            CancellationToken commandCancellation = placement.CommandCancellation;
+            using (var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, commandCancellation))
             {
-                CommandOutcome outcome = await runtime.SendConfirmedAsync(command, lifetime.Token);
-                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                try
+                {
+                    CommandOutcome outcome = await runtime.SendConfirmedAsync(command, pending.Token);
+                    pending.Token.ThrowIfCancellationRequested();
+                    if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                    {
+                        if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
+                        LastErrorCode = "presenter-placement-rejected";
+                        calibration.Invalidate("placement-rejected-show-marker-again");
+                        return;
+                    }
+                    using (var reflected = CancellationTokenSource.CreateLinkedTokenSource(pending.Token))
+                    {
+                        reflected.CancelAfter(TimeSpan.FromSeconds(10));
+                        while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
+                            runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
+                            await Task.Delay(16, reflected.Token);
+                    }
+                    recalibrationPending = false;
+                    LastErrorCode = null;
+                }
+                catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
+                    && exception.Status.Detail == "presentation_origin_mismatch")
                 {
                     if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
                     LastErrorCode = "presenter-placement-rejected";
                     calibration.Invalidate("placement-rejected-show-marker-again");
-                    return;
                 }
-                using (var reflected = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                catch (OperationCanceledException) when (commandCancellation.IsCancellationRequested || lifetime == null || lifetime.IsCancellationRequested) { }
+                catch (Exception exception)
                 {
-                    reflected.CancelAfter(TimeSpan.FromSeconds(10));
-                    while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
-                        runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
-                        await Task.Delay(16, reflected.Token);
+                    if (commandCancellation.IsCancellationRequested) return;
+                    LastErrorCode = PresentationConnectionErrors.FromException(exception);
+                    nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
                 }
-                recalibrationPending = false;
-                LastErrorCode = null;
-            }
-            catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
-                && exception.Status.Detail == "presentation_origin_mismatch")
-            {
-                if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
-                LastErrorCode = "presenter-placement-rejected";
-                calibration.Invalidate("placement-rejected-show-marker-again");
-            }
-            catch (OperationCanceledException) when (lifetime == null || lifetime.IsCancellationRequested) { }
-            catch (Exception exception)
-            {
-                LastErrorCode = PresentationConnectionErrors.FromException(exception);
-                nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
             }
         }
 

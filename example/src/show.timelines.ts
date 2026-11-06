@@ -74,17 +74,17 @@ export const showTimelines = [
         keyframes: [
           {
             timeMilliseconds: 0,
-            value: [0, 1.3, -1.5],
+            value: [0, 1.3, 1],
             easingToNext: "cubicInOut",
           },
           {
             timeMilliseconds: 1100,
-            value: [0, 1.6, -3],
+            value: [0, 1.6, -0.5],
             easingToNext: "linear",
           },
           {
             timeMilliseconds: 1800,
-            value: [0, 1.6, -3],
+            value: [0, 1.6, -0.5],
           },
         ],
       },
@@ -271,12 +271,12 @@ export const showTimelines = [
         keyframes: [
           {
             timeMilliseconds: 0,
-            value: [-0.6, 1.4, -2.2],
+            value: [-0.6, 1.4, 0.3],
             easingToNext: "cubicOut",
           },
           {
             timeMilliseconds: 1200,
-            value: [-1.8, 1.4, -2.2],
+            value: [-1.8, 1.4, 0.3],
           },
         ],
       },
@@ -289,12 +289,12 @@ export const showTimelines = [
         keyframes: [
           {
             timeMilliseconds: 0,
-            value: [0.6, 1.4, -2.2],
+            value: [0.6, 1.4, 0.3],
             easingToNext: "cubicOut",
           },
           {
             timeMilliseconds: 1200,
-            value: [1.8, 1.4, -2.2],
+            value: [1.8, 1.4, 0.3],
           },
         ],
       },
@@ -307,12 +307,12 @@ export const showTimelines = [
         keyframes: [
           {
             timeMilliseconds: 0,
-            value: [-0.35, 1.7, -2.15],
+            value: [-0.35, 1.7, 0.35],
             easingToNext: "cubicOut",
           },
           {
             timeMilliseconds: 1200,
-            value: [-0.8, 1.9, -2.8],
+            value: [-0.8, 1.9, -0.3],
           },
         ],
       },
@@ -325,12 +325,12 @@ export const showTimelines = [
         keyframes: [
           {
             timeMilliseconds: 0,
-            value: [0.55, 1.3, -2.15],
+            value: [0.55, 1.3, 0.35],
             easingToNext: "cubicOut",
           },
           {
             timeMilliseconds: 1200,
-            value: [0.85, 1.35, -1.4],
+            value: [0.85, 1.35, 1.1],
           },
         ],
       },

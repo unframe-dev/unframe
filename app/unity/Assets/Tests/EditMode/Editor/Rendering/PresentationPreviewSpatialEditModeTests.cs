@@ -114,7 +114,7 @@ public sealed class PresentationPreviewSpatialEditModeTests
 
     [TestCase("perspective")]
     [TestCase("overhead")]
-    public void CameraResetReturnsToStandingEyeLevelAtTheOriginFacingForward(string view)
+    public void CameraResetViewsTheStageOriginFromStandingEyeLevel(string view)
     {
         var root = new GameObject("camera");
         try
@@ -124,14 +124,18 @@ public sealed class PresentationPreviewSpatialEditModeTests
             controls.Frame(null);
             controls.SetSpatialBounds(new Bounds(new Vector3(10, 4, -8), Vector3.one * 8));
             controls.SetView(view);
-            controls.ResetToOrigin();
+            controls.ResetToFront();
             Assert.That(controls.IsOverhead, Is.False);
             Assert.That(camera.orthographic, Is.False);
-            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+            Vector3 stageCenter = camera.WorldToViewportPoint(new Vector3(0, 1.6f, 0));
+            Assert.That(stageCenter.x, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(stageCenter.y, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(stageCenter.z, Is.GreaterThan(camera.nearClipPlane));
+            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, -4)));
             Assert.That(Quaternion.Angle(root.transform.rotation, Quaternion.identity), Is.LessThan(0.001f));
             controls.SetView("overhead");
             controls.SetView("perspective");
-            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, 0)));
+            Assert.That(root.transform.position, Is.EqualTo(new Vector3(0, 1.6f, -4)));
         }
         finally { Object.DestroyImmediate(root); }
     }

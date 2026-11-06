@@ -105,6 +105,52 @@ public sealed class AprilTagPresentationCalibrationTests
         finally { Object.DestroyImmediate(head); }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void PlacementRequiresFreshMarkerMeasurementIfHeadIsUnavailableAtConfirmation(bool headConfigured)
+    {
+        var head = new GameObject("HMD");
+        try
+        {
+            head.SetActive(false);
+            bridge.ConfigureHead(headConfigured ? head.transform : null);
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Calibration.IsValid, Is.False);
+
+            head.transform.position = Vector3.up * 2.4f;
+            head.SetActive(true);
+            bridge.ConfigureHead(head.transform);
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            Assert.That(bridge.Placement.Prepare(initial, 3, null), Is.Null);
+
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var command = bridge.Placement.Prepare(initial, 3, null);
+            Assert.That(command, Is.Not.Null);
+            Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(0.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
+    [Test]
+    public void EnablingPlacementRequiresFreshMeasurementAfterMarkerOnlyCalibration()
+    {
+        Confirm(Pose.identity);
+        bridge.Refresh();
+        Assert.That(bridge.Calibration.IsValid, Is.True);
+
+        var head = new GameObject("HMD");
+        try
+        {
+            bridge.ConfigureHead(head.transform);
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Calibration.IsValid, Is.False);
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
     [Test]
     public void ConfirmationPublishesInverseComposedQuestCalibrationAndKeepsItWithoutNewMarkerFrames()
     {

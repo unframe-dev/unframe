@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Unframe.Realtime;
 using UnityEngine;
 using ProtoVector3 = Unframe.Presentation.Vector3;
@@ -14,6 +15,8 @@ namespace Unframe.Unity.PresentationRuntime
         private bool explicitPlacement;
         private string sessionId;
         private ControlClientItem command;
+        private CancellationTokenSource commandLifetime;
+        public CancellationToken CommandCancellation => commandLifetime?.Token ?? new CancellationToken(true);
         public bool IsConfirmed => completed;
         public bool IsPending => !completed;
 
@@ -25,7 +28,7 @@ namespace Unframe.Unity.PresentationRuntime
             sessionId = id;
             explicitPlacement = false;
             completed = false;
-            command = null;
+            ClearCommand();
             return replacingSession;
         }
 
@@ -34,14 +37,14 @@ namespace Unframe.Unity.PresentationRuntime
             captured = false;
             completed = false;
             explicitPlacement = true;
-            command = null;
+            ClearCommand();
         }
 
         public void InvalidateCapture()
         {
             if (!completed && command != null) explicitPlacement = true;
             captured = false;
-            command = null;
+            ClearCommand();
         }
 
         public void Capture(Pose worldFromMarker, Pose worldFromHead)
@@ -64,6 +67,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (!PresentationCalibrationMath.TryPresenterOrigin(marker, head, origin.Pose, placementReferencePoint, out var pose))
                 throw new InvalidOperationException("presenter-placement-invalid");
             command = QuestPresentationInput.CreatePresentationOrigin(pose, origin.Version, epoch);
+            commandLifetime = new CancellationTokenSource();
             return command.Clone();
         }
 
@@ -75,15 +79,25 @@ namespace Unframe.Unity.PresentationRuntime
                 || originVersion <= command.PresentationOrigin.ExpectedPresentationOriginVersion
                 || commandEpoch < command.PresentationOrigin.CommandEpoch || !synchronized) return false;
             completed = true;
-            command = null;
+            ClearCommand(false);
             explicitPlacement = false;
             return true;
+        }
+
+        private void ClearCommand(bool cancel = true)
+        {
+            command = null;
+            CancellationTokenSource previous = commandLifetime;
+            commandLifetime = null;
+            if (previous == null) return;
+            if (cancel) previous.Cancel();
+            previous.Dispose();
         }
 
         public bool Reject(string commandId)
         {
             if (command?.PresentationOrigin.ClientEventId != commandId) return false;
-            command = null;
+            ClearCommand();
             captured = false;
             completed = false;
             explicitPlacement = true;

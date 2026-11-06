@@ -226,10 +226,7 @@ test("confirms a new Dist before writing and publishes every validated asset exa
   const openPresentationLink = page.getByRole("link", { name: "プレゼンテーションを開く" });
   await expect(openPresentationLink).toHaveCSS("background-color", "rgb(223, 123, 128)");
   await expect(openPresentationLink).toHaveCSS("min-height", "44px");
-  await expect(openPresentationLink).toHaveAttribute(
-    "href",
-    `/presentations/${targetId}`,
-  );
+  await expect(openPresentationLink).toHaveAttribute("href", `/presentations/${targetId}`);
   await testInfo.attach("Dist publication completed", {
     body: await page.screenshot({
       path: testInfo.outputPath("dist-completed.png"),
