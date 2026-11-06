@@ -80,6 +80,48 @@ it("releases retired group textures after detaching their draw references and re
   expect(created.every((item) => item.dispose.mock.calls.length === 1)).toBe(true);
 });
 
+it("starts a timeline revealing preloaded PNGs without charging their released CPU copies", async () => {
+  const { delivery, view, session, contentRoot, created } = setup();
+  delivery.projectionProfile!.renderSurfaces!.reverse();
+  delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "30000000";
+  for (const node of Object.values(view.nodeStates)) node.opacity = 0;
+  try {
+    await session.present(delivery, view);
+    const root = contentRoot.children[0];
+    expect(created).toHaveLength(3);
+    expect(created.every((item) => item.releaseCpuCopy.mock.calls.length === 1)).toBe(true);
+    const next = structuredClone(view);
+    next.activeRuns = [
+      {
+        kind: "timeline",
+        timelineId: "png:fade",
+        runId: { assignmentEpoch: 1, runSequence: 1 },
+        owner: { kind: "presentation" },
+        completion: "nonBlocking",
+        startedAtRuntimeTimeMilliseconds: 0,
+        cause: {
+          cueId: "reveal",
+          causeEventId: "reveal",
+          groupId: "intro",
+          groupEntryEpoch: 1,
+          stepId: "start",
+          stepEntryEpoch: 1,
+        },
+      },
+    ];
+    await session.present(delivery, next);
+    expect(contentRoot.children).toEqual([root]);
+    expect(created).toHaveLength(3);
+    next.activeRuns = [];
+    for (const node of Object.values(next.nodeStates)) node.opacity = 1;
+    await session.present(delivery, next);
+    expect(contentRoot.children).toEqual([root]);
+    expect(created).toHaveLength(3);
+  } finally {
+    session.dispose();
+  }
+});
+
 it("retains the current display after a failed replacement and can retry it", async () => {
   const { delivery, view, next, session, contentRoot, created } = setup();
   await session.present(delivery, view);

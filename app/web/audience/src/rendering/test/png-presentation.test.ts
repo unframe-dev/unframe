@@ -63,6 +63,24 @@ it("attaches a complete PNG scene under presentation coordinates and releases ow
   expect(geometryDispose).toHaveBeenCalledTimes(1);
   expect(owned.every((value) => value.dispose.mock.calls.length === 1)).toBe(true);
 });
+it("rejects cumulative CPU bitmap residency before loading without a shared pool", async () => {
+  const { delivery, view } = fixture();
+  delivery.projectionProfile!.renderSurfaces!.reverse();
+  delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "30000000";
+  const contentRoot = new Group();
+  const loadTexture = vi.fn();
+  await expect(
+    createPngPresentation({
+      host: { contentRoot, setPresentationOrigin() {} },
+      delivery,
+      view,
+      loadTexture,
+    }),
+  ).rejects.toThrow("PNG replacement CPU budget exceeded");
+  expect(loadTexture).not.toHaveBeenCalled();
+  expect(contentRoot.children).toHaveLength(0);
+});
+
 it("rolls back partial asset loading without exposing an incomplete scene", async () => {
   const { delivery, view } = fixture();
   const parent = new Group();

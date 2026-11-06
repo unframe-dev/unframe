@@ -245,10 +245,15 @@ describe("PNG contract plan", () => {
     delivery.capabilityProfile!.limits!.texture!.maxTextureBindings = "1";
     expect(() => buildPngPlan(delivery, view)).toThrow("texture budget exceeded");
   });
-  it("accounts for all retained bitmaps while admitting the next serial decode", () => {
+  it("does not charge GPU-resident textures as retained CPU bitmaps", () => {
     const { delivery, view } = pngFixture();
     delivery.projectionProfile!.renderSurfaces!.reverse();
     delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "30000000";
+    expect(buildPngPlan(delivery, view).assets).toHaveLength(3);
+  });
+  it("rejects a texture whose individual serial decode exceeds the CPU budget", () => {
+    const { delivery, view } = pngFixture();
+    delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "28000000";
     expect(() => buildPngPlan(delivery, view)).toThrow("CPU texture budget");
   });
   it("handles empty bindings and rejects missing runtime node states and transitions", () => {
