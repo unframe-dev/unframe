@@ -319,6 +319,57 @@ it("terminates an analysis which exceeds its deadline", async () => {
   ).rejects.toMatchObject({ status: 503, code: "cli-analysis-time-limit" });
 });
 
+it("releases analysis capacity at the deadline while a Host snapshot is pending", async () => {
+  const entered = Promise.withResolvers<void>();
+  const releaseSnapshot = Promise.withResolvers<void>();
+  let finished = false;
+  const pending = runAnalysisOperation(
+    "project",
+    {
+      ...input,
+      found: {
+        ...input.found,
+        localFiles: [
+          ...input.found.localFiles,
+          { path: "postcss.config.mjs", bytes: new TextEncoder().encode("export default {};") },
+        ],
+      },
+    },
+    undefined,
+    {
+      ...sourceAssetPorts,
+      styles: {
+        ...sourceAssetPorts.styles,
+        snapshot: async () => {
+          entered.resolve();
+          await releaseSnapshot.promise;
+          throw new Error("Released the stalled test snapshot.");
+        },
+      },
+    },
+    { timeoutMilliseconds: 5_000 },
+  );
+  const outcome = pending
+    .catch((error: unknown) => error)
+    .finally(() => {
+      finished = true;
+    });
+  try {
+    expect(await Promise.race([entered.promise, outcome])).toBeUndefined();
+    await expect.poll(() => finished, { timeout: 7_000 }).toBe(true);
+    expect(await outcome).toMatchObject({ status: 503, code: "cli-analysis-time-limit" });
+    const next = () =>
+      runAnalysisOperation("assemble", { source: {}, carrier: {}, sourceAssetBytes: {} });
+    expect((await Promise.all([next(), next()])).map((result) => result.valid)).toEqual([
+      false,
+      false,
+    ]);
+  } finally {
+    releaseSnapshot.resolve();
+    await outcome;
+  }
+}, 20_000);
+
 it("bounds process admission and releases capacity after completion", async () => {
   const operation = () =>
     runAnalysisOperation("assemble", { source: {}, carrier: {}, sourceAssetBytes: {} });

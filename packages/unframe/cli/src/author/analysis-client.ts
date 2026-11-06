@@ -248,6 +248,7 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   let protection: ReturnType<typeof protectAnalysisProcess> | undefined;
   const controller = new AbortController();
   const active = new Set<Promise<unknown>>();
+  const drainDeadline = Promise.withResolvers<void>();
   let settled = false;
   let closing: Promise<void> | undefined;
   const close = () =>
@@ -255,7 +256,8 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
       controller.abort();
       if (worker.exitCode === null && worker.signalCode === null) worker.kill("SIGKILL");
       await exited;
-      await Promise.allSettled(active);
+      // Host callbacks that ignore cancellation must not hold the analysis slot past the deadline.
+      await Promise.race([Promise.allSettled(active), drainDeadline.promise]);
       try {
         await protection?.then(
           (budget) => budget.close(),
@@ -271,20 +273,23 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
       if (settled) return;
       settled = true;
       signal?.removeEventListener("abort", abort);
-      clearTimeout(deadline);
-      void close().then(() => (error ? reject(error) : resolve(value!)), reject);
+      void close()
+        .finally(() => clearTimeout(deadline))
+        .then(() => (error ? reject(error) : resolve(value!)), reject);
     };
     const abort = () =>
       finish(new AuthorError(409, "cli-cancelled", "Project analysis was cancelled."));
     const deadline = setTimeout(
-      () =>
+      () => {
+        drainDeadline.resolve();
         finish(
           new AuthorError(
             503,
             "cli-analysis-time-limit",
             "Project analysis exceeded its time budget.",
           ),
-        ),
+        );
+      },
       Math.max(1, timeout - (performance.now() - started)),
     );
     signal?.addEventListener("abort", abort, { once: true });

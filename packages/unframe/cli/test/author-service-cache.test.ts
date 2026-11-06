@@ -395,23 +395,24 @@ it("releases the source lease before analysis and uses captured project inputs",
   expect(captured.diagnostics).toEqual([]);
 }, 30_000);
 
-it("allows a newer revision to finish first without replacing its cache with the old analysis", async () => {
+it("caches a new revision after the only subscriber cancels the previous analysis", async () => {
   const { service, directory } = await project();
   const blocked = blockFirstLibraryRead();
-  const first = service.project();
+  const controller = new AbortController();
+  const first = expect(service.project(controller.signal)).rejects.toMatchObject({
+    code: "cli-cancelled",
+  });
   await blocked.started;
-  let latest;
   try {
     const path = join(directory, "presentation.unframe.tsx");
     await writeFile(path, (await readFile(path, "utf8")) + "\n// externally saved revision\n");
-    latest = await service.project();
-    expect(latest.irHash, JSON.stringify(latest.diagnostics)).not.toBeNull();
+    controller.abort();
+    await first;
   } finally {
     blocked.release();
   }
-  const old = await first;
-  assert(latest);
-  expect(old.revision).not.toBe(latest.revision);
+  const latest = await service.project();
+  expect(latest.irHash, JSON.stringify(latest.diagnostics)).not.toBeNull();
   expect(blocked.reads()).toBe(2);
   expect(await service.project()).toEqual(latest);
   expect(blocked.reads()).toBe(2);
