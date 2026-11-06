@@ -23,8 +23,11 @@ public sealed class PresentationEffectPlayerTests
                 NodeId = "node:stage",
                 Configuration = new EffectConfiguration
                 {
-                    Kind = EffectKind.HandGlow, Hand = EffectHand.Left,
-                    Size = 1, Speed = 1, DurationMs = 1000,
+                    Kind = EffectKind.HandGlow,
+                    Hand = EffectHand.Left,
+                    Size = 1,
+                    Speed = 1,
+                    DurationMs = 1000,
                     Color = new Unframe.Presentation.SrgbaColor { Alpha = 1 },
                 },
             };

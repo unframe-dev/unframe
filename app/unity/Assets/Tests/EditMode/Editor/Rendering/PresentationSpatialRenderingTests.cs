@@ -26,11 +26,17 @@ public sealed class PresentationSpatialRenderingTests
     {
         var envelope = PresentationPreviewTestFixture.Create();
         var box = Node("box");
-        box.Shape = new ShapeNode { Box = new BoxGeometry { Size = new Wire.Vector3 { X = 2, Y = 3, Z = 4 } },
-            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 0.2, Green = 0.4, Blue = 0.6, Alpha = 0.8 }, DoubleSided = true } };
+        box.Shape = new ShapeNode
+        {
+            Box = new BoxGeometry { Size = new Wire.Vector3 { X = 2, Y = 3, Z = 4 } },
+            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 0.2, Green = 0.4, Blue = 0.6, Alpha = 0.8 }, DoubleSided = true }
+        };
         var sphere = Node("sphere");
-        sphere.Shape = new ShapeNode { Sphere = new SphereGeometry { Radius = 0.7 },
-            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 1, Alpha = 1 } } };
+        sphere.Shape = new ShapeNode
+        {
+            Sphere = new SphereGeometry { Radius = 0.7 },
+            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 1, Alpha = 1 } }
+        };
         foreach (var node in new[] { box, sphere })
         {
             envelope.Projection.RuntimeCatalog.Nodes.Add(node);
@@ -190,8 +196,11 @@ public sealed class PresentationSpatialRenderingTests
         var envelope = PresentationPreviewTestFixture.Create();
         var shape = Node("shape-child");
         shape.Parent = new SpatialParent { Node = new NodeParent { NodeId = "node:stage" } };
-        shape.Shape = new ShapeNode { Box = new BoxGeometry { Size = new Wire.Vector3 { X = 1, Y = 1, Z = 1 } },
-            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 1, Alpha = 1 } } };
+        shape.Shape = new ShapeNode
+        {
+            Box = new BoxGeometry { Size = new Wire.Vector3 { X = 1, Y = 1, Z = 1 } },
+            Material = new UnlitShapeMaterial { Color = new SrgbaColor { Red = 1, Alpha = 1 } }
+        };
         var light = Node("light-child");
         light.Parent = shape.Parent.Clone();
         light.Light = new LightNode { Point = new PointLight { Color = new SrgbColor { Red = 1 }, IntensityCandela = 12, RangeMeters = 5 } };
@@ -262,8 +271,17 @@ public sealed class PresentationSpatialRenderingTests
     {
         var envelope = PresentationPreviewTestFixture.Create();
         var node = Node("spot-edge");
-        node.Light = new LightNode { Spot = new SpotLight { Color = new SrgbColor { Red = 1 }, IntensityCandela = 1,
-            RangeMeters = 5, OuterAngleDegrees = outerAngle, InnerAngleDegrees = 0 } };
+        node.Light = new LightNode
+        {
+            Spot = new SpotLight
+            {
+                Color = new SrgbColor { Red = 1 },
+                IntensityCandela = 1,
+                RangeMeters = 5,
+                OuterAngleDegrees = outerAngle,
+                InnerAngleDegrees = 0
+            }
+        };
         envelope.Projection.RuntimeCatalog.Nodes.Add(node);
         envelope.Projection.VisibleNodeIds.Add(node.NodeId);
         envelope.InitialState.NodeStates.Add(PresentationPreviewTestFixture.Node(node.NodeId));
