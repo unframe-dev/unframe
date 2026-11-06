@@ -136,7 +136,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (heading != null) heading.text = confirmEnd ? "発表を終了" : detailsOpen ? "設定と接続" : audience ? "鑑賞メニュー" : "プレゼン操作";
             if (panel != null)
             {
-                panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
+                panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 840);
                 heading.rectTransform.anchoredPosition = new Vector2(0, 327);
                 status.rectTransform.anchoredPosition = new Vector2(0, 216);
                 panel.transform.Find("Hint").GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -320);
@@ -431,12 +431,13 @@ namespace Unframe.Unity.PresentationRuntime
             panel = new GameObject("Presentation Menu", typeof(RectTransform), typeof(Canvas), typeof(Image));
             panel.transform.SetParent(transform, false);
             panel.transform.localScale = Vector3.one * 0.001f;
-            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
+            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 840);
             panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
             QuestPresentationUiFont.ConfigureCanvas(panel.GetComponent<Canvas>());
             QuestUiTheme.ApplySurface(panel.GetComponent<Image>());
             panel.GetComponent<Image>().raycastTarget = false;
+            QuestUiBrand.Create(panel.transform, new Vector2(0, 387));
             heading = AddText(panel.transform, "Heading", new Vector2(0, 327), new Vector2(920, 70), 40);
             status = AddText(panel.transform, "Status", new Vector2(0, 216), new Vector2(920, 144), 30);
             AddText(panel.transform, "Hint", new Vector2(0, -320), new Vector2(920, 52), 24).text =

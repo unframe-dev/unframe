@@ -27,6 +27,19 @@ public sealed class QuestPresentationStatusViewTests
         view.Configure(entry, calibration, head.transform);
         view.Refresh();
 
+        var brand = view.Panel.transform.Find("Brand");
+        Assert.That(brand.Find("Wordmark").GetComponent<Text>().text, Is.EqualTo("Unframe"));
+        Assert.That(brand.Find("Logo").GetComponent<RawImage>().texture, Is.Not.Null);
+        var heading = view.Panel.transform.Find("Heading").GetComponent<RectTransform>();
+        var status = view.Panel.transform.Find("Status").GetComponent<RectTransform>();
+        Assert.That(brand.GetComponent<RectTransform>().anchoredPosition.y - brand.GetComponent<RectTransform>().rect.height / 2,
+            Is.GreaterThan(heading.anchoredPosition.y + heading.rect.height / 2));
+        Assert.That(heading.anchoredPosition.y - heading.rect.height / 2,
+            Is.GreaterThan(status.anchoredPosition.y + status.rect.height / 2));
+        var statusLabel = status.GetComponent<Text>();
+        statusLabel.text = "位置合わせにはカメラの許可が必要です。\n「カメラを許可」を選んでください。\nルームコード：ABCDEFGH";
+        Assert.That(statusLabel.preferredHeight, Is.LessThanOrEqualTo(status.rect.height));
+        Assert.That(heading.GetComponent<Text>().preferredHeight, Is.LessThanOrEqualTo(heading.rect.height));
         Assert.That(view.StatusText, Does.Contain("接続情報"));
         Assert.That(view.StatusText, Does.Not.Contain("Origin:"));
         Assert.That(view.StatusText, Does.Not.Contain("Session:"));

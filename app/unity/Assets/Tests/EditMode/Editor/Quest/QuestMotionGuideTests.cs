@@ -3,6 +3,7 @@ using Unframe.Presentation;
 using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
+using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
 using Transform = UnityEngine.Transform;
@@ -111,8 +112,8 @@ public sealed class QuestMotionGuideTests
         Assert.That(localAnchor.x, Is.GreaterThan(0));
         Assert.That(localAnchor.y, Is.LessThan(0));
         Assert.That(localAnchor.z, Is.GreaterThan(0));
-        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.62f).Within(.00001f));
-        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.58f).Within(.00001f));
+        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.42f).Within(.00001f));
+        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.46f).Within(.00001f));
 
         Vector3 localInstruction = Quaternion.Inverse(viewRotation) *
             (QuestMotionGuideGeometry.GetInstructionPosition(anchor, rotation) - headPosition);
@@ -137,7 +138,7 @@ public sealed class QuestMotionGuideTests
     [TestCase(48, 1.333333f)]
     [TestCase(80, 1)]
     [TestCase(80, .6f)]
-    public void PeripheralAnchorsStayAtTheSameNearDistanceAndMirrorAcrossTheView(float verticalFov, float aspect)
+    public void GuidanceAnchorsStayInsideTheCentralViewAndMirrorAtTheSameNearDistance(float verticalFov, float aspect)
     {
         Vector3 head = new Vector3(1, 1.7f, -2);
         Quaternion yaw = Quaternion.Euler(0, 55, 0);
@@ -151,8 +152,16 @@ public sealed class QuestMotionGuideTests
         Assert.That(localGuide.y, Is.EqualTo(localHud.y).Within(.00001f));
         Assert.That(localGuide.z, Is.EqualTo(localHud.z).Within(.00001f));
         float halfHeight = localGuide.z * Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.62f).Within(.00001f));
-        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.58f).Within(.00001f));
+        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.42f).Within(.00001f));
+        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.46f).Within(.00001f));
+        Vector2 guideViewport = new Vector2(.5f + .5f * localGuide.x / (halfHeight * aspect),
+            .5f + .5f * localGuide.y / halfHeight);
+        Vector2 hudViewport = new Vector2(.5f + .5f * localHud.x / (halfHeight * aspect),
+            .5f + .5f * localHud.y / halfHeight);
+        Assert.That(guideViewport.x, Is.InRange(.69f, .73f));
+        Assert.That(hudViewport.x, Is.InRange(.27f, .31f));
+        Assert.That(guideViewport.y, Is.InRange(.25f, .29f));
+        Assert.That(hudViewport.y, Is.InRange(.25f, .29f));
     }
 
     [Test]

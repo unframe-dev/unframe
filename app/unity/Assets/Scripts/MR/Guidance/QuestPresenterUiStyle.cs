@@ -5,7 +5,7 @@ namespace Unframe.Unity.PresentationRuntime
 {
     public static class QuestPresenterUiStyle
     {
-        private static readonly Color Surface = new Color32(27, 33, 43, 200);
+        private static readonly Color Surface = new Color32(11, 14, 20, 200);
         private static readonly Color PrimaryText = new Color32(247, 249, 255, 255);
         private static readonly Color SecondaryText = new Color32(209, 221, 240, 255);
 
