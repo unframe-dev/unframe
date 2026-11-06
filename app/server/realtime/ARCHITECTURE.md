@@ -802,7 +802,7 @@ JWT は少なくとも次を拘束する。
 - protocol version
 - expiry / not-before
 
-PublicationFence は JWT に含めず、bootstrap と Control Plane の participant projection / Asset 認可応答で照合する。native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の期限までとする。assignment lease を更新しても既存 JWT の期限は延長しない。継続する client は新しい credential で再接続する。
+PublicationFence は JWT に含めず、bootstrap と Control Plane の participant projection / Asset 認可応答で照合する。JWT の有効期間は発行時から24時間で、assignment lease とは独立する。lease の失効・変更による fencing は JWT の期限前でも適用する。native gRPC とブラウザ WebSocket の Control / State 接続は、認証に使った JWT の期限までとする。assignment lease を更新しても既存 JWT の期限は延長しない。継続する client は新しい credential で再接続する。
 
 Venue Edge 配置では同じ JWT を gRPC と local HTTPS で共用するが、各入口は自身に必要な scope を独立して検証する。`assets:read`だけでRealtime RPCを呼び出したり、`realtime:connect`だけでAssetを取得したりすることはできない。Cloud 配置の Asset signed URL は Runtime JWT と別に Control Plane が認可・発行する。
 

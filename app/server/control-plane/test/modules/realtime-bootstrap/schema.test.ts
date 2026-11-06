@@ -12,7 +12,6 @@ describe("realtime bootstrap credential input", () => {
     presentationId: "presentation-1",
     presentationRevision: 7,
     scopes: ["realtime:connect", "assets:read"],
-    expiresAt: 1_700_000_300,
   } as const;
 
   it("accepts an assignment-bound participant credential", () => {
@@ -26,7 +25,7 @@ describe("realtime bootstrap credential input", () => {
     { ...validInput, presentationRevision: 0 },
     { ...validInput, scopes: [] },
     { ...validInput, scopes: ["unknown"] },
-    { ...validInput, expiresAt: 0 },
+    { ...validInput, expiresAt: 1_700_000_300 },
     { ...validInput, extra: true },
   ])("rejects invalid input", (input) => {
     expect(realtimeBootstrapCredentialInputSchema.safeParse(input).success).toBe(false);

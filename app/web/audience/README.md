@@ -12,7 +12,9 @@ Audience は初回表示の準備時に、Delivery で選択された全PNGを1�
 
 PNGの表示計画はGPU常駐量と各画像のデコードピークを検査する。実際のCPU常駐量と置き換え時のピークはローダーが検査し、GPU転送後に解放したCPUコピーをステップ切り替え時に再加算しない。
 
-Group退出・入場・Step開始のイベントが揃うまでは、最後に準備できた表示を保持する。表示の再生成が必要な場合も、次の準備完了後に入れ替える。再同期要求・切断・終了・描画失敗では表示を破棄する。事前ロードと置き換えはメモリ上限を検査し、上限を緩和しない。
+Group退出・入場・Step開始のイベントが揃うまでは、最後に準備できた表示を保持する。表示の再生成が必要な場合も、次の準備完了後に入れ替える。再同期要求・切断・終了・フレーム描画失敗では表示を破棄する。更新の準備に失敗した場合は、準備済みの表示を保持する。事前ロードと置き換えはメモリ上限を検査し、上限を緩和しない。
+
+一時停止で固定されたPresenter追従オブジェクトの位置情報は、そのGroupの退出時に除去する。Presentation全体に属するオブジェクトの固定位置情報は保持する。
 
 動画資産を切り替える際の事前デコードは未対応で、追加のロード待ちが発生し得る。その間は旧動画のGPU上の最終フレームを保持し、旧デコーダを解放してから新しい動画を準備する。デコーダの同時使用上限は緩和しない。GPUコンテキストが失われた場合は資産を破棄し、カメラの再起動時に読み直す。PNG・GLBの通常の切り替えと、Three.jsの描画順でモデルの位置・サイズが戻らないことはテストで検証する。スマートフォンでの見え方、初回GPU転送・シェーダーコンパイルによる遅延は実機での確認が必要。
 
@@ -134,7 +136,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → マーカーサイズ選択・確定 → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
-`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
+`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落時は前の表示を保持したまま State チャネルを再接続し、最新ビューの適用完了後に `StateReady` を送って keyframe を再取得する。準備済みの表示を使える通常の状態更新では読込中表示へ戻さず、原点やGroup入場世代が変わる場合は新しい表示の準備完了を待つ。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
 
 参加・視聴状態は Zustand で保持し、接続手順と資格は各処理の所有範囲に置く。HTTP は共有 Hono RPC クライアントを使い、応答はブラウザ側でも検証する。Runtime は入力から次の状態を計算するコアと状態保持に分ける。
 
@@ -142,9 +144,9 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 期限更新
 
-既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。
+既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。接続情報が期限切れになった場合は資格と素材URLを破棄し、カメラと位置合わせを維持して同じSessionの接続情報を再取得する。バックグラウンドからの復帰時も同じ扱いとし、再開のためのカメラ開始操作は要求しない。退出・Session終了・アクセス拒否などの確定エラーでは復旧を停止する。
 
-同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。動画も署名付きURLと期限だけの更新では読み込み済みデコーダーと再生状態を維持し、checksumなど素材情報が変わった場合は再読み込みする。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
+素材URLの通常更新では、参加者・公開版・割り当て・接続先が同じでRuntime JWTの残り有効期間が30秒を超える間、既存JWTとRealtime接続を維持する。Runtime JWTの有効期間は発行時から24時間。明示再接続や復旧、JWTの期限前更新では新しいJWTを使う。同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。動画も署名付きURLと期限だけの更新では読み込み済みデコーダーと再生状態を維持し、checksumなど素材情報が変わった場合は再読み込みする。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
 接続設定は `VITE_AUDIENCE_API_ORIGIN`（HTTPS origin）のみ。 production build は `.env.production` の `https://api.un-fra.me` を使用する。別環境へ接続する場合は build 時の環境変数で上書きする。未設定なら参加不可として案内する。対応形式と資源予算は共有定義で管理し、profile IDはその内容のSHA-256から算出する。環境変数でprofileを選択しない。資格はメモリのみで、永続保存・リロード後の自動復帰は実装しない。
 
@@ -177,6 +179,6 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 複数端末テストの接続ログ
 
-視聴メニューの「状態をJSON保存」では、同じセッションの直近の配信切断を `lastDisconnect` で確認できます。再接続後も、発生時刻、切断の分類、該当する場合は WebSocket の種別と終了コードが残ります。
+視聴メニューの「状態をJSON保存」では、同じセッションの直近の配信切断を `lastDisconnect` で確認できます。再接続後も、発生時刻、切断の分類、該当する場合は WebSocket の種別と終了コードが残ります。クライアントが受信状態の再同期を要求して切断した場合は、`lastDisconnect.input` に直前のControl／State入力の種類、進行イベントの種類と連番を残します。メッセージ本文や例外文は記録せず、通常の履歴が上限で押し出された後も保持します。
 
 「テストログを保存」（MR）／「接続テストログを保存」（WebXR）から、接続・取得・送受信・同期の履歴をJSONで保存できます。保存先と端末間の比較手順は[複数端末の検証手順](../../../docs/validation/multi-device-session-diagnostics.md)を参照してください。認証情報・素材URL・カメラ画像は含みません。

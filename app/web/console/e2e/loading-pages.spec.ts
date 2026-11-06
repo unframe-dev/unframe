@@ -102,7 +102,7 @@ for (const example of [
     path: "/presentations/presentation-1",
     request: "**/presentations/presentation-1",
     label: "公開情報を読み込んでいます…",
-    response: { id: "presentation-1", name: "Loading presentation" },
+    response: { id: "presentation-1", name: "Loading presentation", revision: 1 },
     ready: "未公開",
   },
   {
@@ -110,7 +110,7 @@ for (const example of [
     path: "/rooms?presentationId=presentation-1",
     request: "**/presentations/presentation-1",
     label: "公開情報を読み込んでいます…",
-    response: { id: "presentation-1", name: "Loading presentation" },
+    response: { id: "presentation-1", name: "Loading presentation", revision: 1 },
     ready: "未公開",
   },
 ]) {

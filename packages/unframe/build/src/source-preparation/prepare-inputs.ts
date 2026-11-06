@@ -14,6 +14,7 @@ import {
 } from "./prepare-project.js";
 
 export type ProjectInputPreparationPorts = {
+  checkSource?: typeof checkAuthoringProject;
   readTypeLibraries(): Promise<readonly { fileName: string; sourceText: string }[]>;
   styles: StylePreparationPort;
   modelTransformIdentity: `sha256:${string}`;
@@ -99,7 +100,7 @@ export const prepareProjectInputs = async (
       styles: ports.styles,
     });
     if (signal?.aborted) return cancelled();
-    const catalog = checkAuthoringProject(prepared.source);
+    const catalog = (ports.checkSource ?? checkAuthoringProject)(prepared.source);
     if (!catalog.valid)
       return {
         ...failure("cli-source-invalid", diagnostics(catalog.diagnostics)),
@@ -121,6 +122,7 @@ export const prepareProjectInputs = async (
       prepared.source,
       assemblyCarrier,
       assets.value.sourceAssetBytes,
+      ports.checkSource,
     );
     if (!checked.valid)
       return {

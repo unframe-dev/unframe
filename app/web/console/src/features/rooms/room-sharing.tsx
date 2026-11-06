@@ -3,13 +3,14 @@ import { useMutation, useMutationState, useQuery, useQueryClient } from "@tansta
 import { useRef, useState } from "react";
 import { principalRevision } from "@/shared/api/session-events";
 import { Button } from "@/shared/ui/button";
+import { roomKeys } from "./room-queries";
 import { getRoomCode, rotateRoomCode, type Room } from "@/features/presentations/management-api";
 import { managementErrorMessage } from "@/features/presentations/management-model";
 import { audienceJoinUrl, invitationQr } from "./room-sharing-model";
 
 export function RoomSharing({ room }: { room: Room }) {
   const client = useQueryClient();
-  const key = ["room-code", room.id];
+  const key = roomKeys.code(room.id);
   const submitting = useRef(false);
   const rotationKey = ["room-code-rotation", room.id];
   const rotations = useMutationState({

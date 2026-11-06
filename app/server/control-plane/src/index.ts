@@ -5,6 +5,7 @@ import { D1AssetRepository } from "./adapters/assets/d1-repository";
 import { D1PresentationPermission } from "./adapters/assets/presentation-permission";
 import { R2ObjectStorage } from "./adapters/assets/r2-storage";
 import { R2Presigner } from "./adapters/assets/r2-presigner";
+import { collectDeletedPresentationBuilds } from "./modules/publications/cleanup";
 import { ProfileImageService } from "./modules/profile/service";
 
 const createAssetServices = (config: RuntimeConfig): AssetServices => ({
@@ -35,6 +36,12 @@ export const createScheduledHandler =
               }),
             ),
           ),
+        collectDeletedPresentationBuilds(config.DB, config.ASSETS, new Date())
+          .then((result) => {
+            if (result.deleted || result.failed)
+              log(JSON.stringify({ event: "presentation_build_collection", ...result }));
+          })
+          .catch(() => log(JSON.stringify({ event: "presentation_build_collection_failed" }))),
         new ProfileImageService(config)
           .collectOrphans()
           .then((result) => {

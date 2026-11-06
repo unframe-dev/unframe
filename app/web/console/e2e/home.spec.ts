@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { PublishedPresentation } from "@unframe-dev/contracts/presentation";
 
-const presentation = { id: "presentation-1", name: "公開済みプレゼン" };
+const presentation = { id: "presentation-1", name: "公開済みプレゼン", revision: 7 };
 const publication = {
   schemaVersion: 1,
   presentationId: presentation.id,
@@ -74,6 +74,124 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
+test("deletes a presentation only after confirming and refreshes the home list", async ({
+  page,
+}) => {
+  let deleted = false;
+  const endedRoom = { ...room, id: "ended-room", state: "Ended" };
+  const roomReload = Promise.withResolvers<void>();
+  await page.route(`**/sessions/${endedRoom.id}`, async (route) => {
+    if (!deleted) return route.fulfill({ json: endedRoom });
+    await roomReload.promise;
+    return route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
+  });
+  await page.route("**/presentations", (route) =>
+    route.fulfill({ json: { presentations: deleted ? [] : [presentation] } }),
+  );
+  await page.route(`**/presentations/${presentation.id}`, (route) => {
+    if (route.request().method() === "DELETE") {
+      expect(route.request().postDataJSON()).toEqual({ expectedRevision: presentation.revision });
+      deleted = true;
+      return route.fulfill({ status: 204 });
+    }
+    return route.fulfill({ json: presentation });
+  });
+  await page.route("**/publication", (route) => route.fulfill({ json: publication }));
+
+  await page.goto(`/rooms/${endedRoom.id}`);
+  await expect(page.getByText("このルームの発表は終了しました。")).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ホーム", exact: true })
+    .click();
+  await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
+  const trigger = page.getByRole("button", { name: "プレゼンテーションを削除" });
+  await trigger.click();
+  const confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText(presentation.name);
+  await expect(confirmation).toContainText("終了済みルーム");
+  await confirmation.getByRole("button", { name: "キャンセル" }).click();
+  await expect(trigger).toBeFocused();
+  expect(deleted).toBe(false);
+
+  await trigger.click();
+  await confirmation.getByRole("button", { name: "削除する" }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByText("プレゼンテーションがありません。")).toBeVisible();
+  expect(deleted).toBe(true);
+
+  await page.goBack();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/rooms/${endedRoom.id}$`));
+  await expect(page.getByRole("status", { name: "ルームを読み込んでいます…" })).toBeVisible();
+  roomReload.resolve();
+  await expect(page.getByRole("alert")).toContainText("対象が見つからない");
+});
+
+test("opens the details of an unpublished presentation and shows a delete conflict", async ({
+  page,
+}) => {
+  await published(page);
+  await page.route("**/publication", (route) =>
+    route.fulfill({ status: 404, json: { error: { code: "not_found" } } }),
+  );
+  await page.route(`**/presentations/${presentation.id}`, (route) =>
+    route.request().method() === "DELETE"
+      ? route.fulfill({ status: 409, json: { error: { code: "conflict" } } })
+      : route.fulfill({ json: presentation }),
+  );
+
+  await page.goto("/home");
+  await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
+  await expect(page.getByText("未公開", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "プレゼンテーションを削除" }).click();
+  const confirmation = page.getByRole("alertdialog");
+  await confirmation.getByRole("button", { name: "削除する" }).click();
+  await expect(confirmation.getByRole("alert")).toContainText("削除できませんでした");
+  await expect(page).toHaveURL(new RegExp(`/presentations/${presentation.id}$`));
+});
+
+test("deletes an ended room from history and keeps an active room", async ({ page }) => {
+  const endedRoom = { ...room, id: "ended-room", state: "Ended" };
+  const allowDelete = Promise.withResolvers<void>();
+  let deleted = false;
+  await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
+  await page.route("**/sessions?*", (route) =>
+    route.fulfill({ json: { sessions: deleted ? [room] : [room, endedRoom], nextCursor: null } }),
+  );
+  await page.route(`**/sessions/${room.id}`, (route) => route.fulfill({ json: room }));
+  await page.route(`**/sessions/${endedRoom.id}`, async (route) => {
+    if (route.request().method() === "DELETE") {
+      await allowDelete.promise;
+      deleted = true;
+      return route.fulfill({ status: 204 });
+    }
+    return route.fulfill({ json: endedRoom });
+  });
+
+  await page.goto(`/rooms/${room.id}`);
+  await expect(page.getByRole("button", { name: "発表を終了" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ルーム履歴を削除" })).toHaveCount(0);
+
+  await page
+    .getByRole("navigation", { name: "メインナビゲーション" })
+    .getByRole("link", { name: "ルーム", exact: true })
+    .click();
+  await page.getByRole("link", { name: endedRoom.id }).click();
+  await page.getByRole("button", { name: "ルーム履歴を削除" }).click();
+  const confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText(endedRoom.id);
+  await confirmation.getByRole("button", { name: "削除する" }).click();
+  await expect(confirmation.getByRole("button", { name: "削除しています…" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeVisible();
+  allowDelete.resolve();
+  await expect(page).toHaveURL(/\/rooms(?:\?presentationId=)?$/);
+  await expect(page.getByRole("link", { name: endedRoom.id })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: room.id })).toBeVisible();
+  expect(deleted).toBe(true);
+});
+
 test("distinguishes empty collection and unpublished presentation", async ({ page }) => {
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations: [] } }));
   await page.goto("/home");
@@ -113,6 +231,8 @@ test("distinguishes publication HTTP 403 from unpublished", async ({ page }) => 
   await page.goto("/home");
   await expect(page.getByRole("alert")).toHaveText("この情報を参照・操作する権限がありません。");
   await expect(page.getByText("未公開")).toHaveCount(0);
+  await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
+  await expect(page.getByRole("button", { name: "プレゼンテーションを削除" })).toBeEnabled();
 });
 
 test("recovers from a network failure by explicit refetch", async ({ page }) => {
@@ -133,6 +253,7 @@ test("only loads the displayed page with at most three publication requests at o
   const presentations = Array.from({ length: 8 }, (_, index) => ({
     id: `p-${index}`,
     name: `Presentation ${index}`,
+    revision: 1,
   }));
   await page.route("**/presentations", (route) => route.fulfill({ json: { presentations } }));
   const requested: string[] = [];

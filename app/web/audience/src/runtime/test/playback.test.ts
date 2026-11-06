@@ -204,3 +204,66 @@ it("retains the last prepared display when replacement assets fail and recovers 
   expect(playback.getSnapshot().rendering).toBe("ready");
   playback.dispose();
 });
+
+it.each(["control", "state"] as const)(
+  "keeps the prepared display ready during a %s update",
+  async (channel) => {
+    let finish!: () => void;
+    const frame = vi.fn();
+    const playback = createRuntimePlayback({
+      delivery: {} as never,
+      present: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+      clear: vi.fn(),
+      frame,
+    });
+    playback.applyControl({} as never);
+    expect(playback.getSnapshot().rendering).toBe("loading");
+    await Promise.resolve();
+    finish();
+    await playback.waitForIdle();
+    const prepared = structuredClone(snapshot.view);
+    snapshot.view!.nodeStates["node-baked"]!.transform.position[0] = 2;
+    if (channel === "control") playback.applyControl({} as never);
+    else playback.applyState({} as never);
+    expect(playback.getSnapshot().rendering).toBe("ready");
+    playback.prepareFrame();
+    expect(frame.mock.calls[0]![0]).toEqual(prepared);
+    await Promise.resolve();
+    finish();
+    await playback.waitForIdle();
+    playback.prepareFrame();
+    expect(frame.mock.calls[1]![0]).toEqual(snapshot.view);
+    playback.dispose();
+  },
+);
+
+it.each(["origin", "group"] as const)(
+  "waits for a changed %s to be prepared before reporting readiness",
+  async (boundary) => {
+    let finish!: () => void;
+    const playback = createRuntimePlayback({
+      delivery: {} as never,
+      present: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+      clear: vi.fn(),
+    });
+    playback.applyControl({} as never);
+    await Promise.resolve();
+    finish();
+    await playback.waitForIdle();
+    if (boundary === "origin") snapshot.view!.presentationOrigin.version++;
+    else snapshot.view!.progression.groupEntryEpoch++;
+    playback.applyControl({} as never);
+    expect(playback.getSnapshot().rendering).toBe("loading");
+    await Promise.resolve();
+    finish();
+    await playback.waitForIdle();
+    expect(playback.getSnapshot().rendering).toBe("ready");
+    playback.dispose();
+  },
+);

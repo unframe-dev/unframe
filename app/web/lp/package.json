@@ -32,6 +32,7 @@
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vite": "catalog:",
+    "vite-plus": "catalog:",
     "wrangler": "4.156.1"
   }
 }

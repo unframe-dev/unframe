@@ -27,6 +27,7 @@ export function authorHostStartup(timeoutMilliseconds = 20_000): Plugin {
     name: "unframe-author-host-startup",
     apply: "serve",
     configureServer(server) {
+      const connected = new Set<string>();
       server.middlewares.use((request, response, next) => {
         const route = /^\/(api|unity-preview)(?:\/|$)/.exec(request.url ?? "");
         if (!route) return next();
@@ -47,7 +48,10 @@ export function authorHostStartup(timeoutMilliseconds = 20_000): Plugin {
             // Wait before proxying so a write is never replayed after a connection failure.
             while (!signal.aborted) {
               if (await listening(origin, signal)) {
-                if (!signal.aborted) next();
+                if (!signal.aborted) {
+                  connected.add(origin.origin);
+                  next();
+                }
                 return;
               }
               await delay(50, undefined, { signal }).catch(() => {});
@@ -61,8 +65,9 @@ export function authorHostStartup(timeoutMilliseconds = 20_000): Plugin {
             response.end(
               JSON.stringify({
                 code: "author-host-unavailable",
-                message:
-                  "CLI API did not become ready. Restart the Local Editor development command.",
+                message: connected.has(origin.origin)
+                  ? "CLI API connection was lost. Restart the Local Editor development command."
+                  : "CLI API did not become ready. Restart the Local Editor development command.",
               }),
             );
           } catch (error) {

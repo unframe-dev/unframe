@@ -7,7 +7,11 @@ import {
 import { z } from "zod";
 import { ManagementError } from "./management-model";
 
-const presentationSchema = z.object({ id: z.string(), name: z.string() });
+const presentationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  revision: z.int().positive(),
+});
 const sessionSchema = z.object({
   id: z.string(),
   presentationId: z.string(),
@@ -29,13 +33,17 @@ export function publicationThumbnailUrl(presentationId: string, buildId: string)
   }).href;
 }
 
-async function readJson(response: Pick<Response, "ok" | "status" | "json">): Promise<unknown> {
+async function requireOk(response: Pick<Response, "ok" | "status" | "json">) {
   if (!response.ok) {
     const error = z
       .object({ error: z.object({ code: z.string() }) })
       .safeParse(await response.json().catch(() => null));
     throw new ManagementError(response.status, error.success ? error.data.error.code : undefined);
   }
+}
+
+async function readJson(response: Pick<Response, "ok" | "status" | "json">): Promise<unknown> {
+  await requireOk(response);
   return response.json();
 }
 export async function listPresentations(signal?: AbortSignal) {
@@ -53,6 +61,12 @@ export async function getPresentation(id: string, signal?: AbortSignal) {
     ),
   );
 }
+export async function deletePresentation(id: string, expectedRevision: number) {
+  await requireOk(
+    await client.presentations[":id"].$delete({ param: { id }, json: { expectedRevision } }),
+  );
+}
+
 export async function getPublication(
   presentationId: string,
   signal?: AbortSignal,
@@ -114,6 +128,10 @@ export async function endRoom(id: string) {
   return sessionSchema.parse(
     await readJson(await client.sessions[":id"].end.$post({ param: { id } })),
   );
+}
+
+export async function deleteRoom(id: string) {
+  await requireOk(await client.sessions[":id"].$delete({ param: { id } }));
 }
 
 const joinCodeResponseSchema = z.object({

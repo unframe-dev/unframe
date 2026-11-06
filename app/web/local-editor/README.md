@@ -30,13 +30,13 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 nix develop --command pnpm --config.verify-deps-before-run=false --filter @unframe-dev/local-editor run build:distribution
 ```
 
-開発時は次の1コマンドで native filesystem helper、解析 Worker、スタイル処理用 compiler と依存スナップショットをビルドしてから、UI 開発サーバーと CLI を起動します。準備に失敗した場合は起動しません。UI と Unity Preview Player は上記の初回ビルドが必要です。API と Player のリクエストは CLI の準備完了まで最大20秒待機し、準備できない場合は503で終了します。
+開発時は次の1コマンドで native filesystem helper、解析用プログラム、スタイル処理用 compiler と依存スナップショットをビルドしてから、UI 開発サーバーと CLI を起動します。準備に失敗した場合は起動しません。UI と Unity Preview Player は上記の初回ビルドが必要です。API と Player のリクエストは CLI の準備完了まで最大20秒待機し、準備できない場合は503で終了します。
 
 ```bash
 nix run .#local-editor -- dev ./example
 ```
 
-UI の準備ができると CLI が Editor をブラウザで開きます。`Ctrl+C` で両方を終了します。port 5174 が使用中の場合は、既存のサーバーを終了してから起動してください。CLI 起動後は表示された Editor URL を直接開いても接続でき、再読み込みや別タブでも認証操作は不要です。接続用 token は起動時に Host から取得し、メモリーだけに保持します。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。ページ全体の再読み込みでは未保存入力を保持しません。controller や Host の処理を変更した場合は再起動してください。
+UI の準備ができると CLI が Editor をブラウザで開きます。`Ctrl+C` で両方を終了します。API Host の外側にある監視プロセスが、その起動専用のプロセスグループを管理します。Host が SIGKILL などで終了した場合も Vite と子孫へ SIGTERM を送り、3秒以内に止まらなければ SIGKILL で回収します。異常終了時はターミナルに表示される理由を確認し、開発コマンドを再起動してください。port 5174 が使用中の場合は、既存のサーバーを終了してから起動してください。CLI 起動後は表示された Editor URL を直接開いても接続でき、再読み込みや別タブでも認証操作は不要です。接続用 token は起動時に Host から取得し、メモリーだけに保持します。UI は HMR で変更を反映し、API と Player の要求を CLI に proxy します。同じ Host の UI HMR では認証済み Workspace、選択、パネル配置、未保存入力と Unity canvas を保持します。ページ全体の再読み込みでは未保存入力を保持しません。controller や Host の処理を変更した場合は再起動してください。
 
 CLI Host は UI／Player のファイル内容を起動時には読み込みません。要求時に内容を検証して一時ディスクへコピーし、以後は元ファイルの変更を確認して再利用します。静的ファイルは内容の SHA-256 を ETag として再検証し、API と接続 token は `no-store` で返します。一時コピーには少なくとも要求済みファイルと同量の空き容量が必要で、Host 終了時に削除します。
 
@@ -53,7 +53,9 @@ pnpm --filter @unframe-dev/local-editor exec node package-player.ts
 
 CLI が開く Editor はログインなしで利用できます。Inspector は対応する React scene の scalar Props を保存し、同一 session の Undo／Redo を扱います。編集 metadata がない Source は外部 editor で保存し、診断と Preview を利用します。旧 demo／localStorage 文書と React 3D canvas は編集経路から撤去しました。
 
-Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は同梱の Worker で行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用し、成功した解析の準備済み入力は build でも使用します。再利用時も Source・依存の内容と保存の復旧状態を確認し、後から取得した revision を古い解析の完了で上書きしません。進行パネルは初回の解析結果を待つ間は読み込み中と表示し、取得失敗と定義の検証失敗を区別します。取得エラーの詳細は問題パネルに表示します。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
+Host は Source・config・lock・アセット・スタイルを Source ロック内で取得し、解放後に取得済み入力から解析します。重い解析・検証は要求ごとの Node.js 子プロセスで行い、スタイル・メディア変換やブラウザの子プロセスは Host が管理します。同じ revision の成功結果と進行中の解析を再利用します。project 解析は同時に1件とし、revision が変わると旧解析の回収を待って最新の要求へ切り替えます。同じ解析を待つ一人の切断では他の利用者を取り消さず、全員が離れると解析を停止します。成功した解析の準備済み入力は build でも使用します。再利用時も Source・依存の内容と保存の復旧状態を確認し、後から取得した revision を古い解析の完了で上書きしません。進行パネルは初回の解析結果を待つ間は読み込み中と表示し、取得失敗と定義の検証失敗を区別します。取得エラーの詳細は問題パネルに表示します。ツールチェーンや Host の実装を変更した場合は Host を再起動してください。
+
+解析の入力予算は128 MiB、期限は60秒、子プロセスの V8 old-space 上限は1536 MiB、RSS 監視上限は3 GiBです。上限超過は API の診断として返し、子プロセスを回収します。期限に達した場合、応答を待ち続けている Host コールバックがあっても解析枠を解放します。Linux の委譲済み cgroup では解析専用グループに `memory.max` と swap 無効化も適用します。macOS および cgroup のない実行では100msごとの RSS 監視であり、OS のハード上限ではありません。Host やスタイル・描画プロセスのメモリはこの解析子プロセスの予算に含みません。
 
 Compiler の永続キャッシュは `.unframe/cache/builds-v1/` に保存し、新規保存時に16件・合計512 MiBを上限として古い entry を回収します。容量には metadata とアセットの両方を含めます。読込時は成果物と checksum を検証し、破損した entry は再利用しません。完成済み Dev／Dist generation の保持とは独立しています。
 
