@@ -189,13 +189,7 @@ export function createViewingSession(host: Host, state = createViewingStore()) {
           inspect();
         },
         getReadiness() {
-          if (!current()) return null;
-          const state = target.getSnapshot();
-          if (state.phase !== "ready" || state.rendering !== "ready" || !state.view) return null;
-          return {
-            reliableSequence: state.reliableSequence,
-            presentationOriginVersion: String(state.view.presentationOrigin.version),
-          };
+          return current() ? target.getAppliedReadiness() : null;
         },
         applyControl(item) {
           apply(() => {

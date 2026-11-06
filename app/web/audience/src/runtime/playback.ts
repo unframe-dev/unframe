@@ -116,6 +116,21 @@ export function createRuntimePlayback(options: {
       if (item?.connected && store.getSnapshot().phase === "ready") return;
       changed();
     },
+    getAppliedReadiness() {
+      const snapshot = store.getSnapshot();
+      if (
+        disposed ||
+        error ||
+        snapshot.phase !== "ready" ||
+        !snapshot.view ||
+        appliedVersion !== version
+      )
+        return null;
+      return {
+        reliableSequence: snapshot.reliableSequence,
+        presentationOriginVersion: String(snapshot.view.presentationOrigin.version),
+      };
+    },
     getSnapshot() {
       const snapshot = store.getSnapshot();
       const preparedDisplay =

@@ -134,7 +134,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → マーカーサイズ選択・確定 → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
-`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。準備済みの表示を使える通常の状態更新では読込中表示へ戻さず、原点やGroup入場世代が変わる場合は新しい表示の準備完了を待つ。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
+`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落時は前の表示を保持したまま State チャネルを再接続し、最新ビューの適用完了後に `StateReady` を送って keyframe を再取得する。準備済みの表示を使える通常の状態更新では読込中表示へ戻さず、原点やGroup入場世代が変わる場合は新しい表示の準備完了を待つ。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
 
 参加・視聴状態は Zustand で保持し、接続手順と資格は各処理の所有範囲に置く。HTTP は共有 Hono RPC クライアントを使い、応答はブラウザ側でも検証する。Runtime は入力から次の状態を計算するコアと状態保持に分ける。
 
