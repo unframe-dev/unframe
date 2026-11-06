@@ -40,7 +40,7 @@
             <p
                 class="mt-9 max-w-lg text-base leading-8 text-night/55 sm:text-lg"
             >
-                Unframeはアイデアを空間的な体験へ変える。
+                Unframeは新しい空間的な体験を届ける。
                 <br />
                 現実と3次元の空間のプレゼンテーションをつくろう。
             </p>

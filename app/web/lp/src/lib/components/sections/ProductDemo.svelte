@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { ArrowUpRight } from "@lucide/svelte";
   import GradientWave from "../brand/GradientWave.svelte";
   import SectionLabel from "../brand/SectionLabel.svelte";
 </script>
@@ -9,12 +8,11 @@
   <div class="relative mx-auto max-w-[1440px]">
     <div class="flex flex-col justify-between gap-10 sm:flex-row sm:items-end">
       <div>
-      <SectionLabel index="03">動きの中で</SectionLabel>
-        <h2 class="display-heading mt-10 max-w-2xl text-[clamp(3.2rem,7vw,7rem)]">A presentation you can <span class="text-gradient">enter.</span></h2>
+        <SectionLabel index="03">デモ</SectionLabel>
+        <h2 class="display-heading mt-10 max-w-2xl text-[clamp(3.2rem,7vw,7rem)]">A gesture <span class="text-gradient">sets the scene.</span></h2>
       </div>
-      <p class="group inline-flex items-center gap-3 text-sm text-night/55 transition hover:text-night">
-          現在開発中のためデモ動画がありません。
-        <ArrowUpRight size={16} strokeWidth={1.5} class="transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+      <p class="max-w-sm text-sm leading-7 text-night/55">
+        たとえば、発表者が手を上にスワイプすると、空間に置いたオブジェクトが浮かび上がります。話すタイミングに合わせて、手の動きで演出を始められます。
       </p>
     </div>
 
