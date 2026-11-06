@@ -1037,6 +1037,49 @@ it.each(["request", "job"])(
   },
 );
 
+it.each([
+  ["request", "cli-build-lock-unavailable"],
+  ["job", "cli-source-lock-unavailable"],
+])(
+  "stops persistent lock contention from the %s and allows manual retry",
+  async (failure, code) => {
+    vi.useFakeTimers();
+    const { api, driver } = fixture();
+    let locked = true;
+    const build = vi.fn(async (revision: string) => {
+      if (!locked) return job(revision);
+      if (failure === "request") throw new HostApiError(409, code, "Project is busy");
+      return {
+        ...job(revision, "failed"),
+        diagnostics: [{ code, message: "Project is busy" }],
+      };
+    });
+    api.build = build;
+    const controller = createPreviewController({ api, driver });
+    try {
+      controller.request("dev", "same");
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(controller.store.getState()).toMatchObject({
+        status: "error",
+        phase: "failed",
+        error: expect.stringContaining("ロック"),
+      });
+      expect(build).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(build).toHaveBeenCalledTimes(3);
+
+      locked = false;
+      controller.request("dev", "same");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.store.getState()).toMatchObject({ status: "ready", error: null });
+      expect(build).toHaveBeenCalledTimes(4);
+    } finally {
+      await controller.dispose();
+      vi.useRealTimers();
+    }
+  },
+);
+
 it("stops a pending contention retry when a newer revision is requested", async () => {
   vi.useFakeTimers();
   const { api, driver } = fixture();
@@ -1059,6 +1102,28 @@ it("stops a pending contention retry when a newer revision is requested", async 
     vi.useRealTimers();
   }
 });
+
+it("cancels a pending lock retry without submitting another build", async () => {
+  vi.useFakeTimers();
+  const { api, driver } = fixture();
+  const build = vi.fn(async () => {
+    throw new HostApiError(409, "cli-build-lock-unavailable", "Build is busy");
+  });
+  api.build = build;
+  const controller = createPreviewController({ api, driver });
+  try {
+    controller.request("dev", "same");
+    await vi.advanceTimersByTimeAsync(0);
+    await controller.cancel();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(build).toHaveBeenCalledOnce();
+    expect(controller.store.getState()).toMatchObject({ status: "idle", phase: "idle" });
+  } finally {
+    await controller.dispose();
+    vi.useRealTimers();
+  }
+});
+
 it("keeps the previous playback usable after a source recovery error without retrying it", async () => {
   vi.useFakeTimers();
   const { api, driver, commands } = fixture();
