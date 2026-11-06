@@ -183,7 +183,7 @@ namespace Unframe.Unity.PresentationRuntime
                 Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
                 panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
             }
-            Label("Brand", "unframe", new Vector2(0, 365), new Vector2(920, 60), 28, QuestUiTheme.Primary);
+            QuestUiBrand.Create(panel.transform, new Vector2(0, 365));
             DrawPage();
             Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role)
@@ -402,16 +402,17 @@ namespace Unframe.Unity.PresentationRuntime
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
                 if (!String.IsNullOrEmpty(session.LastErrorCode)) throw new InvalidOperationException(session.LastErrorCode);
             }
-            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
-            while (!entry.ControlReady && entry.ConnectionStage != PresentationConnectionStage.Failed && DateTime.UtcNow < deadline)
+            // Asset downloads can outlast a fixed connection timeout; keep the operation cancellable until ready or failed.
+            while (!entry.ControlReady && entry.IsRunning && entry.ConnectionStage != PresentationConnectionStage.Failed)
                 await Task.Delay(100, token);
             token.ThrowIfCancellationRequested();
             if (!entry.ControlReady && flow.Role == QuestOnboardingRole.Audience && (!api.HasViewerCredential(room.SessionId)
                 || entry.LastErrorCode == "authentication-required" || entry.LastErrorCode == "credential-unavailable"))
                 throw new QuestOnboardingApiException("viewer-authentication-required");
             if (!entry.ControlReady && NeedsReauthentication) throw new QuestOnboardingApiException("authentication-required");
-            if (!entry.ControlReady) { message = "ルームの準備を待っています。しばらくして接続を確認してください。"; return; }
+            if (!entry.ControlReady) throw new InvalidOperationException("connection-failed");
             if ((flow.Role == QuestOnboardingRole.Presenter) != entry.IsPresenter) throw new InvalidOperationException("role-mismatch");
+            message = "";
             flow.ConnectionReady();
         }
         private async void Run(Func<CancellationToken, Task> action)
