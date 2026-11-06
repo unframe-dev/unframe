@@ -28,6 +28,9 @@ namespace Unframe.Unity.PresentationRuntime
         bool TryGetSurface(string id, out ProjectedSurfaceDefinition value);
         bool TryGetNodeState(string id, out NodeRuntimeState value);
         bool TryGetSurfaceState(string id, out SurfaceRuntimeState value);
-        bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value);
+        ulong TrackingGeneration { get; }
+        ulong TrackedPositionContinuity(AnchorTarget target);
+        bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value);
+        bool TryGetFrozenAnchor(string nodeId, out FrozenAnchorDisplayState value);
     }
 }

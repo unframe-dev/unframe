@@ -27,6 +27,7 @@ enum RuntimeCapability {
   RUNTIME_CAPABILITY_FROZEN_ANCHORS = 9;
   RUNTIME_CAPABILITY_STEP_RESTORE = 10;
   RUNTIME_CAPABILITY_EFFECT_PLAYBACK = 11;
+  RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY = 12;
 }
 
 message PublicationFence {
@@ -368,6 +369,7 @@ message ProjectedRuntimeCatalog {
   PresenterRecognitionCatalog presenter_recognition = 8;
   // Stage-local center used by Presenter placement. Included in Delivery catalogs.
   optional Vector3 placement_reference_point = 9;
+  repeated AnchorTarget tracked_pose_targets = 10;
 }
 
 enum EffectKind {

@@ -139,6 +139,9 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 	if profile == nil || projection.Role != roleName(identity.Role) || profile.Key == nil || profile.Key.Role != v2Role(identity.Role) || profile.Key.Publication == nil || profile.Key.Publication.PresentationId != s.bootstrap.Publication.PresentationID || profile.Key.Publication.PublicationEpoch != s.bootstrap.Publication.PublicationEpoch || profile.Key.Publication.PublicationManifestHash != s.bootstrap.Publication.PublicationManifestHash {
 		return status.Error(codes.FailedPrecondition, "publication_fence_mismatch")
 	}
+	if err := s.runtime.ValidateTrackingProfile(profile); err != nil {
+		return status.Error(codes.FailedPrecondition, "runtime_projection_invalid")
+	}
 	if err := protocolv2.NegotiateControl(handshake, profile.RequiredRuntimeCapabilities); err != nil {
 		return status.Error(codes.FailedPrecondition, "protocol_incompatible")
 	}
@@ -517,6 +520,14 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
 				return err
 			}
+		case *realtimev2.ControlClientItem_ForceAdvance:
+			outcome, _, err := s.runtime.ForceAdvanceContext(stream.Context(), identity, value.ForceAdvance)
+			if err != nil {
+				return v2CommandError(err)
+			}
+			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
+				return err
+			}
 		case *realtimev2.ControlClientItem_SurfaceInteraction:
 			outcome, _, err := s.runtime.SurfaceInteractionContext(stream.Context(), identity, value.SurfaceInteraction)
 			if err != nil {
@@ -831,7 +842,7 @@ func (s *V2Service) keyframe(control *v2Control, sequence uint64) (*realtimev2.E
 	for _, node := range view.NodeStates {
 		frame.Elements = append(frame.Elements, &realtimev2.ElementStatePatch{ElementId: node.NodeId, Node: v2KeyframeNodePatch(node, owned[node.NodeId])})
 	}
-	frame.AnchorBindings, err = s.runtime.ProjectedAnchorBindingsAtCut(view.NodeStates, nowMs, snapshot.ReliableSequence)
+	frame.TrackedPoses, frame.FrozenAnchors, err = s.runtime.ProjectedTrackedPosesAtCut(control.profile.RuntimeCatalog.TrackedPoseTargets, view.NodeStates, nowMs, snapshot.ReliableSequence)
 	if errors.Is(err, runtimecore.ErrV3StateCutChanged) {
 		return nil, errV2StatePending
 	}

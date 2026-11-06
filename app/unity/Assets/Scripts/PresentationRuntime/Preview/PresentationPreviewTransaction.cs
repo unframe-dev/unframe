@@ -29,6 +29,7 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly PresentationNodeHierarchy Hierarchy = new PresentationNodeHierarchy();
             internal readonly PresentationTextureResidency Textures = new PresentationTextureResidency();
             internal PresentationBakedSurfaceRenderer Renderer;
+            internal readonly PresentationSpatialRenderer Spatial = new PresentationSpatialRenderer();
             internal readonly PresentationNativeSurfaceRenderer Native = new PresentationNativeSurfaceRenderer();
             internal readonly PresentationRuntimeAssetFiles Files = new PresentationRuntimeAssetFiles();
             internal readonly PresentationVideoResidency Videos;
@@ -62,6 +63,7 @@ namespace Unframe.Unity.PresentationRuntime
                 Playback.Clear();
                 Renderer?.Dispose();
                 Native.Dispose();
+                Spatial.Dispose();
                 Files.Dispose();
                 Models.Dispose();
                 Videos.Dispose();
@@ -150,7 +152,8 @@ namespace Unframe.Unity.PresentationRuntime
                 }
                 CheckLatest(expectedGeneration, token);
                 progress?.Invoke("hierarchy");
-                if (!next.Hierarchy.TryReplace(input, next.Root.transform, out string error)) throw new InvalidOperationException(error);
+                if (!next.Hierarchy.TryReplace(input, next.Root.transform, out string error)
+                    || !next.Spatial.TryBuild(input, next.Hierarchy, out error)) throw new InvalidOperationException(error);
                 var modelBudget = new PresentationModelTextureBudget
                 {
                     Limits = PresentationLocalPreviewAdapter.PreviewTextureLimits(),
@@ -188,6 +191,7 @@ namespace Unframe.Unity.PresentationRuntime
                 progress?.Invoke("native-ui");
                 if (!next.Native.TryBuild(input, next.Hierarchy, next.Files.Paths, out error)) throw new InvalidOperationException(error);
                 next.Playback.Models = next.Models;
+                next.Playback.Spatial = next.Spatial;
                 progress?.Invoke("videos");
                 await next.Videos.BuildAsync(input, next.Hierarchy, async (id, videoToken) => await assetProvider(input.RequestId, input.References[id], videoToken), token);
                 CheckLatest(expectedGeneration, token);
@@ -266,12 +270,15 @@ namespace Unframe.Unity.PresentationRuntime
                 PlaybackRejected = false;
                 // The delivery sequence stays consumed even when rendering only partially applies the snapshot.
                 current.Sequence = state.Sequence;
+                if (current.Clock?.StatusCase != state.Clock.StatusCase)
+                    current.Input.InvalidateTrackedPoses();
                 current.Clock = state.Clock.Clone();
                 current.ClockReceivedAt = now;
                 if (restoring) { current.Playback.Clear(); current.Effects.Clear(); }
+                bool running = current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running;
                 if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, (double time, out string refreshError) => Refresh(current, time, out refreshError),
-                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
-                    || !current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, current.Clock.RuntimeTimeMs, out error))
+                    current.Clock.RuntimeTimeMs, out error, running)
+                    || !current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, current.Clock.RuntimeTimeMs, out error, running))
                 {
                     if (error == "video-user-activation-required")
                     {
@@ -303,9 +310,9 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
-                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error,
-                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
-                    && current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, time, out error)) return true;
+                bool running = current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running;
+                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error, running)
+                    && current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, time, out error, running)) return true;
                 if (error == "video-user-activation-required")
                 {
                     current.Videos.Pause();
@@ -320,7 +327,7 @@ namespace Unframe.Unity.PresentationRuntime
         private static bool Refresh(Scene scene, double time, out string error)
         {
             error = "asset_residency_lost";
-            if (!scene.Files.IsReady) return false;
+            if (!scene.Files.IsReady || !scene.Spatial.IsReady) return false;
             return scene.Renderer.TryRefresh(scene.Input, scene.Textures, time, out error)
                 && scene.Native.TryRefresh(scene.Input, time, out error);
         }

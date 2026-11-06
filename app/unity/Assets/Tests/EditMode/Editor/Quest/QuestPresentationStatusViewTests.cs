@@ -27,6 +27,19 @@ public sealed class QuestPresentationStatusViewTests
         view.Configure(entry, calibration, head.transform);
         view.Refresh();
 
+        var brand = view.Panel.transform.Find("Brand");
+        Assert.That(brand.Find("Wordmark").GetComponent<Text>().text, Is.EqualTo("Unframe"));
+        Assert.That(brand.Find("Logo").GetComponent<RawImage>().texture, Is.Not.Null);
+        var heading = view.Panel.transform.Find("Heading").GetComponent<RectTransform>();
+        var status = view.Panel.transform.Find("Status").GetComponent<RectTransform>();
+        Assert.That(brand.GetComponent<RectTransform>().anchoredPosition.y - brand.GetComponent<RectTransform>().rect.height / 2,
+            Is.GreaterThan(heading.anchoredPosition.y + heading.rect.height / 2));
+        Assert.That(heading.anchoredPosition.y - heading.rect.height / 2,
+            Is.GreaterThan(status.anchoredPosition.y + status.rect.height / 2));
+        var statusLabel = status.GetComponent<Text>();
+        statusLabel.text = "位置合わせにはカメラの許可が必要です。\n「カメラを許可」を選んでください。\nルームコード：ABCDEFGH";
+        Assert.That(statusLabel.preferredHeight, Is.LessThanOrEqualTo(status.rect.height));
+        Assert.That(heading.GetComponent<Text>().preferredHeight, Is.LessThanOrEqualTo(heading.rect.height));
         Assert.That(view.StatusText, Does.Contain("接続情報"));
         Assert.That(view.StatusText, Does.Not.Contain("Origin:"));
         Assert.That(view.StatusText, Does.Not.Contain("Session:"));
@@ -147,6 +160,30 @@ public sealed class QuestPresentationStatusViewTests
         state.PermissionGranted = false;
         view.Refresh();
         Assert.That(view.FindButton("CameraPermission").gameObject.activeSelf, Is.True);
+    }
+
+    [Test]
+    public void SettingsCanClearTheSavedAccountAndReturnToAuthentication()
+    {
+        host = new GameObject("Session");
+        head = new GameObject("Head", typeof(Camera));
+        var onboarding = host.AddComponent<QuestOnboardingView>();
+        var api = new QuestOnboardingApi(new System.Uri("https://api.example"), new System.Uri("https://web.example"), "unity");
+        onboarding.Configure(null, null, null, head.transform, api);
+        onboarding.CompleteExternalConnection();
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(null, null, head.transform);
+        view.AttachOnboarding(onboarding);
+        view.Refresh();
+        Assert.That(view.FindButton("ClearAuthentication").gameObject.activeSelf, Is.False);
+        view.FindButton("Details").onClick.Invoke();
+        var clear = view.FindButton("ClearAuthentication");
+        Assert.That(clear.gameObject.activeSelf, Is.True);
+        Assert.That(clear.interactable, Is.True);
+        clear.onClick.Invoke();
+        Assert.That(onboarding.IsComplete, Is.False);
+        Assert.That(onboarding.Flow.Page, Is.EqualTo(QuestOnboardingPage.Authentication));
+        Assert.That(onboarding.FindButton("Authorize"), Is.Not.Null);
     }
 
     [Test]

@@ -204,10 +204,57 @@ it("shows all Zones in stable order while excluding inactive owners and unused Z
   expect(move([2, 0, 0]).occurrences.map((value) => value.cueId)).toEqual(["exit"]);
 });
 
-it("does not expose Zone edges as manual Cue input shortcuts", () => {
-  const { playback } = setup();
-  expect(playback({ requestId, command: "play" }).inputs).toEqual([]);
-  expect(() => playback({ requestId, command: "input", cueId: "enter" })).toThrow();
+it.each([
+  { edge: "enter", playing: true },
+  { edge: "exit", playing: true },
+  { edge: "enter", playing: false },
+  { edge: "exit", playing: false },
+] as const)(
+  "offers and forces a Zone $edge Cue without moving the Presenter (playing: $playing)",
+  ({ edge, playing }) => {
+    const { playback } = setup((definition) => {
+      const cue = zoneCue("forced", edge);
+      cue.firePolicy = { kind: "oncePerStepEntry" };
+      cue.actions = [
+        {
+          kind: "node.patch",
+          nodeId: "node-baked",
+          patch: { opacity: { kind: "literal", value: 0.25 } },
+        },
+      ];
+      definition.flow.groups.intro!.steps.start!.cues = [cue];
+    });
+    const initial = playback({ requestId, command: playing ? "play" : "poll" });
+    expect(initial.simulation?.nextInput).toEqual({ cueId: "forced" });
+    expect(initial.inputs).toEqual([{ cueId: "forced", label: "forced" }]);
+
+    const forced = playback({ requestId, command: "input", cueId: "forced" });
+    expect(forced.occurrences.map((occurrence) => occurrence.cueId)).toEqual(["forced"]);
+    expect(forced.state.nodeStates?.find((node) => node.nodeId === "node-baked")?.opacity).toBe(
+      0.25,
+    );
+    expect(forced.spatial).toEqual(initial.spatial);
+    expect(forced.simulation?.nextInput).toBeNull();
+    expect(() => playback({ requestId, command: "input", cueId: "forced" })).toThrow();
+  },
+);
+
+it("excludes guarded Zone Cues from forced inputs", () => {
+  const { playback } = setup((definition) => {
+    const cue = zoneCue("guarded", "enter");
+    cue.guard = {
+      kind: "compare",
+      left: { kind: "nodeField", nodeId: "node-baked", field: "opacity" },
+      operator: "eq",
+      right: 0,
+    };
+    definition.flow.groups.intro!.steps.start!.cues = [cue];
+  });
+  const response = playback({ requestId, command: "play" });
+  expect(response.simulation?.nextInput).toBeNull();
+  expect(response.inputs).toEqual([]);
+  expect(() => playback({ requestId, command: "input", cueId: "guarded" })).toThrow();
+  expect(playback({ requestId, command: "poll" }).occurrences).toEqual([]);
 });
 
 it("supplies Presenter pose when the Stage has no Zones", () => {

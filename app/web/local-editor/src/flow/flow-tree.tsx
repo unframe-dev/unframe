@@ -1,3 +1,5 @@
+import { PlayIcon } from "@phosphor-icons/react";
+import { Button } from "../ui/button";
 import { useStore } from "zustand";
 import { useWorkspace } from "../app/workspace-provider";
 import { createTimelineView, triggerTiming } from "./flow-model";
@@ -7,12 +9,38 @@ export function FlowTree() {
   const error = useStore(w.project.store, (s) => s.error);
   const definition = project?.definition;
   const selection = useStore(w.ui, (s) => s.selection);
+  const { playback, status, loaded } = useStore(w.preview.store);
+  const selectedStep = playback?.simulation?.steps.find(
+    (step) => step.groupId === selection.groupId && step.stepId === selection.stepId,
+  );
+  const canPlay =
+    status === "ready" &&
+    !!selectedStep &&
+    !!project &&
+    loaded?.sourceRevision === project.revision;
   const model = definition ? createTimelineView(definition) : null;
   const loading = !project && !error;
   return (
     <nav aria-label="Group / Step / Cue" className="flow-tree">
       <header className="panel-heading">
         <h2>進行</h2>
+        {!w.readOnly && (
+          <Button
+            disabled={!canPlay}
+            title={
+              selectedStep
+                ? `${selectedStep.groupId} / ${selectedStep.stepId} から再生`
+                : "進行から Step を選択"
+            }
+            onClick={() => {
+              (window as Window & { unframeVideoActivate?: () => void }).unframeVideoActivate?.();
+              w.commands.playSelectedStep();
+            }}
+          >
+            <PlayIcon weight="fill" />
+            選択位置から再生
+          </Button>
+        )}
       </header>
       {model?.groups.map((group) => (
         <details key={group.id} open>

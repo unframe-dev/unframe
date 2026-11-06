@@ -1,6 +1,6 @@
 import {
   publishFixedBuild,
-  readPublicationFence,
+  readSourcePublicationTarget,
   queryPublication,
   type PublishResult,
   type PublicationOperation,
@@ -40,12 +40,16 @@ export function createLocalPublicationService(
         const remote = {
           controlPlaneUrl: target.controlPlaneUrl,
           bearerToken,
-          presentationId: fixed.artifacts.buildManifest.presentationId,
+          sourcePresentationId: fixed.artifacts.buildManifest.presentationId,
           signal: controller.signal,
           ...(target.fetch ? { fetch: target.fetch } : {}),
         };
-        const expectedPublicationFence = await readPublicationFence(remote);
-        const result = await publishFixedBuild({ ...remote, ...fixed, expectedPublicationFence });
+        const publicationTarget = await readSourcePublicationTarget(remote);
+        const result = await publishFixedBuild({
+          ...remote,
+          ...fixed,
+          ...publicationTarget,
+        });
         if (!result.ok && result.outcome === "outcome-unknown" && result.operation) {
           operations.set(requestId, {
             operation: { ...result.operation },

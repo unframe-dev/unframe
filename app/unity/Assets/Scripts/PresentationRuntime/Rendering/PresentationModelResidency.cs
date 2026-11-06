@@ -118,6 +118,8 @@ namespace Unframe.Unity.PresentationRuntime
                 // glTFast owns the imported resources; each node owns a separate scene instance below its spatial wrapper.
                 var instance = new GameObject("Model " + node.NodeId);
                 instance.transform.SetParent(host.transform, false);
+                // glTFast reflects X; the presentation coordinate contract reflects Z.
+                instance.transform.localRotation = UnityEngine.Quaternion.Euler(0, 180, 0);
                 instances.Add(instance);
                 if (!await importer.InstantiateMainSceneAsync(instance.transform)) throw new InvalidOperationException("asset-model-instance-failed");
                 token.ThrowIfCancellationRequested();

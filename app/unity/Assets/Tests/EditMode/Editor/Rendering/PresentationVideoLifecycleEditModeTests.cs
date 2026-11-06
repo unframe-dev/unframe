@@ -43,7 +43,10 @@ public sealed class PresentationVideoLifecycleEditModeTests
         public bool TryGetSurface(string id, out ProjectedSurfaceDefinition value) { foreach (var s in Catalog.Surfaces) if (s.SurfaceId == id) { value = s; return true; } value = null; return false; }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { value = id == "node:" + Current ? PresentationPreviewTestFixture.Node(id) : null; return value != null; }
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { value = id == "surface:" + Current ? new SurfaceRuntimeState { SurfaceId = id, StateId = "state:default" } : null; return value != null; }
-        public bool TryGetAnchorSample(string id, out ProjectedAnchorBindingSample value) { value = null; return false; }
+        public ulong TrackingGeneration => 0;
+        public ulong TrackedPositionContinuity(AnchorTarget target) => 0;
+        public bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value) { value = null; return false; }
+        public bool TryGetFrozenAnchor(string id, out FrozenAnchorDisplayState value) { value = null; return false; }
         public bool TryGetMediaState(string id, out MediaRuntimeState value) { value = new MediaRuntimeState { SurfaceId = id, Stopped = new MediaStoppedState() }; if (MediaPlaying) value.Active = new MediaActive { Playback = new PlaybackClock { Playing = new PlayingClock() } }; return true; }
         public bool TryGetModelClipState(string id, out ModelClipRuntimeState value) { value = null; return false; }
     }

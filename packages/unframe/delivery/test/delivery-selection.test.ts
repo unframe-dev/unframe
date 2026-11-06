@@ -142,6 +142,8 @@ describe("Delivery artifact selection and admission", () => {
 
     for (const role of ["presenter", "viewer"] as const) {
       const { profile } = buildProjectionProfile(input, role);
+      expect(profile.runtimeCatalog?.trackedPoseTargets).toEqual([1]);
+      expect(profile.requiredRuntimeCapabilities).toContain(12);
       expect(profile.runtimeCatalog?.placementReferencePoint).toEqual({
         x: 0,
         y: 2.15,
@@ -321,6 +323,111 @@ describe("Delivery artifact selection and admission", () => {
     const viewer = buildProjectionProfile(input, "viewer").profile;
     expect(viewer.runtimeCatalog).not.toHaveProperty("presenterRecognition");
     expect(viewer.requiredRuntimeCapabilities).not.toContain(7);
+  });
+
+  it.each([
+    ["left", 2],
+    ["right", 3],
+  ] as const)("delivers %s hand tracking without an anchor", (hand, target) => {
+    const input = baselineSource((current) => {
+      current.definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "presenter" };
+      current.definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        {
+          kind: "effect.start",
+          effectId: "glow",
+          seed: 17,
+          nodeId: "node-baked",
+          owner: { kind: "presentation" },
+          effect: {
+            kind: "handGlow",
+            hand,
+            size: 1,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            speed: 1,
+            durationMilliseconds: 1000,
+          },
+        },
+      ];
+    });
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    expect(presenter.runtimeCatalog).toHaveProperty("trackedPoseTargets", [target]);
+    expect(presenter.requiredRuntimeCapabilities).toContain(12);
+    const viewer = buildProjectionProfile(input, "viewer").profile;
+    expect(viewer.runtimeCatalog).toHaveProperty("trackedPoseTargets", []);
+    expect(viewer.requiredRuntimeCapabilities).not.toContain(12);
+  });
+
+  it("shares canonical tracking requirements across hidden anchors and effects", () => {
+    const input = baselineSource((current) => {
+      for (const id of ["model", "node-baked"]) {
+        const node = current.definition.scene.nodes[id]!;
+        node.parent = {
+          kind: "anchor",
+          owner: { kind: "presenter" },
+          target: "rightHand",
+          followPosition: true,
+          followRotation: false,
+        };
+        node.visible = false;
+        node.active = false;
+      }
+      current.definition.flow.groups.intro!.steps.start!.cues[0]!.actions = ["left", "right"].map(
+        (hand) => ({
+          kind: "effect.start",
+          effectId: `glow-${hand}`,
+          seed: 17,
+          nodeId: "node-baked",
+          owner: { kind: "presentation" },
+          effect: {
+            kind: "handGlow",
+            hand: hand as "left" | "right",
+            size: 1,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            speed: 1,
+            durationMilliseconds: 1000,
+          },
+        }),
+      );
+    });
+    expect(buildProjectionProfile(input, "viewer").profile.runtimeCatalog).toHaveProperty(
+      "trackedPoseTargets",
+      [2, 3],
+    );
+    const { publishedPresentation: _, ...buildInput } = input;
+    expect(buildLocalPreviewProjection(buildInput).projection.runtimeCatalog).toHaveProperty(
+      "trackedPoseTargets",
+      [2, 3],
+    );
+  });
+
+  it("requires Presenter tracking even when only the Viewer consumes a hand pose", () => {
+    const input = baselineSource((current) => {
+      current.definition.scene.nodes["node-baked"]!.audience = { kind: "role", role: "viewer" };
+      current.definition.flow.groups.intro!.steps.start!.cues[0]!.actions = [
+        {
+          kind: "effect.start",
+          effectId: "glow",
+          seed: 17,
+          nodeId: "node-baked",
+          owner: { kind: "presentation" },
+          effect: {
+            kind: "handGlow",
+            hand: "left",
+            size: 1,
+            color: { red: 1, green: 1, blue: 1, alpha: 1 },
+            speed: 1,
+            durationMilliseconds: 1000,
+          },
+        },
+      ];
+    });
+    const presenter = buildProjectionProfile(input, "presenter").profile;
+    expect(presenter.requiredRuntimeCapabilities).toContain(6);
+    expect(presenter.requiredRuntimeCapabilities).not.toContain(12);
+    expect(presenter.runtimeCatalog?.trackedPoseTargets).toEqual([]);
+    expect(
+      buildProjectionProfile(input, "viewer").profile.runtimeCatalog?.trackedPoseTargets,
+    ).toEqual([2]);
   });
 
   it("requires effect playback only for projections containing an effect target", () => {

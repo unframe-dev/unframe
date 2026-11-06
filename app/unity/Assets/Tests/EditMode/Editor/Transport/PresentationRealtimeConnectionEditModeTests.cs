@@ -112,9 +112,8 @@ public sealed class PresentationRealtimeConnectionEditModeTests
                 Assert.That(connection.ControlReady, Is.True);
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand { ClientEventId = "event:input", LogicalEventName = "next" } }, CancellationToken.None));
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { SurfaceInteraction = new SurfaceInteractionCommand { ClientEventId = "event:surface" } }, CancellationToken.None));
-                if (paused) await connection.SendTrackingAsync(TrackingInput(), CancellationToken.None);
-                else Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
-                Assert.That(tracking.Items.Count, Is.EqualTo(paused ? 1 : 0));
+                Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
+                Assert.That(tracking.Items, Is.Empty);
                 Assert.That(commands.Items.Count, Is.EqualTo(1));
                 foreach (RuntimeControlKind kind in new[] { RuntimeControlKind.Resume, RuntimeControlKind.End })
                 {
@@ -182,7 +181,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             {
                 Assert.That(connection.InputSynchronization.Ready, Is.False);
                 Assert.That(connection.SessionReady, Is.True, "Paused Viewer must display the confirmed Snapshot without a private Presenter sync or State frame.");
-                Assert.That(store.TryGetAnchorSample(store.Delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId, out var frozen), Is.True);
+                Assert.That(store.TryGetFrozenAnchor(store.Delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId, out var frozen), Is.True);
                 Assert.That(frozen.Position.X, Is.EqualTo(7));
                 Assert.Throws<InvalidOperationException>(() => connection.SendAsync(new ControlClientItem { LogicalInput = new LogicalInputCommand() }, CancellationToken.None));
                 Assert.Throws<InvalidOperationException>(() => connection.SendTrackingAsync(TrackingInput(), CancellationToken.None));
@@ -249,7 +248,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
                 Assert.That((bool)typeof(PresentationRealtimeConnection).GetMethod("TryReceiveStateFrame", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(connection, received), Is.True);
                 Assert.That(received[1], Is.False, "An old-cut or pre-keyframe delta must not apply.");
                 Assert.That(connection.SessionReady, Is.True);
-                Assert.That(store.TryGetAnchorSample(store.Delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId, out var frozen), Is.True);
+                Assert.That(store.TryGetFrozenAnchor(store.Delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].NodeId, out var frozen), Is.True);
                 Assert.That(frozen.Position.X, Is.EqualTo(7), "Waiting for a current keyframe must retain frozen anchors.");
             }
         }
@@ -264,6 +263,8 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         {
             delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
             catalog.Nodes[0].Parent = new Unframe.Presentation.SpatialParent { PresenterAnchor = new Unframe.Presentation.PresenterAnchorParent { Target = Unframe.Presentation.AnchorTarget.Head, FollowPosition = true } };
+            catalog.TrackedPoseTargets.Add(Unframe.Presentation.AnchorTarget.Head);
+            delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(Unframe.Presentation.RuntimeCapability.TrackedPoseDelivery);
         }
         foreach (var node in catalog.Nodes) node.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
         foreach (var surface in catalog.Surfaces) surface.Owner = new Unframe.Presentation.ResourceOwner { Presentation = new Unframe.Presentation.PresentationResourceOwner() };
@@ -483,6 +484,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             var writer = new TrackingWriter();
             PrepareTrackingState(connection, writer);
             TrackingFrame input = TrackingInput();
+            input.BaseReliableSequence = store.LastReliableSequence;
             input.FrameSequence = 99;
             await SendTracking(connection, input);
             await SendTracking(connection, input);
@@ -490,6 +492,8 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             Assert.That(writer.Items[0].TrackingFrame.FrameSequence, Is.EqualTo(1));
             Assert.That(writer.Items[1].TrackingFrame.FrameSequence, Is.EqualTo(2));
             Assert.That(input.FrameSequence, Is.EqualTo(99));
+            Assert.That(writer.Items[0].TrackingFrame.InputEpoch, Is.EqualTo(input.InputEpoch));
+            Assert.That(writer.Items[0].TrackingFrame.BaseReliableSequence, Is.EqualTo(input.BaseReliableSequence));
             Assert.That(writer.Items[0].TrackingFrame.Samples[0], Is.EqualTo(input.Samples[0]));
             Assert.That(writer.Items[0].TrackingFrame.PresentationFromQuestLocal, Is.EqualTo(input.PresentationFromQuestLocal));
         }
@@ -499,6 +503,8 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     [TestCase("cancel")]
     [TestCase("replace")]
     [TestCase("readiness")]
+    [TestCase("epoch")]
+    [TestCase("sync-required")]
     public async Task QueuedTrackingPreservesStreamAndCancellationBoundaries(string mode)
     {
         var store = new PresentationRuntimeDataStore();
@@ -519,8 +525,11 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             if (mode == "cancel") cancellation.Cancel();
             if (mode == "replace") PrepareTrackingState(connection, new TrackingWriter());
             if (mode == "readiness") typeof(PresentationRealtimeConnection).GetMethod("BeginStateStream", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(connection, null);
+            if (mode == "epoch") SynchronizeTracking(connection, 2);
+            if (mode == "sync-required") connection.DiscardPendingInputs();
             writer.FirstWriteRelease.SetResult(true);
             await first;
+            Assert.That(writer.Items[0].TrackingFrame.InputEpoch, Is.EqualTo(1));
             if (mode != "serialize")
             {
                 Exception failure = null;
@@ -596,6 +605,9 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     [TestCase("limit")]
     [TestCase("viewer")]
     [TestCase("not-ready")]
+    [TestCase("missing-epoch")]
+    [TestCase("stale-epoch")]
+    [TestCase("future-cut")]
     public void InvalidOrUnauthorizedTrackingNeverWrites(string invalid)
     {
         var store = new PresentationRuntimeDataStore();
@@ -615,6 +627,9 @@ public sealed class PresentationRealtimeConnectionEditModeTests
             if (invalid == "limit") for (int i = 0; i < 4; i++) input.Samples.Add(input.Samples[0].Clone());
             if (invalid == "viewer") store.Delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
             if (invalid == "not-ready") typeof(PresentationRealtimeConnection).GetProperty("SessionReady").SetValue(connection, false);
+            if (invalid == "missing-epoch") input.InputEpoch = 0;
+            if (invalid == "stale-epoch") SynchronizeTracking(connection, 2);
+            if (invalid == "future-cut") input.BaseReliableSequence = store.LastReliableSequence + 1;
             Assert.ThrowsAsync<InvalidOperationException>(async () => await SendTracking(connection, input));
             Assert.That(writer.Items, Is.Empty);
         }
@@ -623,7 +638,7 @@ public sealed class PresentationRealtimeConnectionEditModeTests
     private static TrackingFrame TrackingInput()
     {
         var pose = new Unframe.Presentation.Pose { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } };
-        var frame = new TrackingFrame { CapturedAtClientMonotonicMs = 123, PresentationFromQuestLocal = pose.Clone() };
+        var frame = new TrackingFrame { InputEpoch = 1, CapturedAtClientMonotonicMs = 123, PresentationFromQuestLocal = pose.Clone() };
         frame.Samples.Add(new TrackedPoseSample { Target = TrackedTarget.Body, QuestLocalPose = pose, PositionAvailable = true, RotationAvailable = true });
         return frame;
     }
@@ -643,6 +658,24 @@ public sealed class PresentationRealtimeConnectionEditModeTests
         var state = new AsyncDuplexStreamingCall<StateClientItem, StateServerItem>(writer, null, Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { });
         typeof(PresentationRealtimeConnection).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(connection, state);
         typeof(PresentationRealtimeConnection).GetProperty("SessionReady").SetValue(connection, true);
+        if (connection.InputSynchronization.Revision == 0) SynchronizeTracking(connection, 1);
+    }
+
+    private static void SynchronizeTracking(PresentationRealtimeConnection connection, ulong epoch)
+    {
+        var sync = new PresenterInputSynchronization
+        {
+            Phase = InputSynchronizationPhase.Required,
+            Reason = InputSynchronizationReason.Connected,
+            SynchronizationRevision = epoch,
+            CommandEpoch = 1,
+            RecognitionCatalog = new Unframe.Presentation.PresenterRecognitionCatalog(),
+            InputContext = new InputContext { InputEpoch = epoch, GroupId = "group:test", GroupEntryEpoch = 1, StepId = "step:test", StepEntryEpoch = 1 },
+        };
+        Assert.That(connection.InputSynchronization.Receive(sync), Is.True);
+        Assert.That(connection.InputSynchronization.TryCreateAck(0), Is.Not.Null);
+        sync.Phase = InputSynchronizationPhase.Ready;
+        Assert.That(connection.InputSynchronization.Receive(sync), Is.True);
     }
 
     private static Task SendTracking(PresentationRealtimeConnection connection, TrackingFrame frame)

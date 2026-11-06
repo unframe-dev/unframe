@@ -17,9 +17,9 @@ export const originalTimelines = [
       {
         target: { kind: "instance", instanceId: "original-panel", property: "transform.position" },
         keyframes: [
-          { timeMilliseconds: 0, value: [-0.52, 1.25, -2], easingToNext: "cubicOut" },
-          { timeMilliseconds: 700, value: [-0.52, 1.35, -2], easingToNext: "linear" },
-          { timeMilliseconds: 860, value: [-0.52, 1.35, -2] },
+          { timeMilliseconds: 0, value: [-0.52, 1.25, 0.5], easingToNext: "cubicOut" },
+          { timeMilliseconds: 700, value: [-0.52, 1.35, 0.5], easingToNext: "linear" },
+          { timeMilliseconds: 860, value: [-0.52, 1.35, 0.5] },
         ],
       },
       {
@@ -33,9 +33,9 @@ export const originalTimelines = [
       {
         target: { kind: "instance", instanceId: "demo-cube", property: "transform.position" },
         keyframes: [
-          { timeMilliseconds: 0, value: [1.16, 1.28, -2.05], easingToNext: "linear" },
-          { timeMilliseconds: 160, value: [1.16, 1.28, -2.05], easingToNext: "cubicOut" },
-          { timeMilliseconds: 860, value: [1.16, 1.38, -2.05] },
+          { timeMilliseconds: 0, value: [1.16, 1.28, 0.45], easingToNext: "linear" },
+          { timeMilliseconds: 160, value: [1.16, 1.28, 0.45], easingToNext: "cubicOut" },
+          { timeMilliseconds: 860, value: [1.16, 1.38, 0.45] },
         ],
       },
     ],

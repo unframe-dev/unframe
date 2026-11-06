@@ -18,7 +18,7 @@ export default definePresentation({
         audience: { kind: "all" },
         parent: { kind: "stage" },
         order: 0,
-        transform: { position: [0, 1, -2], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
+        transform: { position: [0, 1, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
         active: true,
         visible: true,
         opacity: 1,

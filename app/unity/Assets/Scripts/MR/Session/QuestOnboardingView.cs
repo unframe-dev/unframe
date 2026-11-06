@@ -26,7 +26,7 @@ namespace Unframe.Unity.PresentationRuntime
         private QuestOnboardingPresentation selected;
         private QuestOnboardingRoom room;
         private CancellationTokenSource cancellation = new CancellationTokenSource();
-        private bool busy;
+        private bool busy, clearingAuthentication;
         private int revision, listPage;
         private bool sessionStarted, ownsConnection, lastCalibrationValid, lastCanAdvance;
         private Task stopTask = Task.CompletedTask;
@@ -36,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
         private bool CameraPermissionRequired => calibration?.CameraPreview?.NeedsCameraPermission == true;
         private int SelectedMarkerSize => calibration?.MarkerSizeMillimeters ?? 150;
         public bool IsComplete { get; private set; }
+        public bool CanClearSavedAuthentication => api != null && !busy && !clearingAuthentication;
         public QuestOnboardingFlow Flow => flow;
         public GameObject Panel => panel;
         public string SharedRoomCode => room?.JoinCode?.Replace("-", "") ?? String.Empty;
@@ -89,6 +90,39 @@ namespace Unframe.Unity.PresentationRuntime
             Completed?.Invoke();
         }
 
+        public async Task ClearSavedAuthenticationAsync()
+        {
+            if (!CanClearSavedAuthentication) return;
+            ResetFlowState();
+            int current = revision;
+            var accountApi = api;
+            busy = clearingAuthentication = true;
+            flow.SelectRole(QuestOnboardingRole.Presenter);
+            Draw();
+            try
+            {
+                try
+                {
+                    if (session != null) await session.ExitAsync();
+                    await stopTask;
+                }
+                finally { await accountApi.ClearSavedAuthenticationAsync(CancellationToken.None); }
+                if (current == revision)
+                    message = "この端末の認証情報を削除しました。もう一度端末を承認してください。";
+            }
+            catch (Exception)
+            {
+                if (current == revision)
+                    message = "認証情報を削除できませんでした。「認証情報を削除」を選んで再試行してください。";
+            }
+            finally
+            {
+                clearingAuthentication = false;
+                if (current == revision) busy = false;
+                if (this != null && isActiveAndEnabled) Draw();
+            }
+        }
+
         public void ResetFlow()
         {
             ResetFlowState();
@@ -99,6 +133,8 @@ namespace Unframe.Unity.PresentationRuntime
         {
             CancelOperation(); flow.Reset(); SetComplete(false); authorization = null;
             selected = null; room = null; sessionStarted = false; roomCode = ""; message = "";
+            presentations = Array.Empty<QuestOnboardingPresentation>(); ownedRooms = Array.Empty<QuestOnboardingRoom>();
+            nextRoomCursor = null; roomListPage = listPage = 0;
         }
 
         private void CancelOperation(bool disconnect = true)
@@ -147,11 +183,13 @@ namespace Unframe.Unity.PresentationRuntime
                 Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
                 panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
             }
-            Label("Brand", "unframe", new Vector2(0, 365), new Vector2(920, 60), 28, QuestUiTheme.Primary);
+            QuestUiBrand.Create(panel.transform, new Vector2(0, 365));
             DrawPage();
             Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role)
                 Button("Back", "戻る", -350, -350, 220, Back, false);
+            if (api != null && (flow.Page == QuestOnboardingPage.Role || flow.Role == QuestOnboardingRole.Presenter))
+                Button("ClearAuthentication", "認証情報を削除", 280, -350, 420, () => { _ = ClearSavedAuthenticationAsync(); }, false, 60, 24);
             leftAim = Aim("Left aim"); rightAim = Aim("Right aim");
         }
 
@@ -364,16 +402,17 @@ namespace Unframe.Unity.PresentationRuntime
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
                 if (!String.IsNullOrEmpty(session.LastErrorCode)) throw new InvalidOperationException(session.LastErrorCode);
             }
-            DateTime deadline = DateTime.UtcNow.AddSeconds(30);
-            while (!entry.ControlReady && entry.ConnectionStage != PresentationConnectionStage.Failed && DateTime.UtcNow < deadline)
+            // Asset downloads can outlast a fixed connection timeout; keep the operation cancellable until ready or failed.
+            while (!entry.ControlReady && entry.IsRunning && entry.ConnectionStage != PresentationConnectionStage.Failed)
                 await Task.Delay(100, token);
             token.ThrowIfCancellationRequested();
             if (!entry.ControlReady && flow.Role == QuestOnboardingRole.Audience && (!api.HasViewerCredential(room.SessionId)
                 || entry.LastErrorCode == "authentication-required" || entry.LastErrorCode == "credential-unavailable"))
                 throw new QuestOnboardingApiException("viewer-authentication-required");
             if (!entry.ControlReady && NeedsReauthentication) throw new QuestOnboardingApiException("authentication-required");
-            if (!entry.ControlReady) { message = "ルームの準備を待っています。しばらくして接続を確認してください。"; return; }
+            if (!entry.ControlReady) throw new InvalidOperationException("connection-failed");
             if ((flow.Role == QuestOnboardingRole.Presenter) != entry.IsPresenter) throw new InvalidOperationException("role-mismatch");
+            message = "";
             flow.ConnectionReady();
         }
         private async void Run(Func<CancellationToken, Task> action)
@@ -440,7 +479,7 @@ namespace Unframe.Unity.PresentationRuntime
             var obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button)); obj.transform.SetParent(panel.transform, false);
             var rect = obj.GetComponent<RectTransform>(); rect.sizeDelta = new Vector2(width, height); rect.anchoredPosition = new Vector2(x, y);
             var image = obj.GetComponent<Image>(); QuestUiTheme.ApplyButton(image, primary);
-            var button = obj.GetComponent<Button>(); button.targetGraphic = image; button.interactable = !busy || name == "Back"; button.onClick.AddListener(() =>
+            var button = obj.GetComponent<Button>(); button.targetGraphic = image; button.interactable = !clearingAuthentication && (!busy || name == "Back"); button.onClick.AddListener(() =>
             {
                 action();
             }); buttons.Add(button);
@@ -488,6 +527,16 @@ namespace Unframe.Unity.PresentationRuntime
                 && (flow.Page == QuestOnboardingPage.Calibration || flow.Page == QuestOnboardingPage.Ready || IsComplete)
                 && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable");
             if (!busy && (IsComplete && NeedsReauthentication || viewerExpired)) { _ = RetryConnectionAsync(); return; }
+            if (!busy && !IsComplete && ownsConnection && room != null && entry?.ControlReady == true
+                && (flow.Role == QuestOnboardingRole.Presenter) == entry.IsPresenter
+                && (flow.Page == QuestOnboardingPage.Preparation || flow.Page == QuestOnboardingPage.Join
+                    || flow.Page == QuestOnboardingPage.Authentication && flow.IsReturningToRoom))
+            {
+                message = "";
+                flow.ConnectionReady();
+                Draw();
+                return;
+            }
             bool valid = calibration?.Calibration?.IsValid == true;
             bool canAdvance = CanAdvance;
             if ((valid != lastCalibrationValid || canAdvance != lastCanAdvance)

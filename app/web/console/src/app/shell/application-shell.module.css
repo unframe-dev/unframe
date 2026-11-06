@@ -269,10 +269,6 @@
   .sidebar[data-collapsed="true"] .brand {
     gap: 0;
   }
-  .sidebar[data-collapsed="true"] .brand > span:first-child {
-    width: 34px;
-    height: 34px;
-  }
   .sidebar[data-collapsed="true"] .brand > span:last-child,
   .sidebar[data-collapsed="true"] .title,
   .sidebar[data-collapsed="true"] .label {

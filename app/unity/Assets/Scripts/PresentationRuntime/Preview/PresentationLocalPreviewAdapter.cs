@@ -84,29 +84,36 @@ namespace Unframe.Unity.PresentationRuntime
         public NativeUiResidencyPlan NativeUiResidency => envelope.Projection.NativeUiResidency;
         internal void SetPresenterPose(UnityEngine.Vector3 position, UnityEngine.Quaternion rotation)
         { presenterPosition = position; presenterRotation = rotation; poseSequence++; }
-        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value)
+        public ulong TrackingGeneration { get; private set; }
+        public ulong TrackedPositionContinuity(AnchorTarget target) => 0;
+        internal void InvalidateTrackedPoses() { TrackingGeneration++; }
+
+        public bool TryGetFrozenAnchor(string nodeId, out FrozenAnchorDisplayState value)
         {
             value = null;
-            foreach (var node in Catalog.Nodes)
-            {
-                if (node.NodeId != nodeId || node.Parent.PresenterAnchor == null) continue;
-                var anchor = node.Parent.PresenterAnchor;
-                value = new ProjectedAnchorBindingSample { TrackingFrameSequence = poseSequence };
-                UnityEngine.Vector3 offset;
-                switch (anchor.Target)
-                {
-                    case AnchorTarget.Body: offset = UnityEngine.Vector3.zero; break;
-                    case AnchorTarget.Head: offset = new UnityEngine.Vector3(0, .65f, 0); break;
-                    case AnchorTarget.LeftHand: offset = new UnityEngine.Vector3(-.35f, .25f, -.25f); break;
-                    case AnchorTarget.RightHand: offset = new UnityEngine.Vector3(.35f, .25f, -.25f); break;
-                    default: return false;
-                }
-                UnityEngine.Vector3 position = presenterPosition + presenterRotation * offset;
-                if (anchor.FollowPosition) value.Position = new Vector3 { X = position.x, Y = position.y, Z = -position.z };
-                if (anchor.FollowRotation) value.Rotation = new Quaternion { X = -presenterRotation.x, Y = -presenterRotation.y, Z = presenterRotation.z, W = presenterRotation.w };
-                return true;
-            }
             return false;
+        }
+
+        public bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value)
+        {
+            value = null;
+            UnityEngine.Vector3 offset;
+            switch (target)
+            {
+                case AnchorTarget.Body: offset = UnityEngine.Vector3.zero; break;
+                case AnchorTarget.Head: offset = new UnityEngine.Vector3(0, .65f, 0); break;
+                case AnchorTarget.LeftHand: offset = new UnityEngine.Vector3(-.35f, .25f, -.25f); break;
+                case AnchorTarget.RightHand: offset = new UnityEngine.Vector3(.35f, .25f, -.25f); break;
+                default: return false;
+            }
+            UnityEngine.Vector3 position = presenterPosition + presenterRotation * offset;
+            value = new ProjectedTrackedPoseSample
+            {
+                TrackingFrameSequence = poseSequence,
+                Position = new Vector3 { X = position.x, Y = position.y, Z = -position.z },
+                Rotation = new Quaternion { X = -presenterRotation.x, Y = -presenterRotation.y, Z = presenterRotation.z, W = presenterRotation.w },
+            };
+            return true;
         }
     }
 
@@ -134,7 +141,7 @@ namespace Unframe.Unity.PresentationRuntime
                     ) return false;
                 var capabilities = new HashSet<RuntimeCapability>();
                 foreach (RuntimeCapability capability in projection.RequiredRuntimeCapabilities)
-                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking && capability != RuntimeCapability.EffectPlayback)
+                    if ((capability != RuntimeCapability.TimelineRun && capability != RuntimeCapability.SurfaceTransition && capability != RuntimeCapability.ModelClip && capability != RuntimeCapability.VideoPlayback && capability != RuntimeCapability.Tracking && capability != RuntimeCapability.EffectPlayback && capability != RuntimeCapability.TrackedPoseDelivery)
                         || !capabilities.Add(capability)) return false;
 
                 var nodes = new Dictionary<string, ProjectedNodeDefinition>();
@@ -145,7 +152,9 @@ namespace Unframe.Unity.PresentationRuntime
                         || !ValidOwner(node.Owner) || node.Parent == null
                         || node.Parent.ParentCase != SpatialParent.ParentOneofCase.Stage && node.Parent.ParentCase != SpatialParent.ParentOneofCase.Node && node.Parent.ParentCase != SpatialParent.ParentOneofCase.PresenterAnchor
                         || node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Container && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Surface
-                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model) return false;
+                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Model && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Shape
+                        && node.NodeCase != ProjectedNodeDefinition.NodeOneofCase.Light) return false;
+                    if (!PresentationSpatialNodeValidation.IsValid(node)) return false;
                     if (node.Parent.PresenterAnchor != null && (node.Parent.PresenterAnchor.Target < AnchorTarget.Head || node.Parent.PresenterAnchor.Target > AnchorTarget.Body
                         || !node.Parent.PresenterAnchor.FollowPosition && !node.Parent.PresenterAnchor.FollowRotation)) return false;
                     nodes.Add(node.NodeId, node);

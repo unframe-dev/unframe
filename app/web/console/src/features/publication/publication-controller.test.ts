@@ -9,29 +9,42 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 const publication = (
   manifest: ReturnType<typeof distFixture>["artifacts"]["buildManifest"],
   epoch: number,
+  presentationId = manifest.presentationId,
 ) => {
-  const payload = { ...manifest, publicationEpoch: epoch };
+  const payload = {
+    ...manifest,
+    presentationId,
+    ...(presentationId !== manifest.presentationId
+      ? { sourcePresentationId: manifest.presentationId }
+      : {}),
+    publicationEpoch: epoch,
+  };
   return { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) };
 };
 
 describe("Dist publication confirmation", () => {
   it("validates the selected Dist before requesting its target and publishes only once after confirmation", async () => {
     const fixture = distFixture();
+    const targetId = "owned-presentation";
     const requests: { path: string; method: string }[] = [];
     const client = createPublicationClient({
       baseUrl: "http://127.0.0.1:8787",
       credentials: "include",
       fetch: async (url, init) => {
         requests.push({ path: url.pathname, method: init.method ?? "GET" });
-        if (init.method === "GET") return json({ error: { code: "not_found" } }, 404);
-        if (url.pathname === "/presentations") return json({ id: "demo" }, 201);
+        if (init.method === "GET") {
+          expect(url.pathname).toBe("/presentations");
+          expect(url.searchParams.get("sourcePresentationId")).toBe("demo");
+          return json({ presentations: [] });
+        }
+        if (url.pathname === "/presentations") return json({ id: targetId }, 201);
         if (url.pathname.endsWith("/builds"))
           return json(
             { buildId: "build-1", assetIds: Object.keys(fixture.artifacts.assetSet.assets) },
             201,
           );
         if (init.method === "PUT") return new Response(null, { status: 204 });
-        return json(publication(fixture.artifacts.buildManifest, 1), 201);
+        return json(publication(fixture.artifacts.buildManifest, 1, targetId), 201);
       },
     });
     const controller = createPublicationController(client);
@@ -43,7 +56,7 @@ describe("Dist publication confirmation", () => {
 
     expect(controller.getSnapshot()).toMatchObject({
       status: "published",
-      result: { buildId: "build-1", publicationEpoch: 1 },
+      result: { presentationId: targetId, buildId: "build-1", publicationEpoch: 1 },
     });
     expect(requests.filter((request) => request.path.endsWith("/publications"))).toHaveLength(1);
   });
@@ -69,7 +82,8 @@ describe("Dist publication confirmation", () => {
 
   it("blocks resubmission after a lost publication response and resolves it by reading current publication", async () => {
     const fixture = distFixture();
-    const completed = publication(fixture.artifacts.buildManifest, 1);
+    const targetId = "owned-presentation";
+    const completed = publication(fixture.artifacts.buildManifest, 1, targetId);
     let committed = false;
     let attempts = 0;
     const client = createPublicationClient({
@@ -77,12 +91,15 @@ describe("Dist publication confirmation", () => {
       credentials: "include",
       fetch: async (url, init) => {
         if (init.method === "GET") {
-          if (!committed) return json({ error: { code: "not_found" } }, 404);
-          return url.pathname.endsWith("/publication")
-            ? json(completed)
-            : json({ id: "demo", name: "Contract fixture" });
+          if (url.pathname === "/presentations") {
+            expect(committed).toBe(false);
+            return json({ presentations: [] });
+          }
+          if (url.pathname === `/presentations/${targetId}/publication`) return json(completed);
+          expect(url.pathname).toBe(`/presentations/${targetId}`);
+          return json({ id: targetId, name: "Contract fixture" });
         }
-        if (url.pathname === "/presentations") return json({ id: "demo" }, 201);
+        if (url.pathname === "/presentations") return json({ id: targetId }, 201);
         if (url.pathname.endsWith("/builds"))
           return json(
             { buildId: "build-1", assetIds: Object.keys(fixture.artifacts.assetSet.assets) },
@@ -105,7 +122,11 @@ describe("Dist publication confirmation", () => {
     expect(controller.getSnapshot().status).toBe("uncertain");
 
     await controller.recheck();
-    expect(controller.getSnapshot()).toMatchObject({ status: "published", alreadyPublished: true });
+    expect(controller.getSnapshot()).toMatchObject({
+      status: "published",
+      alreadyPublished: true,
+      result: { presentationId: targetId },
+    });
     expect(attempts).toBe(1);
   });
 
@@ -147,9 +168,12 @@ describe("Dist publication confirmation", () => {
           baseUrl: "http://127.0.0.1:8787",
           credentials: "include",
           fetch: async (url, init) => {
-            if (init.method === "GET")
-              return json({ error: { code: "unavailable" } }, attempts ? status : 404);
-            if (url.pathname === "/presentations") return json({ id: "demo" }, 201);
+            if (init.method === "GET") {
+              return attempts
+                ? json({ error: { code: "unavailable" } }, status)
+                : json({ presentations: [] });
+            }
+            if (url.pathname === "/presentations") return json({ id: "owned-presentation" }, 201);
             if (url.pathname.endsWith("/builds"))
               return json(
                 { buildId: "build-1", assetIds: Object.keys(fixture.artifacts.assetSet.assets) },

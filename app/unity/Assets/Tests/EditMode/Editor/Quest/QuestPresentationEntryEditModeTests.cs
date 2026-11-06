@@ -83,6 +83,7 @@ public sealed class QuestPresentationEntryEditModeTests
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
         { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
+            3, 9, 1,
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.RightHand, new Vector3(4, 5, 6), Quaternion.identity));
 
@@ -93,6 +94,9 @@ public sealed class QuestPresentationEntryEditModeTests
         Assert.That(frame.Samples[1].QuestLocalPose.Position.Z, Is.EqualTo(-6));
         Assert.That(frame.Samples.Any(sample => sample.Target == TrackedTarget.Body), Is.False);
         Assert.That(frame.PresentationFromQuestLocal.Rotation.W, Is.EqualTo(1));
+        Assert.That(frame.InputEpoch, Is.EqualTo(3));
+        Assert.That(frame.BaseReliableSequence, Is.EqualTo(9));
+        Assert.That(frame.PresentationOriginVersion, Is.EqualTo(1));
     }
 
     [Test]
@@ -100,6 +104,7 @@ public sealed class QuestPresentationEntryEditModeTests
     {
         var frame = QuestPresentationTracking.CreateFrame(new Pose
         { Position = new Unframe.Presentation.Vector3(), Rotation = new Unframe.Presentation.Quaternion { W = 1 } },
+            1, 0, 0,
             new QuestPoseSample(TrackedTarget.Head, new Vector3(1, 2, 3), Quaternion.identity),
             new QuestPoseSample(TrackedTarget.Body, new Vector3(9, 9, 9), Quaternion.identity, false));
         Assert.That(frame.Samples[1].Target, Is.EqualTo(TrackedTarget.Body));
@@ -144,6 +149,37 @@ public sealed class QuestPresentationEntryEditModeTests
         Assert.That(right && logical, Is.True);
         edges.Sample(false, true, true, true, out left, out right, out logical);
         Assert.That(left || right || logical, Is.False);
+    }
+
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    public void ControllerButtonsReportDistinctPressesAndRequireReleaseAfterReadiness(bool primary, bool leftStick)
+    {
+        var edges = new QuestPresentationButtonEdges();
+        edges.Sample(false, false, primary, leftStick, false, out _, out _, out bool logical, out bool advance);
+        Assert.That(logical || advance, Is.False);
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical || advance, Is.False);
+        edges.Sample(false, false, false, false, true, out _, out _, out _, out _);
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical, Is.EqualTo(primary));
+        Assert.That(advance, Is.EqualTo(leftStick));
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical || advance, Is.False);
+    }
+
+    [Test]
+    public void ForceAdvanceIncludesSynchronizedContextAndOrigin()
+    {
+        var context = new InputContext { InputEpoch = 2, GroupId = "group", StepId = "step" };
+        var command = QuestPresentationInput.CreateForceAdvance(7, context, 3);
+        Assert.That(command.ItemCase, Is.EqualTo(ControlClientItem.ItemOneofCase.ForceAdvance));
+        Assert.That(command.ForceAdvance.PresentationOriginVersion, Is.EqualTo(7));
+        Assert.That(command.ForceAdvance.CommandEpoch, Is.EqualTo(3));
+        Assert.That(command.ForceAdvance.InputContext, Is.EqualTo(context));
+        Assert.That(command.ForceAdvance.InputContext, Is.Not.SameAs(context));
+        Assert.That(command.ForceAdvance.ClientEventId, Is.Not.Empty);
+        Assert.Throws<System.ArgumentNullException>(() => QuestPresentationInput.CreateForceAdvance(7, null, 3));
     }
 
     [Test]

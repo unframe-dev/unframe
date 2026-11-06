@@ -35,15 +35,89 @@ namespace Unframe.ControlPlane.Model
         /// </summary>
         /// <param name="assignment">assignment</param>
         /// <param name="publication">publication</param>
+        /// <param name="sessionState">sessionState</param>
         [JsonConstructor]
-        public InternalRuntimeLeaseGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication)
+        public InternalRuntimeLeaseGet200Response(InternalRuntimeAssetsGet200ResponseAssignment assignment, InternalRuntimeAssetsGet200ResponsePublication publication, SessionStateEnum sessionState)
         {
             Assignment = assignment;
             Publication = publication;
+            SessionState = sessionState;
             OnCreated();
         }
 
         partial void OnCreated();
+
+        /// <summary>
+        /// Defines SessionState
+        /// </summary>
+        public enum SessionStateEnum
+        {
+            /// <summary>
+            /// Enum Waiting for value: Waiting
+            /// </summary>
+            Waiting = 1,
+
+            /// <summary>
+            /// Enum Presenting for value: Presenting
+            /// </summary>
+            Presenting = 2
+        }
+
+        /// <summary>
+        /// Returns a <see cref="SessionStateEnum"/>
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public static SessionStateEnum SessionStateEnumFromString(string value)
+        {
+            if (value.Equals("Waiting"))
+                return SessionStateEnum.Waiting;
+
+            if (value.Equals("Presenting"))
+                return SessionStateEnum.Presenting;
+
+            throw new NotImplementedException($"Could not convert value to type SessionStateEnum: '{value}'");
+        }
+
+        /// <summary>
+        /// Returns a <see cref="SessionStateEnum"/>
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static SessionStateEnum? SessionStateEnumFromStringOrDefault(string value)
+        {
+            if (value.Equals("Waiting"))
+                return SessionStateEnum.Waiting;
+
+            if (value.Equals("Presenting"))
+                return SessionStateEnum.Presenting;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converts the <see cref="SessionStateEnum"/> to the json value
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public static string SessionStateEnumToJsonValue(SessionStateEnum value)
+        {
+            if (value == SessionStateEnum.Waiting)
+                return "Waiting";
+
+            if (value == SessionStateEnum.Presenting)
+                return "Presenting";
+
+            throw new NotImplementedException($"Value could not be handled: '{value}'");
+        }
+
+        /// <summary>
+        /// Gets or Sets SessionState
+        /// </summary>
+        [JsonPropertyName("sessionState")]
+        public SessionStateEnum SessionState { get; set; }
 
         /// <summary>
         /// Gets or Sets Assignment
@@ -67,6 +141,7 @@ namespace Unframe.ControlPlane.Model
             sb.Append("class InternalRuntimeLeaseGet200Response {\n");
             sb.Append("  Assignment: ").Append(Assignment).Append("\n");
             sb.Append("  Publication: ").Append(Publication).Append("\n");
+            sb.Append("  SessionState: ").Append(SessionState).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -106,6 +181,7 @@ namespace Unframe.ControlPlane.Model
 
             Option<InternalRuntimeAssetsGet200ResponseAssignment?> assignment = default;
             Option<InternalRuntimeAssetsGet200ResponsePublication?> publication = default;
+            Option<InternalRuntimeLeaseGet200Response.SessionStateEnum?> sessionState = default;
 
             while (utf8JsonReader.Read())
             {
@@ -128,6 +204,11 @@ namespace Unframe.ControlPlane.Model
                         case "publication":
                             publication = new Option<InternalRuntimeAssetsGet200ResponsePublication?>(JsonSerializer.Deserialize<InternalRuntimeAssetsGet200ResponsePublication>(ref utf8JsonReader, jsonSerializerOptions)!);
                             break;
+                        case "sessionState":
+                            string? sessionStateRawValue = utf8JsonReader.GetString();
+                            if (sessionStateRawValue != null)
+                                sessionState = new Option<InternalRuntimeLeaseGet200Response.SessionStateEnum?>(InternalRuntimeLeaseGet200Response.SessionStateEnumFromStringOrDefault(sessionStateRawValue));
+                            break;
                         default:
                             break;
                     }
@@ -140,13 +221,19 @@ namespace Unframe.ControlPlane.Model
             if (!publication.IsSet)
                 throw new ArgumentException("Property is required for class InternalRuntimeLeaseGet200Response.", nameof(publication));
 
+            if (!sessionState.IsSet)
+                throw new ArgumentException("Property is required for class InternalRuntimeLeaseGet200Response.", nameof(sessionState));
+
             if (assignment.IsSet && assignment.Value == null)
                 throw new ArgumentNullException(nameof(assignment), "Property is not nullable for class InternalRuntimeLeaseGet200Response.");
 
             if (publication.IsSet && publication.Value == null)
                 throw new ArgumentNullException(nameof(publication), "Property is not nullable for class InternalRuntimeLeaseGet200Response.");
 
-            return new InternalRuntimeLeaseGet200Response(assignment.Value!, publication.Value!);
+            if (sessionState.IsSet && sessionState.Value == null)
+                throw new ArgumentNullException(nameof(sessionState), "Property is not nullable for class InternalRuntimeLeaseGet200Response.");
+
+            return new InternalRuntimeLeaseGet200Response(assignment.Value!, publication.Value!, sessionState.Value!.Value!);
         }
 
         /// <summary>
@@ -183,6 +270,8 @@ namespace Unframe.ControlPlane.Model
             JsonSerializer.Serialize(writer, internalRuntimeLeaseGet200Response.Assignment, jsonSerializerOptions);
             writer.WritePropertyName("publication");
             JsonSerializer.Serialize(writer, internalRuntimeLeaseGet200Response.Publication, jsonSerializerOptions);
+            var sessionStateRawValue = InternalRuntimeLeaseGet200Response.SessionStateEnumToJsonValue(internalRuntimeLeaseGet200Response.SessionState);
+            writer.WriteString("sessionState", sessionStateRawValue);
         }
     }
 }

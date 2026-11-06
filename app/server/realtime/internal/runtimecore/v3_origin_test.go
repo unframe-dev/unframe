@@ -80,12 +80,12 @@ func TestPresentationOriginDropsTrackingFromPreviousCut(t *testing.T) {
 		t.Fatal(err)
 	}
 	frame := &realtime.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: &presentation.Pose{Position: &presentation.Vector3{}, Rotation: &presentation.Quaternion{W: 1}}, Samples: []*realtime.TrackedPoseSample{{Target: realtime.TrackedTarget_TRACKED_TARGET_HEAD, QuestLocalPose: &presentation.Pose{Position: &presentation.Vector3{Y: 1.7}, Rotation: &presentation.Quaternion{W: 1}}}}}
-	samples, _, err := core.AcceptTracking(context.Background(), id, frame, time.Now(), 1)
+	samples, _, err := core.AcceptTracking(context.Background(), id, trackingFrameAtCut(core, frame), time.Now(), 1)
 	if err != nil || len(samples) != 0 {
 		t.Fatalf("stale samples=%v error=%v", samples, err)
 	}
 	frame.PresentationOriginVersion = 1
-	samples, _, err = core.AcceptTracking(context.Background(), id, frame, time.Now(), 2)
+	samples, _, err = core.AcceptTracking(context.Background(), id, trackingFrameAtCut(core, frame), time.Now(), 2)
 	if err != nil || len(samples) != 1 {
 		t.Fatalf("current samples=%v error=%v", samples, err)
 	}
@@ -102,7 +102,7 @@ func TestPresentationOriginTrackingRemovesStageTransform(t *testing.T) {
 	}
 	frame := trackingTestFrame(1, trackingTestPose(0, 0, 0), trackingTestSample(realtime.TrackedTarget_TRACKED_TARGET_HEAD, &presentation.Pose{Position: &presentation.Vector3{X: 3, Y: 1.7, Z: 2}, Rotation: rotation}))
 	frame.PresentationOriginVersion = 1
-	samples, _, err := core.AcceptTracking(context.Background(), id, frame, time.Now(), 1)
+	samples, _, err := core.AcceptTracking(context.Background(), id, trackingFrameAtCut(core, frame), time.Now(), 1)
 	if err != nil || len(samples) != 1 {
 		t.Fatalf("samples=%v error=%v", samples, err)
 	}
@@ -117,7 +117,7 @@ func TestPresentationOriginRebasesFrozenAnchorsAndReplacement(t *testing.T) {
 	v3SeedAnchor(t, core, 1, 3)
 	id := session.Identity{ParticipantID: "presenter-1", Role: session.RolePresenter}
 	frame := trackingTestFrame(2, trackingTestPose(0, 0, 0), trackingTestSample(realtime.TrackedTarget_TRACKED_TARGET_LEFT_HAND, trackingTestPose(3, 0, 0)))
-	if _, _, err := core.AcceptTracking(context.Background(), id, frame, time.Now(), 2); err != nil {
+	if _, _, err := core.AcceptTracking(context.Background(), id, trackingFrameAtCut(core, frame), time.Now(), 2); err != nil {
 		t.Fatal(err)
 	}
 	v3FrozenControl(t, core, "pause", realtime.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)

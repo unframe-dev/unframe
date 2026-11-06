@@ -3,6 +3,7 @@ using Unframe.Presentation;
 using Unframe.Realtime;
 using Unframe.Unity.PresentationRuntime;
 using UnityEngine;
+using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Quaternion = UnityEngine.Quaternion;
 using Transform = UnityEngine.Transform;
@@ -11,11 +12,24 @@ public sealed class QuestMotionGuideTests
 {
     [TestCase(1, "トリガーを押したまま\n左へ薙ぎ払う")]
     [TestCase(7, "両トリガーを押したまま\n両手を広げる")]
+    [TestCase(9, "トリガーを押して投げる動作\n最後にトリガーを離す")]
+    [TestCase(10, "トリガーを押して円を描く\n最後にトリガーを離す")]
     public void InstructionsExplainTheTriggerRequiredForTheGesture(int gesture, string expected)
     {
         var description = typeof(QuestMotionGuideView).GetMethod("Description",
             System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
         Assert.That(description.Invoke(null, new object[] { gesture }), Is.EqualTo(expected));
+    }
+
+    [TestCase(GestureKind.Unspecified, true, "次へ: 右コントローラーのAボタン")]
+    [TestCase(GestureKind.Unspecified, false, "")]
+    [TestCase(GestureKind.SwipeLeft, false, "トリガーを押したまま\n左へ薙ぎ払う")]
+    [TestCase(GestureKind.SwipeLeft, true, "トリガーを押したまま\n左へ薙ぎ払う\nまたは右Aボタンで次へ")]
+    public void InstructionsDescribeOnlyTheAvailableButtonAndMotion(GestureKind gesture, bool canAdvance, string expected)
+    {
+        var instruction = typeof(QuestMotionGuideView).GetMethod("Instruction",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.That(instruction.Invoke(null, new object[] { gesture, canAdvance }), Is.EqualTo(expected));
     }
 
     [Test]
@@ -24,15 +38,17 @@ public sealed class QuestMotionGuideTests
         var catalog = new PresenterRecognitionCatalog();
         catalog.Gestures.Add(GestureKind.SwipeLeft);
         catalog.Gestures.Add(GestureKind.SpreadHands);
+        catalog.Gestures.Add(GestureKind.Throw);
+        catalog.Gestures.Add(GestureKind.Circle);
         catalog.Gestures.Add((GestureKind)999);
         var state = new QuestMotionGuideState();
         var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
-        state.Refresh(catalog, progression, true, true, true, true, true, false, false);
-        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft }));
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
-        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.SpreadHands }));
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
+        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.Throw, GestureKind.Circle }));
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
+        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft, GestureKind.SpreadHands, GestureKind.Throw, GestureKind.Circle }));
         progression.Transitioning = new TransitioningProgression();
-        state.Refresh(catalog, progression, true, true, true, true, true, true, false);
+        state.Refresh(catalog, progression, true, true, true, true, true, true, false, true);
         Assert.That(state.Candidates, Is.Empty);
     }
 
@@ -47,8 +63,24 @@ public sealed class QuestMotionGuideTests
         var catalog = new PresenterRecognitionCatalog();
         catalog.Gestures.Add(GestureKind.SwipeLeft);
         var state = new QuestMotionGuideState();
-        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu);
+        state.Refresh(catalog, new ProgressionRuntimeState { Stable = new StableProgression() }, presenter, calibrated, running, head, left, right, menu, true);
         Assert.That(state.Candidates, Is.Empty);
+        Assert.That(state.ShowAdvance, Is.EqualTo(presenter && calibrated && running && head && !menu));
+    }
+
+    [Test]
+    public void ButtonGuidanceDoesNotRequireHandTrackingOrAMotionCatalog()
+    {
+        var state = new QuestMotionGuideState();
+        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
+        state.Refresh(null, progression, true, true, true, true, false, false, false, true);
+        Assert.That(state.Candidates, Is.Empty);
+        Assert.That(state.ShowAdvance, Is.True);
+        state.Refresh(null, progression, true, true, true, true, false, false, false, false);
+        Assert.That(state.ShowAdvance, Is.False);
+        progression.Transitioning = new TransitioningProgression();
+        state.Refresh(null, progression, true, true, true, true, false, false, false, true);
+        Assert.That(state.ShowAdvance, Is.False);
     }
 
     [TestCase(25, 90)]
@@ -69,33 +101,35 @@ public sealed class QuestMotionGuideTests
     [TestCase(20, 90, 15)]
     [TestCase(-20, -135, -15)]
     [TestCase(90, 45, 0)]
-    public void GuideAndInstructionStayNearAndBelowTheHorizontalView(float pitch, float yaw, float roll)
+    public void GuideAndInstructionStayInTheLowerRightOfTheActualView(float pitch, float yaw, float roll)
     {
         Vector3 headPosition = new Vector3(2, 1.6f, -3);
         Quaternion rotation = Quaternion.Euler(pitch, yaw, roll);
-        Quaternion horizontal = QuestMotionGuideGeometry.GetYawRotation(rotation);
+        Quaternion viewRotation = rotation;
         Vector3 anchor = QuestMotionGuideGeometry.GetAnchorPosition(headPosition, rotation, 80, 1);
-        Vector3 localAnchor = Quaternion.Inverse(horizontal) * (anchor - headPosition);
+        Vector3 localAnchor = Quaternion.Inverse(viewRotation) * (anchor - headPosition);
         Assert.That(Vector3.Distance(anchor, headPosition), Is.EqualTo(.5f).Within(.00001f));
         Assert.That(localAnchor.x, Is.GreaterThan(0));
         Assert.That(localAnchor.y, Is.LessThan(0));
         Assert.That(localAnchor.z, Is.GreaterThan(0));
-        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.62f).Within(.00001f));
-        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.58f).Within(.00001f));
-        Assert.That(Vector3.Dot(horizontal * Vector3.up, Vector3.up), Is.GreaterThan(.99999f));
-        Vector3 localInstruction = Quaternion.Inverse(horizontal) *
+        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.42f).Within(.00001f));
+        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.46f).Within(.00001f));
+
+        Vector3 localInstruction = Quaternion.Inverse(viewRotation) *
             (QuestMotionGuideGeometry.GetInstructionPosition(anchor, rotation) - headPosition);
         Assert.That(localInstruction.x, Is.EqualTo(localAnchor.x).Within(.00001f));
         Assert.That(localInstruction.y - localAnchor.y, Is.EqualTo(.055f).Within(.00001f));
     }
 
     [Test]
-    public void LookingUpOrTiltingTheHeadDoesNotMoveTheGuide()
+    public void GuideFollowsPitchAndRollAsWellAsHeadTranslation()
     {
         Vector3 head = new Vector3(1, 1.7f, 2);
         var straight = QuestMotionGuideGeometry.GetAnchorPosition(head, Quaternion.Euler(0, 60, 0), 80, 1.3f);
         var tilted = QuestMotionGuideGeometry.GetAnchorPosition(head, Quaternion.Euler(45, 60, 30), 80, 1.3f);
-        Assert.That(Vector3.Distance(straight, tilted), Is.LessThan(.00001f));
+        Assert.That(Vector3.Distance(straight, tilted), Is.GreaterThan(.1f));
+        Assert.That(Vector3.Distance(Quaternion.Inverse(Quaternion.Euler(45, 60, 30)) * (tilted - head),
+            Quaternion.Inverse(Quaternion.Euler(0, 60, 0)) * (straight - head)), Is.LessThan(.00001f));
         var movedHead = head + new Vector3(.5f, .1f, -.2f);
         var movedGuide = QuestMotionGuideGeometry.GetAnchorPosition(movedHead, Quaternion.Euler(45, 60, 30), 80, 1.3f);
         Assert.That(Vector3.Distance(movedGuide - tilted, movedHead - head), Is.LessThan(.00001f));
@@ -104,7 +138,7 @@ public sealed class QuestMotionGuideTests
     [TestCase(48, 1.333333f)]
     [TestCase(80, 1)]
     [TestCase(80, .6f)]
-    public void PeripheralAnchorsStayAtTheSameNearDistanceAndMirrorAcrossTheView(float verticalFov, float aspect)
+    public void GuidanceAnchorsStayInsideTheCentralViewAndMirrorAtTheSameNearDistance(float verticalFov, float aspect)
     {
         Vector3 head = new Vector3(1, 1.7f, -2);
         Quaternion yaw = Quaternion.Euler(0, 55, 0);
@@ -118,8 +152,16 @@ public sealed class QuestMotionGuideTests
         Assert.That(localGuide.y, Is.EqualTo(localHud.y).Within(.00001f));
         Assert.That(localGuide.z, Is.EqualTo(localHud.z).Within(.00001f));
         float halfHeight = localGuide.z * Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.62f).Within(.00001f));
-        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.58f).Within(.00001f));
+        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.42f).Within(.00001f));
+        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.46f).Within(.00001f));
+        Vector2 guideViewport = new Vector2(.5f + .5f * localGuide.x / (halfHeight * aspect),
+            .5f + .5f * localGuide.y / halfHeight);
+        Vector2 hudViewport = new Vector2(.5f + .5f * localHud.x / (halfHeight * aspect),
+            .5f + .5f * localHud.y / halfHeight);
+        Assert.That(guideViewport.x, Is.InRange(.69f, .73f));
+        Assert.That(hudViewport.x, Is.InRange(.27f, .31f));
+        Assert.That(guideViewport.y, Is.InRange(.25f, .29f));
+        Assert.That(hudViewport.y, Is.InRange(.25f, .29f));
     }
 
     [Test]

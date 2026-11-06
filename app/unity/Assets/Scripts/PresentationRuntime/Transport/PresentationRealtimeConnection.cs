@@ -546,7 +546,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
             string id = command?.PresentationOrigin?.ClientEventId ?? command?.RuntimeControl?.ClientEventId ?? command?.LogicalInput?.ClientEventId
-                ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId;
+                ?? command?.SurfaceInteraction?.ClientEventId ?? command?.GestureInput?.ClientEventId ?? command?.ZoneInput?.ClientEventId ?? command?.ForceAdvance?.ClientEventId;
             if (String.IsNullOrWhiteSpace(id)) throw new ArgumentException("A command event identifier is required.", nameof(command));
             var completion = new TaskCompletionSource<CommandOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (pendingGate)
@@ -582,7 +582,8 @@ namespace Unframe.Unity.PresentationRuntime
                 && (command.ItemCase == ControlClientItem.ItemOneofCase.LogicalInput
                 || command.ItemCase == ControlClientItem.ItemOneofCase.SurfaceInteraction
                 || command.ItemCase == ControlClientItem.ItemOneofCase.GestureInput
-                || command.ItemCase == ControlClientItem.ItemOneofCase.ZoneInput);
+                || command.ItemCase == ControlClientItem.ItemOneofCase.ZoneInput
+                || command.ItemCase == ControlClientItem.ItemOneofCase.ForceAdvance);
         }
 
         private async Task WriteInputAsync(AsyncDuplexStreamingCall<ControlClientItem, ControlServerItem> expectedControl, ControlClientItem command, ulong generation, CancellationToken token)
@@ -595,17 +596,26 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new InvalidOperationException("The runtime input connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 await expectedControl.RequestStream.WriteAsync(command);
-                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId);
+                diagnostics?.Record("control.sent", direction: "send", kind: command.RuntimeControl != null ? command.RuntimeControl.Kind.ToString() : command.ItemCase.ToString(), reliableSequence: store.LastReliableSequence, runtimeTimeMs: store.RuntimeClock?.RuntimeTimeMs, groupId: store.Progression?.CurrentGroupId, stepId: store.Progression?.CurrentStepId, commandId: command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId);
             }
             finally { writes.Release(); }
         }
 
+        internal ulong TrackingInputEpoch =>
+            SessionReady && state != null && store.Delivery?.ProjectionProfile.Key.Role == SessionRole.Presenter
+                ? InputSynchronization.ReadyInputEpoch : 0;
+
+        internal bool MatchesTrackingCapture(TrackingFrame frame) =>
+            frame != null && frame.InputEpoch != 0 && frame.InputEpoch == TrackingInputEpoch
+            && frame.BaseReliableSequence <= store.LastReliableSequence
+            && frame.PresentationOriginVersion == (store.PresentationOrigin?.Version ?? 0);
+
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
         {
             RequireResidency();
-            if (!SessionReady || state == null || store.Delivery.ProjectionProfile.Key.Role != SessionRole.Presenter)
-                throw new InvalidOperationException("Tracking requires a ready Presenter State connection.");
-            if (frame == null || frame.Samples.Count > 4 || frame.CalculateSize() > 256 * 1024
+            if (!MatchesTrackingCapture(frame))
+                throw new InvalidOperationException("Tracking requires a synchronized Presenter capture on the current State connection.");
+            if (frame.Samples.Count > 4 || frame.CalculateSize() > 256 * 1024
                 || !IsCanonicalTrackingPose(frame.PresentationFromQuestLocal))
                 throw new InvalidOperationException("Tracking requires canonical calibration and at most four samples.");
             var targets = new HashSet<TrackedTarget>();
@@ -624,7 +634,7 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 RequireResidency();
-                if (!SessionReady || state != expectedState || trackingFrameSequence == ulong.MaxValue)
+                if (state != expectedState || !MatchesTrackingCapture(frame) || trackingFrameSequence == ulong.MaxValue)
                     throw new InvalidOperationException("The Tracking State connection is no longer ready.");
                 token.ThrowIfCancellationRequested();
                 frame.FrameSequence = ++trackingFrameSequence;

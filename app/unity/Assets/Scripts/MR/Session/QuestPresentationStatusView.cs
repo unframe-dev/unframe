@@ -136,7 +136,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (heading != null) heading.text = confirmEnd ? "発表を終了" : detailsOpen ? "設定と接続" : audience ? "鑑賞メニュー" : "プレゼン操作";
             if (panel != null)
             {
-                panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
+                panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 840);
                 heading.rectTransform.anchoredPosition = new Vector2(0, 327);
                 status.rectTransform.anchoredPosition = new Vector2(0, 216);
                 panel.transform.Find("Hint").GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -320);
@@ -186,6 +186,8 @@ namespace Unframe.Unity.PresentationRuntime
             SetVisible("Retry", !confirmEnd && ((detailsOpen && display.IsRunning) || !String.IsNullOrEmpty(error)));
             SetEnabled("Retry", !busy && display.HasConnectionSettings);
             SetVisible("Exit", detailsOpen && !confirmEnd);
+            SetVisible("ClearAuthentication", !audience && detailsOpen && !confirmEnd && onboarding != null);
+            SetEnabled("ClearAuthentication", !busy && onboarding != null && onboarding.CanClearSavedAuthentication);
             SetVisible("Steps", !audience && !confirmEnd && detailsOpen);
             SetEnabled("Steps", !busy && display.CanControl && reachedSteps.Count > 0);
             SetVisible("PreviousSteps", stepsOpen && !audience && !confirmEnd);
@@ -205,7 +207,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private static readonly string[] ConfirmActions = { "ConfirmEnd", "CancelEnd" };
-        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "Steps", "Details" };
+        private static readonly string[] SettingsActions = { "Align", "CameraPermission", "Retry", "Connect", "End", "Exit", "ClearAuthentication", "Steps", "Details" };
         private static readonly string[] StepActions = { "Step0", "Step1", "Step2", "PreviousSteps", "MoreSteps", "Details" };
         private static readonly string[] MainActions = { "Resume", "Pause", "Next", "Close", "Align", "CameraPermission", "Retry", "Details" };
 
@@ -429,12 +431,13 @@ namespace Unframe.Unity.PresentationRuntime
             panel = new GameObject("Presentation Menu", typeof(RectTransform), typeof(Canvas), typeof(Image));
             panel.transform.SetParent(transform, false);
             panel.transform.localScale = Vector3.one * 0.001f;
-            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 740);
+            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(1000, 840);
             panel.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             panel.GetComponent<Canvas>().worldCamera = head.GetComponent<Camera>();
             QuestPresentationUiFont.ConfigureCanvas(panel.GetComponent<Canvas>());
             QuestUiTheme.ApplySurface(panel.GetComponent<Image>());
             panel.GetComponent<Image>().raycastTarget = false;
+            QuestUiBrand.Create(panel.transform, new Vector2(0, 387));
             heading = AddText(panel.transform, "Heading", new Vector2(0, 327), new Vector2(920, 70), 40);
             status = AddText(panel.transform, "Status", new Vector2(0, 216), new Vector2(920, 144), 30);
             AddText(panel.transform, "Hint", new Vector2(0, -320), new Vector2(920, 52), 24).text =
@@ -454,6 +457,11 @@ namespace Unframe.Unity.PresentationRuntime
                 operationRevision++;
                 operation = ExecuteOperation(async () => { await session.ExitAsync(); onboarding?.ResetFlow(); });
             });
+            AddButton("ClearAuthentication", "認証情報を削除", 10, () => RunOperation(async () =>
+            {
+                await onboarding.ClearSavedAuthenticationAsync();
+                detailsOpen = stepsOpen = confirmEnd = false;
+            }));
             AddButton("CameraPermission", "カメラを許可", 10, () => { cameraPreview.RetryCameraPermission(); });
             AddButton("ConfirmEnd", "終了する", 0, () => { confirmEnd = false; RunOperation(() => entry.EndAsync()); });
             AddButton("CancelEnd", "戻る", 1, () => { confirmEnd = false; Refresh(); });

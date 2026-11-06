@@ -13,9 +13,14 @@ public sealed class QuestRoomParticipationTests
     private sealed class Store : IQuestCredentialStore
     {
         public readonly Dictionary<string, QuestAccountCredential> Records = new Dictionary<string, QuestAccountCredential>();
+        public bool FailDelete;
         public QuestAccountCredential Load(string scope) => Records.TryGetValue(scope, out var value) ? value : null;
         public void Save(string scope, QuestAccountCredential value) => Records[scope] = value;
-        public void Delete(string scope) => Records.Remove(scope);
+        public void Delete(string scope)
+        {
+            if (FailDelete) throw new InvalidOperationException("Storage unavailable");
+            Records.Remove(scope);
+        }
     }
 
     [Test]
@@ -247,6 +252,116 @@ public sealed class QuestRoomParticipationTests
         Assert.That(store.Records["https://api.example/|unity"].expiresAt, Is.EqualTo(time.AddHours(1).ToUnixTimeSeconds()));
         using (var restored = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", credentialStore: store, now: () => time))
             Assert.That(await restored.CredentialAsync(CancellationToken.None), Is.EqualTo("approved-account"));
+    }
+
+    [Test]
+    public async Task ClearingSavedAuthenticationPreventsRestorationAfterRestart()
+    {
+        var store = new Store();
+        store.Save("https://api.example/|unity", new QuestAccountCredential("saved-account", DateTimeOffset.UtcNow.AddHours(1)));
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", credentialStore: store))
+        {
+            await api.ClearSavedAuthenticationAsync(CancellationToken.None);
+            Assert.That(api.IsAuthenticated, Is.False);
+            Assert.That(store.Records, Is.Empty);
+        }
+        using (var restarted = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", credentialStore: store))
+            Assert.That(restarted.IsAuthenticated, Is.False);
+    }
+
+    [Test]
+    public async Task ClearingSavedAuthenticationCompletesAfterDisposalWhileWaitingForAuthorization()
+    {
+        var store = new Store();
+        store.Save("https://api.example/|unity", new QuestAccountCredential("saved-account", DateTimeOffset.UtcNow.AddHours(1)));
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", credentialStore: store))
+        {
+            var gate = (SemaphoreSlim)typeof(QuestOnboardingApi)
+                .GetField("authGate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(api);
+            await gate.WaitAsync();
+            Task clearing = null;
+            try
+            {
+                clearing = api.ClearSavedAuthenticationAsync(CancellationToken.None);
+                Assert.That(clearing.IsCompleted, Is.False);
+                api.Dispose();
+            }
+            finally { gate.Release(); }
+            await clearing;
+            Assert.That(store.Records, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ClearingSavedAuthenticationReportsDeletionFailureAndCanBeRetried()
+    {
+        var store = new Store();
+        store.Save("https://api.example/|unity", new QuestAccountCredential("saved-account", DateTimeOffset.UtcNow.AddHours(1)));
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", credentialStore: store))
+        {
+            store.FailDelete = true;
+            var error = Assert.ThrowsAsync<QuestOnboardingApiException>(() => api.ClearSavedAuthenticationAsync(CancellationToken.None));
+            Assert.That(error.Code, Is.EqualTo("credential-storage-unavailable"));
+            Assert.That(api.IsAuthenticated, Is.False);
+            Assert.That(store.Records.Count, Is.EqualTo(1));
+            store.FailDelete = false;
+            await api.ClearSavedAuthenticationAsync(CancellationToken.None);
+            Assert.That(store.Records, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ClearingSavedAuthenticationInvalidatesAPendingDeviceAuthorization()
+    {
+        var time = DateTimeOffset.UtcNow;
+        int tokenRequests = 0;
+        var handler = new Handler
+        {
+            Respond = request =>
+            {
+                if (request.RequestUri.AbsolutePath.EndsWith("/code"))
+                    return Json("{\"device_code\":\"pending-code\",\"user_code\":\"ABCD-EFGH\",\"verification_uri_complete\":\"https://web.example/device?user_code=ABCD-EFGH\",\"expires_in\":300,\"interval\":1}");
+                tokenRequests++;
+                return Json("{\"access_token\":\"approved-account\",\"token_type\":\"Bearer\",\"expires_in\":3600}");
+            }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, credentialStore: new Store(), now: () => time))
+        {
+            await api.BeginAuthorizationAsync(CancellationToken.None);
+            await api.ClearSavedAuthenticationAsync(CancellationToken.None);
+            time = time.AddSeconds(1);
+            var error = Assert.ThrowsAsync<QuestOnboardingApiException>(() => api.PollAuthorizationAsync(CancellationToken.None));
+            Assert.That(error.Code, Is.EqualTo("authorization-expired"));
+            Assert.That(tokenRequests, Is.Zero);
+            Assert.That(api.IsAuthenticated, Is.False);
+        }
+    }
+
+    [Test]
+    public async Task ClearingSavedAuthenticationWaitsForAnInFlightAuthorizationBeforeDeletingItsResult()
+    {
+        var time = DateTimeOffset.UtcNow;
+        var store = new Store();
+        var approved = new TaskCompletionSource<HttpResponseMessage>();
+        var handler = new DeferredHandler
+        {
+            Respond = (request, token) => request.RequestUri.AbsolutePath.EndsWith("/code")
+                ? Task.FromResult(Json("{\"device_code\":\"pending-code\",\"user_code\":\"ABCD-EFGH\",\"verification_uri_complete\":\"https://web.example/device?user_code=ABCD-EFGH\",\"expires_in\":300,\"interval\":1}"))
+                : approved.Task
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, credentialStore: store, now: () => time))
+        {
+            await api.BeginAuthorizationAsync(CancellationToken.None);
+            time = time.AddSeconds(1);
+            var polling = api.PollAuthorizationAsync(CancellationToken.None);
+            var clearing = api.ClearSavedAuthenticationAsync(CancellationToken.None);
+            Assert.That(clearing.IsCompleted, Is.False);
+            approved.SetResult(Json("{\"access_token\":\"approved-account\",\"token_type\":\"Bearer\",\"expires_in\":3600}"));
+            await polling;
+            await clearing;
+            Assert.That(api.IsAuthenticated, Is.False);
+            Assert.That(store.Records, Is.Empty);
+        }
     }
 
     [Test]

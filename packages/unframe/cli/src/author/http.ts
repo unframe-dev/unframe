@@ -230,10 +230,13 @@ export const startAuthorHost = async ({
             "Configure the publication target on the Host.",
           );
         const checking = path === "/api/publication-status";
+        const outcome = await (checking
+          ? publication.query(parsed.data.requestId)
+          : publication.publish(parsed.data.requestId));
         const result = authorPublicationResultSchema.parse(
-          await (checking
-            ? publication.query(parsed.data.requestId)
-            : publication.publish(parsed.data.requestId)),
+          outcome.ok
+            ? { ok: true, buildId: outcome.buildId, publicationEpoch: outcome.publicationEpoch }
+            : outcome,
         );
         sendJson(response, result.ok ? (checking ? 200 : 201) : 202, result);
         return;

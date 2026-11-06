@@ -265,15 +265,16 @@ ${runtimeEndpoint} {
   if (built.exitCode !== 0)
     throw new Error("Sample compilation failed; inspect the private compiler log.");
   const fixed = await readBuildGeneration(project, { channel: "dist" });
-  const { presentationId, buildId } = fixed.artifacts.buildManifest;
+  const sourcePresentationId = fixed.artifacts.buildManifest.presentationId;
   const published = await publishPresentation({
     directory: await realpath(join(project, "dist")),
-    presentationId,
+    presentationId: sourcePresentationId,
     controlPlaneUrl: cp,
     bearerToken: credential,
     signal: cancellation.signal,
   });
   if (!published.ok) throw new Error(`Sample publication failed (${published.code}).`);
+  const { presentationId, buildId } = published;
   const { session } = (await (
     await remote("/sessions", credential, { presentationId })
   ).json()) as { session: { id: string } };

@@ -21,7 +21,9 @@
 | Connection / canonical snapshot schema |          `3` |
 | Durable checkpoint schema              |          `3` |
 
-同じ major 内で未知の通常fieldはwire decoderが保持または無視してよい。ただしrequired `oneof`は、同じmessageに未知fieldが共存していても既知variantが一つもdecodeされなければ空oneofとしてrejectする。これにより未知variantを既知messageとして誤適用しない。未知の enum 値、未知の required capability、上表と異なるversionも解釈せずfail closedにする。required fieldやvariantを増やす変更は新majorを必要とする。
+同じ major 内で未知の通常fieldはwire decoderが保持または無視してよい。ただしrequired `oneof`は、同じmessageに未知fieldが共存していても既知variantが一つもdecodeされなければ空oneofとしてrejectする。これにより未知variantを既知messageとして誤適用しない。未知の enum 値、未知の required capability、上表と異なるversionも解釈せずfail closedにする。
+
+必須フィールドやバリアントの追加には原則として新しい major が必要である。ただし、Realtime の通信契約では、サーバーと通信する全クライアントを一斉更新し、更新前後のバージョンが互いに通信しないことを保証できる場合、同じ protocol major を維持できる。例えば、強制進行用のバリアントを `ProjectedReliableEvent.payload` に追加する場合、この条件を満たせば `v3` を維持できる。
 
 Protoの`uint32`は`0..4_294_967_295`、`uint64`は`0..18_446_744_073_709_551_615`である。JSONへ変換するconsumerはすべての整数を`0..9_007_199_254_740_991`に制限し、超過をrejectする。JSON numberをwireへ変換する際はfinite、integer、non-negative、安全整数を順に検証する。`double`はfiniteでなければならず、`NaN`、正負Infinity、`-0`をrejectする。ただし次段落のMedia/Model clip sample positionだけは入力境界で`-0`を`0`へcanonicalizeして受理する。
 

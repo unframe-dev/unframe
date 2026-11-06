@@ -150,45 +150,43 @@ describe("runtime store", () => {
   it.each([
     { gestureInputAccepted: { gesture: 1 } },
     { zoneInputAccepted: { zoneId: "stage", edge: 1 } },
-  ])(
-    "advances accepted Presenter recognition events without enabling Viewer inputs (%j)",
-    (payload) => {
-      const { store, snapshot, fence } = setup();
-      store.applyControl({ connectionSnapshot: snapshot });
-      store.applyControl({
-        reliableEvent: {
-          fence,
-          sequence: "1",
-          eventId: "accepted",
-          occurredAtRuntimeTimeMs: "0",
-          ...payload,
-        },
-      });
-      expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
-      expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
-    },
-  );
+    { forceAdvanceAccepted: {} },
+  ])("advances accepted Presenter input events without enabling Viewer inputs (%j)", (payload) => {
+    const { store, snapshot, fence } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "accepted",
+        occurredAtRuntimeTimeMs: "0",
+        ...payload,
+      },
+    });
+    expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
+    expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
+  });
 
-  it.each([6, 7])("rejects ControlConnected requiring unsupported capability %s", (capability) => {
+  it("rejects ControlConnected requiring Presenter recognition", () => {
     const { store, delivery } = setup();
     store.applyControl({
       connected: {
         protocolVersion: "v3",
         progressionContractVersion: 2,
-        requiredCapabilities: [1, capability, 8, 9, 10],
+        requiredCapabilities: [1, 7, 8, 9, 10],
         connectionId: "connection",
         projectionInstance: delivery.projectionInstance!,
       },
     });
     expect(store.getSnapshot().phase).toBe("resync-required");
   });
-  it("accepts v3 Control negotiation and then a Viewer snapshot", () => {
+  it("accepts v3 Control negotiation requiring tracking and then a Viewer snapshot", () => {
     const { store, delivery, snapshot } = setup();
     store.applyControl({
       connected: {
         protocolVersion: "v3",
         progressionContractVersion: 2,
-        requiredCapabilities: [1, 2, 3, 4, 5, 8, 9, 10],
+        requiredCapabilities: [1, 2, 3, 4, 5, 6, 8, 9, 10],
         connectionId: "connection",
         projectionInstance: delivery.projectionInstance!,
       },
@@ -2230,6 +2228,11 @@ it("replaces live Anchor samples immediately with the authoritative frozen view"
   delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
     presenterAnchor: { target: 2, followPosition: true },
   };
+  delivery.projectionProfile!.runtimeCatalog!.trackedPoseTargets = [2];
+  delivery.projectionProfile!.requiredRuntimeCapabilities = [
+    ...delivery.projectionProfile!.requiredRuntimeCapabilities!,
+    12,
+  ];
   const store = createRuntimeStore(delivery, () => 1000);
   store.applyControl({ connectionSnapshot: snapshot });
   store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
@@ -2243,9 +2246,9 @@ it("replaces live Anchor samples immediately with the authoritative frozen view"
       elements: [
         { elementId: nodeId, node: { active: true, visible: true, opacity: 1, transform } },
       ],
-      anchorBindings: [
+      trackedPoses: [
         {
-          nodeId,
+          target: 2,
           sample: {
             trackingFrameSequence: "1",
             observedAtRuntimeMonotonicMs: "500",
@@ -2255,7 +2258,7 @@ it("replaces live Anchor samples immediately with the authoritative frozen view"
       ],
     },
   });
-  expect(store.getAnchorBindings()[nodeId]?.sample?.position?.x).toBe(1);
+  expect(store.getTrackedPoses()[2]?.sample?.position?.x).toBe(1);
   const replacement = structuredClone(snapshot.snapshot!.runtimeView!);
   replacement.baseReliableSequence = "1";
   replacement.clock = { runtimeTimeMs: "0", paused: { reason: 1 } };
@@ -2270,7 +2273,7 @@ it("replaces live Anchor samples immediately with the authoritative frozen view"
     },
   });
   expect(store.getSnapshot().phase).toBe("ready");
-  expect(store.getAnchorBindings()).toEqual({});
+  expect(store.getTrackedPoses()).toEqual({});
   expect(store.getSnapshot().view?.frozenAnchors).toEqual([{ nodeId, position: [2, 0, 0] }]);
 });
 it("expires received Anchor poses on the injected monotonic clock and clears them on State reconnect", () => {
@@ -2278,6 +2281,11 @@ it("expires received Anchor poses on the injected monotonic clock and clears the
   delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
     presenterAnchor: { target: 2, followPosition: true },
   };
+  delivery.projectionProfile!.runtimeCatalog!.trackedPoseTargets = [2];
+  delivery.projectionProfile!.requiredRuntimeCapabilities = [
+    ...delivery.projectionProfile!.requiredRuntimeCapabilities!,
+    12,
+  ];
   let now = 1000;
   const store = createRuntimeStore(delivery, () => now);
   store.applyControl({ connectionSnapshot: snapshot });
@@ -2292,9 +2300,9 @@ it("expires received Anchor poses on the injected monotonic clock and clears the
       elements: [
         { elementId: nodeId, node: { active: true, visible: true, opacity: 1, transform } },
       ],
-      anchorBindings: [
+      trackedPoses: [
         {
-          nodeId,
+          target: 2,
           sample: {
             trackingFrameSequence: "1",
             observedAtRuntimeMonotonicMs: "100",
@@ -2306,9 +2314,38 @@ it("expires received Anchor poses on the injected monotonic clock and clears the
   });
   expect(store.getSnapshot().phase).toBe("ready");
   now = 1100;
-  expect(store.getAnchorBindings()[nodeId]?.sample).toBeDefined();
+  expect(store.getTrackedPoses()[2]?.sample).toBeDefined();
   now = 1101;
-  expect(store.getAnchorBindings()[nodeId]?.sample).toBeUndefined();
+  expect(store.getTrackedPoses()[2]?.sample).toBeUndefined();
   store.restartState();
-  expect(store.getAnchorBindings()).toEqual({});
+  expect(store.getTrackedPoses()).toEqual({});
+});
+
+it("rejects a frozen Anchor containing components the node does not follow", () => {
+  const { delivery, snapshot, fence, nodeId, transform } = setup();
+  delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
+    presenterAnchor: { target: 2, followPosition: true },
+  };
+  delivery.projectionProfile!.runtimeCatalog!.trackedPoseTargets = [2];
+  delivery.projectionProfile!.requiredRuntimeCapabilities = [
+    ...delivery.projectionProfile!.requiredRuntimeCapabilities!,
+    12,
+  ];
+  const store = createRuntimeStore(delivery);
+  store.applyControl({ connectionSnapshot: snapshot });
+  store.applyState({ connected: { connectionId: "connection", nextStateFrameSequence: "1" } });
+  store.applyState({
+    stateFrame: {
+      fence,
+      frameSequence: "1",
+      baseReliableSequence: "0",
+      kind: 1,
+      elements: [
+        { elementId: nodeId, node: { active: true, visible: true, opacity: 1, transform } },
+      ],
+      trackedPoses: [{ target: 2, unavailable: {} }],
+      frozenAnchors: [{ nodeId, position: { x: 1 }, rotation: { w: 1 } }],
+    },
+  });
+  expect(store.getSnapshot().phase).toBe("resync-required");
 });

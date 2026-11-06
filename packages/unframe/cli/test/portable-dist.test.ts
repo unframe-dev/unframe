@@ -62,6 +62,8 @@ describe("portable Dist", () => {
   });
   it("publishes every copied asset without the Source or internal generation store", async () => {
     const { copied, artifacts, assets } = await portableBuild();
+    const targetId = "account-publication";
+    const sourcePresentationId = artifacts.buildManifest.presentationId;
     const uploaded = new Map<string, { bytes: Uint8Array; mediaType: string | null }>();
     const result = await publishPresentation({
       directory: copied,
@@ -73,10 +75,13 @@ describe("portable Dist", () => {
         if (init.method === "GET") {
           // Replacing local media after capture must not change uploaded bytes.
           await writeFile(join(copied, "assets/video-asset.mp4"), new Uint8Array(64));
-          return new Response(null, { status: 404 });
+          expect(path).toBe("/presentations");
+          expect(url.searchParams.get("sourcePresentationId")).toBe(sourcePresentationId);
+          return Response.json({ presentations: [] });
         }
         if (path === "/presentations")
-          return Response.json({ id: artifacts.buildManifest.presentationId }, { status: 201 });
+          return Response.json({ id: targetId, sourcePresentationId }, { status: 201 });
+        expect(path).toMatch(/^\/presentations\/account-publication\//u);
         if (path.endsWith("/builds"))
           return Response.json(
             {
@@ -92,7 +97,12 @@ describe("portable Dist", () => {
           });
           return new Response(null, { status: 204 });
         }
-        const payload = { ...artifacts.buildManifest, publicationEpoch: 1 };
+        const payload = {
+          ...artifacts.buildManifest,
+          presentationId: targetId,
+          sourcePresentationId,
+          publicationEpoch: 1,
+        };
         return Response.json(
           { ...payload, publicationManifestHash: hashCanonicalJsonPayload(payload) },
           { status: 201 },
@@ -101,6 +111,7 @@ describe("portable Dist", () => {
     });
     expect(result).toEqual({
       ok: true,
+      presentationId: targetId,
       buildId: artifacts.buildManifest.buildId,
       publicationEpoch: 1,
     });

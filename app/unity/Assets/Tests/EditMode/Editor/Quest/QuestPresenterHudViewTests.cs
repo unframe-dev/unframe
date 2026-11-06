@@ -30,13 +30,15 @@ public sealed class QuestPresenterHudViewTests
     }
 
     [Test]
-    public void HudFollowsHeadTranslationAndYawButIgnoresPitchAndRoll()
+    public void HudFollowsHeadTranslationPitchYawAndRoll()
     {
         Vector3 head = new Vector3(1, 2, 3);
         Quaternion yaw = Quaternion.Euler(0, 55, 0);
         Vector3 baseline = QuestPresenterHudView.GetPosition(head, yaw, 80, 4f / 3);
         Vector3 tilted = QuestPresenterHudView.GetPosition(head, Quaternion.Euler(35, 55, 25), 80, 4f / 3);
-        Assert.That(Vector3.Distance(baseline, tilted), Is.LessThan(.00001f));
+        Assert.That(Vector3.Distance(baseline, tilted), Is.GreaterThan(.1f));
+        Assert.That(Vector3.Distance(Quaternion.Inverse(Quaternion.Euler(35, 55, 25)) * (tilted - head),
+            Quaternion.Inverse(yaw) * (baseline - head)), Is.LessThan(.00001f));
         Vector3 shift = new Vector3(2, -.3f, -1);
         Assert.That(Vector3.Distance(QuestPresenterHudView.GetPosition(head + shift, yaw, 80, 4f / 3), baseline + shift), Is.LessThan(.00001f));
         Assert.That(Vector3.Distance(QuestPresenterHudView.GetPosition(head, Quaternion.identity, 80, 4f / 3), baseline), Is.GreaterThan(.1f));

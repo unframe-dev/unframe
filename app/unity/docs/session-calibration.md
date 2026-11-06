@@ -26,15 +26,15 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 
 ## Presenter の共有配置
 
-初回の配置では、資料の配置基準点をマーカー確定時の HMD の高さから鉛直方向に 30cm 下へ合わせます。Stage の上方向は重力に対する鉛直、前方向は確定時の HMD の水平な向きとし、マーカーの傾きを引き継ぎません。原点の物理空間 X/Z とスケールは維持します。配置基準点の高さを目標へ合わせる処理であり、資料全体を胴体の範囲内へ縮小する処理ではありません。
+初回の配置では、Stage の原点 `[0, 0, 0]` をマーカー位置に置いた状態から、マーカー確定時の HMD の高さより鉛直方向に30cm下となるよう原点だけを上下させます。原点の物理空間 X/Z、補正前の回転、スケールは維持します。HMD の向きへ回転させたり、マーカーの傾きを除去したりしません。資料の中心や個々の要素の位置・寸法は高さ補正に使用しません。
 
-配置基準点は Delivery の `ProjectedRuntimeCatalog.placement_reference_point` に含まれる Stage 座標です。資料の `stage.placementReferencePoint` を優先し、省略時は全 Group・全 role の Stage 固定コンテンツの初期配置から求めます。算出規則は [Authoring 契約](../../../docs/packages/AUTHORING_CONTRACT.md#mr-の配置基準点)を参照してください。再生中の表示範囲からは再計算しません。
+現在の原点のワールド位置を `P`、HMD のワールド位置を `H` とすると、補正後は `P' = P + worldUp * (H.y - P.y - 0.30m)` です。再配置でも同じ式を使い、現在の水平位置と回転を維持します。初期原点の位置がゼロなら、`P` はマーカー位置なので、補正量は HMD とマーカーの高さの差から30cmを引いた値になります。
 
-物理マーカーの完全な Pose は端末校正に保持します。Presenter は鉛直化と高さ補正を反映した絶対 Pose をマーカー座標へ変換し、共有 `PresentationOrigin` としてサーバーへ送ります。Viewer / Audience は受信した Pose を適用します。サーバーで受理されるまで配置は未確定です。
+物理マーカーの完全な Pose は端末校正に保持します。Presenter は高さ補正後の絶対 Pose をマーカー座標へ変換し、共有 `PresentationOrigin` としてサーバーへ送ります。マーカーが傾いている場合は、マーカー座標の X/Z 成分にも鉛直移動が現れますが、物理空間の水平位置は変わりません。Viewer / Audience は受信した Pose を適用します。サーバーで受理されるまで配置は未確定です。配置基準点や資料の bounds は使用しません。
 
 原点がすでに設定された Session への参加・再接続では既存の共有配置を使います。再計算は Presenter の明示的な「再配置」でマーカーを測定し直したときに行います。頭部移動、マーカーの一時的な消失、tracking 復旧に伴う端末の再校正では共有配置を変更しません。Viewer は自分の高さから補正を計算しません。
 
-配置基準点を配信する版への更新では、Realtime を先に更新し、その後 Control Plane と Quest を更新します。旧 Realtime は追加された catalog フィールドを受け付けません。既存 Session で選択済みの profile は新しい profile ID と一致しなくなるため、Session を作り直してください。配置基準点が未指定で、寸法情報のない Stage 固定 Model が計算対象に含まれる既存資料は、公開済み成果物の読込や Delivery 作成時に `invalid_build` となります。資料を再ビルド・再公開してください。Skin / Morph を持つ Stage 固定 Model は、配置基準点を明示してから再ビルド・再公開してください。
+`stage.placementReferencePoint` と Delivery catalog の配置基準点は契約上保持しますが、Quest の高さ補正では参照しません。ビルド・公開時の既存の配置基準点・モデル bounds の検証は変更していません。今回の修正による契約変更、資料の再公開、Session の作り直しは不要です。確定済みの共有配置を新しい高さ補正で更新する場合は、Presenter が「再配置」を行います。
 
 更新には期待する原点 version と command ID を付けます。通信失敗時は同じ command を再送し、原点 version の競合時は Snapshot を再取得してマーカーの再測定を要求します。校正が無効になった場合も未確定の計測値と command を破棄します。共有原点は Reliable Event と Snapshot で配信され、途中参加・再接続でも復元します。原点更新後はローカル状態への反映と新しい cut の `StateReady`、Presenter の入力同期の完了を待ちます。通常の原点更新では `CommandEpoch` は増えません。Tracking は原点 version を付けて送り、サーバーが共有原点の逆変換で Stage 座標へ変換します。pause 中の凍結 Anchor も物理位置を維持する座標へ変換し直して配信します。
 
@@ -43,12 +43,12 @@ Unity / canonical間のZ反射は座標境界で行います。tracking-origin�
 呼び出し元は認証・Session選択を担当し、次のように同じStateを渡します。
 
 ```csharp
-session.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName);
+session.Connect(controlPlaneOrigin, sessionId, credentialProvider);
 ```
 
 `credentialProvider` は要求ごとに有効なcredentialを返します。credential、Session ID、endpointをSceneへ保存しません。校正がまだ無効でも接続・素材ロードを始められます。Presenterだけに入力・Trackingを許可しますが、Viewerにも自分の描画用校正が必要です。
 
-`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Development Build のAndroid Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。通常のAPKはIntentの接続設定を読み取りません。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
+`QuestPresentationSession` はSceneの校正sourceと通信入口が同じtrackingSpaceを使用することを確認し、共有Stateで接続します。校正値が未確定でも認証・素材ロードを開始できます。Development Build のAndroid Intentでは `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential` を読み、同じSession入口へ接続します。校正JSONは使用せず、マーカーを実際に測定します。通常のAPKはIntentの接続設定を読み取りません。Intent credentialは一時検証用です。通常の端末認証・資料選択・参加は[QuestアプリUI](quest-app-ui.md)を使用します。
 
 ## 無効化と再測定
 
@@ -82,7 +82,7 @@ Presenter の再校正・再同期では入力 context を更新し、認識状�
 1. サーバー担当がBaked Webの素材・Session・端末ごとの有効credentialを準備します。通常の参加は[QuestアプリUI](quest-app-ui.md)、一時検証はDevelopment Buildの上記Intent入口を使用します。
 2. 各Questを同じSessionへ接続し、同じ物理ID 0マーカーを測定します。黒い正方形の一辺500・400・250・150mmから、印刷物に一致する寸法を位置合わせ画面で選択します（既定150mm）。Audience WebXRも同じ寸法を選びます。AprilTagはQuest 3/3SとPCA対応OS、OpenCV有効化を必要とします。
 3. 校正確定後にReady表示を確認し、頭を動かして各端末で同じ位置にスライドが残ることを比較します。
-4. Presenterのlogical eventを設定した場合は右controllerのprimary buttonで操作し、Viewerの表示が追従することを確認します。実証用Presentationに対応するevent定義が必要です。
+4. 実証用Presentationに `presenter.next` のCueがある場合は、右コントローラーのAボタンを押してViewerの表示が追従することを確認します。
 5. 各端末でB/Y再測定、アプリpause/resumeを試し、校正が無効な間の表示・操作停止と、再測定後の復帰を確認します。
 
 最初の実証は静的スライドを使用します。複数台での表示・同期の受け入れ結果はまだありません。

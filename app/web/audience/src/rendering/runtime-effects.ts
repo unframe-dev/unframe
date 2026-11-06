@@ -5,7 +5,16 @@ import { VisualEffects, type EffectHandle, type HandGlowHandle } from "../visual
 export interface RuntimeHandPose {
   hand: "left" | "right";
   sequence: number;
+  continuity?: string | number;
   position: readonly [number, number, number];
+}
+
+function freshestPose(poses: readonly RuntimeHandPose[], hand: RuntimeHandPose["hand"]) {
+  return poses.reduce<RuntimeHandPose | undefined>(
+    (latest, pose) =>
+      pose.hand === hand && (!latest || pose.sequence > latest.sequence) ? pose : latest,
+    undefined,
+  );
 }
 
 export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | undefined) {
@@ -17,6 +26,7 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
       handle: EffectHandle | null;
       hand?: HandGlowHandle;
       sequence: number;
+      continuity?: string | number | undefined;
       completed: boolean;
     }
   >();
@@ -41,9 +51,14 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
         const target = resolve(run.nodeId);
         let entry = runs.get(id);
         if (entry && entry.target !== target) {
-          entry.handle?.cancel();
-          runs.delete(id);
-          entry = undefined;
+          if (entry.hand && target) {
+            entry.hand.retarget(target);
+            entry.target = target;
+          } else {
+            entry.handle?.cancel();
+            runs.delete(id);
+            entry = undefined;
+          }
         }
         if (!target) continue;
         if (!entry) {
@@ -78,7 +93,7 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
               handle: hand ?? effects.play(options, target, completed),
               sequence:
                 configuration.kind === "handGlow"
-                  ? (poses.find((pose) => pose.hand === configuration.hand)?.sequence ?? -1)
+                  ? (freshestPose(poses, configuration.hand)?.sequence ?? -1)
                   : -1,
               completed: false,
               ...(hand ? { hand } : {}),
@@ -92,7 +107,18 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
           effects.setWaveOpacity(id, view.nodeStates[run.nodeId]?.opacity ?? 1);
         if (run.effect.kind === "handGlow" && entry.hand && !entry.completed) {
           const hand = run.effect.hand;
-          const sample = poses.find((value) => value.hand === hand);
+          const sample = freshestPose(poses, hand);
+          if (!sample) entry.hand.clearPoses();
+          if (sample && entry.continuity !== undefined && sample.continuity !== entry.continuity) {
+            entry.hand.clearPoses();
+            if (
+              typeof entry.continuity === "string" &&
+              typeof sample.continuity === "string" &&
+              entry.continuity.split(":")[0] !== sample.continuity.split(":")[0]
+            )
+              entry.sequence = sample.sequence;
+            entry.continuity = sample.continuity;
+          }
           if (
             sample &&
             sample.sequence > entry.sequence &&
@@ -103,6 +129,7 @@ export function createRuntimeEffects(resolve: (nodeId: string) => Object3D | und
             target.worldToLocal(position);
             entry.hand.updatePose(position, runtimeMs);
             entry.sequence = sample.sequence;
+            entry.continuity = sample.continuity;
           }
         }
       }

@@ -1,4 +1,5 @@
 export type ViewingPhase =
+  | "marker-size"
   | "permission"
   | "sdk"
   | "scanning"

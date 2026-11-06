@@ -52,7 +52,6 @@ namespace Unframe.Unity.PresentationRuntime
         public bool CalibrationReady => runtime != null && runtime.CalibrationReady;
         public bool IsPresenter => IsRunning && runtime != null && runtime.IsPresenter;
         public bool CanControlPresentation => IsRunning && !commandPending && PlacementReady && runtime != null && CanControl;
-        private string AdvanceLogicalEventName => String.IsNullOrWhiteSpace(logicalEventName) ? "presenter.next" : logicalEventName;
         public bool CanAdvance => PlacementReady && IsRunning && !commandPending && runtime != null && runtime.CanSendInput
             && (input == null || input.IsCompleted);
         public string LastErrorCode { get; private set; }
@@ -77,7 +76,6 @@ namespace Unframe.Unity.PresentationRuntime
             : !PlacementReady ? "Confirming presentation placement"
             : !SessionReady ? "Synchronizing session"
             : IsPresenter ? "Ready: Presenter" : "Ready: Viewer";
-        private string logicalEventName;
         private PresentationSessionDiagnostics diagnostics;
         private PresentationConnectionStage? diagnosticStage;
         private readonly QuestPresentationButtonEdges buttons = new QuestPresentationButtonEdges();
@@ -153,7 +151,7 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         public void Configure(Uri controlPlaneOrigin, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
-            PresentationCalibrationState calibrationState, string advanceLogicalEventName, PresentationSessionDiagnostics diagnosticLog = null,
+            PresentationCalibrationState calibrationState, PresentationSessionDiagnostics diagnosticLog = null,
             Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null, PresenterOriginPlacement presenterPlacement = null)
         {
             if (!isActiveAndEnabled) throw new InvalidOperationException("The Quest presentation entry must be active.");
@@ -171,7 +169,6 @@ namespace Unframe.Unity.PresentationRuntime
             calibration = calibrationState;
             runtime.DisplayEnabled = presentationDisplayEnabled;
             runtime.ConfigureCalibration(calibration, questTrackingOrigin);
-            logicalEventName = advanceLogicalEventName;
             CancellationTokenSource runLifetime = new CancellationTokenSource();
             lifetime = runLifetime;
             calibrationRevision = 0;
@@ -214,7 +211,6 @@ namespace Unframe.Unity.PresentationRuntime
                     interactionLifetime = null;
                     lifetime = null;
                     connection = null;
-                    logicalEventName = null;
                     commandPending = false;
                     if (connectionStage != PresentationConnectionStage.Failed) connectionStage = PresentationConnectionStage.Stopped;
                 }
@@ -258,7 +254,9 @@ namespace Unframe.Unity.PresentationRuntime
             finally { commandPending = false; }
         }
 
-        public async Task AdvanceAsync()
+        public Task AdvanceAsync() => SendAdvanceAsync(forceAdvance: true);
+
+        private async Task SendAdvanceAsync(bool forceAdvance)
         {
             if (!CanAdvance || interactionLifetime == null)
             {
@@ -268,7 +266,11 @@ namespace Unframe.Unity.PresentationRuntime
             commandPending = true;
             try
             {
-                input = SendInputAsync(QuestPresentationInput.CreateLogical(AdvanceLogicalEventName, runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
+                var synchronization = runtime.InputSynchronization;
+                var command = forceAdvance
+                    ? QuestPresentationInput.CreateForceAdvance(runtime.PresentationOriginVersion, synchronization.Context, synchronization.CommandEpoch)
+                    : QuestPresentationInput.CreateLogical("presenter.next", runtime.PresentationOriginVersion, synchronization.Context, synchronization.CommandEpoch);
+                input = SendInputAsync(command, interactionLifetime.Token);
                 await input;
             }
             finally { commandPending = false; }
@@ -286,8 +288,9 @@ namespace Unframe.Unity.PresentationRuntime
             bool nextLeft = ReadTrigger(XRNode.LeftHand, ref leftTriggerHeld);
             bool nextRight = ReadTrigger(XRNode.RightHand, ref rightTriggerHeld);
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);
-            buttons.Sample(nextLeft, nextRight, nextPrimary, runtime.CanSendInput && PresentationInputEnabled,
-                out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed);
+            bool nextLeftStick = IsPressed(XRNode.LeftHand, CommonUsages.primary2DAxisClick);
+            buttons.Sample(nextLeft, nextRight, nextPrimary, nextLeftStick, runtime.CanSendInput && PresentationInputEnabled,
+                out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed, out bool advancePressed);
             uiButtons.Sample(nextLeft, nextRight, false, true, out bool uiLeft, out bool uiRight, out _);
             bool leftConsumed = uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay);
             bool rightConsumed = uiRight && TryControllerRay(XRNode.RightHand, out Ray rightUiRay) && TryUseUiRay(rightUiRay);
@@ -311,8 +314,8 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
 
-            if (logicalPressed && CanAdvance)
-                _ = AdvanceAsync();
+            if ((logicalPressed || advancePressed) && CanAdvance)
+                _ = SendAdvanceAsync(forceAdvance: !logicalPressed);
             else if (runtime.InputSynchronization?.Catalog?.Gestures.Count == 0
                 && !commandPending && (leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted))
             {
@@ -325,9 +328,10 @@ namespace Unframe.Unity.PresentationRuntime
             else ResetRecognition();
 
             if (!PresentationInputEnabled || !runtime.CanSendInput) trackingSchedule.DiscardRequests();
-            if (trackingSchedule.TryBeginFrame(Time.realtimeSinceStartupAsDouble, runtime.CanSendTracking,
-                tracking != null && !tracking.IsCompleted))
+            bool trackingReady = runtime.TryCaptureTrackingContext(out ulong inputEpoch, out ulong reliableSequence, out ulong originVersion);
+            if (trackingSchedule.TryBeginFrame(Time.realtimeSinceStartupAsDouble, trackingReady, tracking != null && !tracking.IsCompleted))
             {
+                var capturedCalibration = calibration.PresentationFromQuestLocal;
                 var samples = new List<QuestPoseSample>(4);
                 QuestPresentationTracking.TrySample(XRNode.Head, TrackedTarget.Head, out QuestPoseSample head);
                 QuestPresentationTracking.TrySample(XRNode.LeftHand, TrackedTarget.LeftHand, out QuestPoseSample left);
@@ -338,7 +342,8 @@ namespace Unframe.Unity.PresentationRuntime
                 if (bodySource != null && bodySource.TryGetQuestLocalPose(out Vector3 bodyPosition, out Quaternion bodyRotation))
                     samples.Add(new QuestPoseSample(TrackedTarget.Body, bodyPosition, bodyRotation));
                 else samples.Add(QuestPoseSample.Unavailable(TrackedTarget.Body));
-                tracking = SendTrackingAsync(QuestPresentationTracking.CreateFrame(calibration.PresentationFromQuestLocal, samples.ToArray()), interactionLifetime.Token);
+                tracking = SendTrackingAsync(QuestPresentationTracking.CreateFrame(capturedCalibration, inputEpoch, reliableSequence,
+                    originVersion, samples.ToArray()), interactionLifetime.Token);
             }
         }
 
@@ -398,7 +403,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             try { await runtime.SendTrackingAsync(frame, token); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-            catch (InvalidOperationException) when (!runtime.CanSendTracking) { }
+            catch (InvalidOperationException) when (!runtime.CanSendTrackingCapture(frame)) { }
             catch (Exception exception) { LastErrorCode = PresentationConnectionErrors.FromException(exception); }
         }
 
@@ -473,38 +478,44 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
             if (command == null) return;
-            try
+            CancellationToken commandCancellation = placement.CommandCancellation;
+            using (var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, commandCancellation))
             {
-                CommandOutcome outcome = await runtime.SendConfirmedAsync(command, lifetime.Token);
-                if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                try
+                {
+                    CommandOutcome outcome = await runtime.SendConfirmedAsync(command, pending.Token);
+                    pending.Token.ThrowIfCancellationRequested();
+                    if (outcome.ResultCase != CommandOutcome.ResultOneofCase.Accepted)
+                    {
+                        if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
+                        LastErrorCode = "presenter-placement-rejected";
+                        calibration.Invalidate("placement-rejected-show-marker-again");
+                        return;
+                    }
+                    using (var reflected = CancellationTokenSource.CreateLinkedTokenSource(pending.Token))
+                    {
+                        reflected.CancelAfter(TimeSpan.FromSeconds(10));
+                        while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
+                            runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
+                            await Task.Delay(16, reflected.Token);
+                    }
+                    recalibrationPending = false;
+                    LastErrorCode = null;
+                }
+                catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
+                    && exception.Status.Detail == "presentation_origin_mismatch")
                 {
                     if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
                     LastErrorCode = "presenter-placement-rejected";
                     calibration.Invalidate("placement-rejected-show-marker-again");
-                    return;
                 }
-                using (var reflected = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token))
+                catch (OperationCanceledException) when (commandCancellation.IsCancellationRequested || lifetime == null || lifetime.IsCancellationRequested) { }
+                catch (Exception exception)
                 {
-                    reflected.CancelAfter(TimeSpan.FromSeconds(10));
-                    while (!placement.Confirm(outcome, runtime.DataStore.LastReliableSequence, runtime.PresentationOriginVersion,
-                        runtime.InputSynchronization.CommandEpoch, runtime.InputSynchronization.IsReadyAt(outcome.Accepted.ReliableSequence) && runtime.SessionReady))
-                        await Task.Delay(16, reflected.Token);
+                    if (commandCancellation.IsCancellationRequested) return;
+                    LastErrorCode = PresentationConnectionErrors.FromException(exception);
+                    nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
                 }
-                recalibrationPending = false;
-                LastErrorCode = null;
-            }
-            catch (Grpc.Core.RpcException exception) when (exception.StatusCode == Grpc.Core.StatusCode.FailedPrecondition
-                && exception.Status.Detail == "presentation_origin_mismatch")
-            {
-                if (!placement.Reject(command.PresentationOrigin.ClientEventId)) return;
-                LastErrorCode = "presenter-placement-rejected";
-                calibration.Invalidate("placement-rejected-show-marker-again");
-            }
-            catch (OperationCanceledException) when (lifetime == null || lifetime.IsCancellationRequested) { }
-            catch (Exception exception)
-            {
-                LastErrorCode = PresentationConnectionErrors.FromException(exception);
-                nextPlacementAttemptAt = Time.realtimeSinceStartupAsDouble + 2;
             }
         }
 

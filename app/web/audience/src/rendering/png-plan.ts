@@ -1,3 +1,4 @@
+import { validateFrozenAnchors } from "../runtime/frozen-anchors";
 import {
   runtimeAuthorityVersions,
   participantRuntimeViewSchema,
@@ -113,15 +114,7 @@ export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): Pn
   }
   const animated = view.activeRuns.some((run) => run.kind === "timeline");
   canonicalQuaternion(view.presentationOrigin.pose.rotation);
-  if (
-    view.frozenAnchors.some(
-      (anchor) =>
-        !profile.runtimeCatalog?.nodes?.some(
-          (node) => node.nodeId === anchor.nodeId && node.parent?.presenterAnchor,
-        ),
-    )
-  )
-    fail("Invalid frozen Anchor");
+  validateFrozenAnchors(delivery, view);
   const catalog = profile.runtimeCatalog!;
   if (profile.localOverlays?.length) fail("local overlays are not supported yet");
   const activeOwner = (
@@ -140,7 +133,8 @@ export function buildPngPlan(delivery: DeliveryManifestWire, input: unknown): Pn
     if (visiting.has(nodeId)) fail("cyclic spatial parent");
     visiting.add(nodeId);
     const node = activeDefinitions.get(nodeId) ?? fail("missing spatial parent");
-    if (!node.container && !node.surface && !node.model) fail("unsupported node renderer");
+    if (!node.container && !node.surface && !node.model && !node.shape && !node.light)
+      fail("unsupported node renderer");
     const state = view.nodeStates[nodeId] ?? fail("missing node state");
     canonicalQuaternion(state.transform.rotation);
     const parentId = node.parent?.node

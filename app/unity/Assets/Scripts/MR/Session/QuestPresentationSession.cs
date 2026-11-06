@@ -15,7 +15,6 @@ public sealed class QuestPresentationSession : MonoBehaviour
     private readonly SemaphoreSlim operationGate = new SemaphoreSlim(1, 1);
     [NonSerialized] private Uri origin;
     [NonSerialized] private string sessionId;
-    [NonSerialized] private string logicalEventName;
     [NonSerialized] private Func<CancellationToken, Task<string>> credentialProvider;
     [NonSerialized] private Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider;
     private bool externalConnection;
@@ -30,7 +29,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
     public string ExportDiagnostics() => Diagnostics.ExportToDirectory(System.IO.Path.Combine(Application.persistentDataPath, "SessionDiagnostics"));
 
     public void ConfigureConnection(Uri controlPlaneOrigin, string targetSessionId,
-        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null, bool managedByOnboarding = false,
+        Func<CancellationToken, Task<string>> provider, bool managedByOnboarding = false,
         Func<CancellationToken, Task<PresentationCredentialLease>> leaseProvider = null)
     {
         if (controlPlaneOrigin == null || !controlPlaneOrigin.IsAbsoluteUri || controlPlaneOrigin.Scheme != "https"
@@ -44,18 +43,17 @@ public sealed class QuestPresentationSession : MonoBehaviour
         sessionId = targetSessionId;
         credentialProvider = provider;
         credentialLeaseProvider = leaseProvider;
-        logicalEventName = advanceLogicalEventName;
         LastErrorCode = String.Empty;
     }
 
     public void Connect(Uri controlPlaneOrigin, string targetSessionId,
-        Func<CancellationToken, Task<string>> provider, string advanceLogicalEventName = null)
+        Func<CancellationToken, Task<string>> provider)
     {
         EnsureTrackingOrigin();
         if (IsBusy || entry.IsRunning) throw new InvalidOperationException("Stop the active session before connecting again.");
-        ConfigureConnection(controlPlaneOrigin, targetSessionId, provider, advanceLogicalEventName);
+        ConfigureConnection(controlPlaneOrigin, targetSessionId, provider);
         calibrationSource.BeginSession(sessionId);
-        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
+        entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
         CompleteExternalConnection();
     }
 
@@ -76,7 +74,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
                 await entry.StopAsync();
                 if (requestedGeneration != generation || !isActiveAndEnabled) return;
                 calibrationSource.BeginSession(sessionId);
-                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, logicalEventName, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
+                entry.Configure(origin, sessionId, credentialProvider, calibrationSource.Calibration, Diagnostics, credentialLeaseProvider, calibrationSource.Placement);
                 CompleteExternalConnection();
                 LastErrorCode = String.Empty;
             }
@@ -125,7 +123,6 @@ public sealed class QuestPresentationSession : MonoBehaviour
         credentialLeaseProvider = null;
         origin = null;
         sessionId = null;
-        logicalEventName = null;
         LastErrorCode = String.Empty;
     }
 
@@ -168,7 +165,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
         try
         {
             if (!QuestLaunchConnectionSettings.TryRead(Debug.isDebugBuild, TakeLaunchExtra, out QuestLaunchConnectionSettings launch)) return;
-            ConfigureConnection(launch.Origin, launch.SessionId, _ => Task.FromResult(launch.Credential), launch.AdvanceLogicalEventName);
+            ConfigureConnection(launch.Origin, launch.SessionId, _ => Task.FromResult(launch.Credential));
             await ConnectAsync();
         }
         catch (Exception) { LastErrorCode = "launch-configuration-invalid"; }

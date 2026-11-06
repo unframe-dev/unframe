@@ -23,6 +23,7 @@ message ControlClientItem {
     ZoneInputCommand zone_input = 101;
     InputSynchronizationAck input_synchronization_ack = 102;
     PresentationOriginCommand presentation_origin = 103;
+    ForceAdvanceCommand force_advance = 104;
   }
   reserved 4 to 19;
   reserved 23 to 99;
@@ -103,6 +104,13 @@ message LogicalInputCommand {
   optional uint64 captured_at_client_monotonic_ms = 4;
   InputContext input_context = 5;
   uint64 command_epoch = 6;
+}
+
+message ForceAdvanceCommand {
+  string client_event_id = 1;
+  uint64 presentation_origin_version = 2;
+  InputContext input_context = 3;
+  uint64 command_epoch = 4;
 }
 
 message SurfaceInteractionCommand {
@@ -334,6 +342,7 @@ message ProjectedReliableEvent {
     ZoneInputAccepted zone_input_accepted = 1002;
     RuntimeViewReplaced runtime_view_replaced = 1003;
     EffectRunsChanged effect_runs_changed = 1004;
+    ForceAdvanceAccepted force_advance_accepted = 1005;
   }
   reserved 6 to 19;
   reserved 22 to 99;
@@ -418,6 +427,7 @@ message CueAccepted {
 
 message PresentationEnded { TerminationReason reason = 1; }
 message LogicalInputAccepted { string logical_event_name = 1; }
+message ForceAdvanceAccepted {}
 message GestureInputAccepted { unframe.presentation.GestureKind gesture = 1; }
 message ZoneInputAccepted {
   string zone_id = 1;
@@ -995,6 +1005,8 @@ message TrackingFrame {
   repeated TrackedPoseSample samples = 3;
   unframe.presentation.Pose presentation_from_quest_local = 4;
   uint64 presentation_origin_version = 5;
+  uint64 input_epoch = 6;
+  uint64 base_reliable_sequence = 7;
 }
 
 message StateServerItem {
@@ -1022,21 +1034,20 @@ message ElementStatePatch {
   NodeStatePatch node = 2;
 }
 
-message AnchorBindingUnavailable {}
+message TrackedPoseUnavailable {}
 
-message ProjectedAnchorBindingSample {
+message ProjectedTrackedPoseSample {
   uint64 tracking_frame_sequence = 1;
   uint64 observed_at_runtime_monotonic_ms = 2;
   optional unframe.presentation.Vector3 position = 3;
   optional unframe.presentation.Quaternion rotation = 4;
 }
 
-message ProjectedAnchorBindingPatch {
-  string node_id = 1;
+message ProjectedTrackedPose {
+  unframe.presentation.AnchorTarget target = 1;
   oneof state {
-    AnchorBindingUnavailable unavailable = 2;
-    ProjectedAnchorBindingSample sample = 3;
-    FrozenAnchorDisplayState frozen = 4;
+    TrackedPoseUnavailable unavailable = 2;
+    ProjectedTrackedPoseSample sample = 3;
   }
 }
 
@@ -1048,8 +1059,11 @@ message ElementStateFrame {
   uint64 base_reliable_sequence = 5;
   StateFrameKind kind = 6;
   repeated ElementStatePatch elements = 7;
-  repeated ProjectedAnchorBindingPatch anchor_bindings = 8;
+  reserved 8;
+  reserved "anchor_bindings";
   uint64 produced_at_runtime_monotonic_ms = 9;
+  repeated ProjectedTrackedPose tracked_poses = 10;
+  repeated FrozenAnchorDisplayState frozen_anchors = 11;
 }
 
 enum EffectRunStatus {

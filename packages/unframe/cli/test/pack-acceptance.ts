@@ -62,6 +62,7 @@ try {
     token: string | undefined;
     size: number;
   }[] = [];
+  const targetId = "account-publication";
   server = createServer(async (request, response) => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
@@ -74,12 +75,12 @@ try {
       size: body.length,
     });
     response.setHeader("content-type", "application/json");
-    if (request.method === "GET" && path.endsWith("/publication")) {
-      response.writeHead(404).end();
+    if (request.method === "GET" && path.startsWith("/presentations?sourcePresentationId=")) {
+      response.writeHead(200).end(JSON.stringify({ presentations: [] }));
       return;
     }
     if (request.method === "POST" && path === "/presentations") {
-      response.writeHead(201).end(JSON.stringify({ id: manifest.presentationId }));
+      response.writeHead(201).end(JSON.stringify({ id: targetId }));
       return;
     }
     if (request.method === "POST" && path.endsWith("/builds")) {
@@ -93,7 +94,12 @@ try {
       return;
     }
     if (request.method === "POST" && path.endsWith("/publications")) {
-      const payload = { ...manifest, publicationEpoch: 1 };
+      const payload = {
+        ...manifest,
+        presentationId: targetId,
+        sourcePresentationId: manifest.presentationId,
+        publicationEpoch: 1,
+      };
       const publicationManifestHash = `sha256:${createHash("sha256").update(canonicalize(payload)).digest("hex")}`;
       response.writeHead(201).end(JSON.stringify({ ...payload, publicationManifestHash }));
       return;
@@ -109,6 +115,7 @@ try {
     { UNFRAME_ACCESS_TOKEN: "acceptance-token" },
   );
   assert.equal(published.code, 0, published.output);
+  assert(published.output.includes(`Presentation ID: ${targetId}`));
   assert(requests.every((request) => request.token === "Bearer acceptance-token"));
   assert.equal(
     requests.filter((request) => request.method === "PUT").length,

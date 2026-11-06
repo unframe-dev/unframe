@@ -10,7 +10,7 @@ import {
   type RuntimeRunSnapshotWire,
   type RuntimeRunIdWire,
 } from "@unframe-dev/contracts/presentation";
-import { mergeAnchorBindings, type TimedAnchorBindings } from "./anchor-bindings";
+import { mergeTrackedPoses, type TimedTrackedPoses } from "./tracked-poses";
 import { toParticipantView } from "./wire-view";
 import { assertViewerDelivery, assertViewerRuntimeCapabilities } from "./viewer-policy";
 import { evaluateAnimationView } from "./animation-view";
@@ -34,7 +34,8 @@ export interface RuntimeStoreSnapshot {
 
 export interface RuntimeCoreState {
   snapshot: RuntimeStoreSnapshot;
-  anchorBindings: TimedAnchorBindings;
+  trackedPoses: TimedTrackedPoses;
+  trackingGeneration: number;
   wireView: ParticipantRuntimeViewWire | null;
   connectionId: string | null;
   projectionPending: boolean;
@@ -61,7 +62,8 @@ export function createRuntimeState(): RuntimeCoreState {
       stateSync: "awaiting-keyframe",
       reason: null,
     },
-    anchorBindings: {},
+    trackedPoses: {},
+    trackingGeneration: 0,
     wireView: null,
     connectionId: null,
     projectionPending: false,
@@ -90,12 +92,14 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
     let wireView = previous.wireView ? structuredClone(previous.wireView) : null;
     let { connectionId, projectionPending, stateConnected, groupChange, maximumRunSequence } =
       previous;
-    let anchorBindings = previous.anchorBindings;
+    let trackedPoses = previous.trackedPoses;
+    let trackingGeneration = previous.trackingGeneration;
     const canceledMedia = new Set(previous.canceledMedia);
     const canceledModels = new Set(previous.canceledModels);
     const fail = () => {
       wireView = null;
-      anchorBindings = {};
+      trackedPoses = {};
+      trackingGeneration++;
       state = {
         phase: "resync-required",
         view: null,
@@ -265,7 +269,8 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
       restartState(): void {
         if (state.phase !== "ready") return;
         stateConnected = false;
-        anchorBindings = {};
+        trackedPoses = {};
+        trackingGeneration++;
         state.stateSequence = "0";
         state.stateSync = "awaiting-keyframe";
       },
@@ -342,7 +347,8 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
               assignmentEpoch: delivery.projectionInstance!.assignmentEpoch,
             });
             wireView = replacement;
-            anchorBindings = {};
+            trackedPoses = {};
+            trackingGeneration++;
             maximumRunSequence = Math.max(
               maximumRunSequence,
               ...[...(replacement.activeRuns ?? []), ...(replacement.effectRuns ?? [])].map((run) =>
@@ -842,9 +848,12 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
               origin && uint(origin.version) === uint(wireView.presentationOrigin?.version) + 1,
             );
             wireView.presentationOrigin = origin;
-            anchorBindings = {};
+            trackedPoses = {};
+            trackingGeneration++;
           } else if (event.runtimeStatusChanged) {
             wireView.clock = { runtimeTimeMs: String(time), ...event.runtimeStatusChanged };
+            trackedPoses = {};
+            trackingGeneration++;
           } else if (event.presentationEnded) {
             requireValue((event.presentationEnded.reason ?? 0) > 0);
             wireView.clock = {
@@ -898,7 +907,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
           } else if (event.participantPresenceChanged) {
             id(event.participantPresenceChanged.participantId);
             requireValue([1, 2].includes(event.participantPresenceChanged.role ?? 0));
-          } else throw new Error("unsupported-runtime-event");
+          } else if (!event.forceAdvanceAccepted) throw new Error("unsupported-runtime-event");
           if (
             event.timelineStarted ||
             event.timelineCompleted ||
@@ -956,16 +965,17 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             state.stateSync = "awaiting-keyframe";
             return;
           }
-          const nextBindings = mergeAnchorBindings(
-            delivery,
-            anchorBindings,
-            frame.anchorBindings ?? [],
+          const nextBindings = mergeTrackedPoses(
+            catalog.trackedPoseTargets ?? [],
+            trackedPoses,
+            frame.trackedPoses ?? [],
             frame.kind === 1,
             {
               producedAtMilliseconds: uint(frame.producedAtRuntimeMonotonicMs),
               receivedAtMilliseconds:
                 action.kind === "state" ? (action.receivedAtMilliseconds ?? 0) : 0,
             },
+            trackingGeneration,
           );
           const elements = frame.elements ?? [];
           if (frame.kind === 1) requireValue(elements.length === wireView.nodeStates?.length);
@@ -1001,7 +1011,8 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
             if (patch.opacity !== undefined) node.opacity = patch.opacity;
             if (patch.transform) node.transform = { ...node.transform!, ...patch.transform };
           }
-          anchorBindings = nextBindings;
+          trackedPoses = nextBindings;
+          wireView.frozenAnchors = frame.frozenAnchors ?? [];
           state.stateSequence = String(sequence);
           state.stateSync = "ready";
           publish();
@@ -1015,7 +1026,8 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
     else actions.restartState();
     return {
       snapshot: state,
-      anchorBindings,
+      trackedPoses,
+      trackingGeneration,
       wireView,
       connectionId,
       projectionPending,

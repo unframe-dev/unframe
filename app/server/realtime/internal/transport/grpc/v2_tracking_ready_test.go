@@ -122,7 +122,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	if readyThenRevoke {
 		v3TestReady(t, runtime, identity)
 		outside := &presentationv2.Pose{Position: &presentationv2.Vector3{X: 2}, Rotation: &presentationv2.Quaternion{W: 1}}
-		seed := &realtimev2.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: outside, PositionAvailable: true, RotationAvailable: true}}}
+		seed := &realtimev2.TrackingFrame{FrameSequence: 1, InputEpoch: runtime.Snapshot().InputEpoch, BaseReliableSequence: runtime.Snapshot().ReliableSequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: outside, PositionAvailable: true, RotationAvailable: true}}}
 		if _, _, err := runtime.AcceptTracking(ctx, identity, seed, time.Now(), 1); err != nil {
 			t.Fatal(err)
 		}
@@ -132,7 +132,7 @@ func runV2TrackingGateTest(t *testing.T, readyThenRevoke, receiveFirst bool) {
 	if readyThenRevoke {
 		sequence = 2
 	}
-	frame := &realtimev2.TrackingFrame{FrameSequence: sequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
+	frame := &realtimev2.TrackingFrame{FrameSequence: sequence, InputEpoch: runtime.Snapshot().InputEpoch, BaseReliableSequence: runtime.Snapshot().ReliableSequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
 	if receiveFirst {
 		if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: frame}}); err != nil && !errors.Is(err, io.EOF) {
 			t.Fatal(err)

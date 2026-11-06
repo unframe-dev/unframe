@@ -24,13 +24,21 @@ func (s *V2Session) AcceptTracking(ctx context.Context, identity session.Identit
 	if s.snapshot.Clock.GetTerminating() != nil {
 		return nil, nil, ErrV2RuntimeDefinition
 	}
+	if frame != nil {
+		if frame.InputEpoch == 0 || frame.InputEpoch > s.snapshot.InputEpoch || frame.BaseReliableSequence > s.snapshot.ReliableSequence {
+			return nil, nil, errV2TrackingFrame
+		}
+		if frame.InputEpoch < s.snapshot.InputEpoch || frame.BaseReliableSequence < s.trackingReliableFloor {
+			return nil, nil, nil
+		}
+	}
 	if frame != nil && frame.PresentationOriginVersion != s.snapshot.PresentationOrigin.Version {
 		if frame.PresentationOriginVersion < s.snapshot.PresentationOrigin.Version {
 			return nil, nil, nil
 		}
 		return nil, nil, ErrV2OriginMismatch
 	}
-	// Tracking arrives in marker coordinates; Anchor patches are local to the shared Stage.
+	// Convert calibrated Quest-local poses to the shared Stage coordinates.
 	if frame != nil && frame.PresentationFromQuestLocal != nil {
 		if err := protocolv2.ValidateMessage(frame.PresentationFromQuestLocal); err != nil {
 			return nil, nil, err

@@ -18,7 +18,7 @@ func TestV2AnchorBindingUsesFreshPresenterBodyAndExpiresAfterFiveHundredMs(t *te
 		t.Fatal(err)
 	}
 	nodes := core.Snapshot().NodeStates
-	patches, err := core.ProjectedAnchorBindings(nodes, 1)
+	patches, err := testAnchorBindings(core, nodes, 1)
 	if err != nil || len(patches) != 1 || patches[0].GetUnavailable() == nil {
 		t.Fatalf("initial binding=%#v err=%v", patches, err)
 	}
@@ -27,18 +27,18 @@ func TestV2AnchorBindingUsesFreshPresenterBodyAndExpiresAfterFiveHundredMs(t *te
 	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Unix(100, 0), 1); err != nil {
 		t.Fatal(err)
 	}
-	patches, err = core.ProjectedAnchorBindings(nodes, 501)
+	patches, err = testAnchorBindings(core, nodes, 501)
 	if err != nil || patches[0].GetSample() == nil || patches[0].GetSample().Position.X != 3 || patches[0].GetSample().Rotation != nil {
 		t.Fatalf("fresh binding=%#v err=%v", patches, err)
 	}
-	patches, err = core.ProjectedAnchorBindings(nodes, 502)
+	patches, err = testAnchorBindings(core, nodes, 502)
 	if err != nil || patches[0].GetUnavailable() == nil {
 		t.Fatalf("stale binding=%#v err=%v", patches, err)
 	}
 	core.mu.Lock()
 	core.snapshot.PresentationOrigin.Version++
 	core.mu.Unlock()
-	patches, err = core.ProjectedAnchorBindings(nodes, 2)
+	patches, err = testAnchorBindings(core, nodes, 2)
 	if err != nil || patches[0].GetUnavailable() == nil {
 		t.Fatalf("origin-changed binding=%#v err=%v", patches, err)
 	}
@@ -53,7 +53,7 @@ func TestV2AnchorBindingUsesFreshPresenterBodyAndExpiresAfterFiveHundredMs(t *te
 	if _, _, err := head.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, trackingTestFrame(1, trackingTestPose(0, 0, 0), headSample), time.Unix(100, 0), 1); err != nil {
 		t.Fatal(err)
 	}
-	patches, err = head.ProjectedAnchorBindings(head.Snapshot().NodeStates, 2)
+	patches, err = testAnchorBindings(head, head.Snapshot().NodeStates, 2)
 	if err != nil || patches[0].GetSample() == nil || patches[0].GetSample().Position != nil || patches[0].GetSample().Rotation == nil {
 		t.Fatalf("head rotation-only=%#v err=%v", patches, err)
 	}

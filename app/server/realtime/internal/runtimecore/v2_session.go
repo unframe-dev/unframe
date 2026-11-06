@@ -45,40 +45,41 @@ type V2CompletionWriter interface {
 
 // V2Session owns canonical progression and serializes command evaluation.
 type V2Session struct {
-	durability           checkpointState
-	operationMu          sync.Mutex
-	mu                   sync.Mutex
-	definition           v2Definition
-	rawDefinition        json.RawMessage
-	snapshot             *realtimev2.CanonicalRuntimeSnapshot
-	events               []*realtimev2.ProjectedReliableEvent
-	eventTimes           []time.Time
-	eventBytes           uint64
-	outcomes             map[string]v2OutcomeRecord
-	order                []string
-	commandEpoch         uint64
-	inputSynchronization *realtimev2.PresenterInputSynchronization
-	subscribers          map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription
-	checkpointWriter     V2CheckpointWriter
-	checkpointMetadata   *realtimev2.DurableCheckpointEnvelope
-	checkpointCatalog    *presentationv2.ProjectedRuntimeCatalog
-	validationCatalog    *presentationv2.ProjectedRuntimeCatalog
-	mediaSpecs           map[string]map[string]v2MediaSpec
-	modelClips           map[string]map[string]v2ModelClipSpec
-	tracking             v2TrackingEvaluator
-	completionWriter     V2CompletionWriter
-	resumeValidator      func(context.Context) error
-	waitingForStart      bool
-	lastTick             time.Time
-	now                  func() time.Time
-	emptySince           time.Time
-	pendingEmptySince    time.Time
-	presence             map[string]session.Role
-	participants         map[string]session.Role
-	startedAt            time.Time
-	capacityFault        *realtimev2.RuntimeCapacityFault
-	faultGeneration      uint64
-	committedRecovery    *realtimev2.RuntimeRecoveryMetadata
+	durability            checkpointState
+	operationMu           sync.Mutex
+	mu                    sync.Mutex
+	definition            v2Definition
+	rawDefinition         json.RawMessage
+	snapshot              *realtimev2.CanonicalRuntimeSnapshot
+	events                []*realtimev2.ProjectedReliableEvent
+	eventTimes            []time.Time
+	eventBytes            uint64
+	outcomes              map[string]v2OutcomeRecord
+	order                 []string
+	commandEpoch          uint64
+	inputSynchronization  *realtimev2.PresenterInputSynchronization
+	subscribers           map[chan *realtimev2.ProjectedReliableEvent]*v2Subscription
+	checkpointWriter      V2CheckpointWriter
+	checkpointMetadata    *realtimev2.DurableCheckpointEnvelope
+	checkpointCatalog     *presentationv2.ProjectedRuntimeCatalog
+	validationCatalog     *presentationv2.ProjectedRuntimeCatalog
+	mediaSpecs            map[string]map[string]v2MediaSpec
+	modelClips            map[string]map[string]v2ModelClipSpec
+	tracking              v2TrackingEvaluator
+	trackingReliableFloor uint64
+	completionWriter      V2CompletionWriter
+	resumeValidator       func(context.Context) error
+	waitingForStart       bool
+	lastTick              time.Time
+	now                   func() time.Time
+	emptySince            time.Time
+	pendingEmptySince     time.Time
+	presence              map[string]session.Role
+	participants          map[string]session.Role
+	startedAt             time.Time
+	capacityFault         *realtimev2.RuntimeCapacityFault
+	faultGeneration       uint64
+	committedRecovery     *realtimev2.RuntimeRecoveryMetadata
 }
 
 func (s *V2Session) ConfigureResumeValidation(validate func(context.Context) error) {
@@ -318,6 +319,13 @@ func (s *V2Session) LogicalInputContext(ctx context.Context, identity session.Id
 	return s.acceptInput(ctx, identity, v2Input{kind: "logicalInput", clientEventID: command.ClientEventId, logicalEventName: command.LogicalEventName, originVersion: command.PresentationOriginVersion, commandEpoch: command.CommandEpoch, inputContext: command.InputContext})
 }
 
+func (s *V2Session) ForceAdvanceContext(ctx context.Context, identity session.Identity, command *realtimev2.ForceAdvanceCommand) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
+	if err := protocolv2.ValidateMessage(command); err != nil {
+		return nil, nil, err
+	}
+	return s.acceptInput(ctx, identity, v2Input{kind: "forceAdvance", clientEventID: command.ClientEventId, originVersion: command.PresentationOriginVersion, commandEpoch: command.CommandEpoch, inputContext: command.InputContext})
+}
+
 func (s *V2Session) SurfaceInteraction(identity session.Identity, command *realtimev2.SurfaceInteractionCommand) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
 	return s.SurfaceInteractionContext(context.Background(), identity, command)
 }
@@ -414,6 +422,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	for _, cue := range step.Cues {
 		matches := input.kind == "logicalInput" && cue.Trigger.Kind == "logicalInput" && cue.Trigger.Action == input.logicalEventName || input.kind == "surfaceInteraction" && cue.Trigger.Kind == "surfaceInteraction" && cue.Trigger.SurfaceID == input.surfaceID && cue.Trigger.InteractionID == input.interactionID || input.kind == "surfaceInteraction" && semanticEvent != "" && cue.Trigger.Kind == "semanticEvent" && cue.Trigger.Event == semanticEvent
 		matches = matches || input.kind == "gesture" && cue.Trigger.Kind == "gesture" && v3Gesture(cue.Trigger.Gesture) == input.gesture || input.kind == "zoneEdge" && cue.Trigger.Kind == "zoneEdge" && cue.Trigger.ZoneID == input.zoneID && v3ZoneEdge(cue.Trigger.Edge) == input.edge
+		matches = matches || input.kind == "forceAdvance" && (cue.Trigger.Kind == "logicalInput" || cue.Trigger.Kind == "gesture" || cue.Trigger.Kind == "zoneEdge")
 		if !matches || cue.Trigger.Actor.Kind != "presenter" {
 			continue
 		}
@@ -421,7 +430,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		if !v2CueEligible(cue, s.snapshot) {
 			continue
 		}
-		if !v2GuardPasses(cue, s.snapshot, nil) {
+		if input.kind != "forceAdvance" && !v2GuardPasses(cue, s.snapshot, nil) {
 			continue
 		}
 		if cue.FirePolicy.Kind != "oncePerStepEntry" && cue.FirePolicy.Kind != "repeatable" {
@@ -433,6 +442,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 			}
 		}
 		candidates = append(candidates, cue)
+		if input.kind == "forceAdvance" {
+			break
+		}
 	}
 	if !inputAvailable && input.kind != "surfaceInteraction" {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE}}}
@@ -454,6 +466,8 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	})
 	inputEvent := &realtimev2.ProjectedReliableEvent{}
 	switch input.kind {
+	case "forceAdvance":
+		inputEvent.Payload = &realtimev2.ProjectedReliableEvent_ForceAdvanceAccepted{ForceAdvanceAccepted: &realtimev2.ForceAdvanceAccepted{}}
 	case "logicalInput":
 		inputEvent.Payload = &realtimev2.ProjectedReliableEvent_LogicalInputAccepted{LogicalInputAccepted: &realtimev2.LogicalInputAccepted{LogicalEventName: input.logicalEventName}}
 	case "gesture":
@@ -634,6 +648,12 @@ func (s *V2Session) rollbackV2Fault(previous *realtimev2.CanonicalRuntimeSnapsho
 }
 
 func (s *V2Session) publishV2Events(events []*realtimev2.ProjectedReliableEvent) {
+	for _, event := range events {
+		if event.GetRuntimeViewReplaced() != nil {
+			clear(s.tracking.lastSamples)
+			s.trackingReliableFloor = event.Sequence
+		}
+	}
 	s.events = append(s.events, events...)
 	now := time.Now()
 	for _, event := range events {

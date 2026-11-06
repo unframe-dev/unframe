@@ -607,10 +607,12 @@ it("keeps unknown publication operations available through receipt queries", asy
     },
   };
   const publish = vi.fn(async () => unknown);
-  const query = vi
-    .fn()
-    .mockResolvedValueOnce(unknown)
-    .mockResolvedValueOnce({ ok: true, buildId: "fixed", publicationEpoch: 2 });
+  const query = vi.fn().mockResolvedValueOnce(unknown).mockResolvedValueOnce({
+    ok: true,
+    presentationId: "p",
+    buildId: "fixed",
+    publicationEpoch: 2,
+  });
   const { host } = await setup(false, { publish, query, close() {} });
   const headers = {
     authorization: `Bearer ${host.token}`,

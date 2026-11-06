@@ -1,51 +1,8 @@
 package runtimecore
 
 import (
-	"sort"
-
-	presentationv2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/presentation"
 	realtimev2 "github.com/unframe-dev/unframe/app/server/realtime/internal/gen/realtime"
-	"google.golang.org/protobuf/proto"
 )
-
-func (s *V2Session) ProjectedAnchorBindings(nodes []*realtimev2.NodeRuntimeState, nowMs uint64) ([]*realtimev2.ProjectedAnchorBindingPatch, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.projectedV3AnchorBindings(nodes, nowMs)
-}
-
-func (s *V2Session) projectedV3AnchorBindings(nodes []*realtimev2.NodeRuntimeState, nowMs uint64) ([]*realtimev2.ProjectedAnchorBindingPatch, error) {
-	var patches []*realtimev2.ProjectedAnchorBindingPatch
-	for _, node := range nodes {
-		definition, ok := s.definition.Scene.Nodes[node.NodeId]
-		if !ok {
-			return nil, ErrV2RuntimeDefinition
-		}
-		if definition.Parent.Kind != "anchor" {
-			continue
-		}
-		sample, found, err := s.anchorTrackingSample(definition)
-		if err != nil {
-			return nil, err
-		}
-		patch := &realtimev2.ProjectedAnchorBindingPatch{NodeId: node.NodeId, State: &realtimev2.ProjectedAnchorBindingPatch_Unavailable{Unavailable: &realtimev2.AnchorBindingUnavailable{}}}
-		if frozen := frozenV3ByNode(s.snapshot.FrozenAnchors, node.NodeId); frozen != nil {
-			patch.State = &realtimev2.ProjectedAnchorBindingPatch_Frozen{Frozen: proto.Clone(frozen).(*realtimev2.FrozenAnchorDisplayState)}
-		} else if s.snapshot.Clock.GetRunning() != nil && found && nowMs >= sample.ObservedAtMs && nowMs-sample.ObservedAtMs <= 500 {
-			binding := &realtimev2.ProjectedAnchorBindingSample{TrackingFrameSequence: sample.FrameSequence, ObservedAtRuntimeMonotonicMs: sample.ObservedAtMs}
-			if definition.Parent.FollowPosition {
-				binding.Position = proto.Clone(sample.Pose.Position).(*presentationv2.Vector3)
-			}
-			if definition.Parent.FollowRotation {
-				binding.Rotation = proto.Clone(sample.Pose.Rotation).(*presentationv2.Quaternion)
-			}
-			patch.State = &realtimev2.ProjectedAnchorBindingPatch_Sample{Sample: binding}
-		}
-		patches = append(patches, patch)
-	}
-	sort.Slice(patches, func(i, j int) bool { return patches[i].NodeId < patches[j].NodeId })
-	return patches, nil
-}
 
 func (s *V2Session) anchorTrackingSample(node v2Node) (v2PresentedTrackingSample, bool, error) {
 	var target realtimev2.TrackedTarget

@@ -26,7 +26,7 @@ Definition の入力語彙、Delivery の Presenter 認識 catalog、進行・�
 
 公開 import、Protobuf package / service / namespace は [ADR-0024](../decisions/0024-canonical-presentation-contract-names.md) の正式名を維持する。旧 major、未知 enum / required capability、必須 oneof の未知 variant、上表にない組合せは補完せず拒否する。旧公開物・checkpoint の adapter / 自動移行・protocol downgrade は設けない。breaking baseline は旧 baseline との検出結果を確認して新 descriptor へ更新し、破壊的変更検査の負例を維持する。
 
-RuntimeCapability は従来の1〜6を保持し、7=`PRESENTER_RECOGNITION`、8=`INPUT_SYNCHRONIZATION`、9=`FROZEN_ANCHORS`、10=`STEP_RESTORE` を追加する。全 v3 connection は8〜10を必須とし、Gesture / Zone を持つ Presentation の Presenter profile は7も要求する。6=`TRACKING` は Pose による連続演出用であり、認識の意味には使わない。Viewer に認識設定を渡さない。
+RuntimeCapability は従来の1〜6を保持し、7=`PRESENTER_RECOGNITION`、8=`INPUT_SYNCHRONIZATION`、9=`FROZEN_ANCHORS`、10=`STEP_RESTORE` を追加する。全 v3 connection は8〜10を必須とし、Gesture / Zone を持つ Presentation の Presenter profile は7も要求する。6=`TRACKING` は PresenterAnchor を含む投影、および Definition 内に Anchor または HandGlow がある場合の Presenter が要求する。Presenter 自身に演出が投影されなくても、Viewer への追跡送信能力を必須とする。認識の意味には使わない。11=`EFFECT_PLAYBACK` は演出対象を含む投影が要求する。Viewer に認識設定を渡さない。12=`TRACKED_POSE_DELIVERY` は target 単位のライブ追跡配送を表し、`trackedPoseTargets` が空でない投影で必須とする。
 
 ## Definition と認識設定
 
@@ -95,7 +95,7 @@ pause / Step 復元の共有表示変更は `RuntimeViewReplaced` の完全な P
 
 `enabledLogicalInputs` が pause / resume・Step 変更・Guard・Cue 消費で変わる場合も、同じ canonical cut の `RuntimeViewReplaced` で置換する。Viewer の一覧は空にする。入力同期を伴う遷移の ACK / READY は、この更新を含む Reliable sequence の適用を要求する。
 
-resume は最新の有効 Pose があればそれを用い、なければ凍結表示を保持する。`ProjectedAnchorBindingPatch` は `unavailable / sample / frozen` の oneof とし、frozen の Node ID は外側の Node ID と一致させる。新 cut に属する sample で凍結を解除し、以後は通常の500ms freshness を適用する。解除後の unavailable も凍結を除去する。最初の sample が latest-wins 配信で失われても、次の keyframe / unavailable で通常状態に収束する。resume 待ちの keyframe は frozen を明示し、未取得を unavailable に置き換えない。server は解除を canonical checkpoint にも反映する。HMD 視点と操作 UI は停止しない。
+resume は同期境界後の新しい Pose を待ち、それまでは凍結表示を保持する。State の `trackedPoses` は target ごとのライブ入力、`frozenAnchors` は Node ごとの凍結表示の完全一覧として分離する。ライブ Pose の `unavailable` は凍結表示を削除しない。新しい有効 Pose によって凍結を解除し、解除は canonical checkpoint にも反映する。解除後は通常の500ms freshness を適用する。凍結座標を演出の新しい入力として扱わない。HMD 視点と操作 UI は停止しない。
 
 Presenter にだけ private な `PresenterStepSelectionCatalog` を送る。`reached_steps` は履歴にある Group / Step ID の組を重複なし・Group / Step 順で列挙し、`reliable_sequence` まで適用してから選択 UI に反映する。入力同期と同じ Runtime lock で取得し、Control item の1 MiB上限を適用する。開始状態や他 participant の結果を含めず、Viewer には送らない。
 

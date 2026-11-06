@@ -35,7 +35,7 @@ public sealed class AprilTagPresentationCalibrationTests
     }
 
     [Test]
-    public void PlacementCapturesHeadHeadingAndHeightWithoutChangingPhysicalMarkerCalibration()
+    public void PlacementCapturesHeadHeightAndPreservesPhysicalMarkerOrientation()
     {
         var head = new GameObject("HMD");
         try
@@ -55,7 +55,7 @@ public sealed class AprilTagPresentationCalibrationTests
             var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(1.5f).Within(0.00001f));
-            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, Quaternion.Euler(0, 45, 0)), Is.LessThan(0.02f));
+            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
             bridge.BeginSession("second");
             Assert.That(bridge.Calibration.IsValid, Is.False);
             Assert.That(alignment.IsConfirmed, Is.False);
@@ -65,7 +65,7 @@ public sealed class AprilTagPresentationCalibrationTests
             command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
-            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, Quaternion.Euler(0, 100, 0)), Is.LessThan(0.02f));
+            Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
         }
         finally { Object.DestroyImmediate(head); }
     }
@@ -101,6 +101,52 @@ public sealed class AprilTagPresentationCalibrationTests
             Assert.That(command.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
             Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void PlacementRequiresFreshMarkerMeasurementIfHeadIsUnavailableAtConfirmation(bool headConfigured)
+    {
+        var head = new GameObject("HMD");
+        try
+        {
+            head.SetActive(false);
+            bridge.ConfigureHead(headConfigured ? head.transform : null);
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Calibration.IsValid, Is.False);
+
+            head.transform.position = Vector3.up * 2.4f;
+            head.SetActive(true);
+            bridge.ConfigureHead(head.transform);
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            Assert.That(bridge.Placement.Prepare(initial, 3, null), Is.Null);
+
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var command = bridge.Placement.Prepare(initial, 3, null);
+            Assert.That(command, Is.Not.Null);
+            Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(0.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
+    [Test]
+    public void EnablingPlacementRequiresFreshMeasurementAfterMarkerOnlyCalibration()
+    {
+        Confirm(Pose.identity);
+        bridge.Refresh();
+        Assert.That(bridge.Calibration.IsValid, Is.True);
+
+        var head = new GameObject("HMD");
+        try
+        {
+            bridge.ConfigureHead(head.transform);
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Calibration.IsValid, Is.False);
         }
         finally { Object.DestroyImmediate(head); }
     }

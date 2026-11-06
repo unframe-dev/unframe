@@ -94,7 +94,8 @@ case "${mode}" in
     dotnet build "${REPO_ROOT}/packages/api-client-csharp/Generated/ControlPlane/Unframe.ControlPlane.csproj" --verbosity quiet
     dotnet run --project "${REPO_ROOT}/packages/api-client-csharp/Conformance/Unframe.Wire.Conformance.csproj" -- \
       "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/conformance.json" \
-      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/valid-delivery.json"
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/valid-delivery.json" \
+      "${REPO_ROOT}/packages/contracts/presentation/fixtures/wire/presenter-authority.json"
     ;;
   core)
     check_packages presentation artifacts playback delivery authoring source compiler

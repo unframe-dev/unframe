@@ -82,8 +82,8 @@ func authorityMessage(t *testing.T, typeName string) proto.Message {
 		return &realtime.PresenterStepSelectionCatalog{}
 	case "unframe.realtime.InputSynchronizationAck":
 		return &realtime.InputSynchronizationAck{}
-	case "unframe.realtime.ProjectedAnchorBindingPatch":
-		return &realtime.ProjectedAnchorBindingPatch{}
+	case "unframe.realtime.ProjectedTrackedPose":
+		return &realtime.ProjectedTrackedPose{}
 	case "unframe.realtime.RuntimeViewReplaced":
 		return &realtime.RuntimeViewReplaced{}
 	}

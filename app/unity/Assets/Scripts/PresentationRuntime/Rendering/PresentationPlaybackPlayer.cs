@@ -9,6 +9,7 @@ namespace Unframe.Unity.PresentationRuntime
         public delegate bool RendererRefresh(double runtimeTimeMs, out string error);
         public PresentationVideoResidency Videos { get; set; }
         public PresentationModelResidency Models { get; set; }
+        public PresentationSpatialRenderer Spatial { get; set; }
         private readonly PresentationNodeStateApplier states = new PresentationNodeStateApplier();
         private readonly PresentationTimelinePlayer timelines = new PresentationTimelinePlayer();
         private readonly Dictionary<string, string> runs = new Dictionary<string, string>();
@@ -63,6 +64,7 @@ namespace Unframe.Unity.PresentationRuntime
             states.ApplyAnchors(view, hierarchy);
             if (!refreshRenderer(runtimeTimeMs, out error)) return false;
             timelines.Update(runtimeTimeMs / 1000d, retainTerminalPose: true);
+            if (Spatial != null && !Spatial.TryRefresh(view, hierarchy, out error)) return false;
             if (!TryUpdateModels(view, runtimeTimeMs, out error)) return false;
             return Videos == null || Videos.TryUpdate(view, runtimeTimeMs, out error, runtimeClockRunning);
         }

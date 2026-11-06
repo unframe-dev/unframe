@@ -16,17 +16,25 @@ namespace Unframe.Unity.PresentationRuntime
             internal readonly List<EffectHandle> Handles = new List<EffectHandle>();
             internal bool Unsupported;
             internal ulong PoseSequence;
+            internal ulong PoseContinuity;
             internal double PoseTime = -1;
         }
+        private ulong? trackingGeneration;
         private readonly VisualEffectPlayer player = new VisualEffectPlayer(int.MaxValue);
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
         public int Count => entries.Count;
 
-        public bool TryUpdate(IPresentationRenderView store, IEnumerable<EffectRunSnapshot> effectRuns, PresentationNodeHierarchy hierarchy, double runtimeMs, out string error)
+        public bool TryUpdate(IPresentationRenderView store, IEnumerable<EffectRunSnapshot> effectRuns, PresentationNodeHierarchy hierarchy, double runtimeMs, out string error, bool trackingActive = true)
         {
             error = null;
             try
             {
+                if (trackingGeneration != store.TrackingGeneration)
+                {
+                    foreach (var id in new List<string>(entries.Keys))
+                        if (entries[id].Snapshot.Configuration.Kind == EffectKind.HandGlow) Remove(id);
+                    trackingGeneration = store.TrackingGeneration;
+                }
                 var runs = new List<EffectRunSnapshot>(effectRuns);
                 var present = new HashSet<string>();
                 foreach (var run in runs) present.Add(Key(run));
@@ -40,6 +48,13 @@ namespace Unframe.Unity.PresentationRuntime
                         if (hierarchy.Registry == null || !hierarchy.Registry.TryGet(run.NodeId, out GameObject node))
                             throw new InvalidOperationException("effect-node-absent");
                         entry = new Entry { Snapshot = run.Clone(), Target = node };
+                        if (run.Configuration.Kind == EffectKind.HandGlow)
+                        {
+                            var hand = HandTarget(run);
+                            if (store.TryGetTrackedPose(hand, out var previousPose))
+                                entry.PoseSequence = previousPose.TrackingFrameSequence;
+                            entry.PoseContinuity = store.TrackedPositionContinuity(hand);
+                        }
                         // Register before allocation so a failed mesh can release earlier allocations.
                         entries.Add(id, entry);
                         try { Start(run, id, node, entry); }
@@ -55,7 +70,7 @@ namespace Unframe.Unity.PresentationRuntime
                         throw new InvalidOperationException("effect-run-identity-changed");
                     if (!entry.Unsupported && run.Configuration.Kind == EffectKind.Wave)
                         player.SetWaveOpacity(id, entry.Target.GetComponent<PresentationVisualOpacity>()?.Opacity ?? 1f);
-                    if (!entry.Unsupported && run.Configuration.Kind == EffectKind.HandGlow)
+                    if (trackingActive && !entry.Unsupported && run.Configuration.Kind == EffectKind.HandGlow)
                         UpdateHand(store, hierarchy, run, entry, runtimeMs);
                 }
                 player.Evaluate(runtimeMs);
@@ -90,20 +105,26 @@ namespace Unframe.Unity.PresentationRuntime
         private void UpdateHand(IPresentationRenderView store, PresentationNodeHierarchy hierarchy,
             EffectRunSnapshot run, Entry entry, double runtimeMs)
         {
-            if (runtimeMs < run.StartedAtRuntimeTimeMs || runtimeMs <= entry.PoseTime) return;
-            AnchorTarget target = run.Configuration.Hand == EffectHand.Left ? AnchorTarget.LeftHand : AnchorTarget.RightHand;
-            foreach (var node in store.Catalog.Nodes)
+            var hand = HandTarget(run);
+            bool hasPose = store.TryGetTrackedPose(hand, out var sample);
+            ulong continuity = store.TrackedPositionContinuity(hand);
+            string id = Key(run);
+            if (continuity != entry.PoseContinuity)
             {
-                if (node.Parent?.PresenterAnchor?.Target != target
-                    || !store.TryGetAnchorSample(node.NodeId, out var sample) || sample.Position == null
-                    || sample.TrackingFrameSequence <= entry.PoseSequence
-                    || !hierarchy.Registry.TryGetAnchorParent(node.NodeId, out var anchor)) continue;
-                player.UpdatePose(Key(run), anchor.transform.position, runtimeMs);
-                entry.PoseSequence = sample.TrackingFrameSequence;
-                entry.PoseTime = runtimeMs;
-                return;
+                foreach (var handle in entry.Handles) handle.Cancel();
+                entry.Handles.Clear();
+                Start(run, id, entry.Target, entry);
+                entry.PoseContinuity = continuity;
             }
+            if (runtimeMs < run.StartedAtRuntimeTimeMs || runtimeMs <= entry.PoseTime
+                || !hasPose || sample.Position == null || sample.TrackingFrameSequence <= entry.PoseSequence) return;
+            player.UpdatePose(id, hierarchy.StageToWorld(sample.Position), runtimeMs);
+            entry.PoseSequence = sample.TrackingFrameSequence;
+            entry.PoseTime = runtimeMs;
         }
+
+        private static AnchorTarget HandTarget(EffectRunSnapshot run) =>
+            run.Configuration.Hand == EffectHand.Left ? AnchorTarget.LeftHand : AnchorTarget.RightHand;
 
         private static EffectOptions Options(EffectRunSnapshot run, string id)
         {

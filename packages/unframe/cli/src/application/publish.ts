@@ -1,7 +1,7 @@
 import { createPublicationClient } from "@unframe-dev/api-client-typescript/publication";
 import {
   publishFixedBuild,
-  readPublicationFence,
+  readSourcePublicationTarget,
   type PublicationRemote,
   type PublishResult,
 } from "@unframe-dev/publish";
@@ -33,11 +33,14 @@ export async function publishPresentation(input: PublishInput): Promise<PublishR
     const assets = new Map<string, { bytes: Uint8Array; mediaType: string }>();
     for (const id of Object.keys(fixed.artifacts.assetSet.assets))
       assets.set(id, await fixed.readAsset(id));
-    const expectedPublicationFence = await readPublicationFence(input);
+    const target = await readSourcePublicationTarget({
+      ...input,
+      sourcePresentationId: input.presentationId,
+    });
     return publishFixedBuild({
       ...input,
       artifacts: fixed.artifacts,
-      expectedPublicationFence,
+      ...target,
       readAsset: async (id) => {
         const value = assets.get(id);
         if (!value) throw new Error("Unknown fixed asset.");

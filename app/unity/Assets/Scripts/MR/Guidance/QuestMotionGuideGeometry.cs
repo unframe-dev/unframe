@@ -22,12 +22,12 @@ namespace Unframe.Unity.PresentationRuntime
         private static Vector3 GetPeripheralPosition(Vector3 headPosition, Quaternion headRotation, float verticalFov, float aspect, float side)
         {
             float halfHeight = Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-            Vector3 direction = new Vector3(side * .62f * halfHeight * aspect, -.58f * halfHeight, 1).normalized;
-            return headPosition + GetYawRotation(headRotation) * direction * Distance;
+            Vector3 direction = new Vector3(side * .42f * halfHeight * aspect, -.46f * halfHeight, 1).normalized;
+            return headPosition + headRotation * direction * Distance;
         }
 
         public static Vector3 GetInstructionPosition(Vector3 anchor, Quaternion headRotation) =>
-            anchor + Vector3.up * .055f;
+            anchor + headRotation * Vector3.up * .055f;
 
         public static Quaternion GetFacingRotation(Vector3 panelPosition, Vector3 headPosition, Quaternion headRotation)
         {

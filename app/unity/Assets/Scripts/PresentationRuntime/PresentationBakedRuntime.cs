@@ -97,7 +97,18 @@ namespace Unframe.Unity.PresentationRuntime
             && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter;
             }
         }
-        public bool CanSendTracking { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
+        public bool CanSendTracking => CalibrationReady && (connection?.TrackingInputEpoch ?? 0) != 0;
+
+        internal bool TryCaptureTrackingContext(out ulong inputEpoch, out ulong reliableSequence, out ulong originVersion)
+        {
+            inputEpoch = connection?.TrackingInputEpoch ?? 0;
+            reliableSequence = store.LastReliableSequence;
+            originVersion = store.PresentationOrigin?.Version ?? 0;
+            return inputEpoch != 0 && CalibrationReady;
+        }
+
+        internal bool CanSendTrackingCapture(TrackingFrame frame) =>
+            CalibrationReady && connection?.MatchesTrackingCapture(frame) == true;
 
         public bool IsPresenter => store.Delivery?.ProjectionProfile?.Key?.Role == SessionRole.Presenter;
         public string LastCommandOutcomeCode => ControlReady ? store.LastCommandOutcomeCode : null;
@@ -130,6 +141,7 @@ namespace Unframe.Unity.PresentationRuntime
                     await sceneRenderer.LoadAsync(store, hierarchy,
                         (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation, certFingerprint == null ? null : realtimeEndpoint, manifest.SessionId, bearerProvider), token), lifetime.Token);
                 playback.Models = sceneRenderer.Models;
+                playback.Spatial = sceneRenderer.Spatial;
                 playback.Videos = sceneRenderer.Videos;
                 DownloadReady = true;
                 diagnostics?.Record("assets.ready", direction: "receive", count: selectedAssets.Count);
@@ -188,7 +200,7 @@ namespace Unframe.Unity.PresentationRuntime
             effects.Clear();
             sceneRenderer?.Videos?.Pause();
             clock = null;
-            store.InvalidateAnchorSamples();
+            store.InvalidateTrackedPoses();
             stateApplier.ApplyAnchors(store, hierarchy);
             sceneRenderer?.Disable();
             RefreshCalibration();
@@ -208,7 +220,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string clientEventId = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string clientEventId = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId;
             store.TrackCommand(clientEventId);
             return SendTrackedCommandAsync(command, clientEventId, token);
         }
@@ -223,7 +235,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             if (command == null || !((command.ItemCase == ControlClientItem.ItemOneofCase.RuntimeControl || command.ItemCase == ControlClientItem.ItemOneofCase.PresentationOrigin) ? CanSendRuntimeControl : CanSendInput))
                 throw new InvalidOperationException("Runtime commands require a ready Presenter connection.");
-            string id = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId;
+            string id = command.PresentationOrigin?.ClientEventId ?? command.RuntimeControl?.ClientEventId ?? command.LogicalInput?.ClientEventId ?? command.SurfaceInteraction?.ClientEventId ?? command.GestureInput?.ClientEventId ?? command.ZoneInput?.ClientEventId ?? command.ForceAdvance?.ClientEventId;
             store.TrackCommand(id);
             try { return await connection.SendConfirmedAsync(command, TimeSpan.FromSeconds(10), token); }
             catch { store.ClearCommandOutcome(id); throw; }
@@ -231,10 +243,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
         {
-            if (!CanSendTracking) throw new InvalidOperationException("Runtime tracking requires a calibrated ready Presenter.");
-            if (frame == null || !calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
+            if (!CanSendTrackingCapture(frame)) throw new InvalidOperationException("Runtime tracking requires a calibrated synchronized Presenter capture.");
+            if (!calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
                 throw new InvalidOperationException("Tracking calibration does not match the active local calibration.");
-            frame.PresentationOriginVersion = store.PresentationOrigin?.Version ?? 0;
             return connection.SendTrackingAsync(frame, token);
         }
 

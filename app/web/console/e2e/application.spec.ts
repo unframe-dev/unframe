@@ -32,6 +32,30 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/auth/get-session", (route) => route.fulfill({ json: accountSession }));
 });
 
+test("brand icon keeps its size when the sidebar is collapsed and expanded", async ({ page }) => {
+  await page.goto("/home");
+  await page.evaluate(() => document.fonts.ready);
+  const brand = page.getByRole("link", { name: "Unframe home" });
+  const icon = brand.locator("img");
+  const wordmark = brand.getByText("Unframe", { exact: true });
+  await expect(icon).toBeVisible();
+  const iconSize = () =>
+    icon.evaluate((element) => {
+      const { width, height } = element.getBoundingClientRect();
+      return { width, height };
+    });
+  const expandedSize = await iconSize();
+  expect(expandedSize.width).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "サイドバーを折り畳む" }).click();
+  await expect(wordmark).toBeHidden();
+  await expect.poll(iconSize).toEqual(expandedSize);
+
+  await page.getByRole("button", { name: "サイドバーを展開" }).click();
+  await expect(wordmark).toBeVisible();
+  await expect.poll(iconSize).toEqual(expandedSize);
+});
+
 test("account menu displays the account image on desktop and mobile", async ({ page }) => {
   await page.goto("/home");
   const menu = page.getByRole("button", { name: "アカウントメニュー" });

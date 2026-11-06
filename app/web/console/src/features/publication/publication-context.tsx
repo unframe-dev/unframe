@@ -33,9 +33,7 @@ export function PublicationWorkflowProvider({ children }: { children: ReactNode 
     if (state.status !== "published") return;
     void queries.invalidateQueries({ queryKey: presentationKeys.list, exact: true });
     void queries.invalidateQueries({
-      queryKey: presentationKeys.detail(
-        state.selection.dist.artifacts.buildManifest.presentationId,
-      ),
+      queryKey: presentationKeys.detail(state.result.presentationId),
     });
   }, [state, queries]);
   return <PublicationContext value={controller}>{children}</PublicationContext>;

@@ -18,13 +18,15 @@ Authoring Source をビルドし、
 
 ローカルの Session 選択を取り消す場合は `PresentationControlPlaneConnection.CancelLocalSelectionAsync` を呼びます。実行中の接続と Asset 処理の終了を待ってから、その participant の選択情報と durable pin を削除します。通常の再接続やアプリ終了では選択を保持します。
 
+再生中の素材ファイルの存在・サイズ確認は、同じフレーム内では結果を再利用します。ファイルの消失・サイズ変更は次のフレームで再検出し、素材の追加・破棄は同じフレームでも即座に反映します。Editor の非再生中は呼び出しごとに確認します。
+
 `PresentationBakedRuntime` は共通の `PresentationSceneRenderer` で Baked Web PNG、Native UI（固定／string・boolean・number変数テキスト）、埋め込みGLB、H264動画を読み込みます。全素材のサイズ・checksum、描画・モデル・動画のresidency、Control / State同期が揃ってから入力を許可します。Surface crossfadeとTimeline、モデルclip、動画はauthoritative Runtime clockを使用します。Local Overlay、Native UIのellipsis・明示font fallback・step timerは受け付けません。managed dependencyの再現・checksum検査は [Plugins README](Assets/Plugins/README.md) を参照してください。
 
-`Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、AprilTag校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Presentation/Open Quest Presentation` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider, advanceLogicalEventName)` へHTTPS origin、Session ID、要求ごとに更新できるcredential provider、必要ならlogical event名を渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。Development Build の端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential`、必要なら `unframe.advanceLogicalEvent` から同じ入口を起動できます。校正JSONは不要です。通常のAPKではIntentの接続設定を読み取らず、アプリUIから参加します。Intent経路はcredentialを更新しません。更新が必要な接続では `Connect` に更新可能なcredential providerを渡します。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
+`Assets/Scenes/QuestPresentationScene.unity` は単一OVRCameraRig、PCA、AprilTag校正、Baked Runtime、接続入口、Body Pose source、状態UIを配線した端末用Sceneです。`Unframe/Presentation/Open Quest Presentation` で配線を生成します。`QuestPresentationSession.Connect(controlPlaneOrigin, sessionId, credentialProvider)` へHTTPS origin、Session ID、要求ごとに更新できるcredential providerを渡します。共有校正はマーカーから取得し、未確定でも認証・素材ロードを始められます。選択を切り替える際は入口の `StopAsync` の完了を待ってから再設定します。これらの値はSceneに保存しません。Development Build の端末で一時検証するときはAndroid launch Intentの `unframe.controlPlaneOrigin`、`unframe.sessionId`、`unframe.credential` から同じ入口を起動できます。校正JSONは不要です。通常のAPKではIntentの接続設定を読み取らず、アプリUIから参加します。Intent経路はcredentialを更新しません。更新が必要な接続では `Connect` に更新可能なcredential providerを渡します。credentialをコマンド履歴・ログ・repositoryへ記録しないでください。
 
 Sceneは `QuestPresentationBuild.BuildAndroid`（Unityメニュー `Unframe/Presentation/Build Quest Presentation APK` またはEditorの `-executeMethod`）で選択してAndroid APKを作ります。build helperはAndroid Build Support、IL2CPP、ARM64を確認し、`Builds/QuestPresentation.apk` を出力します。8 GiB制限下のbuildでは、Editor起動時に `BEE_BUILD_THREADS=1 IL2CPP_ADDITIONAL_ARGS='--jobs=1 --bee-jobs=1'` を指定してAndroid arm64 APKの生成まで確認済みです。生成APKにはARM64のIL2CPP・Unity・OpenXR library、`BODY_TRACKING` 権限、`required=false` のbody tracking用 `uses-feature` 2件が含まれます。Quest実機での起動・動作は未検証です。
 
-Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、OpenXR `XR_FB_body_tracking` が有効な場合にHips jointのBodyを取得します。Head/HandはXRの追跡状態とposition・rotationの取得が揃ったときに利用可能とします。Bodyはnative runtimeがactiveでHipsのposition・orientation両方のVALID bitが立つときに利用可能とし、TRACKED bitは必須にしません。runtimeが推定した有効なHips Poseも受け入れますが、Unity側でheadをBodyとして代用しません。AndroidのOpenXR Body featureは有効化済みで、manifestにMetaのinstall-time `BODY_TRACKING` 権限とbody tracking用の2つの `uses-feature` を宣言します。`uses-feature` は既存のBaked Viewerがインストール対象から外れないよう `required=false` です。取得できないtargetはcanonical identity Poseとavailability=falseを同じTracking frameで送ります。校正は `PresentationCalibrationState` が保持し、描画・入力・Trackingで共有します。再校正は接続を維持したまま明示的に確定し直します。追跡喪失・recenter・アプリpauseでは校正を無効化し、再測定まで描画・通常入力・Trackingを止めます。アプリが動作中は、校正が無効でも全体操作UIを利用できます。右controllerのprimary buttonは指定したlogical event、左右triggerの押下開始はcontroller rayが現在StateのHit Regionに当たった場合だけSurface interactionを送ります。どちらもSessionReadyとAsset residencyが揃ってから送信し、押しっぱなしでは再送しません。Anchor-bound Node は fresh binding を受信するまで描画を開始せず、通常の追跡 binding は500 msを超えると失効します。Snapshot と State keyframe の凍結 binding は期限で消さず、新しい sample または unavailable で通常状態へ戻します。
+Presenterの追跡はXR tracking-originのHead/LeftHand/RightHandを取得し、OpenXR `XR_FB_body_tracking` が有効な場合にHips jointのBodyを取得します。Head/HandはXRの追跡状態とposition・rotationの取得が揃ったときに利用可能とします。Bodyはnative runtimeがactiveでHipsのposition・orientation両方のVALID bitが立つときに利用可能とし、TRACKED bitは必須にしません。runtimeが推定した有効なHips Poseも受け入れますが、Unity側でheadをBodyとして代用しません。AndroidのOpenXR Body featureは有効化済みで、manifestにMetaのinstall-time `BODY_TRACKING` 権限とbody tracking用の2つの `uses-feature` を宣言します。`uses-feature` は既存のBaked Viewerがインストール対象から外れないよう `required=false` です。取得できないtargetはcanonical identity Poseとavailability=falseを同じTracking frameで送ります。校正は `PresentationCalibrationState` が保持し、描画・入力・Trackingで共有します。再校正は接続を維持したまま明示的に確定し直します。追跡喪失・recenter・アプリpauseでは校正を無効化し、再測定まで描画・通常入力・Trackingを止めます。アプリが動作中は、校正が無効でも全体操作UIを利用できます。右controllerのAボタンは `presenter.next` 論理入力、左右triggerの押下開始はcontroller rayが現在StateのHit Regionに当たった場合だけSurface interactionを送ります。どちらもSessionReadyとAsset residencyが揃ってから送信し、押しっぱなしでは再送しません。Anchor-bound Node は fresh binding を受信するまで描画を開始せず、通常の追跡 binding は500 msを超えると失効します。Snapshot と State keyframe の凍結 binding は期限で消さず、新しい sample または unavailable で通常状態へ戻します。
 
 ローカルControl Planeから取得した実DeliveryのC# consumer admission、Editorの受信・描画テストを確認済みです。Editorのnative HTTP/2 handlerと生成C# clientでは、実TLS Realtimeへの証明書pin付き接続、Control Snapshot、StateReady、keyframe受信まで確認しています。別のEditor検証では、既定 `HttpClient` と通常の証明書検証で、default Fixed Browser buildの4枚のPNGを実HTTPSから取得し、encoded cache、texture residency、StateReadyまで確認しています。いずれもQuest実機のAndroid transport、入力、GPU / CPU peak、context lossの証拠にはなりません。
 
@@ -81,3 +83,28 @@ Unityのクラス名・Scene名・APK名・診断ログの保存先は `AprilTag
 PNG・Native UI文字・動画は、同じSemantic Surface内のLayer順序を共通の描画順位へ変換します。Native文字はTMPのレイアウトを使用し、矩形clipとopacityを反映したMeshで描画します。準備済みの動画もSemantic Surfaceの座標で操作判定を行い、表示不能・未準備の動画は入力対象にしません。
 
 `PresentationMixedSurfaceTests`、`PresentationNativeSurfaceRenderingTests`、`PresentationMeshClipTests` が順位・操作・clipの回帰条件です。Quest実機での透明物重なりとコントローラー操作は別途確認が必要です。
+
+## Presenter の追従 HUD
+
+発表中は左下に現在ページと経過時間、右下に現在利用できる操作の案内を表示します。
+両方とも頭の移動・上下左右の向き・傾きに追従し、視野端から中央寄りに配置します。
+表示の基準点は視野幅の左29%・右71%、下から27%の位置で、頭からの距離は0.5mです。
+メニュー・オンボーディング表示中、Audience、準備・校正未完了では非表示になります。
+「次へ」を実行できる場合は右 A ボタンを案内します。モーションはトリガーの
+使い方を文章と腕アニメーションで示し、複数候補は6秒ごとに切り替えます。
+Throw / Circle は文章で案内し、腕アニメーションはありません。
+経過時間はこのアプリが同じ Session で最初に Running を観測した時点から計測し、
+一時停止・同じ接続インスタンスでの再接続中も継続します。Session の切替でリセットします。
+途中参加やアプリ再起動をまたぐサーバー上の発表開始時刻の復元には対応していません。
+Quest 実機での可読性・視野端の見え方は端末で確認が必要です。
+
+## 空間ノードの描画
+
+空間 Shape（box／sphere、unlit sRGBA、doubleSided）と Light（directional／point／spot）も、同じ配信ノード階層へ生成します。Shape は影を投影・受信せず、Light は lux／candela、range、spot内外角、影の指定を適用します。ノードのローカル -Z 方向は Unity の +Z へ変換し、親子TRS・表示状態・opacity・Timeline に従います。通常 Runtime と Local Preview は同じ空間描画を使用します。Unity が指定された spot 内外角を保持できない場合は、角度を黙って変更せず読み込みを拒否します。
+
+GLB のインスタンスには、glTFast の X 軸反転と Unframe の Z 軸反転の差を補う Y 軸180°回転を適用します。ノード自体の配置・回転とは分離し、モデル内部のオフセットや非対称な形状も Presentation 座標に一致させます。
+
+## Quest メニュー
+
+オンボーディングとプレゼン操作メニューは、既存のブランドロゴと `Unframe` のワードマークを共通表示します。配色は Web と同じ赤系のブランド色と明るい背景を使用します。
+ルームへの接続・素材の読み込み中は処理中の表示を保ち、準備完了後に位置合わせへ進みます。素材取得に30秒以上かかっても準備フォームには戻りません。「戻る」で待機をキャンセルでき、接続失敗時は再試行できます。

@@ -34,7 +34,7 @@ func v3FrozenCore(t *testing.T) (*V2Session, *recordingV2Checkpoint) {
 func v3SeedAnchor(t *testing.T, core *V2Session, sequence uint64, x float64) {
 	t.Helper()
 	frame := trackingTestFrame(sequence, trackingTestPose(0, 0, 0), trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(x, 0, 0)))
-	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Now(), sequence); err != nil {
+	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, trackingFrameAtCut(core, frame), time.Now(), sequence); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -61,7 +61,7 @@ func TestV3PausePersistsAvailableAnchorAndPublishesAtomicReplacement(t *testing.
 	if writer.envelope == nil {
 		t.Fatal("frozen Anchor not persisted")
 	}
-	patches, err := core.ProjectedAnchorBindings(snapshot.NodeStates, 100000)
+	patches, err := testAnchorBindings(core, snapshot.NodeStates, 100000)
 	if err != nil || patches[0].GetFrozen() == nil || patches[1].GetUnavailable() == nil {
 		t.Fatalf("aged patches=%v error=%v", patches, err)
 	}
@@ -73,13 +73,13 @@ func TestV3ResumeThawsOnValidPoseDespiteSaveFailure(t *testing.T) {
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
 	core.tracking = v2TrackingEvaluator{}
 	v3FrozenControl(t, core, "resume", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME)
-	patches, err := core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 100000)
+	patches, err := testAnchorBindings(core, core.Snapshot().NodeStates, 100000)
 	if err != nil || patches[0].GetFrozen() == nil {
 		t.Fatalf("waiting patches=%v error=%v", patches, err)
 	}
 	core.checkpointWriter = failingV2Checkpoint{}
 	frame := trackingTestFrame(2, trackingTestPose(0, 0, 0), trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(7, 0, 0)))
-	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Now(), 2); err != nil {
+	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, trackingFrameAtCut(core, frame), time.Now(), 2); err != nil {
 		t.Fatal(err)
 	}
 	if err := core.FlushCheckpoint(context.Background()); err == nil {
@@ -89,11 +89,11 @@ func TestV3ResumeThawsOnValidPoseDespiteSaveFailure(t *testing.T) {
 	if len(core.Snapshot().FrozenAnchors) != 0 {
 		t.Fatal("fresh Pose did not clear canonical frozen state")
 	}
-	patches, err = core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 2)
+	patches, err = testAnchorBindings(core, core.Snapshot().NodeStates, 2)
 	if err != nil || patches[0].GetSample().GetPosition().GetX() != 7 {
 		t.Fatalf("fresh patches=%v error=%v", patches, err)
 	}
-	patches, err = core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 503)
+	patches, err = testAnchorBindings(core, core.Snapshot().NodeStates, 503)
 	if err != nil || patches[0].GetUnavailable() == nil {
 		t.Fatalf("expired thaw patches=%v error=%v", patches, err)
 	}
@@ -106,18 +106,19 @@ func TestV3PausedTrackingDoesNotMoveFrozenDisplayAndResumeUsesFreshPose(t *testi
 	flushV2(t, core)
 	sequence := writer.envelope.CheckpointSequence
 	v3SeedAnchor(t, core, 2, 7)
-	patches, err := core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 2)
+	patches, err := testAnchorBindings(core, core.Snapshot().NodeStates, 2)
 	if err != nil || patches[0].GetFrozen().GetPosition().GetX() != 3 || writer.envelope.CheckpointSequence != sequence {
 		t.Fatalf("paused tracking patches=%v error=%v", patches, err)
 	}
 	events := v3FrozenControl(t, core, "resume", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_RESUME)
-	if len(events) != 1 || events[0].GetRuntimeStatusChanged().GetRunning() == nil || len(core.Snapshot().FrozenAnchors) != 0 {
-		t.Fatal("resume did not use fresh Pose")
+	if len(events) != 1 || events[0].GetRuntimeStatusChanged().GetRunning() == nil || len(core.Snapshot().FrozenAnchors) != 1 {
+		t.Fatal("resume did not preserve frozen Pose")
 	}
-	patches, err = core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 2)
-	if err != nil || patches[0].GetSample().GetPosition().GetX() != 7 {
+	patches, err = testAnchorBindings(core, core.Snapshot().NodeStates, 2)
+	if err != nil || patches[0].GetFrozen().GetPosition().GetX() != 3 {
 		t.Fatalf("resumed tracking patches=%v error=%v", patches, err)
 	}
+	v3SeedAnchor(t, core, 3, 9)
 	flushV2(t, core)
 	persisted := &realtimev2.CanonicalRuntimeSnapshot{}
 	if err := proto.Unmarshal(writer.envelope.CanonicalSnapshotPayload, persisted); err != nil {
@@ -149,7 +150,7 @@ func TestV3PauseSnapshotReplayAndRecoveryKeepFrozenWithoutRawPose(t *testing.T) 
 	if err := restored.JoinParticipant(context.Background(), session.Identity{Role: session.RoleViewer, ParticipantID: "late-viewer"}); err != nil {
 		t.Fatal(err)
 	}
-	patches, err := restored.ProjectedAnchorBindings(restored.Snapshot().NodeStates, 1<<40)
+	patches, err := testAnchorBindings(restored, restored.Snapshot().NodeStates, 1<<40)
 	if err != nil || patches[0].GetFrozen().GetPosition().GetX() != 3 {
 		t.Fatalf("recovered binding=%v error=%v", patches, err)
 	}
@@ -211,11 +212,11 @@ func TestV3PausedBindingCutRejectsOlderSnapshot(t *testing.T) {
 	before := core.Snapshot()
 	v3SeedAnchor(t, core, 1, 3)
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)
-	if _, err := core.ProjectedAnchorBindingsAtCut(before.NodeStates, 1, before.ReliableSequence); err != ErrV3StateCutChanged {
+	if _, err := testAnchorBindingsAtCut(core, before.NodeStates, 1, before.ReliableSequence); err != ErrV3StateCutChanged {
 		t.Fatalf("old State cut error=%v", err)
 	}
 	current := core.Snapshot()
-	patches, err := core.ProjectedAnchorBindingsAtCut(current.NodeStates, 1, current.ReliableSequence)
+	patches, err := testAnchorBindingsAtCut(core, current.NodeStates, 1, current.ReliableSequence)
 	if err != nil || patches[0].GetFrozen() == nil {
 		t.Fatalf("current State cut=%v error=%v", patches, err)
 	}
@@ -235,7 +236,7 @@ func TestV3PauseDoesNotInventUnavailableOrExpiredAnchor(t *testing.T) {
 			if len(core.Snapshot().FrozenAnchors) != 0 {
 				t.Fatal("unavailable Anchor was invented")
 			}
-			patches, err := core.ProjectedAnchorBindings(core.Snapshot().NodeStates, 1)
+			patches, err := testAnchorBindings(core, core.Snapshot().NodeStates, 1)
 			if err != nil || patches[0].GetUnavailable() == nil {
 				t.Fatalf("unavailable patches=%v error=%v", patches, err)
 			}
@@ -271,7 +272,7 @@ func TestV3FrozenAnchorContainsOnlyConfiguredRotation(t *testing.T) {
 	sample := trackingTestSample(realtimev2.TrackedTarget_TRACKED_TARGET_BODY, trackingTestPose(3, 0, 0))
 	sample.PositionAvailable = false
 	frame := trackingTestFrame(1, trackingTestPose(0, 0, 0), sample)
-	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, frame, time.Now(), 1); err != nil {
+	if _, _, err := core.AcceptTracking(context.Background(), session.Identity{Role: session.RolePresenter, ParticipantID: "presenter-1"}, trackingFrameAtCut(core, frame), time.Now(), 1); err != nil {
 		t.Fatal(err)
 	}
 	v3FrozenControl(t, core, "pause", realtimev2.RuntimeControlKind_RUNTIME_CONTROL_KIND_PAUSE)

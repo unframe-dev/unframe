@@ -134,12 +134,36 @@ it.each(["delivery", "catalog"])("rejects obsolete v2 %s contracts before render
   expect(() => buildVideoPlan(delivery, view)).toThrow();
 });
 
-it("rejects frozen Anchor display state before loading media", () => {
+it("rejects frozen Anchor state for a node without a Presenter Anchor", () => {
   const { delivery, view } = videoFixture();
   expect(() =>
     buildVideoPlan(delivery, {
       ...view,
       frozenAnchors: [{ nodeId: Object.keys(view.nodeStates)[0]!, position: [1, 2, 3] }],
+    }),
+  ).toThrow(/Anchor/);
+});
+
+it("accepts frozen video anchors and rejects unresolved or incomplete frozen anchors", () => {
+  const { delivery, view } = videoFixture();
+  const node = delivery.projectionProfile!.runtimeCatalog!.nodes![0]!;
+  node.parent = { presenterAnchor: { target: 2, followPosition: true, followRotation: true } };
+  const frozen = {
+    nodeId: node.nodeId!,
+    position: [1, 2, 3] as [number, number, number],
+    rotation: [0, 0, 0, 1] as [number, number, number, number],
+  };
+  expect(buildVideoPlan(delivery, { ...view, frozenAnchors: [frozen] }).planes).toHaveLength(1);
+  expect(() =>
+    buildVideoPlan(delivery, {
+      ...view,
+      frozenAnchors: [{ nodeId: node.nodeId!, position: [1, 2, 3] }],
+    }),
+  ).toThrow(/Anchor/);
+  expect(() =>
+    buildVideoPlan(delivery, {
+      ...view,
+      frozenAnchors: [{ nodeId: "unknown", position: [1, 2, 3] }],
     }),
   ).toThrow(/Anchor/);
 });

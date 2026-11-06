@@ -248,11 +248,10 @@ public sealed class PresentationBakedRenderingEditModeTests
             return false;
         }
 
-        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value)
-        {
-            value = null;
-            return false;
-        }
+        public ulong TrackingGeneration => 0;
+        public ulong TrackedPositionContinuity(AnchorTarget target) => 0;
+        public bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value) { value = null; return false; }
+        public bool TryGetFrozenAnchor(string id, out FrozenAnchorDisplayState value) { value = null; return false; }
     }
 
 }

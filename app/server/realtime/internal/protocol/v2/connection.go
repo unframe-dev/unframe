@@ -150,24 +150,30 @@ func (cursor *ConnectionCursor) AdmitState(frame *realtimev2.ElementStateFrame) 
 			return fmt.Errorf("message_invalid: incomplete keyframe patch")
 		}
 	}
-	anchors := make(map[string]bool)
-	for _, patch := range frame.AnchorBindings {
-		node := cursor.nodes[patch.NodeId]
-		if node == nil || node.Parent.GetPresenterAnchor() == nil || anchors[patch.NodeId] {
-			return fmt.Errorf("message_invalid: Anchor binding is outside profile, not bound or duplicate")
+	if frame.Kind == realtimev2.StateFrameKind_STATE_FRAME_KIND_KEYFRAME && len(frame.TrackedPoses) != len(cursor.catalog.TrackedPoseTargets) {
+		return fmt.Errorf("message_invalid: incomplete tracked pose keyframe")
+	}
+	index := 0
+	for _, pose := range frame.TrackedPoses {
+		for index < len(cursor.catalog.TrackedPoseTargets) && cursor.catalog.TrackedPoseTargets[index] < pose.Target {
+			index++
 		}
-		anchors[patch.NodeId] = true
-		if sample := patch.GetSample(); sample != nil {
-			parent := node.Parent.GetPresenterAnchor()
-			if (sample.Position != nil) != parent.FollowPosition || (sample.Rotation != nil) != parent.FollowRotation || sample.TrackingFrameSequence == 0 || sample.ObservedAtRuntimeMonotonicMs > frame.ProducedAtRuntimeMonotonicMs || frame.ProducedAtRuntimeMonotonicMs-sample.ObservedAtRuntimeMonotonicMs > 500 {
-				return fmt.Errorf("message_invalid: Anchor sample components or freshness")
-			}
+		if index >= len(cursor.catalog.TrackedPoseTargets) || pose.Target != cursor.catalog.TrackedPoseTargets[index] {
+			return fmt.Errorf("message_invalid: tracked pose target outside profile or duplicate")
 		}
-		if frozen := patch.GetFrozen(); frozen != nil {
-			parent := node.Parent.GetPresenterAnchor()
-			if frozen.Position != nil && !parent.FollowPosition || frozen.Rotation != nil && !parent.FollowRotation {
-				return fmt.Errorf("message_invalid: frozen Anchor components")
-			}
+		index++
+		if sample := pose.GetSample(); sample != nil && (sample.TrackingFrameSequence == 0 || sample.ObservedAtRuntimeMonotonicMs > frame.ProducedAtRuntimeMonotonicMs || frame.ProducedAtRuntimeMonotonicMs-sample.ObservedAtRuntimeMonotonicMs > 500) {
+			return fmt.Errorf("message_invalid: tracked pose sample freshness")
+		}
+	}
+	for _, frozen := range frame.FrozenAnchors {
+		node := cursor.nodes[frozen.NodeId]
+		if node == nil || node.Parent.GetPresenterAnchor() == nil {
+			return fmt.Errorf("message_invalid: frozen Anchor outside profile")
+		}
+		parent := node.Parent.GetPresenterAnchor()
+		if frozen.Position != nil && !parent.FollowPosition || frozen.Rotation != nil && !parent.FollowRotation {
+			return fmt.Errorf("message_invalid: frozen Anchor components")
 		}
 	}
 	cursor.stateSequence = frame.FrameSequence
