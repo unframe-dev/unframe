@@ -180,6 +180,45 @@ public sealed class PresentationCalibrationTests
         Assert.That(state.IsConfirmed, Is.True);
     }
 
+    [TestCase("remeasure")]
+    [TestCase("invalidate")]
+    [TestCase("session")]
+    public void ReplacingPlacementCancelsOldWaitAndAllowsFreshCommand(string replacement)
+    {
+        var state = new PresenterOriginPlacement();
+        state.BeginSession("first");
+        state.Capture(Pose.identity, new Pose(Vector3.up * 1.8f, Quaternion.identity));
+        var origin = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+        var old = state.Prepare(origin, 4, null);
+        var oldCancellation = state.CommandCancellation;
+        var wait = System.Threading.Tasks.Task.Delay(System.Threading.Timeout.Infinite, oldCancellation);
+
+        if (replacement == "remeasure") state.RequestPlacement();
+        if (replacement == "invalidate") state.InvalidateCapture();
+        if (replacement == "session") state.BeginSession("second");
+
+        Assert.That(wait.IsCanceled, Is.True, "Obsolete placement must stop waiting without a timeout.");
+        state.Capture(Pose.identity, new Pose(Vector3.up * 2.4f, Quaternion.identity));
+        var fresh = state.Prepare(origin, 4, null);
+        Assert.That(fresh.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
+        Assert.That(fresh.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(.00001f));
+        var freshCancellation = state.CommandCancellation;
+        Assert.That(freshCancellation.IsCancellationRequested, Is.False);
+        Assert.That(state.Reject(old.PresentationOrigin.ClientEventId), Is.False);
+        Assert.That(state.Confirm(new Unframe.Realtime.CommandOutcome
+        {
+            ClientEventId = old.PresentationOrigin.ClientEventId,
+            Accepted = new Unframe.Realtime.CommandAccepted { ReliableSequence = 1 }
+        }, 1, 1, 4, true), Is.False);
+        Assert.That(freshCancellation.IsCancellationRequested, Is.False);
+        Assert.That(state.Confirm(new Unframe.Realtime.CommandOutcome
+        {
+            ClientEventId = fresh.PresentationOrigin.ClientEventId,
+            Accepted = new Unframe.Realtime.CommandAccepted { ReliableSequence = 2 }
+        }, 2, 1, 4, true), Is.True);
+        Assert.That(state.IsConfirmed, Is.True);
+    }
+
     [Test]
     public void StateClonesInputAndOutputAndDoesNotReviseIdenticalCalibration()
     {
