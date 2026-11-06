@@ -598,7 +598,7 @@ describe("session HTTP lifecycle", () => {
     await expect(response.text()).resolves.not.toContain("must-not-be-returned");
   });
 
-  it("returns the existing conflict response when less than one second remains on a lease", async () => {
+  const bootstrapWithLease = async (leaseExpiresAt: string) => {
     const suffix = crypto.randomUUID();
     const ownerId = `owner-${suffix}`;
     const presentationId = `presentation-${suffix}`;
@@ -637,15 +637,39 @@ describe("session HTTP lifecycle", () => {
       ).bind(edgeId, runtimeId, now.toISOString(), now.toISOString(), now.toISOString()),
       env.DB.prepare(
         "INSERT INTO runtime_assignments (session_id, runtime_id, runtime_kind, endpoint, certificate_fingerprint, provisioning_edge_id, epoch, revision, issued_at, lease_expires_at) VALUES (?, ?, 'VenueEdge', 'https://edge.example.com', 'sha256:test', ?, 1, 1, ?, ?)",
-      ).bind(sessionId, runtimeId, edgeId, now.toISOString(), "2026-08-18T00:00:01.100Z"),
+      ).bind(sessionId, runtimeId, edgeId, now.toISOString(), leaseExpiresAt),
     ]);
-    const response = await app.fetch(
+    return app.fetch(
       new Request(`https://api.example.com/sessions/${sessionId}/bootstrap`, { method: "POST" }),
       runtimeEnvironment(),
     );
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({
-      error: { code: "conflict", message: "conflict" },
-    });
+  };
+
+  it.each([
+    ["subsecond", "2026-08-18T00:00:01.100Z"],
+    ["short", "2026-08-18T00:02:00.900Z"],
+    ["long", "2026-08-20T00:00:00.900Z"],
+  ])("issues a 24-hour credential independently of a %s lease", async (_, leaseExpiresAt) => {
+    const response = await bootstrapWithLease(leaseExpiresAt);
+    expect(response.status).toBe(200);
+    const bootstrap = await response.json<{ credential: string; expiresAt: string }>();
+    expect(bootstrap.expiresAt).toBe("2026-08-19T00:00:00.000Z");
+    const claims = JSON.parse(atob(bootstrap.credential.split(".")[1]!)) as {
+      iat: number;
+      exp: number;
+    };
+    expect(claims.iat).toBe(Date.parse("2026-08-18T00:00:00.000Z") / 1_000);
+    expect(claims.exp).toBe(Date.parse("2026-08-19T00:00:00.000Z") / 1_000);
   });
+
+  it.each(["2026-08-18T00:00:00.899Z", "2026-08-18T00:00:00.900Z"])(
+    "rejects a lease that has expired at issuance (%s)",
+    async (leaseExpiresAt) => {
+      const response = await bootstrapWithLease(leaseExpiresAt);
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({
+        error: { code: "runtime_unavailable", message: "runtime unavailable" },
+      });
+    },
+  );
 });

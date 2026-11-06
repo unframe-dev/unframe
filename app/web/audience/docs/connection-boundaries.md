@@ -1,6 +1,6 @@
 # Audience の接続境界
 
-更新日: 2026-10-30。Backend・共有契約・Audience adapter を実装済み。公開環境と実機での総合受入は未実施。
+更新日: 2026-11-06。Backend・共有契約・Audience adapter を実装済み。公開環境と実機での総合受入は未実施。
 
 ## 接続順
 
@@ -21,7 +21,7 @@ Audience はモデルのインスタンス数にアプリ独自の上限を設�
 ## 資格・復帰
 
 - API bearer はメモリのみで保持する。期限の5分前以降の HTTP 取得では更新し、旧 token を破棄する。期限は1時間、更新可能期間は初回から24時間。
-- Delivery／bootstrap は従来の最短期限前更新を使う。素材 URL だけなら表示を保持する。Runtime JWT が変わった場合はカメラを維持して新 Snapshot を取得し、素材を再適用する。
+- Delivery／bootstrap は最短期限前に更新する。素材 URL の通常更新では、参加者・公開版・割り当て・接続先が同じで Runtime JWT の残り有効期間が30秒を超えていれば、既存 JWT と Realtime 接続・表示を保持する。JWT は発行時から24時間有効で、期限前更新・明示再接続・復旧時は新しい JWT を採用する。JWT が変わった場合はカメラを維持して新 Snapshot を取得し、素材を再適用する。
 - Control 切断では両 socket を閉じ、画面の切断状態から2秒後に Delivery／bootstrap を再取得する。手動再接続も同じ取得を行い、現在の assignment と endpoint に新しい入力世代で接続する。再接続は新 Snapshot を使い、ブラウザ adapter は resume cursor を保持しない。
 - Control Plane が有効な Viewer 資格に対して `410` と `error.code=session_ended` を返した場合は、接続を破棄して配信終了を表示する。それ以外の `401`／`403`／`404`／`410` は接続情報を破棄して再参加画面へ戻り、配信終了とは判定しない。一時的な通信失敗では期限内の接続情報を維持して再試行する。
 - State の欠落では現在の表示を保持して State socket を閉じ、新 nonce で keyframe を取得する。古い socket と古い入力世代からの通知は受理しない。

@@ -117,7 +117,7 @@ encoded cache admission、reservation共有、pin、LRU、staging leaseはADR-00
 
 Controlはreliable、ordered、replayableで、Stateはlatest-wins、non-replayableである。各streamの最初のitemはHandshake exactly onceとし、それ以前の別payload、二回目のHandshake、空itemを`INVALID_ARGUMENT / handshake_order_invalid`で閉じる。
 
-native gRPC とブラウザ WebSocket の各 Control / State 接続は、認証に使った JWT の `exp` を超えて入力受付・配信を続けない。assignment lease を更新しても JWT の期限は延長しない。期限後は新しい credential で再接続する。
+Runtime JWT の `exp` は `iat` から24時間後とし、assignment lease の期限とは独立させる。発行時の active assignment 検証と Runtime での lease / epoch fencing は維持する。native gRPC とブラウザ WebSocket の各 Control / State 接続は、認証に使った JWT の `exp` を超えて入力受付・配信を続けない。assignment lease を更新しても JWT の期限は延長しない。期限後は新しい credential で再接続する。
 
 認証済みcontextだけがsession、participant、role、assignmentを所有する。client payloadからidentityやroleを採用しない。Control handshakeは`protocol_version="v3"`、progression `2`、required capability全件を満たす。State handshakeはControlで選択済みの値、connection IDと一致し、Controlが発行した32-byte nonceを30,000 ms以内に一回だけ使用する。nonceの再利用、別connection利用、expiryは`UNAUTHENTICATED / state_nonce_invalid`で閉じる。
 
