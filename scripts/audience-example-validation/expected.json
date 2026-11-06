@@ -1,0 +1,472 @@
+[
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "opening-wait",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "opening",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "opening-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-enter",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-intro",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-detail",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-shown",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-shown",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-reject",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "demo",
+      "step": "original-dismissed",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-wait",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-draw",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-drawn",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-move",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-exit",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-zone",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-frame",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-framed",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-goal",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-goal-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-exit",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-overview-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-1",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-1-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-2",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-2-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-3",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-focus-3-ready",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "poc-history",
+      "step": "poc-exit",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-float",
+      "step": "reaction-float-wait",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-float",
+      "step": "reaction-float-enter",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-float",
+      "step": "reaction-float-bobbing",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-sense",
+      "step": "reaction-sense-enter",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-sense",
+      "step": "reaction-gaze-wait",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-sense",
+      "step": "reaction-gaze-focus",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-sense",
+      "step": "reaction-gaze-zoom",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-hold",
+      "step": "reaction-hold",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "reaction-hold",
+      "step": "reaction-exit",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "closing-wait",
+      "step": "closing-wait",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "closing",
+      "step": "closing",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ended",
+      "rendering": "idle",
+      "group": "closing",
+      "step": "closing",
+      "sequence": "0",
+      "frozen": 0
+    }
+  ],
+  [
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "expression",
+      "step": "expression-ready",
+      "sequence": "0",
+      "frozen": 2
+    },
+    {
+      "phase": "ready",
+      "rendering": "idle",
+      "sequence": "1",
+      "frozen": 0
+    },
+    {
+      "phase": "ready",
+      "rendering": "idle",
+      "sequence": "2",
+      "frozen": 0
+    },
+    {
+      "phase": "ready",
+      "rendering": "ready",
+      "group": "journey",
+      "step": "journey-zone",
+      "sequence": "3",
+      "frozen": 0
+    }
+  ]
+]

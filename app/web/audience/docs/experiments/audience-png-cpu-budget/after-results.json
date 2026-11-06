@@ -1,0 +1,745 @@
+[
+  {
+    "index": 0,
+    "label": "initial",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "opening-wait",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 1,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "opening",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 2,
+    "label": "tick 6001: demo/opening-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "opening-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 3,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-enter",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 4,
+    "label": "tick 3361: demo/original-intro",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-intro",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 5,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-detail",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 6,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-shown",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 7,
+    "label": "tick 10000: demo/original-shown",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-shown",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 8,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-reject",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 9,
+    "label": "tick 2121: demo/original-dismissed",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "demo",
+        "step": "original-dismissed",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 10,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-wait",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 11,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 12,
+    "label": "tick 1: expression/expression",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 13,
+    "label": "gesture:circle",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-draw",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 14,
+    "label": "tick 801: expression/expression-drawn",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-drawn",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 15,
+    "label": "gesture:throw",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-move",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 16,
+    "label": "tick 1802: expression/expression-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 17,
+    "label": "gesture:swipeLeft",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-exit",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 18,
+    "label": "tick 801: journey/journey-zone",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-zone",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 19,
+    "label": "zoneEdge:journey-stage",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-frame",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 20,
+    "label": "tick 801: journey/journey-framed",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-framed",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 21,
+    "label": "gesture:spreadHands",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-goal",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 22,
+    "label": "tick 2201: journey/journey-goal-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-goal-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 23,
+    "label": "gesture:pullBackward",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-exit",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 24,
+    "label": "tick 4002: poc-history/poc-overview-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-overview-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 25,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-1",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 26,
+    "label": "tick 401: poc-history/poc-focus-1-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-1-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 27,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-2",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 28,
+    "label": "tick 401: poc-history/poc-focus-2-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-2-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 29,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-3",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 30,
+    "label": "tick 401: poc-history/poc-focus-3-ready",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-focus-3-ready",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 31,
+    "label": "gesture:swipeRight",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "poc-history",
+        "step": "poc-exit",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 32,
+    "label": "tick 801: reaction-float/reaction-float-wait",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-float",
+        "step": "reaction-float-wait",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 33,
+    "label": "gesture:swipeUp",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-float",
+        "step": "reaction-float-enter",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 34,
+    "label": "tick 701: reaction-float/reaction-float-bobbing",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-float",
+        "step": "reaction-float-bobbing",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 35,
+    "label": "gesture:swipeLeft",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-sense",
+        "step": "reaction-sense-enter",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 36,
+    "label": "tick 701: reaction-sense/reaction-gaze-wait",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-sense",
+        "step": "reaction-gaze-wait",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 37,
+    "label": "zoneEdge:reaction-gaze-stage",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-sense",
+        "step": "reaction-gaze-focus",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 38,
+    "label": "tick 1001: reaction-sense/reaction-gaze-zoom",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-sense",
+        "step": "reaction-gaze-zoom",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 39,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-hold",
+        "step": "reaction-hold",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 40,
+    "label": "logicalInput:presenter.next",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "reaction-hold",
+        "step": "reaction-exit",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 41,
+    "label": "tick 601: closing-wait/closing-wait",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "closing-wait",
+        "step": "closing-wait",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 42,
+    "label": "zoneEdge:closing-stage",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "closing",
+        "step": "closing",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 43,
+    "label": "tick 2001: closing/closing",
+    "states": [
+      {
+        "phase": "ended",
+        "rendering": "idle",
+        "group": "closing",
+        "step": "closing",
+        "sequence": "0",
+        "frozen": 0,
+        "children": 0
+      }
+    ],
+    "ok": true
+  },
+  {
+    "index": 44,
+    "label": "mock frozen hand anchor injection: expression → journey",
+    "states": [
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "expression",
+        "step": "expression-ready",
+        "sequence": "0",
+        "frozen": 2,
+        "children": 1
+      },
+      {
+        "phase": "ready",
+        "rendering": "idle",
+        "sequence": "1",
+        "frozen": 0,
+        "children": 1
+      },
+      {
+        "phase": "ready",
+        "rendering": "idle",
+        "sequence": "2",
+        "frozen": 0,
+        "children": 1
+      },
+      {
+        "phase": "ready",
+        "rendering": "ready",
+        "group": "journey",
+        "step": "journey-zone",
+        "sequence": "3",
+        "frozen": 0,
+        "children": 1
+      }
+    ],
+    "ok": true
+  }
+]

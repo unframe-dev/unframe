@@ -245,11 +245,38 @@ describe("PNG contract plan", () => {
     delivery.capabilityProfile!.limits!.texture!.maxTextureBindings = "1";
     expect(() => buildPngPlan(delivery, view)).toThrow("texture budget exceeded");
   });
-  it("accounts for all retained bitmaps while admitting the next serial decode", () => {
+  it.each([false, true])(
+    "admits serial PNG loads at the largest individual CPU peak with reversed order %s",
+    (reversed) => {
+      const { delivery, view } = pngFixture();
+      if (reversed) delivery.projectionProfile!.renderSurfaces!.reverse();
+      delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "28313505";
+      expect(buildPngPlan(delivery, view).assets).toHaveLength(3);
+    },
+  );
+  it("rejects an individual PNG decode one byte above the CPU budget", () => {
     const { delivery, view } = pngFixture();
-    delivery.projectionProfile!.renderSurfaces!.reverse();
-    delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "30000000";
+    delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes = "28313504";
     expect(() => buildPngPlan(delivery, view)).toThrow("CPU texture budget");
+  });
+  it("keeps the cumulative GPU budget independent of the serial CPU peak", () => {
+    const { delivery, view } = pngFixture();
+    const limits = delivery.capabilityProfile!.limits!.texture!;
+    limits.maxSerialLoadCpuBytes = "28313505";
+    limits.maxGpuBytes = "16334848";
+    expect(buildPngPlan(delivery, view).assets).toHaveLength(3);
+    limits.maxGpuBytes = "16334847";
+    expect(() => buildPngPlan(delivery, view)).toThrow("texture budget exceeded");
+  });
+  it("keeps the cumulative encoded cache and its reserve within budget", () => {
+    const { delivery, view } = pngFixture();
+    const limits = delivery.capabilityProfile!.limits!.texture!;
+    limits.maxSerialLoadCpuBytes = "28313505";
+    limits.encodedCacheReserveBytes = "1000";
+    limits.maxEncodedCacheBytes = "16339330";
+    expect(buildPngPlan(delivery, view).assets).toHaveLength(3);
+    limits.maxEncodedCacheBytes = "16339329";
+    expect(() => buildPngPlan(delivery, view)).toThrow("texture budget exceeded");
   });
   it("handles empty bindings and rejects missing runtime node states and transitions", () => {
     const { delivery, view, nodeId } = pngFixture();
