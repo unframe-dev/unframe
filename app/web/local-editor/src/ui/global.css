@@ -253,6 +253,12 @@ a {
 .panel-heading h2 {
   margin: 0;
 }
+.flow-tree > .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
 .flow-tree details {
   padding: 10px 8px 0;
 }
@@ -896,6 +902,7 @@ code {
 }
 .compact-panel .flow-tree {
   height: auto;
+  overflow: visible;
 }
 
 .simulation-controls,
