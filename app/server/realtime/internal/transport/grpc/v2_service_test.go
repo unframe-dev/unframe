@@ -111,7 +111,7 @@ func TestV2ServiceLiveControlStateNonceAndReady(t *testing.T) {
 		t.Fatalf("state keyframe = %#v, error = %v", frame, err)
 	}
 	pose := &presentationv2.Pose{Position: &presentationv2.Vector3{}, Rotation: &presentationv2.Quaternion{W: 1}}
-	tracking := &realtimev2.TrackingFrame{FrameSequence: 1, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
+	tracking := &realtimev2.TrackingFrame{FrameSequence: 1, InputEpoch: runtime.Snapshot().InputEpoch, BaseReliableSequence: runtime.Snapshot().ReliableSequence, PresentationFromQuestLocal: pose, Samples: []*realtimev2.TrackedPoseSample{{Target: realtimev2.TrackedTarget_TRACKED_TARGET_BODY, QuestLocalPose: pose, PositionAvailable: true, RotationAvailable: true}}}
 	if err := state.Send(&realtimev2.StateClientItem{Item: &realtimev2.StateClientItem_TrackingFrame{TrackingFrame: tracking}}); err != nil {
 		t.Fatal(err)
 	}

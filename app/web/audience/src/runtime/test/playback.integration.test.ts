@@ -9,7 +9,7 @@ import type {
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
 import { createRuntimeEffects } from "../../rendering/runtime-effects";
 import { createRuntimePlayback } from "../playback";
-import type { AnchorBindings } from "../anchor-bindings";
+import type { TrackedPoses } from "../tracked-poses";
 import { createPngPresentation } from "../../rendering/png-presentation";
 import { evaluateAnimationView } from "../animation-view";
 function setup() {
@@ -818,13 +818,15 @@ it("accepts multiple effects ordered by author ID when allocation order differs"
 
 it("keeps prepared views and expiring Anchor samples at the same State cut while loading", async () => {
   const { delivery, snapshot, fence, nodeId, transform } = setup();
-  delivery.projectionProfile!.runtimeCatalog!.nodes![0]!.parent = {
-    presenterAnchor: { target: 2, followPosition: true },
-  };
+  delivery.projectionProfile!.runtimeCatalog!.trackedPoseTargets = [2];
+  delivery.projectionProfile!.requiredRuntimeCapabilities = [
+    ...delivery.projectionProfile!.requiredRuntimeCapabilities!,
+    12,
+  ];
   let now = 1000;
   let finish!: () => void;
   let onPresent: (() => void) | undefined;
-  const frames: { x: number; binding: AnchorBindings[string] | undefined }[] = [];
+  const frames: { x: number; binding: TrackedPoses[number] | undefined }[] = [];
   const playback = createRuntimePlayback({
     delivery,
     now: () => now,
@@ -835,7 +837,7 @@ it("keeps prepared views and expiring Anchor samples at the same State cut while
       }),
     clear() {},
     frame(view, _time, bindings) {
-      frames.push({ x: view.nodeStates[nodeId]!.transform.position[0], binding: bindings[nodeId] });
+      frames.push({ x: view.nodeStates[nodeId]!.transform.position[0], binding: bindings[2] });
     },
   });
   const sendFrame = (sequence: number) => {
@@ -857,9 +859,9 @@ it("keeps prepared views and expiring Anchor samples at the same State cut while
             },
           },
         ],
-        anchorBindings: [
+        trackedPoses: [
           {
-            nodeId,
+            target: 2,
             sample: {
               trackingFrameSequence: String(sequence),
               observedAtRuntimeMonotonicMs: "500",
@@ -900,7 +902,7 @@ it("keeps prepared views and expiring Anchor samples at the same State cut while
   expect(frames.at(-1)).toMatchObject({ x: 30, binding: { sample: { position: { x: 3 } } } });
   now = 1501;
   playback.prepareFrame();
-  expect(frames.at(-1)).toEqual({ x: 30, binding: { nodeId, unavailable: {} } });
+  expect(frames.at(-1)).toEqual({ x: 30, binding: { target: 2, unavailable: {} } });
   sendFrame(4);
   await Promise.resolve();
   finish();

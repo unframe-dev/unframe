@@ -97,7 +97,18 @@ namespace Unframe.Unity.PresentationRuntime
             && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter;
             }
         }
-        public bool CanSendTracking { get { return CalibrationReady && SessionReady && store.Delivery.ProjectionProfile.Key.Role == SessionRole.Presenter; } }
+        public bool CanSendTracking => CalibrationReady && (connection?.TrackingInputEpoch ?? 0) != 0;
+
+        internal bool TryCaptureTrackingContext(out ulong inputEpoch, out ulong reliableSequence, out ulong originVersion)
+        {
+            inputEpoch = connection?.TrackingInputEpoch ?? 0;
+            reliableSequence = store.LastReliableSequence;
+            originVersion = store.PresentationOrigin?.Version ?? 0;
+            return inputEpoch != 0 && CalibrationReady;
+        }
+
+        internal bool CanSendTrackingCapture(TrackingFrame frame) =>
+            CalibrationReady && connection?.MatchesTrackingCapture(frame) == true;
 
         public bool IsPresenter => store.Delivery?.ProjectionProfile?.Key?.Role == SessionRole.Presenter;
         public string LastCommandOutcomeCode => ControlReady ? store.LastCommandOutcomeCode : null;
@@ -188,7 +199,7 @@ namespace Unframe.Unity.PresentationRuntime
             effects.Clear();
             sceneRenderer?.Videos?.Pause();
             clock = null;
-            store.InvalidateAnchorSamples();
+            store.InvalidateTrackedPoses();
             stateApplier.ApplyAnchors(store, hierarchy);
             sceneRenderer?.Disable();
             RefreshCalibration();
@@ -231,10 +242,9 @@ namespace Unframe.Unity.PresentationRuntime
 
         public Task SendTrackingAsync(TrackingFrame frame, CancellationToken token)
         {
-            if (!CanSendTracking) throw new InvalidOperationException("Runtime tracking requires a calibrated ready Presenter.");
-            if (frame == null || !calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
+            if (!CanSendTrackingCapture(frame)) throw new InvalidOperationException("Runtime tracking requires a calibrated synchronized Presenter capture.");
+            if (!calibration.PresentationFromQuestLocal.Equals(frame.PresentationFromQuestLocal))
                 throw new InvalidOperationException("Tracking calibration does not match the active local calibration.");
-            frame.PresentationOriginVersion = store.PresentationOrigin?.Version ?? 0;
             return connection.SendTrackingAsync(frame, token);
         }
 

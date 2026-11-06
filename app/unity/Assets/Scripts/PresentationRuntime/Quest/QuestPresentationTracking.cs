@@ -39,12 +39,17 @@ namespace Unframe.Unity.PresentationRuntime
 
     public static class QuestPresentationTracking
     {
-        public static TrackingFrame CreateFrame(ProtoPose presentationFromQuestLocal, params QuestPoseSample[] samples)
+        public static TrackingFrame CreateFrame(ProtoPose presentationFromQuestLocal, ulong inputEpoch,
+            ulong reliableSequence, ulong originVersion, params QuestPoseSample[] samples)
         {
-            if (presentationFromQuestLocal?.Position == null || presentationFromQuestLocal.Rotation == null
-                || samples == null || samples.Length > 4) throw new ArgumentException("Tracking requires calibration and at most four targets.");
+            if (inputEpoch == 0 || presentationFromQuestLocal?.Position == null || presentationFromQuestLocal.Rotation == null
+                || samples == null || samples.Length > 4)
+                throw new ArgumentException("Tracking requires a synchronized input epoch, calibration, and at most four targets.");
             TrackingFrame frame = new TrackingFrame
             {
+                InputEpoch = inputEpoch,
+                BaseReliableSequence = reliableSequence,
+                PresentationOriginVersion = originVersion,
                 CapturedAtClientMonotonicMs = (ulong)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000),
                 PresentationFromQuestLocal = presentationFromQuestLocal.Clone(),
             };

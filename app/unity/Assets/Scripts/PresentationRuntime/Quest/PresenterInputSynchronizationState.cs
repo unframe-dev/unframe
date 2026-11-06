@@ -9,6 +9,7 @@ namespace Unframe.Unity.PresentationRuntime
         private PresenterInputSynchronization current;
         private bool acknowledged;
         public bool Ready => acknowledged && current?.Phase == InputSynchronizationPhase.Ready;
+        internal ulong ReadyInputEpoch => Ready ? current.InputContext.InputEpoch : 0;
         public ulong CommandEpoch => current?.CommandEpoch ?? 0;
         public InputContext Context => Ready ? current.InputContext.Clone() : null;
         public PresenterRecognitionCatalog Catalog => Ready ? current.RecognitionCatalog.Clone() : null;

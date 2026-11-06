@@ -3,7 +3,7 @@ import type {
   DeliveryManifestWire,
   StateServerItemWire,
 } from "@unframe-dev/contracts/presentation";
-import { readAnchorBindings } from "./anchor-bindings";
+import { readTrackedPoses } from "./tracked-poses";
 import {
   createRuntimeReducer,
   createRuntimeState,
@@ -22,11 +22,11 @@ export function createRuntimeStore(
     getSnapshot(): RuntimeStoreSnapshot {
       return structuredClone(state.snapshot);
     },
-    getAnchorBindings() {
-      return readAnchorBindings(state.anchorBindings, now());
+    getTrackedPoses() {
+      return readTrackedPoses(state.trackedPoses, now());
     },
-    getAnchorBindingsSnapshot() {
-      return structuredClone(state.anchorBindings);
+    getTrackedPosesSnapshot() {
+      return structuredClone(state.trackedPoses);
     },
     reset() {
       state = reduce(state, { kind: "reset" });

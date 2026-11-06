@@ -18,11 +18,13 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly Dictionary<string, VariableState> variableStates = new Dictionary<string, VariableState>();
         private readonly Dictionary<string, MediaRuntimeState> mediaStates = new Dictionary<string, MediaRuntimeState>();
         private readonly Dictionary<string, ModelClipRuntimeState> modelClipStates = new Dictionary<string, ModelClipRuntimeState>();
-        private readonly Dictionary<string, AnchorSampleState> anchorSamples = new Dictionary<string, AnchorSampleState>();
+        private readonly Dictionary<AnchorTarget, TrackedPoseState> trackedPoses = new Dictionary<AnchorTarget, TrackedPoseState>();
         private readonly Dictionary<string, FrozenAnchorDisplayState> frozenAnchors = new Dictionary<string, FrozenAnchorDisplayState>();
-        private sealed class AnchorSampleState
+        private sealed class TrackedPoseState
         {
-            internal ProjectedAnchorBindingSample Sample;
+            internal ProjectedTrackedPoseSample Sample;
+            internal ulong LastSequence;
+            internal ulong PositionContinuity;
             internal ulong AgeAtReceiptMs;
             internal long ReceivedAtTicks;
         }
@@ -47,6 +49,7 @@ namespace Unframe.Unity.PresentationRuntime
             this.delivery = delivery;
         }
 
+        internal ulong TrackingGeneration { get; private set; }
         internal ulong LastReliableSequence { get; private set; }
         internal ulong LastStateFrameSequence { get; private set; }
         internal PresentationOrigin PresentationOrigin { get { return presentationOrigin?.Clone(); } }
@@ -104,7 +107,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             ClearCommandOutcome();
             LastStateFrameSequence = 0;
-            anchorSamples.Clear();
+            InvalidateTrackedPoses();
         }
 
         internal void Reset()
@@ -120,7 +123,7 @@ namespace Unframe.Unity.PresentationRuntime
             variableStates.Clear();
             modelClipStates.Clear();
             mediaStates.Clear();
-            anchorSamples.Clear();
+            InvalidateTrackedPoses();
             LastReliableSequence = 0;
             LastStateFrameSequence = 0;
             frozenAnchors.Clear();
@@ -200,21 +203,46 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         internal bool TryGetNodeState(string id, out NodeRuntimeState value) { return nodeStates.TryGetValue(id, out value); }
-        internal bool TryGetAnchorSample(string id, out ProjectedAnchorBindingSample value)
+        internal bool TryGetFrozenAnchor(string id, out FrozenAnchorDisplayState value)
         {
             value = null;
-            if (frozenAnchors.TryGetValue(id, out FrozenAnchorDisplayState frozen))
-            {
-                value = new ProjectedAnchorBindingSample { Position = frozen.Position?.Clone(), Rotation = frozen.Rotation?.Clone() };
-                return true;
-            }
-            if (!anchorSamples.TryGetValue(id, out AnchorSampleState state)) return false;
-            double elapsedMs = (Stopwatch.GetTimestamp() - state.ReceivedAtTicks) * 1000d / Stopwatch.Frequency;
-            if (elapsedMs < 0 || state.AgeAtReceiptMs + elapsedMs > 500d) return false;
-            value = state.Sample.Clone();
+            if (!frozenAnchors.TryGetValue(id, out var frozen)) return false;
+            value = frozen.Clone();
             return true;
         }
-        internal void InvalidateAnchorSamples() { anchorSamples.Clear(); }
+
+        internal ulong TrackedPositionContinuity(AnchorTarget target) =>
+            trackedPoses.TryGetValue(target, out var state) ? state.PositionContinuity : 0;
+
+        internal bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value)
+        {
+            value = null;
+            if (clock?.StatusCase != RuntimeClockSnapshot.StatusOneofCase.Running
+                || !trackedPoses.TryGetValue(target, out var state)) return false;
+            ExpireTrackedPose(state, Stopwatch.GetTimestamp());
+            value = state.Sample?.Clone();
+            return value != null;
+        }
+
+        private static void ExpireTrackedPose(TrackedPoseState state, long now)
+        {
+            double elapsedMs = (now - state.ReceivedAtTicks) * 1000d / Stopwatch.Frequency;
+            if (state.Sample != null && (elapsedMs < 0 || state.AgeAtReceiptMs + elapsedMs > 500d))
+                ReplaceTrackedPose(state, null);
+        }
+
+        private static void ReplaceTrackedPose(TrackedPoseState state, ProjectedTrackedPoseSample sample)
+        {
+            if (state.Sample?.Position != null && sample?.Position == null) state.PositionContinuity++;
+            state.Sample = sample?.Clone();
+        }
+
+        internal void InvalidateTrackedPoses()
+        {
+            trackedPoses.Clear();
+            TrackingGeneration++;
+        }
+
         internal bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return surfaceStates.TryGetValue(id, out value); }
         internal bool TryGetVariableState(string id, out VariableState value) { return variableStates.TryGetValue(id, out value); }
         internal bool TryGetMediaState(string id, out MediaRuntimeState value) { return mediaStates.TryGetValue(id, out value); }
@@ -276,7 +304,7 @@ namespace Unframe.Unity.PresentationRuntime
 
             LastReliableSequence = envelope.ReliableSequence;
             LastStateFrameSequence = 0;
-            anchorSamples.Clear();
+            InvalidateTrackedPoses();
             ReplaceFrozenAnchors(view);
             presentationOriginVersion = envelope.Fence.PresentationOriginVersion;
             presentationOrigin = view.PresentationOrigin?.Clone();
@@ -359,7 +387,7 @@ namespace Unframe.Unity.PresentationRuntime
                     foreach (var run in replacement.ActiveRuns) activeRuns.Add(RunKey(run.RunId), run.Clone());
                     clock = replacement.Clock.Clone();
                     progression = replacement.Progression.Clone();
-                    anchorSamples.Clear();
+                    InvalidateTrackedPoses();
                     ReplaceFrozenAnchors(replacement);
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.EffectRunsChanged:
@@ -373,6 +401,7 @@ namespace Unframe.Unity.PresentationRuntime
                         || status.StatusCase == RuntimeStatusChanged.StatusOneofCase.Paused && (status.Paused.Reason == PauseReason.Unspecified || !Enum.IsDefined(typeof(PauseReason), status.Paused.Reason))
                         || status.StatusCase == RuntimeStatusChanged.StatusOneofCase.Terminating && (status.Terminating.Reason == TerminationReason.Unspecified || !Enum.IsDefined(typeof(TerminationReason), status.Terminating.Reason)))
                     { error = "realtime.event runtime status is invalid."; return false; }
+                    InvalidateTrackedPoses();
                     if (status.StatusCase == RuntimeStatusChanged.StatusOneofCase.Running) clock.Running = status.Running.Clone();
                     else if (status.StatusCase == RuntimeStatusChanged.StatusOneofCase.Paused) clock.Paused = status.Paused.Clone();
                     else clock.Terminating = status.Terminating.Clone();
@@ -383,7 +412,7 @@ namespace Unframe.Unity.PresentationRuntime
                     { error = "realtime.event presentation origin is invalid."; return false; }
                     presentationOrigin = nextOrigin.Clone();
                     presentationOriginVersion = nextOrigin.Version;
-                    anchorSamples.Clear();
+                    InvalidateTrackedPoses();
                     frozenAnchors.Clear();
                     break;
                 case ProjectedReliableEvent.PayloadOneofCase.ParticipantPresenceChanged:
@@ -749,7 +778,7 @@ namespace Unframe.Unity.PresentationRuntime
         internal bool TryValidateNetworkStateFrame(ElementStateFrame frame, out string error)
         {
             error = "realtime.state_frame violates projection or Timeline ownership.";
-            if (frame == null || !TryValidateAnchorBindings(frame, out _)) return false;
+            if (frame == null || !TryValidateTracking(frame, out _)) return false;
             var opacityOwners = new HashSet<string>();
             var positionOwners = new HashSet<string>();
             var rotationOwners = new HashSet<string>();
@@ -820,7 +849,7 @@ namespace Unframe.Unity.PresentationRuntime
                 return false;
             }
 
-            if (!TryValidateAnchorBindings(frame, out error)) return false;
+            if (!TryValidateTracking(frame, out error)) return false;
 
             Dictionary<string, NodeRuntimeState> updates = new Dictionary<string, NodeRuntimeState>();
             foreach (ElementStatePatch patch in frame.Elements)
@@ -861,25 +890,38 @@ namespace Unframe.Unity.PresentationRuntime
                 nodeStates[update.Key] = update.Value;
             }
 
-            if (frame.Kind == StateFrameKind.Keyframe) { anchorSamples.Clear(); frozenAnchors.Clear(); }
+            frozenAnchors.Clear();
+            foreach (var frozen in frame.FrozenAnchors)
+                frozenAnchors.Add(frozen.NodeId, frozen.Clone());
+
             long receivedAtTicks = Stopwatch.GetTimestamp();
-            foreach (ProjectedAnchorBindingPatch binding in frame.AnchorBindings)
+            foreach (var pose in frame.TrackedPoses)
             {
-                frozenAnchors.Remove(binding.NodeId);
-                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Frozen)
+                if (!trackedPoses.TryGetValue(pose.Target, out var state))
                 {
-                    anchorSamples.Remove(binding.NodeId);
-                    frozenAnchors[binding.NodeId] = binding.Frozen.Clone();
+                    state = new TrackedPoseState();
+                    trackedPoses.Add(pose.Target, state);
                 }
-                else if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Unavailable
-                    || frame.ProducedAtRuntimeMonotonicMs - binding.Sample.ObservedAtRuntimeMonotonicMs > 500)
-                    anchorSamples.Remove(binding.NodeId);
-                else anchorSamples[binding.NodeId] = new AnchorSampleState
+
+                ExpireTrackedPose(state, receivedAtTicks);
+                var sample = pose.Sample;
+                if (sample == null)
                 {
-                    Sample = binding.Sample.Clone(),
-                    AgeAtReceiptMs = frame.ProducedAtRuntimeMonotonicMs - binding.Sample.ObservedAtRuntimeMonotonicMs,
-                    ReceivedAtTicks = receivedAtTicks,
-                };
+                    ReplaceTrackedPose(state, null);
+                    continue;
+                }
+                ulong ageMs = frame.ProducedAtRuntimeMonotonicMs - sample.ObservedAtRuntimeMonotonicMs;
+                if (sample.TrackingFrameSequence < state.LastSequence) continue;
+                if (sample.TrackingFrameSequence == state.LastSequence)
+                {
+                    if (ageMs > 500) ReplaceTrackedPose(state, null);
+                    continue;
+                }
+                state.LastSequence = sample.TrackingFrameSequence;
+                ReplaceTrackedPose(state, ageMs > 500 || clock.StatusCase != RuntimeClockSnapshot.StatusOneofCase.Running
+                    ? null : sample);
+                state.AgeAtReceiptMs = ageMs;
+                state.ReceivedAtTicks = receivedAtTicks;
             }
 
             LastStateFrameSequence = frame.FrameSequence;
@@ -888,38 +930,36 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        private bool TryValidateAnchorBindings(ElementStateFrame frame, out string error)
+        private bool TryValidateTracking(ElementStateFrame frame, out string error)
         {
-            error = "realtime.state_frame contains invalid anchor bindings.";
-            int expected = 0;
-            foreach (ProjectedNodeDefinition node in delivery.Nodes)
-                if (nodeStates.ContainsKey(node.NodeId) && node.Parent?.ParentCase == SpatialParent.ParentOneofCase.PresenterAnchor) expected++;
-            if (frame.Kind == StateFrameKind.Keyframe && frame.AnchorBindings.Count != expected) return false;
-            string previous = null;
-            foreach (ProjectedAnchorBindingPatch binding in frame.AnchorBindings)
+            error = "realtime.state_frame contains invalid tracked poses or frozen anchors.";
+            var targets = delivery.Delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets;
+            if (frame.Kind == StateFrameKind.Keyframe && frame.TrackedPoses.Count != targets.Count) return false;
+            AnchorTarget previousTarget = AnchorTarget.Unspecified;
+            foreach (var pose in frame.TrackedPoses)
             {
-                if (binding == null || !PresentationDeliveryCatalog.IsId(binding.NodeId)
-                    || previous != null && string.CompareOrdinal(previous, binding.NodeId) >= 0
-                    || !delivery.TryGetNode(binding.NodeId, out ProjectedNodeDefinition node)
-                    || !nodeStates.ContainsKey(binding.NodeId)
-                    || node.Parent?.ParentCase != SpatialParent.ParentOneofCase.PresenterAnchor) return false;
-                previous = binding.NodeId;
-                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Unavailable) continue;
-                if (binding.StateCase == ProjectedAnchorBindingPatch.StateOneofCase.Frozen)
-                {
-                    if (binding.Frozen.NodeId != binding.NodeId || !ValidFrozenAnchor(binding.Frozen, node)) return false;
-                    continue;
-                }
-                if (binding.StateCase != ProjectedAnchorBindingPatch.StateOneofCase.Sample) return false;
-                ProjectedAnchorBindingSample sample = binding.Sample;
-                PresenterAnchorParent parent = node.Parent.PresenterAnchor;
-                if (sample.TrackingFrameSequence == 0 || sample.ObservedAtRuntimeMonotonicMs > frame.ProducedAtRuntimeMonotonicMs
-                    || parent.FollowPosition != (sample.Position != null)
-                    || parent.FollowRotation != (sample.Rotation != null)
+                if (pose.Target <= previousTarget || !targets.Contains(pose.Target)) return false;
+                previousTarget = pose.Target;
+                if (pose.StateCase == ProjectedTrackedPose.StateOneofCase.Unavailable) continue;
+                var sample = pose.Sample;
+                if (sample == null || sample.TrackingFrameSequence == 0
+                    || sample.ObservedAtRuntimeMonotonicMs > frame.ProducedAtRuntimeMonotonicMs
+                    || sample.Position == null && sample.Rotation == null
                     || sample.Position != null && (!IsValidVector(sample.Position)
                         || !PresentationCoordinateValidation.IsRenderable(sample.Position))
                     || sample.Rotation != null && !PresentationDeliveryCatalog.IsCanonicalUnitQuaternion(sample.Rotation)) return false;
             }
+
+            string previousNode = null;
+            foreach (var frozen in frame.FrozenAnchors)
+            {
+                if (previousNode != null && string.CompareOrdinal(previousNode, frozen.NodeId) >= 0
+                    || !nodeStates.ContainsKey(frozen.NodeId)
+                    || !delivery.TryGetNode(frozen.NodeId, out var node)
+                    || !ValidFrozenAnchor(frozen, node)) return false;
+                previousNode = frozen.NodeId;
+            }
+
             error = null;
             return true;
         }
@@ -1232,8 +1272,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool ValidateEffects(IEnumerable<EffectRunSnapshot> runs, ulong time, ProgressionRuntimeState state)
         {
-            return PresentationEffectValidation.Validate(runs, delivery.Delivery.ProjectionProfile.RuntimeCatalog,
-                time, state.CurrentGroupId, state.GroupEntryEpoch, delivery.Delivery.ProjectionInstance.AssignmentEpoch);
+            var catalog = delivery.Delivery.ProjectionProfile.RuntimeCatalog;
+            if (!PresentationEffectValidation.Validate(runs, catalog, time, state.CurrentGroupId, state.GroupEntryEpoch,
+                delivery.Delivery.ProjectionInstance.AssignmentEpoch)) return false;
+            foreach (var run in runs)
+                if (run.Configuration.Kind == EffectKind.HandGlow
+                    && !catalog.TrackedPoseTargets.Contains(run.Configuration.Hand == EffectHand.Left ? AnchorTarget.LeftHand : AnchorTarget.RightHand))
+                    return false;
+            return true;
         }
 
         private bool IsValidRunId(RuntimeRunId runId)

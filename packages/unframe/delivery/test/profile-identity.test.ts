@@ -28,6 +28,7 @@ const descriptor = {
     variables: [],
     timelines: [],
     modelClips: [],
+    trackedPoseTargets: [],
   },
 };
 
@@ -62,5 +63,18 @@ describe("Projection profile identity", () => {
     expect(() =>
       calculateProjectionProfileId({ ...descriptor, requiredRuntimeCapabilities: [0] }),
     ).toThrow("UNSPECIFIED enum");
+  });
+
+  it("includes tracking requirements in identity and rejects ambiguous target sets", () => {
+    const withTargets = (trackedPoseTargets: number[]) => ({
+      ...descriptor,
+      runtimeCatalog: { ...descriptor.runtimeCatalog, trackedPoseTargets },
+    });
+    expect(calculateProjectionProfileId(withTargets([2]))).not.toBe(
+      calculateProjectionProfileId(withTargets([3])),
+    );
+    expect(() => calculateProjectionProfileId(withTargets([3, 2]))).toThrow("canonical order");
+    expect(() => calculateProjectionProfileId(withTargets([2, 2]))).toThrow("canonical order");
+    expect(() => calculateProjectionProfileId(withTargets([0]))).toThrow("UNSPECIFIED");
   });
 });

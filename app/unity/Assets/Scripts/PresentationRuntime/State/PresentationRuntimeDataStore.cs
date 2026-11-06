@@ -176,8 +176,11 @@ namespace Unframe.Unity.PresentationRuntime
         public bool TryGetVariable(string id, out ProjectedVariableDefinition value) { return delivery.TryGetVariable(id, out value); }
         public bool TryGetModelClip(string modelNodeId, string clipId, out ProjectedModelClipDefinition value) { return delivery.TryGetModelClip(modelNodeId, clipId, out value); }
         public bool TryGetNodeState(string id, out NodeRuntimeState value) { return runtime.TryGetNodeState(id, out value); }
-        public bool TryGetAnchorSample(string nodeId, out ProjectedAnchorBindingSample value) { return runtime.TryGetAnchorSample(nodeId, out value); }
-        internal void InvalidateAnchorSamples() { runtime.InvalidateAnchorSamples(); }
+        public ulong TrackingGeneration => runtime.TrackingGeneration;
+        public ulong TrackedPositionContinuity(AnchorTarget target) => runtime.TrackedPositionContinuity(target);
+        public bool TryGetTrackedPose(AnchorTarget target, out ProjectedTrackedPoseSample value) => runtime.TryGetTrackedPose(target, out value);
+        public bool TryGetFrozenAnchor(string nodeId, out FrozenAnchorDisplayState value) => runtime.TryGetFrozenAnchor(nodeId, out value);
+        internal void InvalidateTrackedPoses() => runtime.InvalidateTrackedPoses();
         public bool TryGetSurfaceState(string id, out SurfaceRuntimeState value) { return runtime.TryGetSurfaceState(id, out value); }
         public bool TryGetMediaState(string id, out MediaRuntimeState value) { return runtime.TryGetMediaState(id, out value); }
         public bool TryGetVariableState(string id, out VariableState value) { return runtime.TryGetVariableState(id, out value); }

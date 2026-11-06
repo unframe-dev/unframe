@@ -4,11 +4,7 @@ import type {
   ParticipantRuntimeView,
   StateServerItemWire,
 } from "@unframe-dev/contracts/presentation";
-import {
-  readAnchorBindings,
-  type AnchorBindings,
-  type TimedAnchorBindings,
-} from "./anchor-bindings";
+import { readTrackedPoses, type TrackedPoses, type TimedTrackedPoses } from "./tracked-poses";
 import { createRuntimeStore } from "./runtime-store";
 import { createRuntimeClock } from "./runtime-clock";
 import { getAssetFailure, type AssetFailureDetails } from "../diagnostics/asset-failure";
@@ -21,7 +17,7 @@ export function createRuntimePlayback(options: {
   frame?(
     view: ParticipantRuntimeView,
     runtimeTimeMilliseconds: number,
-    bindings: AnchorBindings,
+    bindings: TrackedPoses,
   ): void;
 }) {
   const now = options.now ?? (() => performance.now());
@@ -37,7 +33,7 @@ export function createRuntimePlayback(options: {
   let renderFailurePhase: "prepare" | "frame" | null = null;
   const clock = createRuntimeClock(now);
   let appliedView: ParticipantRuntimeView | null = null;
-  let appliedBindings: TimedAnchorBindings = {};
+  let appliedPoses: TimedTrackedPoses = {};
   function failRendering(cause: unknown, phase: "prepare" | "frame") {
     error = "presentation-render-failed";
     assetFailure = getAssetFailure(cause);
@@ -45,7 +41,7 @@ export function createRuntimePlayback(options: {
     generation++;
     if (phase === "frame" || !appliedView) {
       appliedView = null;
-      appliedBindings = {};
+      appliedPoses = {};
       options.clear();
     }
   }
@@ -53,7 +49,7 @@ export function createRuntimePlayback(options: {
     const snapshot = store.getSnapshot();
     if (disposed || pending || error || snapshot.phase !== "ready" || !snapshot.view) return;
     const view = snapshot.view;
-    const bindings = store.getAnchorBindingsSnapshot();
+    const bindings = store.getTrackedPosesSnapshot();
     const currentStateGeneration = stateGeneration;
     const currentGeneration = generation;
     const currentVersion = version;
@@ -64,7 +60,7 @@ export function createRuntimePlayback(options: {
         if (!disposed && generation === currentGeneration) {
           appliedVersion = currentVersion;
           appliedView = view;
-          appliedBindings = stateGeneration === currentStateGeneration ? bindings : {};
+          appliedPoses = stateGeneration === currentStateGeneration ? bindings : {};
         }
       })
       .catch((cause: unknown) => {
@@ -85,7 +81,7 @@ export function createRuntimePlayback(options: {
       generation++;
       appliedVersion = -1;
       appliedView = null;
-      appliedBindings = {};
+      appliedPoses = {};
       clock.reset();
       options.clear();
       return;
@@ -99,7 +95,7 @@ export function createRuntimePlayback(options: {
       const time = clock.read();
       if (time === null) return;
       try {
-        options.frame(appliedView, time, readAnchorBindings(appliedBindings, now()));
+        options.frame(appliedView, time, readTrackedPoses(appliedPoses, now()));
       } catch (cause) {
         failRendering(cause, "frame");
       }
@@ -145,7 +141,7 @@ export function createRuntimePlayback(options: {
       if (disposed) return;
       store.restartState();
       stateGeneration++;
-      appliedBindings = {};
+      appliedPoses = {};
     },
     reset() {
       if (disposed) return;
@@ -163,7 +159,7 @@ export function createRuntimePlayback(options: {
       generation++;
       store.reset();
       appliedView = null;
-      appliedBindings = {};
+      appliedPoses = {};
       clock.reset();
       options.clear();
     },

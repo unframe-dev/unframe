@@ -266,12 +266,15 @@ namespace Unframe.Unity.PresentationRuntime
                 PlaybackRejected = false;
                 // The delivery sequence stays consumed even when rendering only partially applies the snapshot.
                 current.Sequence = state.Sequence;
+                if (current.Clock?.StatusCase != state.Clock.StatusCase)
+                    current.Input.InvalidateTrackedPoses();
                 current.Clock = state.Clock.Clone();
                 current.ClockReceivedAt = now;
                 if (restoring) { current.Playback.Clear(); current.Effects.Clear(); }
+                bool running = current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running;
                 if (!current.Playback.TryRefresh(current.Input, current.Hierarchy, (double time, out string refreshError) => Refresh(current, time, out refreshError),
-                    current.Clock.RuntimeTimeMs, out error, current.Clock.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
-                    || !current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, current.Clock.RuntimeTimeMs, out error))
+                    current.Clock.RuntimeTimeMs, out error, running)
+                    || !current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, current.Clock.RuntimeTimeMs, out error, running))
                 {
                     if (error == "video-user-activation-required")
                     {
@@ -303,9 +306,9 @@ namespace Unframe.Unity.PresentationRuntime
             try
             {
                 double time = PresentationPlaybackPlayer.SampleRuntimeTimeMs(current.Clock, current.ClockReceivedAt, now);
-                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error,
-                    current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running)
-                    && current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, time, out error)) return true;
+                bool running = current.Clock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running;
+                if (current.Playback.TryUpdate(current.Input, current.Hierarchy, (double sampledTime, out string refreshError) => Refresh(current, sampledTime, out refreshError), time, out error, running)
+                    && current.Effects.TryUpdate(current.Input, current.Input.EffectRuns, current.Hierarchy, time, out error, running)) return true;
                 if (error == "video-user-activation-required")
                 {
                     current.Videos.Pause();

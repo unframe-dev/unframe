@@ -12,7 +12,7 @@ Source の `effect.start` は `effectId`、対象 `nodeId`、`owner`、`seed`、
 
 Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active／retained 状態を `effectRuns` に保持する。Snapshot、Checkpoint、Step 開始状態に保存し、Replay は `EffectRunsChanged` と RuntimeView の置換で復元する。重複配送は既存の Command ID による結果再利用で抑止する。pause 中は共有 Runtime 時計が止まり、演出も進まない。
 
-演出対象を含む投影は `EFFECT_PLAYBACK` Capability を要求し、非対応クライアントの Control 接続を拒否する。この Capability を要求しない投影には `EffectRunsChanged` を配信しない。
+演出対象を含む投影は `EFFECT_PLAYBACK` Capability を要求し、非対応クライアントの Control 接続を拒否する。この Capability を要求しない投影には `EffectRunsChanged` を配信しない。Anchor または HandGlow が追跡入力を使う投影は、必要な target を `trackedPoseTargets` に宣言し、`TRACKED_POSE_DELIVERY` も要求する。
 
 演出の実効時間は共通で ceil(durationMilliseconds / speed) ミリ秒。
 
@@ -24,11 +24,11 @@ Runtime は実行 ID、開始 Runtime 時刻、対象、設定、seed、active�
 
 [Unity API](../app/unity/Assets/Scripts/VisualEffects/README.md) と [Web API](../app/web/audience/src/visual-effects/README.md) は通信から独立している。接続層が Node ID を Transform／Object3D に解決し、共有時計で更新する。Run の消失、対象の変更、Scene の破棄、切断で描画資源を解放する。
 
-HandGlow は既存の projected anchor binding を利用する。Source に指定した左右の手へ追従する Anchor Node（followPosition: true）が必要で、その Node を対象クライアントの投影に含めること。配列形式の Model では `parent: { kind: "anchor", owner: { kind: "presenter" }, target: "rightHand", followPosition: true, followRotation: false }` のように指定する。手の Anchor がない場合や Pose が無効・古い場合、新しい残光は追加されない。演出対象 Node はその Anchor とは別でもよい。
+追跡入力は `trackedPoses` で target ごとに配送する。Anchor はこの Pose から親 Transform を作り、HandGlow は指定した左右の手の位置を直接使う。HandGlow の対象 Node は Stage 配下でもよく、手の Anchor Node は不要。Delivery は投影内の Anchor と演出から必要な target を重複なく導出する。
 
-Audience は描画準備済みの View と同じ時点の Anchor を使い、受信後もサンプルの500ms失効を判定する。RuntimeView の置換時は以前のライブ座標を破棄し、サーバーが確定した凍結座標を使う。
+ライブ Pose は元 TrackingFrame の sequence とサーバーの観測時刻を持ち、クライアントでも受信後の経過を含めて500msで失効する。重複・古い sequence を新しい残光として追加しない。pause／resume、再校正、再同期、assignment 変更や再接続ではライブ入力と軌跡を破棄し、新しい入力から再開する。`frozenAnchors` は Node ごとの表示専用状態で、追跡入力や演出には使わない。
 
-認識のサンプル時刻は秒、描画はミリ秒。Unity 認識器へは Unity 座標、通信へは Presentation 座標を渡す。Unity の HandGlow は world 座標、Web は対象のローカル座標へ変換する。seed は再現性のために使うが、Unity と Web のピクセル一致は保証しない。
+認識のサンプル時刻は秒、描画はミリ秒。Unity 認識器には Unity 座標を渡す。TrackingFrame は Quest local Pose と校正を送り、サーバーが投影する追跡 Pose は Stage local 座標になる。Unity の HandGlow は world 座標、Web は対象のローカル座標へ変換する。seed は再現性のために使うが、Unity と Web のピクセル一致は保証しない。
 
 ## 検証と受入
 
@@ -42,4 +42,4 @@ Unity Dissolve の対象は不透明な静的モデルの基本色・テクス�
 
 Throw／Circle の有効な Step では `QuestPresentationEntry.GesturePositionSampleReady` から左右の位置サンプルを受け取れる。間隔は `GesturePositionSampleIntervalSeconds`（既定0.05秒）で調整し、通信自体はこの通知で実行しない。座標・時刻・InputContext と通知寿命は [認識README](../app/unity/Assets/Scripts/VisualEffects/Gestures/README.md) を参照する。`QuestPresentationEntry` は同じ Update 内の通知を集約し、通常の0.1秒送信と共通の TrackingFrame 送信枠を使う。通知の既定間隔は0.05秒で、間隔を短くしてもサーバーの90Hz上限を超えて送信しない。送信中の通知は蓄積せず、次の有効な通知または通常周期で最新の XR Pose を採取する。
 
-通知位置を Quest local 座標として送信したり、通知時刻を Runtime 時刻へ直接変換したりしない。TrackingFrame は従来どおり Quest local Pose、校正変換、端末の Stopwatch 時刻を送り、サーバーが Presentation 座標と受信時刻へ対応付ける。再同期・再校正・切断時は未送信の通知を破棄する。再接続後は新しいフレームから Anchor と描画を再開し、過去の軌跡は再送しない。
+通知位置を Quest local 座標として送信したり、通知時刻を Runtime 時刻へ直接変換したりしない。TrackingFrame は Quest local Pose、校正変換、端末の Stopwatch 時刻に加え、採取時の入力同期 epoch と適用済み Reliable sequence を送り、サーバーが Stage local 座標と受信時刻へ対応付ける。サーバーは同期世代または RuntimeView 置換より前のフレームを破棄する。再同期・再校正・切断時は未送信の通知を破棄する。再接続後は新しいフレームから Anchor と描画を再開し、過去の軌跡は再送しない。

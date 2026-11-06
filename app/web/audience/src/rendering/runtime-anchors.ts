@@ -3,45 +3,40 @@ import type {
   DeliveryManifestWire,
   ParticipantRuntimeView,
 } from "@unframe-dev/contracts/presentation";
-import type { AnchorBindings } from "../runtime/anchor-bindings";
+import type { TrackedPoses } from "../runtime/tracked-poses";
 import type { RuntimeHandPose } from "./runtime-effects";
 
 export function applyRuntimeAnchors(
   root: Object3D,
   delivery: DeliveryManifestWire,
   view: ParticipantRuntimeView,
-  bindings: AnchorBindings,
-): RuntimeHandPose[] {
-  const hands: RuntimeHandPose[] = [];
+  poses: TrackedPoses,
+): void {
   for (const node of delivery.projectionProfile?.runtimeCatalog?.nodes ?? []) {
     const anchor = node.parent?.presenterAnchor;
     if (!anchor || !node.nodeId) continue;
     const state = view.nodeStates[node.nodeId];
     if (!state) continue;
-    const binding = bindings[node.nodeId];
-    const frozen =
-      binding?.frozen ?? view.frozenAnchors.find((item) => item.nodeId === node.nodeId);
-    const sample =
-      binding?.sample ??
-      (frozen
-        ? {
-            position:
-              frozen.position &&
-              (Array.isArray(frozen.position)
-                ? { x: frozen.position[0], y: frozen.position[1], z: frozen.position[2] }
-                : frozen.position),
-            rotation:
-              frozen.rotation &&
-              (Array.isArray(frozen.rotation)
-                ? {
-                    x: frozen.rotation[0],
-                    y: frozen.rotation[1],
-                    z: frozen.rotation[2],
-                    w: frozen.rotation[3],
-                  }
-                : frozen.rotation),
-          }
-        : undefined);
+    const frozen = view.frozenAnchors.find((item) => item.nodeId === node.nodeId);
+    const sample = frozen
+      ? {
+          position:
+            frozen.position &&
+            (Array.isArray(frozen.position)
+              ? { x: frozen.position[0], y: frozen.position[1], z: frozen.position[2] }
+              : frozen.position),
+          rotation:
+            frozen.rotation &&
+            (Array.isArray(frozen.rotation)
+              ? {
+                  x: frozen.rotation[0],
+                  y: frozen.rotation[1],
+                  z: frozen.rotation[2],
+                  w: frozen.rotation[3],
+                }
+              : frozen.rotation),
+        }
+      : poses[anchor.target ?? 0]?.sample;
     const available =
       !!sample &&
       (!anchor.followPosition || !!sample.position) &&
@@ -62,16 +57,6 @@ export function applyRuntimeAnchors(
         : new Quaternion(),
       new Vector3(1, 1, 1),
     );
-    const origin = view.presentationOrigin.pose;
-    anchorMatrix.premultiply(
-      new Matrix4()
-        .compose(
-          new Vector3(...origin.position),
-          new Quaternion(...origin.rotation),
-          new Vector3(1, 1, 1),
-        )
-        .invert(),
-    );
     for (const object of [
       root.getObjectByName(node.nodeId),
       root.getObjectByName(`model-node:${node.nodeId}`),
@@ -90,17 +75,28 @@ export function applyRuntimeAnchors(
       object.matrix.decompose(object.position, object.quaternion, object.scale);
       object.matrixWorldNeedsUpdate = true;
     }
-    if (available && binding?.sample?.position && (anchor.target === 2 || anchor.target === 3)) {
-      hands.push({
-        hand: anchor.target === 2 ? "left" : "right",
-        sequence: Number(binding.sample.trackingFrameSequence ?? 0),
-        position: [
-          binding.sample.position.x ?? 0,
-          binding.sample.position.y ?? 0,
-          binding.sample.position.z ?? 0,
-        ],
-      });
-    }
   }
-  return hands;
+}
+
+export function runtimeHandPoses(poses: TrackedPoses): RuntimeHandPose[] {
+  return [2, 3].flatMap((target) => {
+    const sample = poses[target]?.sample;
+    if (sample?.position) {
+      return [
+        {
+          hand: target === 2 ? ("left" as const) : ("right" as const),
+          sequence: Number(sample.trackingFrameSequence ?? 0),
+          ...(poses[target]?.continuity === undefined
+            ? {}
+            : { continuity: poses[target].continuity }),
+          position: [
+            sample.position.x ?? 0,
+            sample.position.y ?? 0,
+            sample.position.z ?? 0,
+          ] as const,
+        },
+      ];
+    }
+    return [];
+  });
 }

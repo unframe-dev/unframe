@@ -1084,13 +1084,14 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     }
 
     [Test]
-    public void AnchorKeyframeIncludesOnlyCurrentlyOwnedNodes()
+    public void FrozenAnchorsMustBelongToCurrentNodes()
     {
         DeliveryManifest delivery = CreateDelivery();
         delivery.ProjectionProfile.RuntimeCatalog.Nodes[0].Parent = new SpatialParent
         {
             PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
         };
+        RequireHeadTracking(delivery);
         delivery.ProjectionProfile.RuntimeCatalog.Nodes.Add(new ProjectedNodeDefinition
         {
             NodeId = "node:future-anchor",
@@ -1109,7 +1110,11 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         ElementStateFrame unowned = CreateStateFrame(delivery, 2, StateFrameKind.Delta, null);
         unowned.Elements.Clear();
         unowned.ProducedAtRuntimeMonotonicMs = 1100;
-        unowned.AnchorBindings.Add(new ProjectedAnchorBindingPatch { NodeId = "node:future-anchor", Unavailable = new AnchorBindingUnavailable() });
+        unowned.FrozenAnchors.Add(new FrozenAnchorDisplayState
+        {
+            NodeId = "node:future-anchor",
+            Position = new Unframe.Presentation.Vector3 { X = 2 },
+        });
         Assert.That(store.TryValidateNetworkStateFrame(unowned, out error), Is.False);
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unowned }, out error), Is.False);
         Assert.That(store.LastStateFrameSequence, Is.EqualTo(1));
@@ -1123,6 +1128,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true, FollowRotation = true },
         };
+        RequireHeadTracking(delivery);
         PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
         Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
         double halfTurn = System.Math.Sqrt(0.5d);
@@ -1166,10 +1172,10 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             frame.Elements[0].Node.Transform = snapshot.Snapshot.RuntimeView.NodeStates[0].Transform.Clone();
             frame.Elements.Add(new ElementStatePatch { ElementId = "node:surface", Node = FullNodePatch() });
             frame.ProducedAtRuntimeMonotonicMs = 1000;
-            frame.AnchorBindings.Add(new ProjectedAnchorBindingPatch
+            frame.TrackedPoses.Add(new ProjectedTrackedPose
             {
-                NodeId = "node:model",
-                Sample = new ProjectedAnchorBindingSample
+                Target = AnchorTarget.Head,
+                Sample = new ProjectedTrackedPoseSample
                 {
                     TrackingFrameSequence = 1,
                     ObservedAtRuntimeMonotonicMs = 900,
@@ -1193,7 +1199,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             unavailable.Fence.PresentationOriginVersion = 1;
             unavailable.Elements.Clear();
             unavailable.ProducedAtRuntimeMonotonicMs = 1100;
-            unavailable.AnchorBindings.Add(new ProjectedAnchorBindingPatch { NodeId = "node:model", Unavailable = new AnchorBindingUnavailable() });
+            unavailable.TrackedPoses.Add(new ProjectedTrackedPose { Target = AnchorTarget.Head, Unavailable = new TrackedPoseUnavailable() });
             Assert.That(store.TryValidateNetworkStateFrame(unavailable, out error), Is.True, error);
             Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
             applier.ApplyAnchors(store, hierarchy);
@@ -1220,6 +1226,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
         };
+        RequireHeadTracking(delivery);
         try
         {
             Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
@@ -1232,13 +1239,13 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
             new PresentationNodeStateApplier().Apply(store, hierarchy);
             Assert.That(hierarchy.Registry.TryGet("node:model", out GameObject anchored), Is.True);
             Assert.That(anchored.activeInHierarchy, Is.True);
-            Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+            Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.True);
 
             var handler = typeof(PresentationBakedRuntime).GetMethod("HandleDisconnected", fields);
             Assert.That(handler, Is.Not.Null);
             handler.Invoke(runtime, null);
             Assert.That(anchored.activeInHierarchy, Is.False);
-            Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+            Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False);
             new PresentationNodeStateApplier().ApplyAnchors(store, hierarchy);
             Assert.That(anchored.activeInHierarchy, Is.False);
         }
@@ -1254,7 +1261,14 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             PresenterAnchor = new PresenterAnchorParent { Target = target, FollowPosition = followPosition },
         };
+        RequireHeadTracking(delivery);
         PresentationRuntimeDataStore store = new PresentationRuntimeDataStore();
+        if (target == AnchorTarget.Unspecified)
+        {
+            Assert.That(store.TryReceiveDelivery(delivery, out string deliveryError), Is.False);
+            Assert.That(deliveryError, Does.Contain("anchor"));
+            return;
+        }
         Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
         GameObject root = new GameObject("test-root");
         try
@@ -1294,7 +1308,7 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
     [TestCase("duplicate")]
     [TestCase("unknown")]
     [TestCase("missing-position")]
-    [TestCase("unexpected-rotation")]
+    [TestCase("invalid-rotation")]
     [TestCase("future-observation")]
     [TestCase("noncanonical-position")]
     public void AnchorBindingRejectsMalformedKeyframesAtomically(string invalidCase)
@@ -1304,24 +1318,91 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
         };
+        RequireHeadTracking(delivery);
         PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
         ElementStateFrame frame = CreateAnchorFrame(delivery, 1, 1000, 900);
         switch (invalidCase)
         {
-            case "missing": frame.AnchorBindings.Clear(); break;
-            case "duplicate": frame.AnchorBindings.Add(frame.AnchorBindings[0].Clone()); break;
-            case "unknown": frame.AnchorBindings[0].NodeId = "node:unknown"; break;
-            case "missing-position": frame.AnchorBindings[0].Sample.Position = null; break;
-            case "unexpected-rotation": frame.AnchorBindings[0].Sample.Rotation = new Unframe.Presentation.Quaternion { W = 1 }; break;
-            case "future-observation": frame.AnchorBindings[0].Sample.ObservedAtRuntimeMonotonicMs = 1001; break;
-            case "noncanonical-position": frame.AnchorBindings[0].Sample.Position.X = double.NaN; break;
+            case "missing": frame.TrackedPoses.Clear(); break;
+            case "duplicate": frame.TrackedPoses.Add(frame.TrackedPoses[0].Clone()); break;
+            case "unknown": frame.TrackedPoses[0].Target = AnchorTarget.RightHand; break;
+            case "missing-position": frame.TrackedPoses[0].Sample.Position = null; break;
+            case "invalid-rotation": frame.TrackedPoses[0].Sample.Rotation = new Unframe.Presentation.Quaternion { W = 2 }; break;
+            case "future-observation": frame.TrackedPoses[0].Sample.ObservedAtRuntimeMonotonicMs = 1001; break;
+            case "noncanonical-position": frame.TrackedPoses[0].Sample.Position.X = double.NaN; break;
         }
         Assert.That(store.TryValidateNetworkStateFrame(frame, out _), Is.False, invalidCase);
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = frame }, out _), Is.False, invalidCase);
         Assert.That(store.LastStateFrameSequence, Is.Zero, invalidCase);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False, invalidCase);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False, invalidCase);
         Assert.That(store.TryGetNodeState("node:model", out NodeRuntimeState state), Is.True);
         Assert.That(state.Opacity, Is.EqualTo(1));
+    }
+
+    [TestCase(EffectHand.Left, AnchorTarget.LeftHand)]
+    [TestCase(EffectHand.Right, AnchorTarget.RightHand)]
+    public void HandGlowBreaksItsTrailWhenTrackingIsLostBetweenRenders(EffectHand hand, AnchorTarget target)
+    {
+        var delivery = CreateDelivery();
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackedPoseDelivery);
+        delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets.Add(target);
+        var store = CreateStoreWithNodeState(delivery);
+        var root = new GameObject("HandGlow delivery");
+        var hierarchy = new PresentationNodeHierarchy();
+        using var effects = new PresentationEffectPlayer();
+        var run = new EffectRunSnapshot
+        {
+            RunId = new RuntimeRunId { AssignmentEpoch = 1, RunSequence = 1 },
+            NodeId = "node:model",
+            Configuration = new EffectConfiguration
+            {
+                Kind = EffectKind.HandGlow,
+                Hand = hand,
+                Size = 1,
+                Speed = 1,
+                DurationMs = 1000,
+                Color = new Unframe.Presentation.SrgbaColor { Alpha = 1 },
+            },
+        };
+        ElementStateFrame Frame(ulong sequence, double x)
+        {
+            var frame = CreateAnchorFrame(delivery, sequence, 100 * sequence, 100 * sequence);
+            frame.TrackedPoses[0].Target = target;
+            frame.TrackedPoses[0].Sample.Position.X = x;
+            return frame;
+        }
+
+        try
+        {
+            Assert.That(hierarchy.TryReplace(store, root.transform, out var error), Is.True, error);
+            hierarchy.ApplyOrigin(new Unframe.Presentation.Pose
+            {
+                Position = new Unframe.Presentation.Vector3 { X = 10, Y = 1, Z = 2 },
+                Rotation = new Unframe.Presentation.Quaternion { Y = System.Math.Sqrt(.5), W = System.Math.Sqrt(.5) },
+            });
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = Frame(1, 1) }, out error), Is.True, error);
+            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 100, out error), Is.True, error);
+            Assert.That(root.GetComponentsInChildren<LineRenderer>(), Is.Empty, "a cached pose is not a new input");
+
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = Frame(2, 2) }, out error), Is.True, error);
+            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 200, out error), Is.True, error);
+            Assert.That(System.Array.Exists(root.GetComponentsInChildren<LineRenderer>(), line => line.positionCount == 1), Is.True);
+
+            var unavailable = Frame(3, 3);
+            unavailable.TrackedPoses[0].Unavailable = new TrackedPoseUnavailable();
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
+            Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = Frame(4, 4) }, out error), Is.True, error);
+            Assert.That(effects.TryUpdate(store, new[] { run }, hierarchy, 400, out error), Is.True, error);
+            var lines = root.GetComponentsInChildren<LineRenderer>();
+            Assert.That(lines, Has.Length.EqualTo(2));
+            var trail = System.Array.Find(lines, line => line.positionCount == 1);
+            Assert.That(trail, Is.Not.Null);
+            var point = trail.GetPosition(0);
+            Assert.That(point.x, Is.EqualTo(14).Within(.0001));
+            Assert.That(point.y, Is.EqualTo(4).Within(.0001));
+            Assert.That(point.z, Is.EqualTo(2).Within(.0001));
+        }
+        finally { effects.Clear(); hierarchy.Clear(); Object.DestroyImmediate(root); }
     }
 
     [Test]
@@ -1332,26 +1413,28 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         {
             PresenterAnchor = new PresenterAnchorParent { Target = AnchorTarget.Head, FollowPosition = true },
         };
+        RequireHeadTracking(delivery);
         PresentationRuntimeDataStore store = CreateStoreWithNodeState(delivery);
         ElementStateFrame first = CreateAnchorFrame(delivery, 1, 1000, 900);
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = first }, out string error), Is.True, error);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.True);
         System.Threading.Thread.Sleep(420);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False);
 
         ElementStateFrame stale = CreateAnchorFrame(delivery, 2, 2000, 1499);
+        stale.TrackedPoses[0].Sample.TrackingFrameSequence = 1;
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = stale }, out error), Is.True, error);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False);
         ElementStateFrame unavailable = CreateAnchorFrame(delivery, 3, 3000, 2900);
-        unavailable.AnchorBindings[0].Unavailable = new AnchorBindingUnavailable();
+        unavailable.TrackedPoses[0].Unavailable = new TrackedPoseUnavailable();
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = unavailable }, out error), Is.True, error);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False);
         ElementStateFrame recovered = CreateAnchorFrame(delivery, 4, 4000, 3900);
         Assert.That(store.TryReceiveState(new StateServerItem { StateFrame = recovered }, out error), Is.True, error);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.True);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.True);
         Assert.That(store.TryGetLastConnectionSnapshot(out ConnectionSnapshotEnvelope snapshot), Is.True);
         Assert.That(store.TryReceiveControl(new ControlServerItem { ConnectionSnapshot = snapshot }, out error), Is.True, error);
-        Assert.That(store.TryGetAnchorSample("node:model", out _), Is.False);
+        Assert.That(store.TryGetTrackedPose(AnchorTarget.Head, out _), Is.False);
     }
 
     [Test]
@@ -1975,14 +2058,20 @@ public sealed class PresentationRuntimeDataStoreEditModeTests
         return new NodeStatePatch { Active = true, Visible = true, Opacity = 1, Transform = CreateValidTransform() };
     }
 
+    private static void RequireHeadTracking(DeliveryManifest delivery)
+    {
+        delivery.ProjectionProfile.RuntimeCatalog.TrackedPoseTargets.Add(AnchorTarget.Head);
+        delivery.ProjectionProfile.RequiredRuntimeCapabilities.Add(RuntimeCapability.TrackedPoseDelivery);
+    }
+
     private static ElementStateFrame CreateAnchorFrame(DeliveryManifest delivery, ulong sequence, ulong producedAt, ulong observedAt)
     {
         ElementStateFrame frame = CreateStateFrame(delivery, sequence, StateFrameKind.Keyframe, FullNodePatch());
         frame.ProducedAtRuntimeMonotonicMs = producedAt;
-        frame.AnchorBindings.Add(new ProjectedAnchorBindingPatch
+        frame.TrackedPoses.Add(new ProjectedTrackedPose
         {
-            NodeId = "node:model",
-            Sample = new ProjectedAnchorBindingSample
+            Target = AnchorTarget.Head,
+            Sample = new ProjectedTrackedPoseSample
             {
                 TrackingFrameSequence = sequence,
                 ObservedAtRuntimeMonotonicMs = observedAt,

@@ -18,6 +18,48 @@ const gesture = {
   gesture: 1,
 };
 
+test("tracked pose wire samples require a fresh sequence and a component", () => {
+  const name = "unframe.realtime.ProjectedTrackedPose";
+  const sample = { trackingFrameSequence: "1", observedAtRuntimeMonotonicMs: "5", position: {} };
+  assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, { target: 2, sample })), {
+    target: 2,
+    sample,
+  });
+  assert.throws(
+    () => encodeWireMessage(name, { target: 2, sample: { ...sample, trackingFrameSequence: "0" } }),
+    /sequence/,
+  );
+  assert.throws(
+    () =>
+      encodeWireMessage(name, {
+        target: 2,
+        sample: { trackingFrameSequence: "1", observedAtRuntimeMonotonicMs: "5" },
+      }),
+    /position or rotation/,
+  );
+  assert.throws(
+    () =>
+      encodeWireMessage("unframe.presentation.ProjectedRuntimeCatalog", {
+        catalogContractVersion: 3,
+        trackedPoseTargets: [3, 2],
+      }),
+    /ordered/,
+  );
+});
+
+test("tracking frames require an input epoch and carry their capture cut", () => {
+  const name = "unframe.realtime.TrackingFrame";
+  const frame = {
+    frameSequence: "1",
+    inputEpoch: "2",
+    baseReliableSequence: "9",
+    samples: [],
+    presentationFromQuestLocal: { position: {}, rotation: { w: 1 } },
+  };
+  assert.deepEqual(decodeWireMessage(name, encodeWireMessage(name, frame)), frame);
+  assert.throws(() => encodeWireMessage(name, { ...frame, inputEpoch: "0" }), /input epoch/);
+});
+
 test("capacity recovery records attempted sizes instead of the rolled-back snapshot sizes", () => {
   const type = "unframe.realtime.RuntimeCapacityFault";
   const required = {
@@ -280,14 +322,6 @@ test("canonical input epochs and Step history identity have the same required ra
     { stepEntryEpoch: "0" },
   ])
     assert.throws(() => encodeWireMessage(name, { ...state, ...patch }), /Step start/i);
-  assert.throws(
-    () =>
-      encodeWireMessage("unframe.realtime.ProjectedAnchorBindingPatch", {
-        nodeId: "follow",
-        frozen: { nodeId: "other", position: {} },
-      }),
-    /must match/,
-  );
 });
 
 for (const kind of [9, 10]) {

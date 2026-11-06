@@ -107,6 +107,47 @@ it("converts fresh presentation poses into target-local space and does not repea
   frame(effects, [run("handGlow")], 1300, [], root);
   expect(target.children[0]!.visible).toBe(false);
 });
+it("clears the hand trail when tracking becomes unavailable", () => {
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const pose = { hand: "left" as const, sequence: 1, position: [0, 0, 0] as const };
+  frame(effects, [run("handGlow")], 100);
+  frame(effects, [run("handGlow")], 110, [pose]);
+  expect(target.children[0]!.visible).toBe(true);
+  frame(effects, [run("handGlow")], 120);
+  expect(target.children[0]!.visible).toBe(false);
+  effects.dispose();
+});
+it("breaks the trail when tracking is lost between rendered frames", () => {
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const pose = { hand: "left" as const, sequence: 1, continuity: 0, position: [0, 0, 0] as const };
+  frame(effects, [run("handGlow")], 100);
+  frame(effects, [run("handGlow")], 110, [pose]);
+  frame(effects, [run("handGlow")], 120, [
+    { ...pose, sequence: 2, continuity: 1, position: [5, 0, 0] },
+  ]);
+  const trail = target.children[0]!.children[1] as Mesh;
+  expect(trail.geometry.drawRange.count).toBe(0);
+  effects.dispose();
+});
+it("waits for a newer pose after a synchronization boundary", () => {
+  const target = new Group();
+  const effects = createRuntimeEffects(() => target);
+  const pose = {
+    hand: "left" as const,
+    sequence: 1,
+    continuity: "0:0",
+    position: [0, 0, 0] as const,
+  };
+  frame(effects, [run("handGlow")], 100);
+  frame(effects, [run("handGlow")], 110, [pose]);
+  frame(effects, [run("handGlow")], 120, [{ ...pose, sequence: 2, continuity: "1:0" }]);
+  expect(target.children[0]!.visible).toBe(false);
+  frame(effects, [run("handGlow")], 130, [{ ...pose, sequence: 3, continuity: "1:0" }]);
+  expect(target.children[0]!.visible).toBe(true);
+  effects.dispose();
+});
 it("restores dissolve materials at completion without restarting the same run", () => {
   const material = new MeshStandardMaterial();
   const target = new Mesh(new BoxGeometry(), material);

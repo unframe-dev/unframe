@@ -57,7 +57,10 @@ export namespace unframe {
             RUNTIME_CAPABILITY_STEP_RESTORE = 10,
 
             /** RUNTIME_CAPABILITY_EFFECT_PLAYBACK value */
-            RUNTIME_CAPABILITY_EFFECT_PLAYBACK = 11
+            RUNTIME_CAPABILITY_EFFECT_PLAYBACK = 11,
+
+            /** RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY value */
+            RUNTIME_CAPABILITY_TRACKED_POSE_DELIVERY = 12
         }
 
         /**
@@ -6516,6 +6519,9 @@ export namespace unframe {
             /** ProjectedRuntimeCatalog placementReferencePoint. */
             placementReferencePoint?: (unframe.presentation.Vector3.$Properties|null);
 
+            /** ProjectedRuntimeCatalog trackedPoseTargets. */
+            trackedPoseTargets: unframe.presentation.AnchorTarget[];
+
             /**
              * Creates a new ProjectedRuntimeCatalog instance using the specified properties.
              * @param [properties] Properties to set
@@ -6624,6 +6630,9 @@ export namespace unframe {
                 /** ProjectedRuntimeCatalog placementReferencePoint */
                 placementReferencePoint?: (unframe.presentation.Vector3.$Properties|null);
 
+                /** ProjectedRuntimeCatalog trackedPoseTargets */
+                trackedPoseTargets?: (unframe.presentation.AnchorTarget[]|null);
+
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
@@ -6638,6 +6647,7 @@ export namespace unframe {
               modelClips?: unframe.presentation.ProjectedModelClipDefinition.$Shape[]|null;
               presenterRecognition?: unframe.presentation.PresenterRecognitionCatalog.$Shape|null;
               placementReferencePoint?: unframe.presentation.Vector3.$Shape|null;
+              trackedPoseTargets?: unframe.presentation.AnchorTarget[]|null;
               $unknowns?: Uint8Array[];
             };
         }
@@ -32743,6 +32753,12 @@ export namespace unframe {
             /** TrackingFrame presentationOriginVersion. */
             presentationOriginVersion: (number|Long);
 
+            /** TrackingFrame inputEpoch. */
+            inputEpoch: (number|Long);
+
+            /** TrackingFrame baseReliableSequence. */
+            baseReliableSequence: (number|Long);
+
             /**
              * Creates a new TrackingFrame instance using the specified properties.
              * @param [properties] Properties to set
@@ -32841,6 +32857,12 @@ export namespace unframe {
 
                 /** TrackingFrame presentationOriginVersion */
                 presentationOriginVersion?: (number|Long|null);
+
+                /** TrackingFrame inputEpoch */
+                inputEpoch?: (number|Long|null);
+
+                /** TrackingFrame baseReliableSequence */
+                baseReliableSequence?: (number|Long|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
@@ -33257,397 +33279,390 @@ export namespace unframe {
         }
 
         /**
-         * Properties of an AnchorBindingUnavailable.
-         * @deprecated Use unframe.realtime.AnchorBindingUnavailable.$Properties instead.
+         * Properties of a TrackedPoseUnavailable.
+         * @deprecated Use unframe.realtime.TrackedPoseUnavailable.$Properties instead.
          */
-        interface IAnchorBindingUnavailable extends unframe.realtime.AnchorBindingUnavailable.$Properties {
+        interface ITrackedPoseUnavailable extends unframe.realtime.TrackedPoseUnavailable.$Properties {
         }
 
-        /** Represents an AnchorBindingUnavailable. */
-        class AnchorBindingUnavailable {
+        /** Represents a TrackedPoseUnavailable. */
+        class TrackedPoseUnavailable {
 
             /**
-             * Constructs a new AnchorBindingUnavailable.
+             * Constructs a new TrackedPoseUnavailable.
              * @param [properties] Properties to set
              */
-            constructor(properties?: unframe.realtime.AnchorBindingUnavailable.$Properties);
+            constructor(properties?: unframe.realtime.TrackedPoseUnavailable.$Properties);
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
 
             /**
-             * Creates a new AnchorBindingUnavailable instance using the specified properties.
+             * Creates a new TrackedPoseUnavailable instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns AnchorBindingUnavailable instance
+             * @returns TrackedPoseUnavailable instance
              */
-            static create(properties: unframe.realtime.AnchorBindingUnavailable.$Shape): unframe.realtime.AnchorBindingUnavailable & unframe.realtime.AnchorBindingUnavailable.$Shape;
-            static create(properties?: unframe.realtime.AnchorBindingUnavailable.$Properties): unframe.realtime.AnchorBindingUnavailable;
+            static create(properties: unframe.realtime.TrackedPoseUnavailable.$Shape): unframe.realtime.TrackedPoseUnavailable & unframe.realtime.TrackedPoseUnavailable.$Shape;
+            static create(properties?: unframe.realtime.TrackedPoseUnavailable.$Properties): unframe.realtime.TrackedPoseUnavailable;
 
             /**
-             * Encodes the specified AnchorBindingUnavailable message. Does not implicitly {@link unframe.realtime.AnchorBindingUnavailable.verify|verify} messages.
-             * @param message AnchorBindingUnavailable message or plain object to encode
+             * Encodes the specified TrackedPoseUnavailable message. Does not implicitly {@link unframe.realtime.TrackedPoseUnavailable.verify|verify} messages.
+             * @param message TrackedPoseUnavailable message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encode(message: unframe.realtime.AnchorBindingUnavailable.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encode(message: unframe.realtime.TrackedPoseUnavailable.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified AnchorBindingUnavailable message, length delimited. Does not implicitly {@link unframe.realtime.AnchorBindingUnavailable.verify|verify} messages.
-             * @param message AnchorBindingUnavailable message or plain object to encode
+             * Encodes the specified TrackedPoseUnavailable message, length delimited. Does not implicitly {@link unframe.realtime.TrackedPoseUnavailable.verify|verify} messages.
+             * @param message TrackedPoseUnavailable message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encodeDelimited(message: unframe.realtime.AnchorBindingUnavailable.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encodeDelimited(message: unframe.realtime.TrackedPoseUnavailable.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes an AnchorBindingUnavailable message from the specified reader or buffer.
+             * Decodes a TrackedPoseUnavailable message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns {unframe.realtime.AnchorBindingUnavailable & unframe.realtime.AnchorBindingUnavailable.$Shape} AnchorBindingUnavailable
+             * @returns {unframe.realtime.TrackedPoseUnavailable & unframe.realtime.TrackedPoseUnavailable.$Shape} TrackedPoseUnavailable
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.AnchorBindingUnavailable & unframe.realtime.AnchorBindingUnavailable.$Shape;
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.TrackedPoseUnavailable & unframe.realtime.TrackedPoseUnavailable.$Shape;
 
             /**
-             * Decodes an AnchorBindingUnavailable message from the specified reader or buffer, length delimited.
+             * Decodes a TrackedPoseUnavailable message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns {unframe.realtime.AnchorBindingUnavailable & unframe.realtime.AnchorBindingUnavailable.$Shape} AnchorBindingUnavailable
+             * @returns {unframe.realtime.TrackedPoseUnavailable & unframe.realtime.TrackedPoseUnavailable.$Shape} TrackedPoseUnavailable
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.AnchorBindingUnavailable & unframe.realtime.AnchorBindingUnavailable.$Shape;
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.TrackedPoseUnavailable & unframe.realtime.TrackedPoseUnavailable.$Shape;
 
             /**
-             * Verifies an AnchorBindingUnavailable message.
+             * Verifies a TrackedPoseUnavailable message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates an AnchorBindingUnavailable message from a plain object. Also converts values to their respective internal types.
+             * Creates a TrackedPoseUnavailable message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns AnchorBindingUnavailable
+             * @returns TrackedPoseUnavailable
              */
-            static fromObject(object: { [k: string]: any }): unframe.realtime.AnchorBindingUnavailable;
+            static fromObject(object: { [k: string]: any }): unframe.realtime.TrackedPoseUnavailable;
 
             /**
-             * Creates a plain object from an AnchorBindingUnavailable message. Also converts values to other types if specified.
-             * @param message AnchorBindingUnavailable
+             * Creates a plain object from a TrackedPoseUnavailable message. Also converts values to other types if specified.
+             * @param message TrackedPoseUnavailable
              * @param [options] Conversion options
              * @returns Plain object
              */
-            static toObject(message: unframe.realtime.AnchorBindingUnavailable, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            static toObject(message: unframe.realtime.TrackedPoseUnavailable, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this AnchorBindingUnavailable to JSON.
+             * Converts this TrackedPoseUnavailable to JSON.
              * @returns JSON object
              */
             toJSON(): { [k: string]: any };
 
             /**
-             * Gets the type url for AnchorBindingUnavailable
+             * Gets the type url for TrackedPoseUnavailable
              * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns The type url
              */
             static getTypeUrl(prefix?: string): string;
         }
 
-        namespace AnchorBindingUnavailable {
+        namespace TrackedPoseUnavailable {
 
-            /** Properties of an AnchorBindingUnavailable. */
+            /** Properties of a TrackedPoseUnavailable. */
             interface $Properties {
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
 
-            /** Shape of an AnchorBindingUnavailable. */
-            type $Shape = unframe.realtime.AnchorBindingUnavailable.$Properties;
+            /** Shape of a TrackedPoseUnavailable. */
+            type $Shape = unframe.realtime.TrackedPoseUnavailable.$Properties;
         }
 
         /**
-         * Properties of a ProjectedAnchorBindingSample.
-         * @deprecated Use unframe.realtime.ProjectedAnchorBindingSample.$Properties instead.
+         * Properties of a ProjectedTrackedPoseSample.
+         * @deprecated Use unframe.realtime.ProjectedTrackedPoseSample.$Properties instead.
          */
-        interface IProjectedAnchorBindingSample extends unframe.realtime.ProjectedAnchorBindingSample.$Properties {
+        interface IProjectedTrackedPoseSample extends unframe.realtime.ProjectedTrackedPoseSample.$Properties {
         }
 
-        /** Represents a ProjectedAnchorBindingSample. */
-        class ProjectedAnchorBindingSample {
+        /** Represents a ProjectedTrackedPoseSample. */
+        class ProjectedTrackedPoseSample {
 
             /**
-             * Constructs a new ProjectedAnchorBindingSample.
+             * Constructs a new ProjectedTrackedPoseSample.
              * @param [properties] Properties to set
              */
-            constructor(properties?: unframe.realtime.ProjectedAnchorBindingSample.$Properties);
+            constructor(properties?: unframe.realtime.ProjectedTrackedPoseSample.$Properties);
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
 
-            /** ProjectedAnchorBindingSample trackingFrameSequence. */
+            /** ProjectedTrackedPoseSample trackingFrameSequence. */
             trackingFrameSequence: (number|Long);
 
-            /** ProjectedAnchorBindingSample observedAtRuntimeMonotonicMs. */
+            /** ProjectedTrackedPoseSample observedAtRuntimeMonotonicMs. */
             observedAtRuntimeMonotonicMs: (number|Long);
 
-            /** ProjectedAnchorBindingSample position. */
+            /** ProjectedTrackedPoseSample position. */
             position?: (unframe.presentation.Vector3.$Properties|null);
 
-            /** ProjectedAnchorBindingSample rotation. */
+            /** ProjectedTrackedPoseSample rotation. */
             rotation?: (unframe.presentation.Quaternion.$Properties|null);
 
             /**
-             * Creates a new ProjectedAnchorBindingSample instance using the specified properties.
+             * Creates a new ProjectedTrackedPoseSample instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ProjectedAnchorBindingSample instance
+             * @returns ProjectedTrackedPoseSample instance
              */
-            static create(properties: unframe.realtime.ProjectedAnchorBindingSample.$Shape): unframe.realtime.ProjectedAnchorBindingSample & unframe.realtime.ProjectedAnchorBindingSample.$Shape;
-            static create(properties?: unframe.realtime.ProjectedAnchorBindingSample.$Properties): unframe.realtime.ProjectedAnchorBindingSample;
+            static create(properties: unframe.realtime.ProjectedTrackedPoseSample.$Shape): unframe.realtime.ProjectedTrackedPoseSample & unframe.realtime.ProjectedTrackedPoseSample.$Shape;
+            static create(properties?: unframe.realtime.ProjectedTrackedPoseSample.$Properties): unframe.realtime.ProjectedTrackedPoseSample;
 
             /**
-             * Encodes the specified ProjectedAnchorBindingSample message. Does not implicitly {@link unframe.realtime.ProjectedAnchorBindingSample.verify|verify} messages.
-             * @param message ProjectedAnchorBindingSample message or plain object to encode
+             * Encodes the specified ProjectedTrackedPoseSample message. Does not implicitly {@link unframe.realtime.ProjectedTrackedPoseSample.verify|verify} messages.
+             * @param message ProjectedTrackedPoseSample message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encode(message: unframe.realtime.ProjectedAnchorBindingSample.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encode(message: unframe.realtime.ProjectedTrackedPoseSample.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ProjectedAnchorBindingSample message, length delimited. Does not implicitly {@link unframe.realtime.ProjectedAnchorBindingSample.verify|verify} messages.
-             * @param message ProjectedAnchorBindingSample message or plain object to encode
+             * Encodes the specified ProjectedTrackedPoseSample message, length delimited. Does not implicitly {@link unframe.realtime.ProjectedTrackedPoseSample.verify|verify} messages.
+             * @param message ProjectedTrackedPoseSample message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encodeDelimited(message: unframe.realtime.ProjectedAnchorBindingSample.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encodeDelimited(message: unframe.realtime.ProjectedTrackedPoseSample.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a ProjectedAnchorBindingSample message from the specified reader or buffer.
+             * Decodes a ProjectedTrackedPoseSample message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns {unframe.realtime.ProjectedAnchorBindingSample & unframe.realtime.ProjectedAnchorBindingSample.$Shape} ProjectedAnchorBindingSample
+             * @returns {unframe.realtime.ProjectedTrackedPoseSample & unframe.realtime.ProjectedTrackedPoseSample.$Shape} ProjectedTrackedPoseSample
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.ProjectedAnchorBindingSample & unframe.realtime.ProjectedAnchorBindingSample.$Shape;
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.ProjectedTrackedPoseSample & unframe.realtime.ProjectedTrackedPoseSample.$Shape;
 
             /**
-             * Decodes a ProjectedAnchorBindingSample message from the specified reader or buffer, length delimited.
+             * Decodes a ProjectedTrackedPoseSample message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns {unframe.realtime.ProjectedAnchorBindingSample & unframe.realtime.ProjectedAnchorBindingSample.$Shape} ProjectedAnchorBindingSample
+             * @returns {unframe.realtime.ProjectedTrackedPoseSample & unframe.realtime.ProjectedTrackedPoseSample.$Shape} ProjectedTrackedPoseSample
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.ProjectedAnchorBindingSample & unframe.realtime.ProjectedAnchorBindingSample.$Shape;
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.ProjectedTrackedPoseSample & unframe.realtime.ProjectedTrackedPoseSample.$Shape;
 
             /**
-             * Verifies a ProjectedAnchorBindingSample message.
+             * Verifies a ProjectedTrackedPoseSample message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a ProjectedAnchorBindingSample message from a plain object. Also converts values to their respective internal types.
+             * Creates a ProjectedTrackedPoseSample message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ProjectedAnchorBindingSample
+             * @returns ProjectedTrackedPoseSample
              */
-            static fromObject(object: { [k: string]: any }): unframe.realtime.ProjectedAnchorBindingSample;
+            static fromObject(object: { [k: string]: any }): unframe.realtime.ProjectedTrackedPoseSample;
 
             /**
-             * Creates a plain object from a ProjectedAnchorBindingSample message. Also converts values to other types if specified.
-             * @param message ProjectedAnchorBindingSample
+             * Creates a plain object from a ProjectedTrackedPoseSample message. Also converts values to other types if specified.
+             * @param message ProjectedTrackedPoseSample
              * @param [options] Conversion options
              * @returns Plain object
              */
-            static toObject(message: unframe.realtime.ProjectedAnchorBindingSample, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            static toObject(message: unframe.realtime.ProjectedTrackedPoseSample, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ProjectedAnchorBindingSample to JSON.
+             * Converts this ProjectedTrackedPoseSample to JSON.
              * @returns JSON object
              */
             toJSON(): { [k: string]: any };
 
             /**
-             * Gets the type url for ProjectedAnchorBindingSample
+             * Gets the type url for ProjectedTrackedPoseSample
              * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns The type url
              */
             static getTypeUrl(prefix?: string): string;
         }
 
-        namespace ProjectedAnchorBindingSample {
+        namespace ProjectedTrackedPoseSample {
 
-            /** Properties of a ProjectedAnchorBindingSample. */
+            /** Properties of a ProjectedTrackedPoseSample. */
             interface $Properties {
 
-                /** ProjectedAnchorBindingSample trackingFrameSequence */
+                /** ProjectedTrackedPoseSample trackingFrameSequence */
                 trackingFrameSequence?: (number|Long|null);
 
-                /** ProjectedAnchorBindingSample observedAtRuntimeMonotonicMs */
+                /** ProjectedTrackedPoseSample observedAtRuntimeMonotonicMs */
                 observedAtRuntimeMonotonicMs?: (number|Long|null);
 
-                /** ProjectedAnchorBindingSample position */
+                /** ProjectedTrackedPoseSample position */
                 position?: (unframe.presentation.Vector3.$Properties|null);
 
-                /** ProjectedAnchorBindingSample rotation */
+                /** ProjectedTrackedPoseSample rotation */
                 rotation?: (unframe.presentation.Quaternion.$Properties|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
 
-            /** Shape of a ProjectedAnchorBindingSample. */
-            type $Shape = unframe.realtime.ProjectedAnchorBindingSample.$Properties;
+            /** Shape of a ProjectedTrackedPoseSample. */
+            type $Shape = unframe.realtime.ProjectedTrackedPoseSample.$Properties;
         }
 
         /**
-         * Properties of a ProjectedAnchorBindingPatch.
-         * @deprecated Use unframe.realtime.ProjectedAnchorBindingPatch.$Properties instead.
+         * Properties of a ProjectedTrackedPose.
+         * @deprecated Use unframe.realtime.ProjectedTrackedPose.$Properties instead.
          */
-        interface IProjectedAnchorBindingPatch extends unframe.realtime.ProjectedAnchorBindingPatch.$Properties {
+        interface IProjectedTrackedPose extends unframe.realtime.ProjectedTrackedPose.$Properties {
         }
 
-        /** Represents a ProjectedAnchorBindingPatch. */
-        class ProjectedAnchorBindingPatch {
+        /** Represents a ProjectedTrackedPose. */
+        class ProjectedTrackedPose {
 
             /**
-             * Constructs a new ProjectedAnchorBindingPatch.
+             * Constructs a new ProjectedTrackedPose.
              * @param [properties] Properties to set
              */
-            constructor(properties?: unframe.realtime.ProjectedAnchorBindingPatch.$Properties);
+            constructor(properties?: unframe.realtime.ProjectedTrackedPose.$Properties);
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
 
-            /** ProjectedAnchorBindingPatch nodeId. */
-            nodeId: string;
+            /** ProjectedTrackedPose target. */
+            target: unframe.presentation.AnchorTarget;
 
-            /** ProjectedAnchorBindingPatch unavailable. */
-            unavailable?: (unframe.realtime.AnchorBindingUnavailable.$Properties|null);
+            /** ProjectedTrackedPose unavailable. */
+            unavailable?: (unframe.realtime.TrackedPoseUnavailable.$Properties|null);
 
-            /** ProjectedAnchorBindingPatch sample. */
-            sample?: (unframe.realtime.ProjectedAnchorBindingSample.$Properties|null);
+            /** ProjectedTrackedPose sample. */
+            sample?: (unframe.realtime.ProjectedTrackedPoseSample.$Properties|null);
 
-            /** ProjectedAnchorBindingPatch frozen. */
-            frozen?: (unframe.realtime.FrozenAnchorDisplayState.$Properties|null);
-
-            /** ProjectedAnchorBindingPatch state. */
-            state?: ("unavailable"|"sample"|"frozen");
+            /** ProjectedTrackedPose state. */
+            state?: ("unavailable"|"sample");
 
             /**
-             * Creates a new ProjectedAnchorBindingPatch instance using the specified properties.
+             * Creates a new ProjectedTrackedPose instance using the specified properties.
              * @param [properties] Properties to set
-             * @returns ProjectedAnchorBindingPatch instance
+             * @returns ProjectedTrackedPose instance
              */
-            static create(properties: unframe.realtime.ProjectedAnchorBindingPatch.$Shape): unframe.realtime.ProjectedAnchorBindingPatch & unframe.realtime.ProjectedAnchorBindingPatch.$Shape;
-            static create(properties?: unframe.realtime.ProjectedAnchorBindingPatch.$Properties): unframe.realtime.ProjectedAnchorBindingPatch;
+            static create(properties: unframe.realtime.ProjectedTrackedPose.$Shape): unframe.realtime.ProjectedTrackedPose & unframe.realtime.ProjectedTrackedPose.$Shape;
+            static create(properties?: unframe.realtime.ProjectedTrackedPose.$Properties): unframe.realtime.ProjectedTrackedPose;
 
             /**
-             * Encodes the specified ProjectedAnchorBindingPatch message. Does not implicitly {@link unframe.realtime.ProjectedAnchorBindingPatch.verify|verify} messages.
-             * @param message ProjectedAnchorBindingPatch message or plain object to encode
+             * Encodes the specified ProjectedTrackedPose message. Does not implicitly {@link unframe.realtime.ProjectedTrackedPose.verify|verify} messages.
+             * @param message ProjectedTrackedPose message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encode(message: unframe.realtime.ProjectedAnchorBindingPatch.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encode(message: unframe.realtime.ProjectedTrackedPose.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Encodes the specified ProjectedAnchorBindingPatch message, length delimited. Does not implicitly {@link unframe.realtime.ProjectedAnchorBindingPatch.verify|verify} messages.
-             * @param message ProjectedAnchorBindingPatch message or plain object to encode
+             * Encodes the specified ProjectedTrackedPose message, length delimited. Does not implicitly {@link unframe.realtime.ProjectedTrackedPose.verify|verify} messages.
+             * @param message ProjectedTrackedPose message or plain object to encode
              * @param [writer] Writer to encode to
              * @returns Writer
              */
-            static encodeDelimited(message: unframe.realtime.ProjectedAnchorBindingPatch.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+            static encodeDelimited(message: unframe.realtime.ProjectedTrackedPose.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
 
             /**
-             * Decodes a ProjectedAnchorBindingPatch message from the specified reader or buffer.
+             * Decodes a ProjectedTrackedPose message from the specified reader or buffer.
              * @param reader Reader or buffer to decode from
              * @param [length] Message length if known beforehand
-             * @returns {unframe.realtime.ProjectedAnchorBindingPatch & unframe.realtime.ProjectedAnchorBindingPatch.$Shape} ProjectedAnchorBindingPatch
+             * @returns {unframe.realtime.ProjectedTrackedPose & unframe.realtime.ProjectedTrackedPose.$Shape} ProjectedTrackedPose
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.ProjectedAnchorBindingPatch & unframe.realtime.ProjectedAnchorBindingPatch.$Shape;
+            static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): unframe.realtime.ProjectedTrackedPose & unframe.realtime.ProjectedTrackedPose.$Shape;
 
             /**
-             * Decodes a ProjectedAnchorBindingPatch message from the specified reader or buffer, length delimited.
+             * Decodes a ProjectedTrackedPose message from the specified reader or buffer, length delimited.
              * @param reader Reader or buffer to decode from
-             * @returns {unframe.realtime.ProjectedAnchorBindingPatch & unframe.realtime.ProjectedAnchorBindingPatch.$Shape} ProjectedAnchorBindingPatch
+             * @returns {unframe.realtime.ProjectedTrackedPose & unframe.realtime.ProjectedTrackedPose.$Shape} ProjectedTrackedPose
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.ProjectedAnchorBindingPatch & unframe.realtime.ProjectedAnchorBindingPatch.$Shape;
+            static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): unframe.realtime.ProjectedTrackedPose & unframe.realtime.ProjectedTrackedPose.$Shape;
 
             /**
-             * Verifies a ProjectedAnchorBindingPatch message.
+             * Verifies a ProjectedTrackedPose message.
              * @param message Plain object to verify
              * @returns `null` if valid, otherwise the reason why it is not
              */
             static verify(message: { [k: string]: any }): (string|null);
 
             /**
-             * Creates a ProjectedAnchorBindingPatch message from a plain object. Also converts values to their respective internal types.
+             * Creates a ProjectedTrackedPose message from a plain object. Also converts values to their respective internal types.
              * @param object Plain object
-             * @returns ProjectedAnchorBindingPatch
+             * @returns ProjectedTrackedPose
              */
-            static fromObject(object: { [k: string]: any }): unframe.realtime.ProjectedAnchorBindingPatch;
+            static fromObject(object: { [k: string]: any }): unframe.realtime.ProjectedTrackedPose;
 
             /**
-             * Creates a plain object from a ProjectedAnchorBindingPatch message. Also converts values to other types if specified.
-             * @param message ProjectedAnchorBindingPatch
+             * Creates a plain object from a ProjectedTrackedPose message. Also converts values to other types if specified.
+             * @param message ProjectedTrackedPose
              * @param [options] Conversion options
              * @returns Plain object
              */
-            static toObject(message: unframe.realtime.ProjectedAnchorBindingPatch, options?: $protobuf.IConversionOptions): { [k: string]: any };
+            static toObject(message: unframe.realtime.ProjectedTrackedPose, options?: $protobuf.IConversionOptions): { [k: string]: any };
 
             /**
-             * Converts this ProjectedAnchorBindingPatch to JSON.
+             * Converts this ProjectedTrackedPose to JSON.
              * @returns JSON object
              */
             toJSON(): { [k: string]: any };
 
             /**
-             * Gets the type url for ProjectedAnchorBindingPatch
+             * Gets the type url for ProjectedTrackedPose
              * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns The type url
              */
             static getTypeUrl(prefix?: string): string;
         }
 
-        namespace ProjectedAnchorBindingPatch {
+        namespace ProjectedTrackedPose {
 
-            /** Properties of a ProjectedAnchorBindingPatch. */
+            /** Properties of a ProjectedTrackedPose. */
             interface $Properties {
 
-                /** ProjectedAnchorBindingPatch nodeId */
-                nodeId?: (string|null);
+                /** ProjectedTrackedPose target */
+                target?: (unframe.presentation.AnchorTarget|null);
 
-                /** ProjectedAnchorBindingPatch unavailable */
-                unavailable?: (unframe.realtime.AnchorBindingUnavailable.$Properties|null);
+                /** ProjectedTrackedPose unavailable */
+                unavailable?: (unframe.realtime.TrackedPoseUnavailable.$Properties|null);
 
-                /** ProjectedAnchorBindingPatch sample */
-                sample?: (unframe.realtime.ProjectedAnchorBindingSample.$Properties|null);
+                /** ProjectedTrackedPose sample */
+                sample?: (unframe.realtime.ProjectedTrackedPoseSample.$Properties|null);
 
-                /** ProjectedAnchorBindingPatch frozen */
-                frozen?: (unframe.realtime.FrozenAnchorDisplayState.$Properties|null);
-
-                /** ProjectedAnchorBindingPatch state */
-                state?: ("unavailable"|"sample"|"frozen");
+                /** ProjectedTrackedPose state */
+                state?: ("unavailable"|"sample");
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
             }
 
-            /** Narrowed shape of a ProjectedAnchorBindingPatch. */
+            /** Narrowed shape of a ProjectedTrackedPose. */
             type $Shape = {
-              nodeId?: string|null;
-              unavailable?: unframe.realtime.AnchorBindingUnavailable.$Shape|null;
-              sample?: unframe.realtime.ProjectedAnchorBindingSample.$Shape|null;
-              frozen?: unframe.realtime.FrozenAnchorDisplayState.$Shape|null;
+              target?: unframe.presentation.AnchorTarget|null;
+              unavailable?: unframe.realtime.TrackedPoseUnavailable.$Shape|null;
+              sample?: unframe.realtime.ProjectedTrackedPoseSample.$Shape|null;
               $unknowns?: Uint8Array[];
             } & (
-              ({ state?: undefined; unavailable?: null; sample?: null; frozen?: null }|{ state?: "unavailable"; unavailable: unframe.realtime.AnchorBindingUnavailable.$Shape; sample?: null; frozen?: null }|{ state?: "sample"; unavailable?: null; sample: unframe.realtime.ProjectedAnchorBindingSample.$Shape; frozen?: null }|{ state?: "frozen"; unavailable?: null; sample?: null; frozen: unframe.realtime.FrozenAnchorDisplayState.$Shape })
+              ({ state?: undefined; unavailable?: null; sample?: null }|{ state?: "unavailable"; unavailable: unframe.realtime.TrackedPoseUnavailable.$Shape; sample?: null }|{ state?: "sample"; unavailable?: null; sample: unframe.realtime.ProjectedTrackedPoseSample.$Shape })
             );
         }
 
@@ -33691,11 +33706,14 @@ export namespace unframe {
             /** ElementStateFrame elements. */
             elements: unframe.realtime.ElementStatePatch.$Properties[];
 
-            /** ElementStateFrame anchorBindings. */
-            anchorBindings: unframe.realtime.ProjectedAnchorBindingPatch.$Properties[];
-
             /** ElementStateFrame producedAtRuntimeMonotonicMs. */
             producedAtRuntimeMonotonicMs: (number|Long);
+
+            /** ElementStateFrame trackedPoses. */
+            trackedPoses: unframe.realtime.ProjectedTrackedPose.$Properties[];
+
+            /** ElementStateFrame frozenAnchors. */
+            frozenAnchors: unframe.realtime.FrozenAnchorDisplayState.$Properties[];
 
             /**
              * Creates a new ElementStateFrame instance using the specified properties.
@@ -33802,11 +33820,14 @@ export namespace unframe {
                 /** ElementStateFrame elements */
                 elements?: (unframe.realtime.ElementStatePatch.$Properties[]|null);
 
-                /** ElementStateFrame anchorBindings */
-                anchorBindings?: (unframe.realtime.ProjectedAnchorBindingPatch.$Properties[]|null);
-
                 /** ElementStateFrame producedAtRuntimeMonotonicMs */
                 producedAtRuntimeMonotonicMs?: (number|Long|null);
+
+                /** ElementStateFrame trackedPoses */
+                trackedPoses?: (unframe.realtime.ProjectedTrackedPose.$Properties[]|null);
+
+                /** ElementStateFrame frozenAnchors */
+                frozenAnchors?: (unframe.realtime.FrozenAnchorDisplayState.$Properties[]|null);
 
                 /** Unknown fields preserved while decoding when enabled */
                 $unknowns?: Uint8Array[];
@@ -33821,8 +33842,9 @@ export namespace unframe {
               baseReliableSequence?: number|Long|null;
               kind?: unframe.realtime.StateFrameKind|null;
               elements?: unframe.realtime.ElementStatePatch.$Shape[]|null;
-              anchorBindings?: unframe.realtime.ProjectedAnchorBindingPatch.$Shape[]|null;
               producedAtRuntimeMonotonicMs?: number|Long|null;
+              trackedPoses?: unframe.realtime.ProjectedTrackedPose.$Shape[]|null;
+              frozenAnchors?: unframe.realtime.FrozenAnchorDisplayState.$Shape[]|null;
               $unknowns?: Uint8Array[];
             };
         }

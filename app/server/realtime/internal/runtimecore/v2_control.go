@@ -70,9 +70,6 @@ func (s *V2Session) StartPresentation(ctx context.Context) error {
 }
 
 func (s *V2Session) resumeV2Clock() (*realtimev2.RuntimeStatusChanged, error) {
-	if _, err := s.releaseFreshV3Anchors(time.Now()); err != nil {
-		return nil, err
-	}
 	s.snapshot.Clock.Status = &realtimev2.RuntimeClockSnapshot_Running{Running: &realtimev2.Running{}}
 	return &realtimev2.RuntimeStatusChanged{Status: &realtimev2.RuntimeStatusChanged_Running{Running: &realtimev2.Running{}}}, nil
 }

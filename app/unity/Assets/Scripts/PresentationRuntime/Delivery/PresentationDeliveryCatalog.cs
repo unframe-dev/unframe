@@ -118,12 +118,22 @@ namespace Unframe.Unity.PresentationRuntime
                     && required != RuntimeCapability.ModelClip && required != RuntimeCapability.VideoPlayback
                     && required != RuntimeCapability.PresenterRecognition && required != RuntimeCapability.InputSynchronization
                     && required != RuntimeCapability.FrozenAnchors && required != RuntimeCapability.StepRestore
-                    && required != RuntimeCapability.EffectPlayback
+                    && required != RuntimeCapability.EffectPlayback && required != RuntimeCapability.TrackedPoseDelivery
                     || !requiredCapabilities.Add(required))
                 {
                     return Fail("delivery capability is unsupported or duplicated.", out error);
                 }
             }
+
+            AnchorTarget previousTarget = AnchorTarget.Unspecified;
+            foreach (AnchorTarget target in catalog.TrackedPoseTargets)
+            {
+                if (target <= previousTarget || target > AnchorTarget.Body)
+                    return Fail("delivery tracked pose targets are invalid.", out error);
+                previousTarget = target;
+            }
+            if (requiredCapabilities.Contains(RuntimeCapability.TrackedPoseDelivery) != (catalog.TrackedPoseTargets.Count > 0))
+                return Fail("delivery tracked pose targets do not match the required capability.", out error);
 
             DeliveryIndexes next = new DeliveryIndexes();
             foreach (ProjectedNodeDefinition node in catalog.Nodes)
@@ -133,6 +143,8 @@ namespace Unframe.Unity.PresentationRuntime
                 {
                     return Fail("delivery node is incomplete.", out error);
                 }
+                if (node.Parent.PresenterAnchor is PresenterAnchorParent anchor && !catalog.TrackedPoseTargets.Contains(anchor.Target))
+                    return Fail("delivery presenter anchor tracking target is missing.", out error);
                 if (node.NodeCase == ProjectedNodeDefinition.NodeOneofCase.Shape)
                 {
                     UnlitShapeMaterial material = node.Shape.Material;
