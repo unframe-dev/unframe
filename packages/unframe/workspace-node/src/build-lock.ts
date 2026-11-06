@@ -16,9 +16,11 @@ export type BuildLock = Readonly<{
   release: () => Promise<void>;
 }>;
 
-export type BuildLockResult =
-  | Readonly<{ ok: true; value: BuildLock }>
-  | Readonly<{ ok: false; code: "cli-build-lock-unavailable" | "cli-build-lock-io" }>;
+type BuildLockFailure = Readonly<{
+  ok: false;
+  code: "cli-build-lock-unavailable" | "cli-build-lock-io";
+}>;
+export type BuildLockResult = Readonly<{ ok: true; value: BuildLock }> | BuildLockFailure;
 
 const sameIdentity = (left: Identity, right: Identity) =>
   left.dev === right.dev && left.ino === right.ino;
@@ -119,5 +121,18 @@ export const acquireBuildLock = (
   projectDirectory: string,
   fileSystem: BuildLockFileSystem = defaultFileSystem,
 ): Promise<BuildLockResult> => acquireFileLease(projectDirectory, fileSystem, LOCK_FILE_NAME);
+
+/** Checks for contention without taking a lease. Build execution must still acquire the lock. */
+export const checkBuildLockAvailability = async (
+  projectDirectory: string,
+): Promise<{ ok: true } | BuildLockFailure> => {
+  if (!isAbsolute(projectDirectory)) return { ok: false, code: "cli-build-lock-io" };
+  try {
+    const present = await optionalLstat(defaultFileSystem, join(projectDirectory, LOCK_FILE_NAME));
+    return present ? { ok: false, code: "cli-build-lock-unavailable" } : { ok: true };
+  } catch {
+    return { ok: false, code: "cli-build-lock-io" };
+  }
+};
 
 export const buildLockFileName = LOCK_FILE_NAME;
