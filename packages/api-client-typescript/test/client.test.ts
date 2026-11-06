@@ -73,6 +73,19 @@ const definition: CreatePresentationResponse["definition"] = {
 };
 
 describe("createControlPlaneClient", () => {
+  it("exposes typed deletion requests for presentations and ended rooms", () => {
+    type DeletePresentationRequest = InferRequestType<
+      ControlPlaneClient["presentations"][":id"]["$delete"]
+    >;
+    type DeleteRoomRequest = InferRequestType<ControlPlaneClient["sessions"][":id"]["$delete"]>;
+
+    expectTypeOf<DeletePresentationRequest>().toEqualTypeOf<{
+      param: { id: string };
+      json: { expectedRevision: number };
+    }>();
+    expectTypeOf<DeleteRoomRequest>().toEqualTypeOf<{ param: { id: string } }>();
+  });
+
   it("keeps Worker response extensions out of browser globals", () => {
     expectTypeOf<Extract<keyof Response, "cf" | "webSocket">>().toEqualTypeOf<never>();
   });

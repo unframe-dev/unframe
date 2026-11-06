@@ -69,14 +69,22 @@ async function remote(page: Page, dist: Dist) {
         expect(url.searchParams.get("sourcePresentationId")).toBe(sourcePresentationId);
         return route.fulfill({
           json: {
-            presentations: state.exists ? [{ id: targetId, name: "既存のプレゼンテーション" }] : [],
+            presentations: state.exists
+              ? [{ id: targetId, name: "既存のプレゼンテーション", revision: 1 }]
+              : [],
           },
         });
       }
       return route.fulfill({
         json: {
           presentations: state.current
-            ? [{ id: targetId, name: dist.fixture.artifacts.definition.metadata.title }]
+            ? [
+                {
+                  id: targetId,
+                  name: dist.fixture.artifacts.definition.metadata.title,
+                  revision: 1,
+                },
+              ]
             : [],
         },
       });
@@ -88,7 +96,7 @@ async function remote(page: Page, dist: Dist) {
       });
     if (method === "GET" && path === apiPath)
       return state.exists
-        ? route.fulfill({ json: { id: targetId, name: "既存のプレゼンテーション" } })
+        ? route.fulfill({ json: { id: targetId, name: "既存のプレゼンテーション", revision: 1 } })
         : route.fulfill({ status: 404, json: { error: { code: "not_found" } } });
     if (method === "GET" && path === `${apiPath}/publication`)
       return state.current

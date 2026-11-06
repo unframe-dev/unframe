@@ -1,8 +1,18 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, notExists, sql } from "drizzle-orm";
 
 import { createD1Database } from "../adapters/d1/database";
-import { assets, presentationMembers, presentations } from "../adapters/d1/schema";
+import {
+  assets,
+  presentationAssetRefs,
+  presentationBuildCleanup,
+  presentationBuilds,
+  presentationMembers,
+  presentationPublications,
+  presentationSessions,
+  presentations,
+} from "../adapters/d1/schema";
+import { deletedRoomViewerCleanup } from "../modules/viewer-credentials/cleanup";
 import type { PresentationDefinition } from "./schema";
 
 export type PresentationRecord = {
@@ -193,25 +203,49 @@ export class D1PresentationRepository implements PresentationRepository {
   }
 
   async delete(id: string, expectedRevision: number) {
-    const result = await this.database
-      .prepare(
-        `
-          DELETE FROM presentations
-          WHERE id = ?
-            AND revision = ?
-            AND NOT EXISTS (
-              SELECT 1
-              FROM assets
-              WHERE presentation_id = ?
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM presentation_sessions
-              WHERE presentation_id = ? AND state != 'Ended'
-            )
-        `,
-      )
-      .bind(id, expectedRevision, id, id)
-      .run();
-    return result.meta.changes === 1;
+    const activeRooms = this.db
+      .select({ id: presentationSessions.id })
+      .from(presentationSessions)
+      .where(
+        and(
+          eq(presentationSessions.presentationId, presentations.id),
+          ne(presentationSessions.state, "Ended"),
+        ),
+      );
+    const target = this.db
+      .select({ id: presentations.id })
+      .from(presentations)
+      .where(
+        and(
+          eq(presentations.id, id),
+          eq(presentations.revision, expectedRevision),
+          notExists(activeRooms),
+        ),
+      );
+    const targetRooms = this.db
+      .select({ id: presentationSessions.id })
+      .from(presentationSessions)
+      .where(inArray(presentationSessions.presentationId, target));
+
+    // Every statement shares the guard because a stale revision must leave all children intact.
+    const [, , , , , , deleted] = await this.db.batch([
+      this.db.insert(presentationBuildCleanup).select(sql`
+        SELECT id, strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+24 hours') FROM (${target})
+      `),
+      deletedRoomViewerCleanup(this.database, targetRooms),
+      this.db.delete(presentationSessions).where(inArray(presentationSessions.id, targetRooms)),
+      this.db
+        .delete(presentationPublications)
+        .where(inArray(presentationPublications.presentationId, target)),
+      this.db.delete(presentationBuilds).where(inArray(presentationBuilds.presentationId, target)),
+      this.db
+        .delete(presentationAssetRefs)
+        .where(inArray(presentationAssetRefs.presentationId, target)),
+      this.db
+        .delete(presentations)
+        .where(inArray(presentations.id, target))
+        .returning({ id: presentations.id }),
+    ]);
+    return deleted.length === 1;
   }
 }

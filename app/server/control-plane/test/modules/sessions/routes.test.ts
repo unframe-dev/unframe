@@ -72,10 +72,15 @@ const managedRooms = async () => {
     joinCode: () => codes.shift()!,
     sessionNow: () => new Date("2026-10-30T00:00:00.000Z"),
   });
-  const request = (path: string, userId?: string, body?: unknown) =>
+  const request = (
+    path: string,
+    userId?: string,
+    body?: unknown,
+    method = body === undefined ? "GET" : "POST",
+  ) =>
     app.fetch(
       new Request(`https://api.example.com${path}`, {
-        method: body === undefined ? "GET" : "POST",
+        method,
         headers: {
           "content-type": "application/json",
           ...(userId ? { "x-test-user": userId } : {}),
@@ -107,6 +112,58 @@ const managedRooms = async () => {
 };
 
 describe("session HTTP lifecycle", () => {
+  it("allows the presenter to delete only an ended room and its history", async () => {
+    const { request, owner, viewer, first, second } = await managedRooms();
+    const path = `/sessions/${first.session.id}`;
+    const remove = (userId?: string) => request(path, userId, undefined, "DELETE");
+
+    expect((await remove()).status).toBe(401);
+    expect((await remove(owner)).status).toBe(409);
+    expect((await request(`${path}/end`, owner, {})).status).toBe(200);
+    expect((await remove(viewer)).status).toBe(403);
+
+    const deleted = await remove(owner);
+    expect(deleted.status).toBe(204);
+    expect(deleted.headers.get("cache-control")).toBe("no-store");
+    expect((await remove(owner)).status).toBe(404);
+    await expect((await request("/sessions", owner)).json()).resolves.toMatchObject({
+      sessions: [expect.objectContaining({ id: second.session.id })],
+    });
+    await expect(
+      new D1SessionRepository(env.DB).participantFor(first.session.id, owner),
+    ).resolves.toBeNull();
+  });
+
+  it("cleans up dedicated anonymous viewers while preserving accounts and other room participants", async () => {
+    const { request, owner, viewer, first, second } = await managedRooms();
+    const joinAnonymously = async () => {
+      const response = await request("/viewer-credentials", undefined, {
+        joinCode: first.joinCode,
+      });
+      expect(response.status).toBe(201);
+      return (await response.json<{ participantId: string }>()).participantId;
+    };
+    const dedicated = await joinAnonymously();
+    const shared = await joinAnonymously();
+    await env.DB.prepare(
+      "INSERT INTO session_participants (session_id, user_id, role, joined_at) VALUES (?, ?, 'viewer', '2026')",
+    )
+      .bind(second.session.id, shared)
+      .run();
+    expect((await request("/sessions/join", viewer, { joinCode: first.joinCode })).status).toBe(
+      200,
+    );
+
+    const path = `/sessions/${first.session.id}`;
+    expect((await request(`${path}/end`, owner, {})).status).toBe(200);
+    expect((await request(path, owner, undefined, "DELETE")).status).toBe(204);
+
+    const remaining = await env.DB.prepare('SELECT id FROM "user" WHERE id IN (?, ?, ?)')
+      .bind(dedicated, shared, viewer)
+      .all<{ id: string }>();
+    expect(new Set(remaining.results.map(({ id }) => id))).toEqual(new Set([shared, viewer]));
+  });
+
   it("returns the saved code only to the creator, including after a Viewer joins", async () => {
     const { request, path, owner, viewer, first } = await managedRooms();
     const reopened = await request(path, owner);

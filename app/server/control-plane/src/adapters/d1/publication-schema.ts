@@ -12,6 +12,11 @@ export const presentationBuilds = sqliteTable(
   (table) => [primaryKey({ columns: [table.presentationId, table.buildId] })],
 );
 
+export const presentationBuildCleanup = sqliteTable("presentation_build_cleanup", {
+  presentationId: text("presentation_id").primaryKey().notNull(),
+  availableAt: text("available_at").notNull(),
+});
+
 export const presentationPublications = sqliteTable(
   "presentation_publications",
   {
