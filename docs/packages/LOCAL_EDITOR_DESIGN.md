@@ -97,7 +97,7 @@ Local Host は commit 済み request ごとに Core の Cue state と単調時�
 
 ### Zone の確認
 
-`movePresenter` は Unity の float 座標で表現できる有限値の腰位置 `[x,y,z]`（Presentation 座標）と任意の単位 quaternion `[x,y,z,w]` を受け、Host が有効な Zone の進入・退出を既存の Cue 実行器へ渡す。判定は各軸で中心から±1m、一度内側に入った後は±1.03mを超えて退出する。初回・再開・Step／Group 切替時は現在位置を記録するだけで進入を作らない。停止中・確認中・遷移中・終了後は発火しない。reset／selectStep は位置を原点・向きを初期値へ戻し、recover は適用確認済みの位置と所属状態を復元する。
+`movePresenter` は Unity の float 座標で表現できる有限値の腰位置 `[x,y,z]`（Presentation 座標）と任意の単位 quaternion `[x,y,z,w]` を受け、Host が有効な Zone の進入・退出を既存の Cue 実行器へ渡す。ここで指定する仮想 Presenter の腰位置が Preview の判定点になる。Quest 実機の判定点はヘッドセットの位置である。判定は各軸で中心から±1m、一度内側に入った後は±1.03mを超えて退出する。初回・再開・Step／Group 切替時は現在位置を記録するだけで進入を作らない。停止中・確認中・遷移中・終了後は発火しない。reset／selectStep は位置を原点・向きを初期値へ戻し、recover は適用確認済みの位置と所属状態を復元する。
 
 応答の `spatial` は Zone の有無によらず腰位置・向きと各 Zone の中心・有効状態・内外状態を返す。Web は再生状態の適用後に `Spatial`（`{requestId, sequence, presenterPosition, presenterRotation, zones}`）を Unity に送り、同じ識別子の ACK を待ってから Host へ適用を確認する。視点切替は `View(perspective|overhead)`、俯瞰からの位置入力は requestId 付きの `unframe-preview-presenter` 通知で伝える。Surface の ray 判定結果は `unframe-preview-interaction`（requestId、surfaceId、interactionId）で Web へ伝え、通常再生中に Host へ送る。古い request の位置・Surface 入力は破棄する。
 

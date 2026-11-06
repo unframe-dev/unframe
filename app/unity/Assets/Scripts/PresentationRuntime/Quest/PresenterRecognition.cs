@@ -98,15 +98,17 @@ namespace Unframe.Unity.PresentationRuntime
             startLeft = startRight = forward = null;
         }
 
-        public List<PresenterRecognitionResult> SampleWaist(Vector3 waist)
+        public List<PresenterRecognitionResult> SampleHead(Vector3 headPosition)
         {
             var results = new List<PresenterRecognitionResult>();
-            if (context == null || catalog == null || !Valid(waist)) { zones.Clear(); return results; }
+            if (context == null || catalog == null || !Valid(headPosition)) { zones.Clear(); return results; }
             foreach (PresenterRecognitionZone zone in catalog.Zones)
             {
                 bool seededZone = zones.TryGetValue(zone.ZoneId, out bool wasInside);
                 double boundary = seededZone && wasInside ? 1.03 : 1;
-                bool inside = Math.Abs(waist.X - zone.Center.X) <= boundary && Math.Abs(waist.Y - zone.Center.Y) <= boundary && Math.Abs(waist.Z - zone.Center.Z) <= boundary;
+                bool inside = Math.Abs(headPosition.X - zone.Center.X) <= boundary
+                    && Math.Abs(headPosition.Y - zone.Center.Y) <= boundary
+                    && Math.Abs(headPosition.Z - zone.Center.Z) <= boundary;
                 if (seededZone && inside != wasInside)
                     results.Add(new PresenterRecognitionResult { Context = context.Clone(), ZoneId = zone.ZoneId, Edge = inside ? ZoneEdge.Enter : ZoneEdge.Exit });
                 zones[zone.ZoneId] = inside;
