@@ -69,6 +69,42 @@ public sealed class QuestMotionGuideTests
     }
 
     [Test]
+    public void ZoneGuidanceUsesTheCurrentCatalogWithoutSuggestingTheAButton()
+    {
+        var left = new PresenterRecognitionZone { ZoneId = "left", Center = new Unframe.Presentation.Vector3 { X = -1.8 } };
+        var right = new PresenterRecognitionZone { ZoneId = "right", Center = new Unframe.Presentation.Vector3 { X = 1.8 } };
+        var catalog = new PresenterRecognitionCatalog();
+        catalog.Zones.Add(left);
+        catalog.Zones.Add(right);
+        catalog.Gestures.Add(GestureKind.SwipeLeft);
+        var state = new QuestMotionGuideState();
+        var progression = new ProgressionRuntimeState { Stable = new StableProgression() };
+
+        state.Refresh(catalog, progression, true, true, true, true, false, false, false, true);
+        Assert.That(state.Zones, Is.EqualTo(new[] { left, right }));
+        Assert.That(state.Candidates, Is.Empty);
+        Assert.That(state.ShowAdvance, Is.False);
+
+        state.Refresh(catalog, progression, true, true, true, true, true, false, false, true);
+        Assert.That(state.Candidates, Is.EqualTo(new[] { GestureKind.SwipeLeft }));
+        state.Refresh(catalog, progression, true, true, true, true, false, false, true, true);
+        Assert.That(state.Zones, Is.Empty);
+    }
+
+    [TestCase(-1.8, 0, "ステージ左側")]
+    [TestCase(1.8, 0, "ステージ右側")]
+    [TestCase(0, -1.8, "ステージ前方")]
+    [TestCase(0, 1.8, "ステージ後方")]
+    [TestCase(0, 0, "ステージ中央")]
+    public void ZoneInstructionIdentifiesTheStageLocation(double x, double z, string location)
+    {
+        var instruction = typeof(QuestMotionGuideView).GetMethod("ZoneInstruction",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        var zone = new PresenterRecognitionZone { Center = new Unframe.Presentation.Vector3 { X = x, Z = z } };
+        Assert.That(instruction.Invoke(null, new object[] { zone }), Is.EqualTo(location + "のゾーン\n境界を越えて移動"));
+    }
+
+    [Test]
     public void ButtonGuidanceDoesNotRequireHandTrackingOrAMotionCatalog()
     {
         var state = new QuestMotionGuideState();
@@ -112,8 +148,8 @@ public sealed class QuestMotionGuideTests
         Assert.That(localAnchor.x, Is.GreaterThan(0));
         Assert.That(localAnchor.y, Is.LessThan(0));
         Assert.That(localAnchor.z, Is.GreaterThan(0));
-        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.42f).Within(.00001f));
-        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.46f).Within(.00001f));
+        Assert.That(localAnchor.x / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(.28f).Within(.00001f));
+        Assert.That(localAnchor.y / localAnchor.z / Mathf.Tan(40 * Mathf.Deg2Rad), Is.EqualTo(-.30f).Within(.00001f));
 
         Vector3 localInstruction = Quaternion.Inverse(viewRotation) *
             (QuestMotionGuideGeometry.GetInstructionPosition(anchor, rotation) - headPosition);
@@ -152,16 +188,16 @@ public sealed class QuestMotionGuideTests
         Assert.That(localGuide.y, Is.EqualTo(localHud.y).Within(.00001f));
         Assert.That(localGuide.z, Is.EqualTo(localHud.z).Within(.00001f));
         float halfHeight = localGuide.z * Mathf.Tan(verticalFov * .5f * Mathf.Deg2Rad);
-        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.42f).Within(.00001f));
-        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.46f).Within(.00001f));
+        Assert.That(localGuide.x / (halfHeight * aspect), Is.EqualTo(.28f).Within(.00001f));
+        Assert.That(localGuide.y / halfHeight, Is.EqualTo(-.30f).Within(.00001f));
         Vector2 guideViewport = new Vector2(.5f + .5f * localGuide.x / (halfHeight * aspect),
             .5f + .5f * localGuide.y / halfHeight);
         Vector2 hudViewport = new Vector2(.5f + .5f * localHud.x / (halfHeight * aspect),
             .5f + .5f * localHud.y / halfHeight);
-        Assert.That(guideViewport.x, Is.InRange(.69f, .73f));
-        Assert.That(hudViewport.x, Is.InRange(.27f, .31f));
-        Assert.That(guideViewport.y, Is.InRange(.25f, .29f));
-        Assert.That(hudViewport.y, Is.InRange(.25f, .29f));
+        Assert.That(guideViewport.x, Is.InRange(.62f, .66f));
+        Assert.That(hudViewport.x, Is.InRange(.34f, .38f));
+        Assert.That(guideViewport.y, Is.InRange(.33f, .37f));
+        Assert.That(hudViewport.y, Is.InRange(.33f, .37f));
     }
 
     [Test]

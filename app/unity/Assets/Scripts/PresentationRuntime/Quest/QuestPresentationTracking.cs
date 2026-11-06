@@ -70,6 +70,15 @@ namespace Unframe.Unity.PresentationRuntime
             return frame;
         }
 
+        public static ProtoVector3 PositionInStage(QuestPoseSample sample, ProtoPose markerFromQuestLocal, ProtoPose markerFromStage)
+        {
+            if (!sample.Available || !PresentationCoordinateAdapter.TryToUnityPose(markerFromQuestLocal, out UnityEngine.Pose fromLocal)
+                || !PresentationCoordinateAdapter.TryToUnityPose(markerFromStage, out UnityEngine.Pose fromStage)) return null;
+            UnityEngine.Vector3 markerPosition = fromLocal.position + fromLocal.rotation * sample.Position;
+            UnityEngine.Vector3 stagePosition = UnityEngine.Quaternion.Inverse(fromStage.rotation) * (markerPosition - fromStage.position);
+            return ToCanonicalPose(stagePosition, UnityEngine.Quaternion.identity).Position;
+        }
+
         public static bool TrySample(XRNode node, TrackedTarget target, out QuestPoseSample sample)
         {
             InputDevice device = InputDevices.GetDeviceAtXRNode(node);

@@ -11,6 +11,7 @@ import { createPlaybackController } from "./playback-controller";
 import { acceptsNotification, requiresRecovery } from "./preview-state";
 import { UnityExchangeError } from "../infra/unity-exchange";
 const temporaryLocks = new Set(["cli-source-lock-unavailable", "cli-build-lock-unavailable"]);
+const maxLockRetries = 2;
 const id = () => crypto.randomUUID().replaceAll("-", "");
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const wait = (milliseconds: number, signal: AbortSignal) =>
@@ -315,6 +316,7 @@ export function createPreviewController(input: {
         let buildId: string | undefined;
         if (channel === "dev") {
           let buildRevision = revision;
+          let lockRetries = 0;
           while (current(serial)) {
             try {
               store.setState({ phase: "building" });
@@ -358,6 +360,15 @@ export function createPreviewController(input: {
               if (!(error instanceof HostApiError) || !temporaryLocks.has(error.code)) throw error;
               if (build) builds.delete(build);
               build = undefined;
+              if (lockRetries >= maxLockRetries) {
+                const lock =
+                  error.code === "cli-build-lock-unavailable" ? "ビルドロック" : "ソースロック";
+                throw new Error(
+                  `${lock}が解除されないため Preview を更新できません。ロックを確認してから再試行してください。`,
+                  { cause: error },
+                );
+              }
+              lockRetries++;
               await wait(1000, signal);
             }
           }

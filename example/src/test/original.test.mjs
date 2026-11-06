@@ -20,7 +20,8 @@ const input = (state, action) =>
     payload: {},
     causeEventId: `input-${++sequence}`,
   });
-const ready = () => advanceCueClock(definition, initialState(), 8501).state;
+const ready = () =>
+  advanceCueClock(definition, input(initialState(), "presenter.next").state, 6001).state;
 const showOriginal = () => {
   const next = input(ready(), "presenter.next");
   assert.equal(next.outcome.kind, "accepted");
@@ -28,7 +29,10 @@ const showOriginal = () => {
 };
 
 test("開幕を飛ばさず、次の入力でパネルと立方体が現れ、ロゴと Unframe は非表示のままにする", () => {
-  assert.equal(input(initialState(), "presenter.next").outcome.kind, "none");
+  assert.equal(
+    input(input(initialState(), "presenter.next").state, "presenter.next").outcome.kind,
+    "none",
+  );
   const before = ready();
   assert.equal(before.nodes[brandId].opacity, 0);
   assert.equal(before.nodes[logoId].opacity, 0);

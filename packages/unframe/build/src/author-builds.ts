@@ -16,6 +16,7 @@ export type AuthorBuildExecutionResult =
   | { status: "cancelled" | "stale" | "failed"; diagnostics: AuthorDiagnostic[] };
 export type AuthorBuildPorts = {
   fail(status: number, code: string, message: string): never;
+  checkBuildAvailability(): Promise<void>;
   prepareBuild(
     revision: string,
     channel: "dev" | "dist",
@@ -265,6 +266,8 @@ export const createAuthorBuildService = (
       allWorks.add(work);
       work.done = (async () => {
         try {
+          // An active build in this host can be superseded and will release its lease before this work starts.
+          if (!running) await ports.checkBuildAvailability();
           await ports.validateRevision(revision, work.controller.signal);
           requireOpen();
           if (work.controller.signal.aborted || sequence < accepted)
@@ -294,6 +297,8 @@ export const createAuthorBuildService = (
           });
           requireCurrent(work);
           running = work;
+          await ports.checkBuildAvailability();
+          requireCurrent(work);
           const candidate = successes.get(channel);
           if (candidate?.revision === revision) {
             try {

@@ -861,6 +861,7 @@ it.each(["dev", "dist"] as const)(
         fail: (status, code, message) => {
           throw new AuthorError(status, code, message);
         },
+        checkBuildAvailability: async () => {},
         validateRevision: async () => {},
         canReuseBuild: async () => true,
         prepareBuild: async () => ({ revision: "rev", snapshot: await service.project() }),

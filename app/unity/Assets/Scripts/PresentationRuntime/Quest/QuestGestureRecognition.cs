@@ -122,7 +122,7 @@ namespace Unframe.Unity.PresentationRuntime
             return null;
         }
 
-        public List<PresenterRecognitionResult> SampleWaist(ProtoVector waist) => legacy.SampleWaist(waist);
+        public List<PresenterRecognitionResult> SampleHead(ProtoVector headPosition) => legacy.SampleHead(headPosition);
 
         private void SamplePositions(double time, ProtoVector left, ProtoVector right, ProtoVector head, ProtoVector forward)
         {

@@ -31,7 +31,7 @@ RuntimeCapability は従来の1〜6を保持し、7=`PRESENTER_RECOGNITION`、8=
 ## Definition と認識設定
 
 - `gesture` Trigger は Presenter actor と Gesture 種類だけを持つ。種類は `swipeLeft / swipeRight / swipeDown / swipeUp / pushForward / pullBackward / spreadHands / closeHands`（wire enum 1〜8）。片手の左右指定・距離・速度・時間窓は Definition に持たない。
-- `zoneEdge` Trigger は Presenter actor、Zone ID、enter / exit（wire enum 1 / 2）。Zone は ID・owner・center のみを定義し、Presentation Space の軸に平行な一辺2mの箱に固定する。腰以外を代用しない。dwell / hysteresis / motion / system-tracking Trigger は拒否する。
+- `zoneEdge` Trigger は Presenter actor、Zone ID、enter / exit（wire enum 1 / 2）。Zone は ID・owner・center のみを定義し、Presentation Space の軸に平行な一辺2mの箱に固定する。Quest ではヘッドセットの位置で判定する。dwell / hysteresis / motion / system-tracking Trigger は拒否する。
 - fire policy は `oncePerStepEntry` とパラメーターなしの `repeatable`。server cooldown とその Snapshot state は廃止する。
 - `ProjectedRuntimeCatalog.presenter_recognition` は Presenter 限定の `PresenterRecognitionCatalog`。Presentation に存在する Gesture 種類の集合と、参照する Zone の ID / center の集合だけを含める。Guard の成否を認識開始の条件にせず、Cue ID・Action・閾値を配らない。Gesture は enum 昇順・重複なし、Zone は ID 昇順・重複なしとする。
 - private 同期 message の `recognition_catalog` は現在の Group / Step の候補だけに絞った同型の設定を必須とする。認識は同期済みの設定を使い、Step 入場・復元時に更新する。Viewer profile と Local Preview では `presenter_recognition` 自体を省略する。静的な Delivery 設定を現在 Step の認識開始許可として使わない。

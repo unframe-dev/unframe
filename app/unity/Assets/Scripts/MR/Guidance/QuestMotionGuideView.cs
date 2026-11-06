@@ -52,8 +52,11 @@ namespace Unframe.Unity.PresentationRuntime
                 runtime != null && runtime.IsPresenter && runtime.CanSendInput,
                 runtime != null && runtime.CalibrationReady, runtime?.DataStore.RuntimeClock?.StatusCase == RuntimeClockSnapshot.StatusOneofCase.Running,
                 headTracked && head != null && headCamera != null && trackingOrigin != null, leftTracked, rightTracked, ui == null || !ui.GuidanceVisible, entry != null && entry.CanAdvance);
-            if (state.Candidates.Count == 0 && !state.ShowAdvance) { Hide(); return; }
+            int candidateCount = state.Zones.Count + state.Candidates.Count;
+            if (candidateCount == 0 && !state.ShowAdvance) { Hide(); return; }
             int signature = 17;
+            foreach (var zone in state.Zones)
+                signature = unchecked(signature * 31 + zone.ZoneId.GetHashCode());
             for (int candidate = 0; candidate < state.Candidates.Count; candidate++)
                 signature = unchecked(signature * 31 + (int)state.Candidates[candidate]);
             if (candidateSignature != signature || groupEpoch != progression.GroupEntryEpoch || stepEpoch != progression.StepEntryEpoch)
@@ -63,9 +66,11 @@ namespace Unframe.Unity.PresentationRuntime
                 stepEpoch = progression.StepEntryEpoch;
                 candidateStartedAt = Time.realtimeSinceStartupAsDouble;
             }
-            int index = state.Candidates.Count == 0 ? 0
-                : (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % state.Candidates.Count;
-            GestureKind selected = state.Candidates.Count == 0 ? GestureKind.Unspecified : state.Candidates[index];
+            int index = candidateCount == 0 ? 0
+                : (int)((Time.realtimeSinceStartupAsDouble - candidateStartedAt) / 6) % candidateCount;
+            bool showZone = index < state.Zones.Count;
+            GestureKind selected = candidateCount == 0 || showZone
+                ? GestureKind.Unspecified : state.Candidates[index - state.Zones.Count];
             Quaternion guideRotation = head.rotation;
             Vector3 anchor = QuestMotionGuideGeometry.GetAnchorPosition(head.position, guideRotation,
                 headCamera.fieldOfView, headCamera.aspect);
@@ -80,7 +85,7 @@ namespace Unframe.Unity.PresentationRuntime
                 QuestMotionGuideGeometry.GetFacingRotation(instructionPosition, head.position, head.rotation));
             float viewportScale = QuestMotionGuideGeometry.GetViewportScale(headCamera.fieldOfView, headCamera.aspect);
             instructionPanel.localScale = Vector3.one * (.00022f * viewportScale);
-            string instruction = Instruction(selected, state.ShowAdvance);
+            string instruction = showZone ? ZoneInstruction(state.Zones[index]) : Instruction(selected, state.ShowAdvance);
             if (label.text != instruction) label.text = instruction;
             Quaternion motionFrame = Quaternion.LookRotation(forward, Vector3.up);
             Vector3 diagramOrigin = anchor;
@@ -138,6 +143,17 @@ namespace Unframe.Unity.PresentationRuntime
                 enabled = false;
                 Debug.LogError("Motion guide assets could not be initialized.");
             }
+        }
+
+        private static string ZoneInstruction(PresenterRecognitionZone zone)
+        {
+            var center = zone.Center;
+            string location = "ステージ中央";
+            if (Math.Abs(center.X) >= Math.Abs(center.Z) && center.X != 0)
+                location = center.X < 0 ? "ステージ左側" : "ステージ右側";
+            else if (center.Z != 0)
+                location = center.Z < 0 ? "ステージ前方" : "ステージ後方";
+            return location + "のゾーン\n境界を越えて移動";
         }
 
         private static string Instruction(GestureKind gesture, bool showAdvance)

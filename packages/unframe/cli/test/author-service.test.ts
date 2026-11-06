@@ -10,7 +10,11 @@ import definitionFixture from "../../../contracts/presentation/fixtures/presenta
 import bundleFixture from "../../../contracts/presentation/fixtures/render-bundle.json";
 import assetSetFixture from "../../../contracts/presentation/fixtures/asset-set-manifest.json";
 import manifestFixture from "../../../contracts/presentation/fixtures/build-manifest.json";
-import { acquireSourceLock, publishAtomicArtifacts } from "@unframe-dev/workspace-node";
+import {
+  acquireBuildLock,
+  acquireSourceLock,
+  publishAtomicArtifacts,
+} from "@unframe-dev/workspace-node";
 import { createAuthorService } from "../src/author/service.js";
 import { runPresentationCli } from "../src/index.js";
 import { discoverPresentationProjectFiles } from "@unframe-dev/workspace-node";
@@ -109,6 +113,26 @@ const setTitle = (snapshot: ProjectSnapshot, value: string, character: string) =
 });
 
 describe("author service with frozen React source", () => {
+  it("rejects a competing build before validating the requested revision", async () => {
+    const directory = await createProject();
+    const service = await createAuthorService(directory);
+    services.push(service);
+    const lock = await acquireBuildLock(directory);
+    assert(lock.ok);
+    try {
+      await expect(service.build("stale", commandId("a"))).rejects.toMatchObject({
+        status: 409,
+        code: "cli-build-lock-unavailable",
+      });
+    } finally {
+      await lock.value.release();
+    }
+    await expect(service.build("stale", commandId("a"))).rejects.toMatchObject({
+      status: 412,
+      code: "author-revision-mismatch",
+    });
+  });
+
   it("evicts completed jobs and request IDs together while protecting active work", async () => {
     const directory = await createProject();
     let release: (() => void) | undefined;
