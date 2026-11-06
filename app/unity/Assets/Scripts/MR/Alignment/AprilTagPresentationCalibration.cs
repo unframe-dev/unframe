@@ -11,9 +11,17 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
     private Pose capturedTrackingFrame;
     private bool hasCapturedFrame;
     private bool changingCalibration;
+    private bool placementEnabled;
     private Transform head;
     public PresenterOriginPlacement Placement { get; } = new PresenterOriginPlacement();
-    public void ConfigureHead(Transform source) { head = source; Refresh(); }
+    public void ConfigureHead(Transform source)
+    {
+        bool markerOnlyMeasurement = !placementEnabled && hasCapturedFrame;
+        placementEnabled = true;
+        head = source;
+        if (markerOnlyMeasurement) ResetSource("placement-enabled-show-marker-again");
+        Refresh();
+    }
     public void BeginSession(string id)
     {
         if (Placement.BeginSession(id)) ResetSource("session-changed-show-marker-again");
@@ -74,21 +82,25 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
             ResetSource("Tracking origin changed; show ID 0 again");
             return;
         }
-        if (!PresentationCalibrationMath.TryFromWorldOrigin(alignment.OriginPose, questTrackingOrigin,
+        Pose marker = alignment.OriginPose;
+        if (!PresentationCalibrationMath.TryFromWorldOrigin(marker, questTrackingOrigin,
             out var calibration, out string error))
         {
             ResetSource(error);
             return;
         }
-        if (!Calibration.TrySet(calibration, out error))
+        if (!hasCapturedFrame && placementEnabled)
         {
-            ResetSource(error);
-            return;
+            if (head == null || !head.gameObject.activeInHierarchy)
+            {
+                ResetSource("placement-head-unavailable-show-marker-again");
+                return;
+            }
+            Placement.Capture(marker, new Pose(head.position, head.rotation));
         }
-        if (head != null && head.gameObject.activeInHierarchy)
-            Placement.Capture(alignment.OriginPose, new Pose(head.position, head.rotation));
         capturedTrackingFrame = trackingFrame;
         hasCapturedFrame = true;
+        if (!Calibration.TrySet(calibration, out error)) ResetSource(error);
     }
 
     private void ResetSource(string reason)
