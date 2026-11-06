@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { controlPlaneAuth as auth } from "@/features/auth/control-plane-auth";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import styles from "@/app/shell/application-content.module.css";
 
 const timestampSchema = z.union([z.date(), z.iso.datetime().transform((value) => new Date(value))]);
@@ -41,7 +41,7 @@ export function DevicesPage() {
       </header>
       <section className="grid gap-5 py-8" aria-label="認証済みデバイス">
         <div className="flex flex-wrap items-center gap-4">
-          <Link to="/device" search={{ user_code: "" }}>
+          <Link to="/device" search={{ user_code: "" }} className={buttonVariants()}>
             デバイスを承認
           </Link>
           <Button

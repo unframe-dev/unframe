@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useRef, useSyncExternalStore } from "react";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import styles from "@/app/shell/application-content.module.css";
 import { type PublicationState } from "./publication-controller";
 import { usePublicationController } from "./publication-context";
@@ -139,8 +139,9 @@ export function PublicationPage() {
             <p role="status">
               {state.alreadyPublished ? "この Dist はすでに公開されています。" : "公開しました。"}
             </p>
-            <div className="flex flex-wrap gap-5">
+            <div className="flex flex-wrap items-center gap-5">
               <Link
+                className={buttonVariants()}
                 to="/presentations/$presentationId"
                 params={{
                   presentationId: state.result.presentationId,

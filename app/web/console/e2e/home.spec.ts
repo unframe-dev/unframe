@@ -169,7 +169,10 @@ test("creates one room, displays the server fixed publication, and never persist
   await page.route("**/sessions/room-1", (route) => route.fulfill({ json: room }));
   await page.goto("/home");
   await page.getByRole("link", { name: `${presentation.name}の詳細を見る` }).click();
-  await page.getByRole("link", { name: "ルームを作成" }).click();
+  const createRoomLink = page.getByRole("link", { name: "ルームを作成" });
+  await expect(createRoomLink).toHaveCSS("background-color", "rgb(223, 123, 128)");
+  await expect(createRoomLink).toHaveCSS("min-height", "44px");
+  await createRoomLink.click();
   const create = page.getByRole("button", { name: "ルームを作成", exact: true });
   await create.dblclick();
   await expect(page).toHaveURL(/\/rooms\/room-1$/);
