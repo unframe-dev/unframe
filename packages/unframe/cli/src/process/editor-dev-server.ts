@@ -38,6 +38,7 @@ export async function runWithEditorDevServer(
   repository: string,
   signal: AbortSignal,
   runHost: (signal: AbortSignal) => Promise<void>,
+  supervised = false,
 ): Promise<void> {
   if (signal.aborted) return;
   await requireEditorPort();
@@ -48,7 +49,7 @@ export async function runWithEditorDevServer(
   const child = spawn(
     "pnpm",
     ["--config.verify-deps-before-run=false", "--filter", "@unframe-dev/local-editor", "dev"],
-    { cwd: repository, detached: true, stdio: ["ignore", "inherit", "inherit"] },
+    { cwd: repository, detached: !supervised, stdio: ["ignore", "inherit", "inherit"] },
   );
   const exited = new Promise<Error>((resolve) => {
     child.once("error", resolve);
@@ -64,7 +65,7 @@ export async function runWithEditorDevServer(
   const stopGroup = (stopSignal: NodeJS.Signals) => {
     if (!child.pid) return;
     try {
-      process.kill(-child.pid, stopSignal);
+      process.kill(supervised ? child.pid : -child.pid, stopSignal);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
     }
@@ -83,7 +84,7 @@ export async function runWithEditorDevServer(
     const groupExists = () => {
       if (!child.pid) return false;
       try {
-        process.kill(-child.pid, 0);
+        process.kill(supervised ? child.pid : -child.pid, 0);
         return true;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
