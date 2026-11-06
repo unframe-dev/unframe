@@ -152,13 +152,15 @@ trigger: {
 }
 ```
 
-Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture / Zone と Presenter Anchor を拒否する。
+Gesture は8種類から選び、Structured / React の両方で Presenter actor の canonical Gesture Trigger に変換する。`zoneEdge` は Zone ID と enter / exit を指定し、Stage の Zone 宣言には中心位置だけを持たせる。Presenter Delivery の recognition catalog は種類と Zone ID / 中心だけを含み、Guard / Cue の成立は Runtime が確定する。Local Preview は Gesture 入力、仮想 Presenter による Zone 判定と Presenter Anchor の配置確認に対応する。
 
 Group ごとの場面素材は `owner: group`、プレゼン全体で保持する素材は `owner: presentation` とする。PNG の GPU 常駐窓は現在 Group と直接の次候補 Group、および presentation 共通素材の和で計画する。モデル内 Texture は全常駐として各窓の予算へ加算する。[ADR-0030](../decisions/0030-group-texture-residency.md) を参照。
 
 React / Model の Scene 宣言も `owner: { kind: "group", groupId }` を指定できる。`flow.timelines[].owner` は省略時に presentation 所有となる。Group 内で動かす Timeline は同じ Group の owner を指定し、退出時に完了・解除する。
 
 ## MR の原点と高さ補正
+
+メインの表示面は Stage の `z=0` を基準に配置します。Stage の Y 軸が鉛直方向と一致する初回配置では、表示面がマーカーと同じ奥行きになります。作成用カメラは `+Z` 側から表示面を見ます。カメラの視距離は資料の配置座標に含めません。
 
 Stage の原点 `[0, 0, 0]` は、初回の共有配置ではマーカーの位置を基準にします。Quest Presenter はマーカー確定時の HMD とマーカーのワールド高さの差から、原点だけを鉛直方向へ移動し、原点の高さを HMD より30cm下へ合わせます。原点のワールド X/Z、補正前の回転、スケールは変更しません。再配置でも既存の水平位置と回転を保持します。
 

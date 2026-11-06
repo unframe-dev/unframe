@@ -38,8 +38,8 @@ test("開幕を飛ばさず、次の入力でパネルと立方体が現れ、�
   assert.equal(shown.currentStepId, "original-intro");
   assert.equal(shown.nodes[panelId].opacity, 1);
   assert.equal(shown.nodes[cubeId].opacity, 1);
-  assert.deepEqual(shown.nodes[panelId].transform.position, [-0.52, 1.35, -2]);
-  assert.deepEqual(shown.nodes[cubeId].transform.position, [1.16, 1.38, -2.05]);
+  assert.deepEqual(shown.nodes[panelId].transform.position, [-0.52, 1.35, 0.5]);
+  assert.deepEqual(shown.nodes[cubeId].transform.position, [1.16, 1.38, 0.45]);
   assert.deepEqual(shown.nodes[brandId], before.nodes[brandId]);
   assert.deepEqual(shown.nodes[logoId], before.nodes[logoId]);
 });
