@@ -29,7 +29,7 @@ const presentationError = {
     status: 422,
   },
   conflict: {
-    message: "Revision conflict or presentation assets must be deleted first",
+    message: "Revision conflict or current resource state prevents the operation",
     status: 409,
   },
 } as const satisfies Record<

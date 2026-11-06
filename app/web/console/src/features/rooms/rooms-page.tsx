@@ -1,14 +1,17 @@
 import { principalRevision } from "@/shared/api/session-events";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { OwnedRoomList } from "./owned-room-list";
 import { RoomSharing } from "./room-sharing";
 import { Button } from "@/shared/ui/button";
+import { DeleteConfirmationDialog } from "@/shared/ui/delete-confirmation-dialog";
+import { removeRoomQueries, roomKeys } from "./room-queries";
 import { PublicationList } from "@/features/presentations/publication-list";
 import {
   createRoom,
+  deleteRoom,
   getRoom,
   getRuntimePreparation,
   prepareRuntime,
@@ -107,7 +110,7 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
     onSettled: async (_result, error, _presentationId, principal) => {
       if (principal !== principalRevision()) return;
       if (error) submitting.current = false;
-      await client.invalidateQueries({ queryKey: ["owned-rooms"] });
+      await client.invalidateQueries({ queryKey: roomKeys.owned });
     },
   });
   const submit = () => {
@@ -183,7 +186,7 @@ export function RoomsPage({ presentationId }: { presentationId: string }) {
 export function RoomPage({ sessionId }: { sessionId: string }) {
   const pendingActions = useIsMutating({ mutationKey: ["room-action", sessionId] });
   const query = useQuery({
-    queryKey: ["room", sessionId],
+    queryKey: roomKeys.detail(sessionId),
     queryFn: ({ signal }) => getRoom(sessionId, signal),
     retry: false,
     refetchInterval: (query) =>
@@ -225,6 +228,13 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
             <RoomDetails room={query.data} />
             <RoomControls key={sessionId} room={query.data} />
             <RoomSharing key={`sharing-${sessionId}`} room={query.data} />
+            {query.data.state === "Ended" ? (
+              <DeleteRoomAction
+                key={`delete-${sessionId}`}
+                roomId={sessionId}
+                disabled={pendingActions > 0}
+              />
+            ) : null}
           </>
         ) : null}
       </section>
@@ -232,11 +242,42 @@ export function RoomPage({ sessionId }: { sessionId: string }) {
   );
 }
 
+function DeleteRoomAction({ roomId, disabled }: { roomId: string; disabled: boolean }) {
+  const client = useQueryClient();
+  const router = useRouter();
+  return (
+    <div>
+      <DeleteConfirmationDialog
+        triggerLabel="ルーム履歴を削除"
+        title="ルーム履歴を削除しますか？"
+        description={`ルーム「${roomId}」の履歴を削除します。この操作は取り消せません。`}
+        disabled={disabled}
+        onConfirm={async () => {
+          const principal = principalRevision();
+          const location = router.state.location.href;
+          await deleteRoom(roomId);
+          if (principal !== principalRevision()) return;
+          removeRoomQueries(client, roomId);
+          await client.resetQueries({ queryKey: roomKeys.owned });
+          if (principal === principalRevision() && router.state.location.href === location) {
+            await router.navigate({ to: "/rooms", search: { presentationId: "" }, replace: true });
+          }
+        }}
+        errorMessage={(error) =>
+          error instanceof ManagementError && error.status === 409
+            ? "削除できませんでした。発表を終了してからやり直してください。"
+            : managementErrorMessage(error)
+        }
+      />
+    </div>
+  );
+}
+
 function RoomControls({ room }: { room: Room }) {
   const client = useQueryClient();
   const submitting = useRef(false);
-  const preparationKey = ["runtime-preparation", room.id];
-  const roomKey = ["room", room.id];
+  const preparationKey = roomKeys.runtimePreparation(room.id);
+  const roomKey = roomKeys.detail(room.id);
   const mutation = useMutation({
     mutationKey: ["room-action", room.id],
     mutationFn: async (action: "prepare" | "start" | "end") => {
@@ -273,7 +314,7 @@ function RoomControls({ room }: { room: Room }) {
     onSettled: async (_result, _error, action, principal) => {
       if (principal !== principalRevision()) return;
       submitting.current = false;
-      if (action !== "prepare") await client.invalidateQueries({ queryKey: ["owned-rooms"] });
+      if (action !== "prepare") await client.invalidateQueries({ queryKey: roomKeys.owned });
     },
   });
   const preparation = useQuery({

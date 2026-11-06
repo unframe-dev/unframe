@@ -241,10 +241,11 @@ describe("D1 presentation migration", () => {
         .bind(presentationId)
         .first<{ asset_id: string }>(),
     ).resolves.toMatchObject({ asset_id: assetId });
-    await expect(repository.delete(presentationId, 2)).resolves.toBe(false);
-    await expect(repository.findById(presentationId)).resolves.toMatchObject({
-      id: presentationId,
-    });
+    await expect(repository.delete(presentationId, 2)).resolves.toBe(true);
+    await expect(repository.findById(presentationId)).resolves.toBeNull();
+    await expect(
+      env.DB.prepare("SELECT id FROM assets WHERE id = ?").bind(assetId).first(),
+    ).resolves.toBeNull();
   });
 
   it("rejects invalid asset references without raising a trigger error", async () => {

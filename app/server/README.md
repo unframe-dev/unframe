@@ -34,6 +34,10 @@ pnpm --filter @unframe-dev/control-plane run dev
 
 Publication の `buildId` と AssetSet の asset ID は、英数字で始まり、以降は英数字・`.`・`_`・`:`・`-` からなる1〜128文字の単一 storage segment です。`/` は使用できません。R2 署名ではキーを segment ごとに encode し、URL pathname の decode 結果が元のキーと一致しない dot segment などを拒否します。
 
+所有者または admin は `DELETE /presentations/{id}` に `{ expectedRevision }` を渡して、Presentation と配下の終了済み Room・公開履歴・build・Asset を削除できます。成功は `204`、revision の不一致または未終了 Room がある場合は `409` です。削除後の再取得・再削除は `404` を返します。通常のアカウントとプロフィール画像は削除しません。
+
+R2 の削除は遅延回収です。`publication-builds/{presentationId}/` は D1 の削除と同時に回収対象を記録し、削除から24時間後以降の日次 GC で回収します。失敗時は次回に再試行し、回収が終わるまで同じ Presentation ID の再登録は `409` になります。`assets/` はアップロードから24時間を過ぎた未参照オブジェクトを既存 GC で回収します。`0018_presentation_build_cleanup.sql` の適用が必要です。
+
 現行の Presentation 成果物と checkpoint は schema version `1` のみ受理します。旧形式の build・publication は再 build・再公開が必要ですが、旧 publication の fence を取得する移行手順は未整備です。旧 checkpoint の自動移行はなく、復旧時は 409 を返します。Unity とサーバーも対応するバージョンを揃えてください。
 
 `PUBLICATION_ASSET_ORIGIN` は任意の HTTPS origin（path・query・credentials なし）です。設定すると、Delivery の素材 URL は同じ Control Plane の `ASSETS` binding を読む `/publication-assets/{presentationId}/{buildId}/{assetId}` へ向き、対象素材と最大5分の期限を `SERVICE_IDENTITY_SECRET` の用途別 HMAC で拘束します。返送前に公開済み build の media type・size・checksum を照合します。未設定時は既存 R2 backend の署名 URL を使用します。ローカル検証では Worker と同じストレージへ接続する HTTPS 入口をこの origin に指定してください。
@@ -41,6 +45,8 @@ Publication の `buildId` と AssetSet の asset ID は、英数字で始まり�
 ## Room の管理 API
 
 Room は Session として保存します。`GET /sessions` は認証した作成者自身の Room を `createdAt`、`id` の降順で返し、`limit` は1〜100（既定20）、`cursor` は前ページの `nextCursor` を指定します。応答は `{ sessions, nextCursor }` です。
+
+作成者または admin は `DELETE /sessions/{id}` で終了済み Room の履歴を削除できます。成功は `204`、未終了は `409`、権限がない場合は `403`、削除済みを含む存在しない Room は `404` です。参加情報・匿名 Viewer 資格・Runtime 割り当て・checkpoint も削除され、履歴は復元できません。その Room 専用の匿名 Viewer ユーザーも削除します。認証情報や他のリソースへの参照を持つユーザーと、プレゼンテーションは残ります。
 
 作成者は `GET /sessions/{id}/join-code` で現在の参加コードを再取得し、同じ URL の POST で更新できます。応答は `{ joinCode }` で、一覧・通常の Session 取得にはコードを含めません。コードと照合用ハッシュを D1 に保存し、応答には `Cache-Control: no-store` を付けます。Viewer や他のアカウントはコードを管理できません。更新後の旧コードは新規参加に使えず、終了した Room のコード更新は `409` です。同時更新が競合した場合も `409` となるため、現在のコードを再取得してください。
 

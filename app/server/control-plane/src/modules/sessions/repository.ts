@@ -23,6 +23,7 @@ import {
   sessionJoinAttempts,
   sessionParticipants,
 } from "../../adapters/d1/schema";
+import { deletedRoomViewerCleanup } from "../viewer-credentials/cleanup";
 import type { SessionRole, SessionState } from "./schema";
 
 export type SessionRecord = {
@@ -82,6 +83,7 @@ export type SessionRepository = {
     windowStart: number;
   }): Promise<boolean>;
   start(id: string): Promise<SessionRecord | null>;
+  deleteEnded(id: string): Promise<boolean>;
   end(id: string, endedAt: string): Promise<SessionRecord | null>;
 };
 
@@ -356,6 +358,22 @@ export class D1SessionRepository implements SessionRepository {
       )
       .run();
     return result.meta.changes === 1 ? this.findById(id) : null;
+  }
+
+  async deleteEnded(id: string) {
+    const endedRoom = and(eq(presentationSessions.id, id), eq(presentationSessions.state, "Ended"));
+    const roomIds = this.db
+      .select({ id: presentationSessions.id })
+      .from(presentationSessions)
+      .where(endedRoom);
+    const [, deleted] = await this.db.batch([
+      deletedRoomViewerCleanup(this.database, roomIds),
+      this.db
+        .delete(presentationSessions)
+        .where(endedRoom)
+        .returning({ id: presentationSessions.id }),
+    ]);
+    return deleted.length === 1;
   }
 
   async end(id: string, endedAt: string) {

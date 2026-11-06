@@ -13,6 +13,7 @@ import type { AppEnvironment, RuntimeConfig } from "../../config";
 import {
   bootstrapSessionRoute,
   createSessionRoute,
+  deleteSessionRoute,
   endSessionRoute,
   getSessionRoute,
   listSessionsRoute,
@@ -209,6 +210,12 @@ export function createSessionRoutes(options: SessionRouteOptions) {
         service.end(identity, context.req.valid("param").id),
       );
       return context.json(result, 200);
+    })
+    .openapi(deleteSessionRoute, async (context) => {
+      await execute(context, (identity, { service }) =>
+        service.delete(identity, context.req.valid("param").id),
+      );
+      return context.body(null, 204);
     })
     .openapi(bootstrapSessionRoute, async (context) => {
       const result = await execute(

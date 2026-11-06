@@ -4,9 +4,9 @@ import type { PublishedPresentation } from "@unframe-dev/contracts/presentation"
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 
 const presentations = [
-  { id: "gallery-1", name: "春のプロダクト紹介" },
-  { id: "gallery-2", name: "新しい展示の提案" },
-  { id: "gallery-3", name: "チームのふりかえり" },
+  { id: "gallery-1", name: "春のプロダクト紹介", revision: 1 },
+  { id: "gallery-2", name: "新しい展示の提案", revision: 1 },
+  { id: "gallery-3", name: "チームのふりかえり", revision: 1 },
 ];
 const thumbnail = readFileSync(new URL("../public/favicon/favicon-32x32.png", import.meta.url));
 const publication = (
@@ -65,7 +65,7 @@ async function mockedGallery(
   }: {
     unpublished?: string[];
     unavailable?: string[];
-    items?: { id: string; name: string }[];
+    items?: { id: string; name: string; revision: number }[];
     pending?: {
       presentations?: Promise<void>;
       publications?: Promise<void>;
@@ -486,6 +486,7 @@ test("renders completed publications individually, bounds requests and cancels q
     ...Array.from({ length: 3 }, (_, index) => ({
       id: `gallery-${index + 4}`,
       name: `Gallery ${index + 4}`,
+      revision: 1,
     })),
   ];
   const gates = items.map(() => pausedResponse());

@@ -40,12 +40,11 @@ export class PresentationService {
       },
       sourcePresentationId,
     );
-    if (!scoped) return resource(await this.requireWrite(identity, id));
-    const registered = await this.repository.findByOwnerAndSource(
-      identity.userId,
-      sourcePresentationId,
-    );
+    const registered = scoped
+      ? await this.repository.findByOwnerAndSource(identity.userId, sourcePresentationId)
+      : await this.repository.findById(id);
     if (!registered) throw new PresentationError("conflict");
+    if (!scoped) await this.ensureCanWrite(identity, registered.id);
     return resource(registered);
   }
 
@@ -114,10 +113,14 @@ export class PresentationService {
     if (!record) {
       throw new PresentationError("not_found");
     }
-    if (identity.globalRole === "admin" || (await this.repository.roleFor(id, identity.userId))) {
-      return record;
+    await this.ensureCanWrite(identity, id);
+    return record;
+  }
+
+  private async ensureCanWrite(identity: Identity, id: string) {
+    if (identity.globalRole !== "admin" && !(await this.repository.roleFor(id, identity.userId))) {
+      throw new PresentationError("forbidden");
     }
-    throw new PresentationError("forbidden");
   }
 
   private async requireOwner(identity: Identity, id: string) {

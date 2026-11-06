@@ -176,6 +176,12 @@ export class SessionService {
     return resource(ended);
   }
 
+  async delete(identity: Identity, id: string) {
+    const session = await this.requirePresenter(identity, id);
+    if (session.state !== "Ended") throw new SessionError("conflict");
+    if (!(await this.sessions.deleteEnded(id))) throw new SessionError("not_found");
+  }
+
   async bootstrap(identity: Identity, id: string) {
     const session = await this.requireSession(id);
     if (session.state === "Ended") throw new SessionError("conflict");
