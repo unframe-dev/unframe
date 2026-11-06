@@ -82,7 +82,7 @@ Presenter の再校正・再同期では入力 context を更新し、認識状�
 1. サーバー担当がBaked Webの素材・Session・端末ごとの有効credentialを準備します。通常の参加は[QuestアプリUI](quest-app-ui.md)、一時検証はDevelopment Buildの上記Intent入口を使用します。
 2. 各Questを同じSessionへ接続し、同じ物理ID 0マーカーを測定します。黒い正方形の一辺500・400・250・150mmから、印刷物に一致する寸法を位置合わせ画面で選択します（既定150mm）。Audience WebXRも同じ寸法を選びます。AprilTagはQuest 3/3SとPCA対応OS、OpenCV有効化を必要とします。
 3. 校正確定後にReady表示を確認し、頭を動かして各端末で同じ位置にスライドが残ることを比較します。
-4. Presenterのlogical eventを設定した場合は右controllerのprimary buttonで操作し、Viewerの表示が追従することを確認します。実証用Presentationに対応するevent定義が必要です。
+4. 実証用Presentationに `presenter.next` のCueがある場合は、右コントローラーのAボタンを押してViewerの表示が追従することを確認します。
 5. 各端末でB/Y再測定、アプリpause/resumeを試し、校正が無効な間の表示・操作停止と、再測定後の復帰を確認します。
 
 最初の実証は静的スライドを使用します。複数台での表示・同期の受け入れ結果はまだありません。

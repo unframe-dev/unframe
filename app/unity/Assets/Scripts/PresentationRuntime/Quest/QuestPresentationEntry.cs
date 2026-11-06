@@ -254,7 +254,9 @@ namespace Unframe.Unity.PresentationRuntime
             finally { commandPending = false; }
         }
 
-        public async Task AdvanceAsync()
+        public Task AdvanceAsync() => SendAdvanceAsync(forceAdvance: true);
+
+        private async Task SendAdvanceAsync(bool forceAdvance)
         {
             if (!CanAdvance || interactionLifetime == null)
             {
@@ -264,7 +266,11 @@ namespace Unframe.Unity.PresentationRuntime
             commandPending = true;
             try
             {
-                input = SendInputAsync(QuestPresentationInput.CreateForceAdvance(runtime.PresentationOriginVersion, runtime.InputSynchronization.Context, runtime.InputSynchronization.CommandEpoch), interactionLifetime.Token);
+                var synchronization = runtime.InputSynchronization;
+                var command = forceAdvance
+                    ? QuestPresentationInput.CreateForceAdvance(runtime.PresentationOriginVersion, synchronization.Context, synchronization.CommandEpoch)
+                    : QuestPresentationInput.CreateLogical("presenter.next", runtime.PresentationOriginVersion, synchronization.Context, synchronization.CommandEpoch);
+                input = SendInputAsync(command, interactionLifetime.Token);
                 await input;
             }
             finally { commandPending = false; }
@@ -284,7 +290,7 @@ namespace Unframe.Unity.PresentationRuntime
             bool nextPrimary = IsPressed(XRNode.RightHand, CommonUsages.primaryButton);
             bool nextLeftStick = IsPressed(XRNode.LeftHand, CommonUsages.primary2DAxisClick);
             buttons.Sample(nextLeft, nextRight, nextPrimary, nextLeftStick, runtime.CanSendInput && PresentationInputEnabled,
-                out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed);
+                out bool leftRayPressed, out bool rightRayPressed, out bool logicalPressed, out bool advancePressed);
             uiButtons.Sample(nextLeft, nextRight, false, true, out bool uiLeft, out bool uiRight, out _);
             bool leftConsumed = uiLeft && TryControllerRay(XRNode.LeftHand, out Ray leftUiRay) && TryUseUiRay(leftUiRay);
             bool rightConsumed = uiRight && TryControllerRay(XRNode.RightHand, out Ray rightUiRay) && TryUseUiRay(rightUiRay);
@@ -308,8 +314,8 @@ namespace Unframe.Unity.PresentationRuntime
                 return;
             }
 
-            if (logicalPressed && CanAdvance)
-                _ = AdvanceAsync();
+            if ((logicalPressed || advancePressed) && CanAdvance)
+                _ = SendAdvanceAsync(forceAdvance: !logicalPressed);
             else if (runtime.InputSynchronization?.Catalog?.Gestures.Count == 0
                 && !commandPending && (leftRayPressed || rightRayPressed) && (input == null || input.IsCompleted))
             {

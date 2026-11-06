@@ -14,14 +14,15 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Sample(bool nextLeftTrigger, bool nextRightTrigger, bool nextPrimary, bool ready,
             out bool leftRay, out bool rightRay, out bool logical)
-            => Sample(nextLeftTrigger, nextRightTrigger, nextPrimary, false, ready, out leftRay, out rightRay, out logical);
+            => Sample(nextLeftTrigger, nextRightTrigger, nextPrimary, false, ready, out leftRay, out rightRay, out logical, out _);
 
         public void Sample(bool nextLeftTrigger, bool nextRightTrigger, bool nextPrimary, bool nextLeftStick, bool ready,
-            out bool leftRay, out bool rightRay, out bool logical)
+            out bool leftRay, out bool rightRay, out bool logical, out bool advance)
         {
             leftRay = ready && nextLeftTrigger && !leftTrigger;
             rightRay = ready && nextRightTrigger && !rightTrigger;
-            logical = ready && (nextPrimary && !primary || nextLeftStick && !leftStick);
+            logical = ready && nextPrimary && !primary;
+            advance = ready && nextLeftStick && !leftStick;
             leftTrigger = nextLeftTrigger;
             rightTrigger = nextRightTrigger;
             primary = nextPrimary;

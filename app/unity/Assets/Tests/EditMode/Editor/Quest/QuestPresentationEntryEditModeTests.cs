@@ -146,19 +146,21 @@ public sealed class QuestPresentationEntryEditModeTests
         Assert.That(left || right || logical, Is.False);
     }
 
-    [Test]
-    public void LeftStickClickAdvancesOnceAndRequiresAReleaseAfterReadiness()
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    public void ControllerButtonsReportDistinctPressesAndRequireReleaseAfterReadiness(bool primary, bool leftStick)
     {
         var edges = new QuestPresentationButtonEdges();
-        edges.Sample(false, false, false, true, false, out _, out _, out bool advance);
-        Assert.That(advance, Is.False);
-        edges.Sample(false, false, false, true, true, out _, out _, out advance);
-        Assert.That(advance, Is.False);
-        edges.Sample(false, false, false, false, true, out _, out _, out _);
-        edges.Sample(false, false, false, true, true, out _, out _, out advance);
-        Assert.That(advance, Is.True);
-        edges.Sample(false, false, false, true, true, out _, out _, out advance);
-        Assert.That(advance, Is.False);
+        edges.Sample(false, false, primary, leftStick, false, out _, out _, out bool logical, out bool advance);
+        Assert.That(logical || advance, Is.False);
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical || advance, Is.False);
+        edges.Sample(false, false, false, false, true, out _, out _, out _, out _);
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical, Is.EqualTo(primary));
+        Assert.That(advance, Is.EqualTo(leftStick));
+        edges.Sample(false, false, primary, leftStick, true, out _, out _, out logical, out advance);
+        Assert.That(logical || advance, Is.False);
     }
 
     [Test]
