@@ -17,9 +17,11 @@ public sealed class AprilTagPresentationCalibration : MonoBehaviour
     public void ConfigureHead(Transform source)
     {
         bool markerOnlyMeasurement = !placementEnabled && hasCapturedFrame;
+        bool headChanged = placementEnabled && !ReferenceEquals(head, source);
         placementEnabled = true;
         head = source;
-        if (markerOnlyMeasurement) ResetSource("placement-enabled-show-marker-again");
+        if (headChanged) ResetSource("placement-head-changed-show-marker-again");
+        else if (markerOnlyMeasurement) ResetSource("placement-enabled-show-marker-again");
         Refresh();
     }
     public void BeginSession(string id)

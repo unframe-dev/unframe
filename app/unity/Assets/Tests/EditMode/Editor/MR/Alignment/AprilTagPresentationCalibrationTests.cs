@@ -151,6 +151,71 @@ public sealed class AprilTagPresentationCalibrationTests
         finally { Object.DestroyImmediate(head); }
     }
 
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public void ChangedHeadRequiresFreshMeasurementAndCancelsPendingPlacement(bool prepared, bool removeHead)
+    {
+        var first = new GameObject("First HMD");
+        var second = new GameObject("Replacement HMD");
+        try
+        {
+            first.transform.position = Vector3.up * 1.8f;
+            second.transform.position = Vector3.up * 2.4f;
+            bridge.ConfigureHead(first.transform);
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            var old = prepared ? bridge.Placement.Prepare(initial, 3, null) : null;
+            var cancellation = bridge.Placement.CommandCancellation;
+
+            bridge.ConfigureHead(removeHead ? null : second.transform);
+
+            Assert.That(alignment.IsConfirmed, Is.False);
+            Assert.That(bridge.Calibration.IsValid, Is.False);
+            if (prepared) Assert.That(cancellation.IsCancellationRequested, Is.True);
+            Assert.That(bridge.Placement.Prepare(initial, 3, null), Is.Null);
+            if (removeHead) bridge.ConfigureHead(second.transform);
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var fresh = bridge.Placement.Prepare(initial, 3, null);
+            Assert.That(fresh.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(.00001f));
+            if (prepared) Assert.That(fresh.PresentationOrigin.ClientEventId, Is.Not.EqualTo(old.PresentationOrigin.ClientEventId));
+        }
+        finally
+        {
+            Object.DestroyImmediate(first);
+            Object.DestroyImmediate(second);
+        }
+    }
+
+    [Test]
+    public void ReconfiguringSameHeadRetainsConfirmationSampleAndPendingCommand()
+    {
+        var head = new GameObject("HMD");
+        try
+        {
+            head.transform.position = Vector3.up * 1.8f;
+            bridge.ConfigureHead(head.transform);
+            Confirm(Pose.identity);
+            bridge.Refresh();
+            var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
+            var command = bridge.Placement.Prepare(initial, 3, null);
+            var cancellation = bridge.Placement.CommandCancellation;
+            head.transform.position = Vector3.up * 2.4f;
+
+            bridge.ConfigureHead(head.transform);
+
+            Assert.That(alignment.IsConfirmed, Is.True);
+            Assert.That(bridge.Calibration.IsValid, Is.True);
+            Assert.That(cancellation.IsCancellationRequested, Is.False);
+            var retained = bridge.Placement.Prepare(initial, 3, null);
+            Assert.That(retained.PresentationOrigin.ClientEventId, Is.EqualTo(command.PresentationOrigin.ClientEventId));
+            Assert.That(retained.PresentationOrigin.Pose.Position.Y, Is.EqualTo(1.5f).Within(.00001f));
+        }
+        finally { Object.DestroyImmediate(head); }
+    }
+
     [Test]
     public void ConfirmationPublishesInverseComposedQuestCalibrationAndKeepsItWithoutNewMarkerFrames()
     {
