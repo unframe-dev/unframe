@@ -64,57 +64,46 @@ export function PublicationCard({
   refreshedAt: number;
 }) {
   const { presentation } = item;
-  const content = (
-    <>
-      <div className={styles["preview"]}>
-        {item.state === "published" ? (
-          <Thumbnail
-            key={item.publication.buildId}
-            refreshedAt={refreshedAt}
-            src={publicationThumbnailUrl(presentation.id, item.publication.buildId)}
-            name={presentation.name}
-          />
-        ) : (
-          <ThumbnailPlaceholder />
-        )}
-      </div>
-      <div className={styles["body"]}>
-        <div className={styles["titleRow"]}>
-          <h2>{presentation.name}</h2>
+  return (
+    <article className={styles["card"]} data-interactive="true">
+      <Link
+        className={styles["link"]}
+        to="/presentations/$presentationId"
+        params={{ presentationId: presentation.id }}
+        aria-label={`${presentation.name}の詳細を見る`}
+      >
+        <div className={styles["preview"]}>
           {item.state === "published" ? (
-            <span className={styles["published"]}>公開済み</span>
-          ) : item.state === "unpublished" ? (
-            <span className={styles["unpublished"]}>未公開</span>
-          ) : null}
+            <Thumbnail
+              key={item.publication.buildId}
+              refreshedAt={refreshedAt}
+              src={publicationThumbnailUrl(presentation.id, item.publication.buildId)}
+              name={presentation.name}
+            />
+          ) : (
+            <ThumbnailPlaceholder />
+          )}
         </div>
-        {item.state === "error" ? (
-          <p role="alert" className={styles["error"]}>
-            {managementErrorMessage(item.error)}
-          </p>
-        ) : null}
-        {item.state === "published" ? (
+        <div className={styles["body"]}>
+          <div className={styles["titleRow"]}>
+            <h2>{presentation.name}</h2>
+            {item.state === "published" ? (
+              <span className={styles["published"]}>公開済み</span>
+            ) : item.state === "unpublished" ? (
+              <span className={styles["unpublished"]}>未公開</span>
+            ) : null}
+          </div>
+          {item.state === "error" ? (
+            <p role="alert" className={styles["error"]}>
+              {managementErrorMessage(item.error)}
+            </p>
+          ) : null}
           <span className={styles["action"]}>
             詳細を見る
             <ArrowUpRightIcon aria-hidden="true" />
           </span>
-        ) : null}
-      </div>
-    </>
-  );
-  return (
-    <article className={styles["card"]} data-interactive={item.state === "published"}>
-      {item.state === "published" ? (
-        <Link
-          className={styles["link"]}
-          to="/presentations/$presentationId"
-          params={{ presentationId: presentation.id }}
-          aria-label={`${presentation.name}の詳細を見る`}
-        >
-          {content}
-        </Link>
-      ) : (
-        <div className={styles["content"]}>{content}</div>
-      )}
+        </div>
+      </Link>
     </article>
   );
 }

@@ -187,3 +187,19 @@ await applyD1Migrations(env.DB, [
     ],
   },
 ]);
+
+import presentationBuildCleanupMigration from "../migrations/0018_presentation_build_cleanup.sql?raw";
+const [presentationBuildCleanupStatements, presentationBuildCleanupTrigger] =
+  presentationBuildCleanupMigration.split("CREATE TRIGGER");
+await applyD1Migrations(env.DB, [
+  {
+    name: "0018_presentation_build_cleanup.sql",
+    queries: [
+      ...presentationBuildCleanupStatements!
+        .split(";")
+        .map((query: string) => query.trim())
+        .filter(Boolean),
+      `CREATE TRIGGER${presentationBuildCleanupTrigger}`,
+    ],
+  },
+]);

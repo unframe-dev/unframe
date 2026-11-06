@@ -24,6 +24,7 @@ import {
 
 import type { Identity } from "../../presentation/service";
 
+import { publicationAssetKey } from "./storage-keys";
 import { firstThumbnailTexture } from "./thumbnail";
 
 export type PublicationFence = z.infer<typeof publicationFenceSchema>;
@@ -55,8 +56,6 @@ const parseCanonical = (value: string) => {
   }
 };
 
-const assetKey = (presentationId: string, buildId: string, assetId: string) =>
-  `publication-builds/${presentationId}/${buildId}/${assetId}`;
 const sha256 = async (bytes: ArrayBuffer) =>
   `sha256:${[...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((byte) => byte.toString(16).padStart(2, "0"))
@@ -249,7 +248,7 @@ export class PublicationService {
       throw new PublicationError("conflict");
     const descriptor = verified.value.assetSet.assets[assetId];
     if (!descriptor) throw new PublicationError("not_found");
-    const object = await this.bucket.get(assetKey(presentationId, buildId, assetId));
+    const object = await this.bucket.get(publicationAssetKey(presentationId, buildId, assetId));
     if (!object) throw new PublicationError("not_found");
     if (
       object.size !== descriptor.encodedSizeBytes ||
@@ -295,7 +294,7 @@ export class PublicationService {
       descriptor.checksum !== (await sha256(bytes))
     )
       throw new PublicationError("invalid_asset");
-    await this.bucket.put(assetKey(presentationId, buildId, assetId), bytes, {
+    await this.bucket.put(publicationAssetKey(presentationId, buildId, assetId), bytes, {
       httpMetadata: { contentType: mediaType },
       sha256: descriptor.checksum.slice(7),
     });
@@ -324,7 +323,7 @@ export class PublicationService {
     )
       throw new PublicationError("invalid_build");
     for (const [assetId, descriptor] of Object.entries(artifacts.assetSet.assets)) {
-      const object = await this.bucket.get(assetKey(presentationId, buildId, assetId));
+      const object = await this.bucket.get(publicationAssetKey(presentationId, buildId, assetId));
       if (
         !object ||
         object.httpMetadata?.contentType !== descriptor.mediaType ||

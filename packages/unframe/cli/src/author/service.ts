@@ -1,6 +1,7 @@
+import { createProjectAnalysis } from "./project-analysis.js";
 import { hashCanonicalJsonPayload } from "@unframe-dev/artifacts";
 import type { AnalysisOperations } from "./analysis-protocol.js";
-import { runAnalysisOperation } from "./analysis-client.js";
+import { type AnalysisProfile, runAnalysisOperation } from "./analysis-client.js";
 import { sourceAssetPorts } from "../application/media-ports.js";
 import { readBuildExecutionResult } from "./build-result.js";
 import {
@@ -74,6 +75,7 @@ export const createAuthorService = async (
     artifactRetention?: { maxGenerations?: number; maxBytes?: number };
     maxCompletedJobs?: number;
     onBuildProfile?: (profile: AuthorBuildProfile) => void;
+    onAnalysisProfile?: (profile: AnalysisProfile) => void;
   } = {},
 ): Promise<AuthorService> => {
   const readPublished = options.readPublishedArtifacts ?? readPublishedArtifacts;
@@ -87,7 +89,13 @@ export const createAuthorService = async (
     input: AnalysisOperations[K]["input"],
     signal: AbortSignal,
   ) => {
-    const result = runAnalysisOperation(operation, input, signal);
+    const result = runAnalysisOperation(
+      operation,
+      input,
+      signal,
+      sourceAssetPorts,
+      options.onAnalysisProfile ? { onProfile: options.onAnalysisProfile } : {},
+    );
     workers.add(result);
     void result.then(
       () => workers.delete(result),
@@ -96,9 +104,28 @@ export const createAuthorService = async (
     return result;
   };
   let cached: ProjectState | undefined;
-  let captureSequence = 0;
-  let latestCapture = 0;
-  let analyzing: { revision: string; sequence: number; promise: Promise<ProjectState> } | undefined;
+  const projectAnalysis = createProjectAnalysis(
+    async (found: Discovery, signal): Promise<ProjectState> => {
+      if (cached?.snapshot.revision === found.revision) return cached;
+      const typeLibraries = await readTypeLibraries();
+      const current = {
+        found,
+        typeLibraries,
+        ...(await analyze(
+          "project",
+          {
+            found,
+            typeLibraries,
+            modelTransformIdentity: sourceAssetPorts.modelTransformIdentity,
+          },
+          signal,
+        )),
+      };
+      if (!closed && !signal.aborted && current.snapshot.irHash !== null) cached = current;
+      return current;
+    },
+    (found) => found.revision,
+  );
   const withSource = async <T>(
     callback: () => Promise<T>,
     allowRecovery = false,
@@ -126,10 +153,13 @@ export const createAuthorService = async (
       await lease.value.release();
     }
   };
-  const readState = async (signal?: AbortSignal, recovery = false): Promise<ProjectState> => {
-    const captured = await withSource(
+  let capturing: Promise<Discovery> | undefined;
+  let lastCapture: Discovery | undefined;
+  const captures = new Set<Promise<Discovery>>();
+  const capture = (recovery: boolean): Promise<Discovery> => {
+    const result = withSource(
       async () => {
-        const previous = cached;
+        const previous = cached?.found ?? lastCapture;
         let found: Awaited<ReturnType<typeof discoverPresentationProjectFiles>>;
         if (previous) {
           const current = await readPresentationProjectRevision(directory, {
@@ -137,55 +167,40 @@ export const createAuthorService = async (
           });
           found = !current.ok
             ? current
-            : current.revision === previous.snapshot.revision
-              ? previous.found
+            : current.revision === previous.revision
+              ? previous
               : await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
         } else {
           found = await discoverPresentationProjectFiles(directory, { sourceLeaseHeld: true });
         }
         if (!found.ok) {
-          latestCapture = ++captureSequence;
           cached = undefined;
+          lastCapture = undefined;
           fail(500, found.code, found.message);
         }
-        const sequence = ++captureSequence;
-        latestCapture = sequence;
         if (cached?.snapshot.revision !== found.revision) cached = undefined;
-        return { found, sequence };
+        lastCapture = found;
+        return found;
       },
       recovery,
       Number.POSITIVE_INFINITY,
-      signal,
+      shutdown.signal,
     );
-    const { found, sequence } = captured;
-    if (cached?.snapshot.revision === found.revision) return cached;
-    if (analyzing?.revision === found.revision) {
-      analyzing.sequence = sequence;
-      return analyzing.promise;
-    }
-    const prepared = readTypeLibraries().then(async (typeLibraries) => ({
-      found,
-      typeLibraries,
-      ...(await analyze(
-        "project",
-        { found, typeLibraries, modelTransformIdentity: sourceAssetPorts.modelTransformIdentity },
-        shutdown.signal,
-      )),
-    }));
-    const analysis = { revision: found.revision, sequence, promise: prepared };
-    analysis.promise = prepared
-      .then((current) => {
-        if (signal?.aborted || shutdown.signal.aborted)
-          fail(409, "cli-cancelled", "Project analysis was cancelled.");
-        if (!closed && analysis.sequence === latestCapture && current.snapshot.irHash !== null)
-          cached = current;
-        return current;
-      })
-      .finally(() => {
-        if (analyzing === analysis) analyzing = undefined;
-      });
-    analyzing = analysis;
-    return analysis.promise;
+    captures.add(result);
+    void result.then(
+      () => captures.delete(result),
+      () => captures.delete(result),
+    );
+    return result;
+  };
+  const readState = async (signal?: AbortSignal, recovery = false): Promise<ProjectState> => {
+    if (signal?.aborted || closed) fail(409, "cli-cancelled", "Project analysis was cancelled.");
+    const captured = await (recovery
+      ? capture(true)
+      : (capturing ??= capture(false).finally(() => {
+          capturing = undefined;
+        })));
+    return projectAnalysis.request(captured, signal);
   };
   const service = await createService(
     {
@@ -379,9 +394,10 @@ export const createAuthorService = async (
       closed = true;
       shutdown.abort();
       cached = undefined;
-      analyzing = undefined;
+      await projectAnalysis.close();
       await service.close();
-      await Promise.allSettled(workers);
+      await Promise.allSettled([...workers, ...captures]);
+      lastCapture = undefined;
       captureCache.clear();
     },
   };

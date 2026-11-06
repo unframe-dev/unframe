@@ -1,6 +1,10 @@
+import { acquireAnalysisSlot } from "./analysis-admission.js";
+import { encodeAnalysisMessage, decodeAnalysisMessage } from "./analysis-ipc.js";
 import { bundleOpaqueRenderer } from "@unframe-dev/render-browser";
 import { OpaquePreparationFailure } from "@unframe-dev/build";
-import { Worker } from "node:worker_threads";
+import { fork } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { protectAnalysisProcess } from "./analysis-process-budget.js";
 import { z } from "zod";
 import { AuthorError } from "@unframe-dev/author-service";
 import { projectSnapshotSchema, savedCommandSchema } from "@unframe-dev/contracts/author-http";
@@ -89,7 +93,21 @@ const results = {
     }),
   ]),
 };
+export type AnalysisProfile = {
+  stage: string;
+  rssBytes: number;
+  heapUsedBytes: number;
+  elapsedMilliseconds: number;
+  inputBytes?: number;
+};
 const messageSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("profile"),
+    stage: z.string(),
+    rssBytes: z.number(),
+    heapUsedBytes: z.number(),
+    elapsedMilliseconds: z.number(),
+  }),
   z.strictObject({ kind: z.literal("result"), value: z.unknown() }),
   z.strictObject({
     kind: z.literal("error"),
@@ -141,43 +159,166 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
   input: AnalysisOperations[K]["input"],
   signal?: AbortSignal,
   ports: Ports = sourceAssetPorts,
+  limits: {
+    maxInputBytes?: number;
+    timeoutMilliseconds?: number;
+    onProfile?: (profile: AnalysisProfile) => void;
+  } = {},
 ): Promise<AnalysisOperations[K]["output"]> => {
   if (signal?.aborted)
     throw new AuthorError(409, "cli-cancelled", "Project analysis was cancelled.");
-  const worker = new Worker(
-    new URL("../analysis/worker.mjs", import.meta.resolve("@unframe-dev/cli/template")),
-    { workerData: { operation, input } },
-  );
+  const maxInputBytes = limits.maxInputBytes ?? 128 * 1024 * 1024;
+  let inputBytes = 0;
+  const ancestors = new WeakSet<object>();
+  const measure = (value: unknown): void => {
+    if (typeof value === "string") inputBytes += Buffer.byteLength(value);
+    else if (value && typeof value === "object") {
+      if (ancestors.has(value))
+        throw new AuthorError(
+          422,
+          "cli-analysis-input-invalid",
+          "Project analysis input must not contain cycles.",
+        );
+      ancestors.add(value);
+      if (ArrayBuffer.isView(value)) inputBytes += value.byteLength;
+      else
+        for (const [key, item] of Object.entries(value)) {
+          inputBytes += Buffer.byteLength(key) + 8;
+          measure(item);
+        }
+      ancestors.delete(value);
+    } else inputBytes += 8;
+    if (inputBytes > maxInputBytes)
+      throw new AuthorError(
+        413,
+        "cli-analysis-input-limit",
+        "Project analysis input exceeds its byte budget.",
+      );
+  };
+  measure(input);
+  const started = performance.now();
+  const reportHost = (stage: string) => {
+    const memory = process.memoryUsage();
+    try {
+      limits.onProfile?.({
+        stage,
+        inputBytes,
+        rssBytes: memory.rss,
+        heapUsedBytes: memory.heapUsed,
+        elapsedMilliseconds: performance.now() - started,
+      });
+    } catch {
+      /* Instrumentation must not alter analysis. */
+    }
+  };
+  reportHost("host-input");
+  const timeout = limits.timeoutMilliseconds ?? 60_000;
+  const releaseSlot = await acquireAnalysisSlot(signal, timeout);
+  if (signal?.aborted) {
+    releaseSlot();
+    throw new AuthorError(409, "cli-cancelled", "Project analysis was cancelled.");
+  }
+  let worker: ReturnType<typeof fork>;
+  try {
+    worker = fork(
+      fileURLToPath(
+        new URL("../analysis/worker.mjs", import.meta.resolve("@unframe-dev/cli/template")),
+      ),
+      [],
+      {
+        execPath: process.versions.bun ? "node" : process.execPath,
+        execArgv: ["--max-old-space-size=1536"],
+        serialization: "json",
+        stdio: ["ignore", "ignore", "pipe", "ipc"],
+        env: { ...process.env, NODE_OPTIONS: "" },
+      },
+    );
+  } catch (error) {
+    releaseSlot();
+    throw error;
+  }
+  let stderr = "";
+  worker.stderr?.on("data", (chunk: Buffer) => {
+    stderr = (stderr + chunk.toString()).slice(-4096);
+  });
+  const exited = new Promise<void>((resolve) => {
+    worker.once("exit", () => resolve());
+    worker.once("error", () => resolve());
+  });
+  let protection: ReturnType<typeof protectAnalysisProcess> | undefined;
   const controller = new AbortController();
   const active = new Set<Promise<unknown>>();
+  const drainDeadline = Promise.withResolvers<void>();
   let settled = false;
   let closing: Promise<void> | undefined;
   const close = () =>
     (closing ??= (async () => {
       controller.abort();
-      await Promise.allSettled(active);
-      await worker.terminate();
+      if (worker.exitCode === null && worker.signalCode === null) worker.kill("SIGKILL");
+      await exited;
+      // Host callbacks that ignore cancellation must not hold the analysis slot past the deadline.
+      await Promise.race([Promise.allSettled(active), drainDeadline.promise]);
+      try {
+        await protection?.then(
+          (budget) => budget.close(),
+          () => {},
+        );
+      } finally {
+        releaseSlot();
+        reportHost("host-cleanup-complete");
+      }
     })());
   return new Promise((resolve, reject) => {
     const finish = (error?: unknown, value?: AnalysisOperations[K]["output"]) => {
       if (settled) return;
       settled = true;
       signal?.removeEventListener("abort", abort);
-      void close().then(() => (error ? reject(error) : resolve(value!)), reject);
+      void close()
+        .finally(() => clearTimeout(deadline))
+        .then(() => (error ? reject(error) : resolve(value!)), reject);
     };
     const abort = () =>
       finish(new AuthorError(409, "cli-cancelled", "Project analysis was cancelled."));
+    const deadline = setTimeout(
+      () => {
+        drainDeadline.resolve();
+        finish(
+          new AuthorError(
+            503,
+            "cli-analysis-time-limit",
+            "Project analysis exceeded its time budget.",
+          ),
+        );
+      },
+      Math.max(1, timeout - (performance.now() - started)),
+    );
     signal?.addEventListener("abort", abort, { once: true });
     worker.on("error", (error) => finish(error));
     worker.on("exit", (code) => {
       if (!settled)
-        finish(new Error(`Analysis worker exited before returning a result (${code}).`));
+        finish(
+          new AuthorError(
+            503,
+            /heap out of memory|allocation failed/i.test(stderr)
+              ? "cli-analysis-memory-limit"
+              : "cli-analysis-process-failed",
+            `Project analysis process exited before returning a result (${code}).`,
+          ),
+        );
     });
     worker.on("message", (raw: unknown) => {
       if (settled) return;
       try {
-        const message = messageSchema.parse(raw);
-        if (message.kind === "result") {
+        const message = messageSchema.parse(
+          decodeAnalysisMessage(raw as Parameters<typeof decodeAnalysisMessage>[0]),
+        );
+        if (message.kind === "profile") {
+          try {
+            limits.onProfile?.(message);
+          } catch {
+            /* Instrumentation must not alter analysis. */
+          }
+        } else if (message.kind === "result") {
           finish(
             undefined,
             results[operation].parse(message.value) as AnalysisOperations[K]["output"],
@@ -234,7 +375,8 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
           void task
             .then(
               (value) => {
-                if (!settled) worker.postMessage({ kind: "reply", id: message.id, value });
+                if (!settled)
+                  worker.send(encodeAnalysisMessage({ kind: "reply", id: message.id, value }));
               },
               (error: unknown) => {
                 if (error instanceof AuthorError && error.code === "cli-output-stale") {
@@ -242,11 +384,13 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
                   return;
                 }
                 if (!settled)
-                  worker.postMessage({
-                    kind: "reply",
-                    id: message.id,
-                    error: error instanceof Error ? error.message : "Analysis callback failed.",
-                  });
+                  worker.send(
+                    encodeAnalysisMessage({
+                      kind: "reply",
+                      id: message.id,
+                      error: error instanceof Error ? error.message : "Analysis callback failed.",
+                    }),
+                  );
               },
             )
             .catch((error: unknown) => finish(error))
@@ -256,6 +400,16 @@ export const runAnalysisOperation = async <K extends keyof AnalysisOperations>(
         finish(error);
       }
     });
+    protection = protectAnalysisProcess(worker, { onExceeded: (error) => finish(error) });
+    void protection.then(
+      () => {
+        if (!settled)
+          worker.send(encodeAnalysisMessage({ kind: "request", operation, input }), (error) => {
+            if (error) finish(error);
+          });
+      },
+      (error: unknown) => finish(error),
+    );
     if (signal?.aborted) abort();
   });
 };

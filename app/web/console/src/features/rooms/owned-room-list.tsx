@@ -2,12 +2,13 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/shared/ui/button";
+import { roomKeys } from "./room-queries";
 import { listRooms } from "@/features/presentations/management-api";
 import { managementErrorMessage } from "@/features/presentations/management-model";
 
 export function OwnedRoomList() {
   const query = useInfiniteQuery({
-    queryKey: ["owned-rooms"],
+    queryKey: roomKeys.owned,
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) => listRooms(pageParam, signal),
     getNextPageParam: (page) => page.nextCursor ?? undefined,

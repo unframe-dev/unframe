@@ -135,8 +135,8 @@ public sealed class PresentationMultiDeviceCalibrationTests
                 Assert.That(stores[index].TryReceiveControl(snapshot.Clone(), out error), Is.True, error);
                 applier.Apply(stores[index], hierarchies[index]);
             }
-            AssertPhysicalOrigin(runtimes[0], frames[0], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
-            AssertPhysicalOrigin(runtimes[1], frames[1], new Vector3(1, 1.5f, 3), physicalMarker.rotation);
+            AssertPhysicalOrigin(runtimes[0], frames[0], 1.5f, physicalMarker);
+            AssertPhysicalOrigin(runtimes[1], frames[1], 1.5f, physicalMarker);
 
             var newHead = new Pose(Vector3.up * 2.3f, Quaternion.Euler(30, 75, 0));
             Assert.That(PresentationCalibrationMath.TryPresenterOrigin(markers[0], newHead, origin,
@@ -172,7 +172,7 @@ public sealed class PresentationMultiDeviceCalibrationTests
             {
                 Assert.That(stores[index].PresentationOrigin.Version, Is.EqualTo(2));
                 Assert.That(stores[index].PresentationOrigin.Pose, Is.EqualTo(replacement));
-                AssertPhysicalOrigin(runtimes[index], frames[index], new Vector3(1, 2f, 3), physicalMarker.rotation);
+                AssertPhysicalOrigin(runtimes[index], frames[index], 2f, physicalMarker);
             }
         }
         finally
@@ -183,17 +183,18 @@ public sealed class PresentationMultiDeviceCalibrationTests
         }
     }
 
-    private static void AssertPhysicalOrigin(PresentationBakedRuntime runtime, Pose deviceFromPhysical, Vector3 expectedPosition, Quaternion expectedRotation)
+    private static void AssertPhysicalOrigin(PresentationBakedRuntime runtime, Pose deviceFromPhysical, float expectedReferenceHeight, Pose physicalMarker)
     {
         Transform stage = runtime.PresentationSpace.GetChild(0);
         Quaternion physicalFromDevice = Quaternion.Inverse(deviceFromPhysical.rotation);
         Vector3 actualPosition = physicalFromDevice * (stage.position - deviceFromPhysical.position);
         Quaternion actualRotation = physicalFromDevice * stage.rotation;
-        Assert.That(Vector3.Distance(actualPosition, expectedPosition), Is.LessThan(.00001f));
-        Assert.That(Quaternion.Angle(actualRotation, expectedRotation), Is.LessThan(.01f));
+        Assert.That(actualPosition.x, Is.EqualTo(physicalMarker.position.x).Within(.00001f));
+        Assert.That(actualPosition.z, Is.EqualTo(physicalMarker.position.z).Within(.00001f));
+        Assert.That(Quaternion.Angle(actualRotation, physicalMarker.rotation), Is.LessThan(.01f));
         var localPoint = new Vector3(.25f, 2.15f, -.5f);
         Vector3 actualPoint = physicalFromDevice * (stage.TransformPoint(localPoint) - deviceFromPhysical.position);
-        Assert.That(Vector3.Distance(actualPoint, expectedPosition + expectedRotation * localPoint), Is.LessThan(.00001f));
+        Assert.That(actualPoint.y, Is.EqualTo(expectedReferenceHeight).Within(.00001f));
     }
 
     private static PresentationCalibrationState Calibrate(Pose marker, Transform tracking)

@@ -328,15 +328,21 @@ public sealed class QuestPresentationUiVisualTests
     {
         var corners = new Vector3[4];
         panel.GetWorldCorners(corners);
+        float left = 1;
+        float right = 0;
         foreach (Vector3 corner in corners)
         {
             Vector3 viewport = camera.WorldToViewportPoint(corner);
             Assert.That(viewport.z, Is.GreaterThan(camera.nearClipPlane), name);
             Assert.That(viewport.x, Is.InRange(.02f, .98f), name + " is horizontally clipped at FOV " + camera.fieldOfView);
             Assert.That(viewport.y, Is.InRange(.02f, .98f), name + " is vertically clipped at FOV " + camera.fieldOfView);
+            left = Mathf.Min(left, viewport.x);
+            right = Mathf.Max(right, viewport.x);
         }
+        Assert.That(right <= .49f || left >= .51f, Is.True,
+            name + " overlaps the central sightline.");
         Vector3 center = camera.WorldToViewportPoint(panel.position);
-        Assert.That(center.y, Is.LessThan(.4f), name + " occupies the central sightline.");
+        Assert.That(center.y, Is.LessThan(.5f), name + " is not in the lower half of the view.");
     }
 
     private static void Capture(Camera camera, RenderTexture target, Texture2D pixels, string path)

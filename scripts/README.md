@@ -116,7 +116,7 @@ Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unfram
 
 ## Local Editor と Unity
 
-Local Editor の開発は `nix run .#local-editor -- dev <project-directory>` で native filesystem helper、解析 Worker、`styles-node` の compiler と依存スナップショットをビルドしてから、UI 開発サーバーと CLI をまとめて起動します。UI の準備後に Editor を開き、終了時は両方を停止します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
+Local Editor の開発は `nix run .#local-editor -- dev <project-directory>` で native filesystem helper、解析用プログラム、`styles-node` の compiler と依存スナップショットをビルドしてから、UI 開発サーバーと CLI をまとめて起動します。UI の準備後に Editor を開き、終了時は両方を停止します。CLI の起動入口が OS 別の隔離経路と固定 Browser のパスを準備します。初回準備・起動順序・画面での確認手順は [Local Editor README](../app/web/local-editor/README.md#local-editor-の起動) を参照してください。
 
 ```bash
 nix run .#unity-editor -- -projectPath "$PWD/app/unity"

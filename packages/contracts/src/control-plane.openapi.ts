@@ -603,7 +603,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Publication target changed during registration */
+                /** @description Publication target changed during registration or its previous data is pending cleanup */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1542,7 +1542,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Deleted */
+                /** @description Presentation and ended rooms deleted; stored objects are collected later */
                 204: {
                     headers: {
                         [name: string]: unknown;
@@ -1605,7 +1605,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Revision conflict or presentation assets must be deleted first */
+                /** @description Revision conflict or an active room uses this presentation */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2880,7 +2880,96 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ended room and its history deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Invalid id */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Room must be ended before deletion */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

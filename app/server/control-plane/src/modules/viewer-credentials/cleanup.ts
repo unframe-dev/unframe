@@ -1,16 +1,19 @@
 import type { D1Database } from "@cloudflare/workers-types";
-import { count, eq, sql } from "drizzle-orm";
+import { count, eq, sql, type SQLWrapper } from "drizzle-orm";
 import { authUsers } from "../../adapters/d1/viewer-schema";
 import { createD1Database } from "../../adapters/d1/database";
 import { presentationSessions, sessionParticipants } from "../../adapters/d1/schema";
 
-export function inactiveViewerCleanup(database: D1Database, sessionId: string, now: string) {
+function deleteViewerUsers(
+  database: D1Database,
+  roomIds: SQLWrapper,
+  eligibleCredential: SQLWrapper,
+) {
   return createD1Database(database).delete(authUsers)
     .where(sql` id GLOB 'anonymous_*' AND emailVerified = 0 AND globalRole = 'user'
        AND id IN (
          SELECT user_id FROM anonymous_viewer_credentials
-         WHERE session_id = ${sessionId}
-           AND (revoked_at IS NOT NULL OR expires_at <= ${now} OR renewable_until <= ${now})
+         WHERE session_id IN (${roomIds}) AND ${eligibleCredential}
        )
        AND NOT EXISTS (SELECT 1 FROM account WHERE account.userId = user.id)
        AND NOT EXISTS (SELECT 1 FROM session WHERE session.userId = user.id)
@@ -20,8 +23,20 @@ export function inactiveViewerCleanup(database: D1Database, sessionId: string, n
        AND NOT EXISTS (SELECT 1 FROM presentation_sessions WHERE presenter_id = user.id)
        AND NOT EXISTS (
          SELECT 1 FROM session_participants
-         WHERE user_id = user.id AND (session_id != ${sessionId} OR role != 'viewer')
+         WHERE user_id = user.id AND (session_id NOT IN (${roomIds}) OR role != 'viewer')
        )`);
+}
+
+export function inactiveViewerCleanup(database: D1Database, sessionId: string, now: string) {
+  return deleteViewerUsers(
+    database,
+    sql`SELECT ${sessionId}`,
+    sql`(revoked_at IS NOT NULL OR expires_at <= ${now} OR renewable_until <= ${now})`,
+  );
+}
+
+export function deletedRoomViewerCleanup(database: D1Database, roomIds: SQLWrapper) {
+  return deleteViewerUsers(database, roomIds, sql`TRUE`);
 }
 
 export function updateParticipantCount(database: D1Database, sessionId: string) {

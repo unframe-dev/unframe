@@ -52,19 +52,19 @@ public sealed class AprilTagPresentationCalibrationTests
             head.transform.SetPositionAndRotation(Vector3.up * 2.4f, Quaternion.Euler(0, 100, 0));
             bridge.BeginSession("first");
             var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-            var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
+            var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3 { X = .25, Y = 2.15, Z = .5 });
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out Pose stage), Is.True);
-            Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(1.5f).Within(0.00001f));
+            Assert.That((marker.position + marker.rotation * (stage.position + stage.rotation * new Vector3(.25f, 2.15f, -.5f))).y, Is.EqualTo(1.5f).Within(0.00001f));
             Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
             bridge.BeginSession("second");
             Assert.That(bridge.Calibration.IsValid, Is.False);
             Assert.That(alignment.IsConfirmed, Is.False);
-            Assert.That(bridge.Placement.Prepare(initial, 3, new ProtoVector3()), Is.Null);
+            Assert.That(bridge.Placement.Prepare(initial, 3, new ProtoVector3 { X = .25, Y = 2.15, Z = .5 }), Is.Null);
             Confirm(marker);
             bridge.Refresh();
-            command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
+            command = bridge.Placement.Prepare(initial, 3, new ProtoVector3 { X = .25, Y = 2.15, Z = .5 });
             Assert.That(PresentationCoordinateAdapter.TryToUnityPose(command.PresentationOrigin.Pose, out stage), Is.True);
-            Assert.That((marker.position + marker.rotation * stage.position).y, Is.EqualTo(2.1f).Within(0.00001f));
+            Assert.That((marker.position + marker.rotation * (stage.position + stage.rotation * new Vector3(.25f, 2.15f, -.5f))).y, Is.EqualTo(2.1f).Within(0.00001f));
             Assert.That(Quaternion.Angle(marker.rotation * stage.rotation, marker.rotation), Is.LessThan(0.02f));
         }
         finally { Object.DestroyImmediate(head); }
@@ -123,11 +123,11 @@ public sealed class AprilTagPresentationCalibrationTests
             head.SetActive(true);
             bridge.ConfigureHead(head.transform);
             var initial = new Unframe.Realtime.PresentationOrigin { Pose = QuestPresentationTracking.ToCanonicalPose(Vector3.zero, Quaternion.identity) };
-            Assert.That(bridge.Placement.Prepare(initial, 3, null), Is.Null);
+            Assert.That(bridge.Placement.Prepare(initial, 3, new ProtoVector3()), Is.Null);
 
             Confirm(Pose.identity);
             bridge.Refresh();
-            var command = bridge.Placement.Prepare(initial, 3, null);
+            var command = bridge.Placement.Prepare(initial, 3, new ProtoVector3());
             Assert.That(command, Is.Not.Null);
             Assert.That(command.PresentationOrigin.Pose.Position.Y, Is.EqualTo(2.1f).Within(0.00001f));
         }

@@ -126,7 +126,9 @@ export const publicRoutes = [
       400: errorResponse("Invalid presentation registration"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Presentation ID is not writable"),
-      409: errorResponse("Publication target changed during registration"),
+      409: errorResponse(
+        "Publication target changed during registration or its previous data is pending cleanup",
+      ),
     },
   }),
   createRoute({
@@ -214,12 +216,14 @@ export const publicRoutes = [
       },
     },
     responses: {
-      204: { description: "Deleted" },
+      204: {
+        description: "Presentation and ended rooms deleted; stored objects are collected later",
+      },
       400: errorResponse("Invalid delete request"),
       401: errorResponse("Unauthorized"),
       403: errorResponse("Forbidden"),
       404: errorResponse("Not found"),
-      409: errorResponse("Revision conflict or presentation assets must be deleted first"),
+      409: errorResponse("Revision conflict or an active room uses this presentation"),
     },
   }),
   createRoute({
@@ -747,6 +751,21 @@ export const listSessionsRoute = createRoute({
     404: errorResponse("Cursor not found"),
   },
 });
+export const deleteSessionRoute = createRoute({
+  method: "delete",
+  path: "/sessions/{id}",
+  security,
+  request: { params: sessionIdParameter },
+  responses: {
+    204: { description: "Ended room and its history deleted" },
+    400: errorResponse("Invalid id"),
+    401: errorResponse("Unauthorized"),
+    403: errorResponse("Forbidden"),
+    404: errorResponse("Not found"),
+    409: errorResponse("Room must be ended before deletion"),
+  },
+});
+
 export const getSessionJoinCodeRoute = createRoute({
   method: "get",
   path: "/sessions/{id}/join-code",

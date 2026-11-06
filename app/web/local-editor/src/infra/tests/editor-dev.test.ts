@@ -181,3 +181,16 @@ it("closes the development server without waiting for the CLI startup deadline",
     await pending;
   }
 });
+
+it("reports a lost CLI connection separately from a host that never started", async () => {
+  const { origin, startHost } = await editor(100);
+  await startHost();
+  expect((await fetch(`${origin}/api/project`)).status).toBe(200);
+  await new Promise<void>((resolve) => upstream.close(() => resolve()));
+  const response = await fetch(`${origin}/api/project`);
+  expect(response.status).toBe(503);
+  expect(await response.json()).toMatchObject({
+    code: "author-host-unavailable",
+    message: "CLI API connection was lost. Restart the Local Editor development command.",
+  });
+});

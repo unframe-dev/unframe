@@ -12,12 +12,13 @@ export const assembleAuthoringProject = (
   source: unknown,
   carrier: unknown,
   sourceAssetBytes: CompilerSourceAssetBytes = {},
+  checkSource: typeof checkAuthoringProject = checkAuthoringProject,
 ): AuthoringProjectPipelineResult<{
   project: CompilerDeclarationProject;
   checked: CheckedDeclarationProject;
   catalog: Extract<ReturnType<typeof checkAuthoringProject>, { valid: true }>["value"];
 }> => {
-  const catalog = checkAuthoringProject(source);
+  const catalog = checkSource(source);
   if (!catalog.valid) return { valid: false, phase: "source", diagnostics: catalog.diagnostics };
   const snapshot = safePlainClone(carrier);
   if (!snapshot.valid)

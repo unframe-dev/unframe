@@ -2,10 +2,12 @@ import { nativeHost } from "../platform/host.js";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runAuthorProcess } from "../author/start.js";
+import { superviseEditorHost } from "./editor-dev-supervisor.js";
 import { runWithEditorDevServer } from "./editor-dev-server.js";
 
 const args = process.argv.slice(2);
+const insideHost = args[0] === "--inside-editor-host";
+if (insideHost) args.shift();
 const scoped = args[0] === "--inside-editor-scope";
 if (scoped) args.shift();
 if (args[0] === "--") args.shift();
@@ -21,17 +23,23 @@ const run = async () => {
   process.on("SIGINT", abort);
   process.on("SIGTERM", abort);
   try {
-    if (!host.cgroup) {
-      await runWithEditorDevServer(repository, controller.signal, (signal) =>
-        runAuthorProcess(directory, signal, true),
+    if (insideHost) {
+      const { runAuthorProcess } = await import("../author/start.js");
+      await runWithEditorDevServer(
+        repository,
+        controller.signal,
+        (signal) => runAuthorProcess(directory, signal, true),
+        true,
       );
       return;
     }
-    if (scoped) {
-      if (!process.env["UNFRAME_OPAQUE_CGROUP_ROOT"])
+    if (!host.cgroup || scoped) {
+      if (host.cgroup && !process.env["UNFRAME_OPAQUE_CGROUP_ROOT"])
         throw new Error("Opaque capture scope was not prepared.");
-      await runWithEditorDevServer(repository, controller.signal, (signal) =>
-        runAuthorProcess(directory, signal, true),
+      await superviseEditorHost(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--inside-editor-host", directory],
+        controller.signal,
       );
       return;
     }

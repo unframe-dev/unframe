@@ -361,3 +361,15 @@ it("closes a real surviving descendant's port after its parent exits and it igno
     } catch {}
   }
 });
+
+it("keeps the UI in the supervised host group and only signals its own child", async () => {
+  const { kill } = setup();
+  await runWithEditorDevServer("/repository", new AbortController().signal, async () => {}, true);
+  expect(boundary.spawn).toHaveBeenCalledWith(
+    "pnpm",
+    expect.any(Array),
+    expect.objectContaining({ detached: false }),
+  );
+  expect(kill).toHaveBeenCalledWith(12345, "SIGTERM");
+  expect(kill).not.toHaveBeenCalledWith(-12345, "SIGTERM");
+});

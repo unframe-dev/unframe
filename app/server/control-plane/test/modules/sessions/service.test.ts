@@ -123,6 +123,9 @@ class FakeSessions implements SessionRepository {
     session.state = "Presenting";
     return session;
   }
+  async deleteEnded(id: string) {
+    return this.records.get(id)?.state === "Ended" && this.records.delete(id);
+  }
   async end(id: string, endedAt: string) {
     const session = this.records.get(id);
     if (!session) return null;

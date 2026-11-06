@@ -38,7 +38,18 @@ it("rejects an already cancelled analysis before starting work", async () => {
 });
 
 it("returns a validated project snapshot from the generated worker", async () => {
-  const { snapshot: project, preparedInputs } = await runAnalysisOperation("project", input);
+  const stages: string[] = [];
+  const { snapshot: project, preparedInputs } = await runAnalysisOperation(
+    "project",
+    input,
+    undefined,
+    sourceAssetPorts,
+    {
+      onProfile: (event) => stages.push(event.stage),
+    },
+  );
+  expect(stages.filter((stage) => stage === "source-parse")).toHaveLength(1);
+  expect(stages.at(-1)).toBe("host-cleanup-complete");
   expect(project.revision).toBe(input.found.revision);
   expect(project.irHash, JSON.stringify(project.diagnostics)).not.toBeNull();
   expect(project.definition).not.toBeNull();
@@ -280,3 +291,112 @@ it.each(["project", "prepare"] as const)(
   },
   30_000,
 );
+
+it("rejects oversized input before creating an analysis process", async () => {
+  await expect(
+    runAnalysisOperation(
+      "assemble",
+      {
+        source: { text: "a".repeat(1024) },
+        carrier: {},
+        sourceAssetBytes: {},
+      },
+      undefined,
+      sourceAssetPorts,
+      { maxInputBytes: 100 },
+    ),
+  ).rejects.toMatchObject({
+    status: 413,
+    code: "cli-analysis-input-limit",
+  });
+});
+
+it("terminates an analysis which exceeds its deadline", async () => {
+  await expect(
+    runAnalysisOperation("project", input, undefined, sourceAssetPorts, {
+      timeoutMilliseconds: 1,
+    }),
+  ).rejects.toMatchObject({ status: 503, code: "cli-analysis-time-limit" });
+});
+
+it("releases analysis capacity at the deadline while a Host snapshot is pending", async () => {
+  const entered = Promise.withResolvers<void>();
+  const releaseSnapshot = Promise.withResolvers<void>();
+  let finished = false;
+  const pending = runAnalysisOperation(
+    "project",
+    {
+      ...input,
+      found: {
+        ...input.found,
+        localFiles: [
+          ...input.found.localFiles,
+          { path: "postcss.config.mjs", bytes: new TextEncoder().encode("export default {};") },
+        ],
+      },
+    },
+    undefined,
+    {
+      ...sourceAssetPorts,
+      styles: {
+        ...sourceAssetPorts.styles,
+        snapshot: async () => {
+          entered.resolve();
+          await releaseSnapshot.promise;
+          throw new Error("Released the stalled test snapshot.");
+        },
+      },
+    },
+    { timeoutMilliseconds: 5_000 },
+  );
+  const outcome = pending
+    .catch((error: unknown) => error)
+    .finally(() => {
+      finished = true;
+    });
+  try {
+    expect(await Promise.race([entered.promise, outcome])).toBeUndefined();
+    await expect.poll(() => finished, { timeout: 7_000 }).toBe(true);
+    expect(await outcome).toMatchObject({ status: 503, code: "cli-analysis-time-limit" });
+    const next = () =>
+      runAnalysisOperation("assemble", { source: {}, carrier: {}, sourceAssetBytes: {} });
+    expect((await Promise.all([next(), next()])).map((result) => result.valid)).toEqual([
+      false,
+      false,
+    ]);
+  } finally {
+    releaseSnapshot.resolve();
+    await outcome;
+  }
+}, 20_000);
+
+it("bounds process admission and releases capacity after completion", async () => {
+  const operation = () =>
+    runAnalysisOperation("assemble", { source: {}, carrier: {}, sourceAssetBytes: {} });
+  const first = operation();
+  const second = operation();
+  await expect(operation()).rejects.toMatchObject({ status: 503, code: "cli-analysis-busy" });
+  expect((await first).valid).toBe(false);
+  expect((await second).valid).toBe(false);
+  expect((await operation()).valid).toBe(false);
+});
+
+it("counts repeated references against the serialized input budget", async () => {
+  const shared = { text: "a".repeat(256) };
+  await expect(
+    runAnalysisOperation(
+      "assemble",
+      {
+        source: { first: shared, second: shared },
+        carrier: {},
+        sourceAssetBytes: {},
+      },
+      undefined,
+      sourceAssetPorts,
+      { maxInputBytes: 500 },
+    ),
+  ).rejects.toMatchObject({
+    status: 413,
+    code: "cli-analysis-input-limit",
+  });
+});

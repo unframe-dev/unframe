@@ -58,6 +58,7 @@ const rangeFor = (sourceFile: ts.SourceFile, start: number, end: number) => {
 
 export const analyzeAuthoringProject = (
   project: ParsedAuthoringProjectValue,
+  observe?: (stage: string) => void,
 ): AnalyzedAuthoringProject => {
   const context = new VirtualModuleContext(project);
   const diagnostics: AuthoringProjectDiagnostic[] = [];
@@ -118,6 +119,7 @@ export const analyzeAuthoringProject = (
     },
     host,
   });
+  observe?.("authoring-program");
   if (missingPrimaryLibraries.size > 0)
     return {
       ok: false,
@@ -197,6 +199,7 @@ export const analyzeAuthoringProject = (
           column: 1,
         })),
       };
+    observe?.("react-program");
     reactDiagnostics = reactProgram
       .getSemanticDiagnostics()
       .filter(
@@ -235,6 +238,7 @@ export const analyzeAuthoringProject = (
       typescriptCode: item.code,
     });
   }
+  observe?.("semantic-diagnostics");
   if (diagnostics.length) return { ok: false, diagnostics: diagnostics.sort(compareDiagnostics) };
   const entrySourceFile = project.files[project.entryFile];
   if (!entrySourceFile)
