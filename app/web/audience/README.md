@@ -132,7 +132,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ルーム入力 → 匿名 Viewer 資格取得 → 既存 HTTP join／Delivery／bootstrap → マーカーサイズ選択・確定 → 明示カメラ開始 → Snapshot／素材準備 → State 接続と Ready → SDK NORMAL／タグ認識 → ライブ視聴。共有 Runtime v3 と WebSocket の Control／State を使い、登壇側の進行を適用する。
 
-`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
+`connection/anonymous-client.ts` は API 資格、`connection/realtime-client.ts` は通信を所有する。`experience/viewer-application.ts` が XR host と viewing session の寿命・接続・復旧を調整し、`experience/viewing-session.ts` が Runtime と入力世代を所有する。切断後は表示を解除して再接続し、新 Snapshot から復帰する。State 欠落は表示を保持して keyframe を再取得する。準備済みの表示を使える通常の状態更新では読込中表示へ戻さず、原点やGroup入場世代が変わる場合は新しい表示の準備完了を待つ。診断には資格・署名 URL・画素・プレゼン変数を含めない。明示保存する接続テストログには Session／Runtime／Group／Step の識別子を含む。
 
 参加・視聴状態は Zustand で保持し、接続手順と資格は各処理の所有範囲に置く。HTTP は共有 Hono RPC クライアントを使い、応答はブラウザ側でも検証する。Runtime は入力から次の状態を計算するコアと状態保持に分ける。
 
@@ -140,7 +140,7 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 期限更新
 
-既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。
+既存Delivery／bootstrapを期限前に再取得する。初回は最短期限の30秒前、短い寿命では残り時間の半分を目安にし、最低1秒間隔。失敗時は元の有効接続を維持し、1／2／4秒の最大3回再試行する。期限到達・取消・退出・破棄では失効を優先し、遅延応答を受理しない。接続情報が期限切れになった場合は資格と素材URLを破棄し、カメラと位置合わせを維持して同じSessionの接続情報を再取得する。バックグラウンドからの復帰時も同じ扱いとし、再開のためのカメラ開始操作は要求しない。退出・Session終了・アクセス拒否などの確定エラーでは復旧を停止する。
 
 同じDelivery構造・assignmentの更新ではassetAccessだけを交換し、読み込み済み表示とカメラを維持する。新しいURLは以後の素材要求に使う。動画も署名付きURLと期限だけの更新では読み込み済みデコーダーと再生状態を維持し、checksumなど素材情報が変わった場合は再読み込みする。assignmentなどの変更時はカメラを維持しながらRuntimeを作り直し、新しいSnapshotを待つ。異なるpublication／profileの混在はHTTP接続制御で拒否する。API 資格も期限前に更新する。Runtime JWT の交換ではカメラを維持し、新 Snapshot と素材を再適用する。
 
@@ -175,6 +175,6 @@ SDK配布物は未改変で同一originへ配置し、LICENSE・著作権・ハ�
 
 ## 複数端末テストの接続ログ
 
-視聴メニューの「状態をJSON保存」では、同じセッションの直近の配信切断を `lastDisconnect` で確認できます。再接続後も、発生時刻、切断の分類、該当する場合は WebSocket の種別と終了コードが残ります。
+視聴メニューの「状態をJSON保存」では、同じセッションの直近の配信切断を `lastDisconnect` で確認できます。再接続後も、発生時刻、切断の分類、該当する場合は WebSocket の種別と終了コードが残ります。クライアントが受信状態の再同期を要求して切断した場合は、`lastDisconnect.input` に直前のControl／State入力の種類、進行イベントの種類と連番を残します。メッセージ本文や例外文は記録せず、通常の履歴が上限で押し出された後も保持します。
 
 「テストログを保存」（MR）／「接続テストログを保存」（WebXR）から、接続・取得・送受信・同期の履歴をJSONで保存できます。保存先と端末間の比較手順は[複数端末の検証手順](../../../docs/validation/multi-device-session-diagnostics.md)を参照してください。認証情報・素材URL・カメラ画像は含みません。
