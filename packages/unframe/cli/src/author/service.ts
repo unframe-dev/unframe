@@ -121,7 +121,7 @@ export const createAuthorService = async (
           signal,
         )),
       };
-      if (!closed && !signal.aborted) cached = current;
+      if (!closed && !signal.aborted && current.snapshot.irHash !== null) cached = current;
       return current;
     },
     (found) => found.revision,
