@@ -707,7 +707,7 @@ export default definePresentation({
             cues: [
               {
                 id: "rotate-cube",
-                trigger: { kind: "logicalInput", action: "presenter.rotate" },
+                trigger: { kind: "logicalInput", action: "presenter.next" },
                 actions: [
                   { kind: "timeline.play", timelineId: "cube-turn", completion: "nonBlocking" },
                 ],

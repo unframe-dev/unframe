@@ -408,6 +408,8 @@ Target progression clock は pause-aware な logical runtime time とする。`R
 8. Snapshot は commit 済み canonical state と active Run を同じ cut で反映する。
 9. Cue の定義に従って次の Step へ遷移する。
 
+Presenter の `ForceAdvanceCommand` は、現在の Step で実行可能な Presenter 向け logicalInput / gesture / zoneEdge Cue のうち、定義順で最初の Cue を guard を評価せずに発火する。タイマーと完了待ちは対象外とし、権限、入力同期、発火回数の制約は通常の入力と同じように検証する。
+
 意味論の正本は [Presentation Progression](../../../docs/packages/ARCHITECTURE.md#12-v1-presentation-progression-の意味論) とし、本書は Realtime transport、authority、fan-out、recovery への接続を定義する。共有進行の分岐を防ぐため、成立イベントの検証、Guard / Cue 選択、Action / Transition の canonical evaluation は割り当て済み Runtime Core だけが行う。Gesture / Zone の認識は Presenter client の責務とする。Cloud と Venue Edge の evaluator は同じ入力に対して同じ結果を生成する同一実装を使用する。
 
 Runtime Core は正本の Cue 選択、Action preflight、atomic commit を session critical section 内で実行する。batch reject では Cue 消費、state、Run、Step を変更せず、別 Cue へ fallback しない。invariant 違反または atomic commit 失敗では partial state を公開せず Runtime を `Paused` にし、理由を Reliable Control で通知する。

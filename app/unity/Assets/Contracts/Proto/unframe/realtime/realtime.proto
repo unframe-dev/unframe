@@ -23,6 +23,7 @@ message ControlClientItem {
     ZoneInputCommand zone_input = 101;
     InputSynchronizationAck input_synchronization_ack = 102;
     PresentationOriginCommand presentation_origin = 103;
+    ForceAdvanceCommand force_advance = 104;
   }
   reserved 4 to 19;
   reserved 23 to 99;
@@ -103,6 +104,13 @@ message LogicalInputCommand {
   optional uint64 captured_at_client_monotonic_ms = 4;
   InputContext input_context = 5;
   uint64 command_epoch = 6;
+}
+
+message ForceAdvanceCommand {
+  string client_event_id = 1;
+  uint64 presentation_origin_version = 2;
+  InputContext input_context = 3;
+  uint64 command_epoch = 4;
 }
 
 message SurfaceInteractionCommand {
@@ -334,6 +342,7 @@ message ProjectedReliableEvent {
     ZoneInputAccepted zone_input_accepted = 1002;
     RuntimeViewReplaced runtime_view_replaced = 1003;
     EffectRunsChanged effect_runs_changed = 1004;
+    ForceAdvanceAccepted force_advance_accepted = 1005;
   }
   reserved 6 to 19;
   reserved 22 to 99;
@@ -418,6 +427,7 @@ message CueAccepted {
 
 message PresentationEnded { TerminationReason reason = 1; }
 message LogicalInputAccepted { string logical_event_name = 1; }
+message ForceAdvanceAccepted {}
 message GestureInputAccepted { unframe.presentation.GestureKind gesture = 1; }
 message ZoneInputAccepted {
   string zone_id = 1;

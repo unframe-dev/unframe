@@ -25,15 +25,14 @@ public sealed class QuestLaunchConnectionSettingsTests
         Assert.That(settings.Origin, Is.EqualTo(new Uri("https://api.example.com/")));
         Assert.That(settings.SessionId, Is.EqualTo("session"));
         Assert.That(settings.Credential, Is.EqualTo("private-token"));
-        Assert.That(settings.AdvanceLogicalEventName, Is.EqualTo("next"));
     }
 
     [Test]
-    public void DevelopmentBuildAcceptsMissingOptionalLogicalEvent()
+    public void DevelopmentBuildOnlyReadsConnectionSettings()
     {
-        string ReadExtra(string key) => key == "unframe.advanceLogicalEvent" ? null : ReadValidExtra(key);
+        string ReadExtra(string key) => ReadValidExtra(key) ?? throw new InvalidOperationException("Unexpected launch setting.");
         Assert.That(QuestLaunchConnectionSettings.TryRead(true, ReadExtra, out var settings), Is.True);
-        Assert.That(settings.AdvanceLogicalEventName, Is.Null);
+        Assert.That(settings.SessionId, Is.EqualTo("session"));
     }
 
     [TestCase("unframe.controlPlaneOrigin")]
@@ -76,7 +75,6 @@ public sealed class QuestLaunchConnectionSettingsTests
             case "unframe.controlPlaneOrigin": return "https://api.example.com/";
             case "unframe.sessionId": return "session";
             case "unframe.credential": return "private-token";
-            case "unframe.advanceLogicalEvent": return "next";
             default: return null;
         }
     }

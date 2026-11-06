@@ -517,6 +517,14 @@ func (s *V2Service) connectControl(stream grpcgo.BidiStreamingServer[realtimev2.
 			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
 				return err
 			}
+		case *realtimev2.ControlClientItem_ForceAdvance:
+			outcome, _, err := s.runtime.ForceAdvanceContext(stream.Context(), identity, value.ForceAdvance)
+			if err != nil {
+				return v2CommandError(err)
+			}
+			if err := send(&realtimev2.ControlServerItem{Item: &realtimev2.ControlServerItem_CommandOutcome{CommandOutcome: outcome}}); err != nil {
+				return err
+			}
 		case *realtimev2.ControlClientItem_SurfaceInteraction:
 			outcome, _, err := s.runtime.SurfaceInteractionContext(stream.Context(), identity, value.SurfaceInteraction)
 			if err != nil {

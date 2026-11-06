@@ -318,6 +318,13 @@ func (s *V2Session) LogicalInputContext(ctx context.Context, identity session.Id
 	return s.acceptInput(ctx, identity, v2Input{kind: "logicalInput", clientEventID: command.ClientEventId, logicalEventName: command.LogicalEventName, originVersion: command.PresentationOriginVersion, commandEpoch: command.CommandEpoch, inputContext: command.InputContext})
 }
 
+func (s *V2Session) ForceAdvanceContext(ctx context.Context, identity session.Identity, command *realtimev2.ForceAdvanceCommand) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
+	if err := protocolv2.ValidateMessage(command); err != nil {
+		return nil, nil, err
+	}
+	return s.acceptInput(ctx, identity, v2Input{kind: "forceAdvance", clientEventID: command.ClientEventId, originVersion: command.PresentationOriginVersion, commandEpoch: command.CommandEpoch, inputContext: command.InputContext})
+}
+
 func (s *V2Session) SurfaceInteraction(identity session.Identity, command *realtimev2.SurfaceInteractionCommand) (*realtimev2.CommandOutcome, []*realtimev2.ProjectedReliableEvent, error) {
 	return s.SurfaceInteractionContext(context.Background(), identity, command)
 }
@@ -414,6 +421,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	for _, cue := range step.Cues {
 		matches := input.kind == "logicalInput" && cue.Trigger.Kind == "logicalInput" && cue.Trigger.Action == input.logicalEventName || input.kind == "surfaceInteraction" && cue.Trigger.Kind == "surfaceInteraction" && cue.Trigger.SurfaceID == input.surfaceID && cue.Trigger.InteractionID == input.interactionID || input.kind == "surfaceInteraction" && semanticEvent != "" && cue.Trigger.Kind == "semanticEvent" && cue.Trigger.Event == semanticEvent
 		matches = matches || input.kind == "gesture" && cue.Trigger.Kind == "gesture" && v3Gesture(cue.Trigger.Gesture) == input.gesture || input.kind == "zoneEdge" && cue.Trigger.Kind == "zoneEdge" && cue.Trigger.ZoneID == input.zoneID && v3ZoneEdge(cue.Trigger.Edge) == input.edge
+		matches = matches || input.kind == "forceAdvance" && (cue.Trigger.Kind == "logicalInput" || cue.Trigger.Kind == "gesture" || cue.Trigger.Kind == "zoneEdge")
 		if !matches || cue.Trigger.Actor.Kind != "presenter" {
 			continue
 		}
@@ -421,7 +429,7 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 		if !v2CueEligible(cue, s.snapshot) {
 			continue
 		}
-		if !v2GuardPasses(cue, s.snapshot, nil) {
+		if input.kind != "forceAdvance" && !v2GuardPasses(cue, s.snapshot, nil) {
 			continue
 		}
 		if cue.FirePolicy.Kind != "oncePerStepEntry" && cue.FirePolicy.Kind != "repeatable" {
@@ -433,6 +441,9 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 			}
 		}
 		candidates = append(candidates, cue)
+		if input.kind == "forceAdvance" {
+			break
+		}
 	}
 	if !inputAvailable && input.kind != "surfaceInteraction" {
 		outcome := &realtimev2.CommandOutcome{ClientEventId: input.clientEventID, Result: &realtimev2.CommandOutcome_Rejected{Rejected: &realtimev2.CommandRejected{Reason: realtimev2.CommandRejectionReason_COMMAND_REJECTION_REASON_INPUT_UNAVAILABLE}}}
@@ -454,6 +465,8 @@ func (s *V2Session) acceptInput(ctx context.Context, identity session.Identity, 
 	})
 	inputEvent := &realtimev2.ProjectedReliableEvent{}
 	switch input.kind {
+	case "forceAdvance":
+		inputEvent.Payload = &realtimev2.ProjectedReliableEvent_ForceAdvanceAccepted{ForceAdvanceAccepted: &realtimev2.ForceAdvanceAccepted{}}
 	case "logicalInput":
 		inputEvent.Payload = &realtimev2.ProjectedReliableEvent_LogicalInputAccepted{LogicalInputAccepted: &realtimev2.LogicalInputAccepted{LogicalEventName: input.logicalEventName}}
 	case "gesture":

@@ -898,7 +898,7 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
           } else if (event.participantPresenceChanged) {
             id(event.participantPresenceChanged.participantId);
             requireValue([1, 2].includes(event.participantPresenceChanged.role ?? 0));
-          } else throw new Error("unsupported-runtime-event");
+          } else if (!event.forceAdvanceAccepted) throw new Error("unsupported-runtime-event");
           if (
             event.timelineStarted ||
             event.timelineCompleted ||

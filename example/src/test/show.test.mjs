@@ -61,7 +61,7 @@ const dismissed = () => {
   state = input(state).state;
   state = advanceCueClock(definition, state, 9362).state;
   state = input(state).state;
-  state = input(state, "presenter.rotate").state;
+  state = input(state).state;
   state = advanceCueClock(definition, state, 19362).state;
   state = input(state).state;
   return advanceCueClock(definition, state, 21483).state;

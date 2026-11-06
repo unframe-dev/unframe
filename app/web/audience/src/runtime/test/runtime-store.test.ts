@@ -150,24 +150,22 @@ describe("runtime store", () => {
   it.each([
     { gestureInputAccepted: { gesture: 1 } },
     { zoneInputAccepted: { zoneId: "stage", edge: 1 } },
-  ])(
-    "advances accepted Presenter recognition events without enabling Viewer inputs (%j)",
-    (payload) => {
-      const { store, snapshot, fence } = setup();
-      store.applyControl({ connectionSnapshot: snapshot });
-      store.applyControl({
-        reliableEvent: {
-          fence,
-          sequence: "1",
-          eventId: "accepted",
-          occurredAtRuntimeTimeMs: "0",
-          ...payload,
-        },
-      });
-      expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
-      expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
-    },
-  );
+    { forceAdvanceAccepted: {} },
+  ])("advances accepted Presenter input events without enabling Viewer inputs (%j)", (payload) => {
+    const { store, snapshot, fence } = setup();
+    store.applyControl({ connectionSnapshot: snapshot });
+    store.applyControl({
+      reliableEvent: {
+        fence,
+        sequence: "1",
+        eventId: "accepted",
+        occurredAtRuntimeTimeMs: "0",
+        ...payload,
+      },
+    });
+    expect(store.getSnapshot()).toMatchObject({ phase: "ready", reliableSequence: "1" });
+    expect(store.getSnapshot().view!.enabledLogicalInputs).toEqual([]);
+  });
 
   it("rejects ControlConnected requiring Presenter recognition", () => {
     const { store, delivery } = setup();

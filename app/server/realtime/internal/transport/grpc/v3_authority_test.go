@@ -97,6 +97,11 @@ func testV3ControlRecognizedInput(t *testing.T, gestureName string, gestureKind 
 	ready := next(func(i *realtimev2.ControlServerItem) bool {
 		return i.GetPresenterInputSynchronization().GetPhase() == realtimev2.InputSynchronizationPhase_INPUT_SYNCHRONIZATION_PHASE_READY
 	}).GetPresenterInputSynchronization()
+	input <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_ForceAdvance{ForceAdvance: &realtimev2.ForceAdvanceCommand{ClientEventId: v3TestEventID(ready.CommandEpoch, "force"), CommandEpoch: ready.CommandEpoch, InputContext: ready.InputContext, PresentationOriginVersion: snapshot.Fence.PresentationOriginVersion}}}
+	forced := next(func(i *realtimev2.ControlServerItem) bool { return i.GetCommandOutcome() != nil }).GetCommandOutcome()
+	if forced.GetAccepted().GetCueCommitted().GetCueId() != "swipe" {
+		t.Fatalf("forced input: %v", forced)
+	}
 	input <- &realtimev2.ControlClientItem{Item: &realtimev2.ControlClientItem_GestureInput{GestureInput: command}}
 	accepted := next(func(i *realtimev2.ControlServerItem) bool { return i.GetCommandOutcome() != nil }).GetCommandOutcome()
 	if accepted.GetAccepted().GetCueCommitted().GetCueId() != "swipe" {
