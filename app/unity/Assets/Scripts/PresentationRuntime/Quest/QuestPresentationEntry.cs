@@ -385,7 +385,9 @@ namespace Unframe.Unity.PresentationRuntime
                 ? new Unframe.Presentation.Vector3 { X = direction.x, Y = direction.y, Z = -direction.z } : null,
                 leftTriggerHeld, rightTriggerHeld, headPosition);
             if (result != null) _ = SendInputAsync(QuestPresentationInput.CreateRecognition(result, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
-            foreach (var edge in recognition.SampleHead(headPosition))
+            var stageHeadPosition = QuestPresentationTracking.PositionInStage(head,
+                calibration.PresentationFromQuestLocal, runtime.DataStore.StageOrigin);
+            foreach (var edge in recognition.SampleHead(stageHeadPosition))
                 _ = SendInputAsync(QuestPresentationInput.CreateRecognition(edge, runtime.PresentationOriginVersion, synchronization.CommandEpoch), interactionLifetime.Token);
         }
 
