@@ -217,7 +217,7 @@ namespace Unframe.Unity.PresentationRuntime
         public void ResetCamera(string unused)
         {
             View("perspective");
-            Camera.main?.GetComponent<PresentationPreviewCamera>()?.ResetToOrigin();
+            Camera.main?.GetComponent<PresentationPreviewCamera>()?.ResetToFront();
         }
         private bool activationBlocked;
         private void Update()

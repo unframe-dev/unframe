@@ -178,6 +178,7 @@ Presentation、scene、flow、コンポーネントのメタデータなどの�
 - ID と参照先を一致させてください。特に component、instance、spatial node、state、interaction、output、Group / Step の対応を確認してください。
 - manifest の出力と structure の操作領域、Cue の trigger / actions をつなぎ、意図した操作で進行するようにしてください。
 - Stage の座標系は `stage.coordinateSystem` に従ってください。初期設定はメートル単位・右手系・上方向 `+Y`・前方向 `-Z` です。
+- メインの表示面は Stage の `z=0` に置き、AprilTag と同じ奥行きを基準にします。作成用カメラは `+Z` 側から表示面を見るため、カメラからの視距離を表示面の Z 座標に含めないでください。
 - Surface の `physicalSizeMeters` は実寸、`logicalSize` は描画レイアウトのサイズです。両者と配置・scale の関係を考えて調整してください。
 - 素材はプロジェクト内に配置し、`unframe.config.ts` の登録と宣言側の asset ID をそろえてください。
 - 宣言形式の text node を追加するときは、使用する文字を含むフォント素材を登録し、直接の style またはテーマから `font`・`fontSize`・`lineHeight` が解決されるようにしてください。テンプレートにはフォント素材は含まれていません。

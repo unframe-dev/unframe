@@ -101,7 +101,7 @@ Local Host は commit 済み request ごとに Core の Cue state と単調時�
 
 応答の `spatial` は Zone の有無によらず腰位置・向きと各 Zone の中心・有効状態・内外状態を返す。Web は再生状態の適用後に `Spatial`（`{requestId, sequence, presenterPosition, presenterRotation, zones}`）を Unity に送り、同じ識別子の ACK を待ってから Host へ適用を確認する。視点切替は `View(perspective|overhead)`、俯瞰からの位置入力は requestId 付きの `unframe-preview-presenter` 通知で伝える。Surface の ray 判定結果は `unframe-preview-interaction`（requestId、surfaceId、interactionId）で Web へ伝え、通常再生中に Host へ送る。古い request の位置・Surface 入力は破棄する。
 
-Unity は通常・俯瞰の両視点でグリッド床と原点のリング・X/Z 軸の十字を表示し、俯瞰では共通原点の tag36h11 ID 0、Zone 枠と Presenter も表示する。タグは位置を確認する表示用ガイドであり、実機の画像認識・校正には接続しない。通常視点へ戻ると以前のカメラ位置を復元する。`ResetCamera("")` は通常視点へ切り替え、カメラを X/Z=0、高さ1.6m、正面向きへ戻す。Presenter anchor の Body は腰、Head は腰から上方0.65m、LeftHand／RightHand は左右0.35m・上方0.25m・前方0.25mの仮想姿勢とし、腰の向きに合わせて回転させる。実際の頭・手のトラッキングは行わない。これらの確認操作は Source・Dist を変更しない。
+Unity は通常・俯瞰の両視点でグリッド床と原点のリング・X/Z 軸の十字を表示し、俯瞰では共通原点の tag36h11 ID 0、Zone 枠と Presenter も表示する。タグは位置を確認する表示用ガイドであり、実機の画像認識・校正には接続しない。通常視点へ戻ると以前のカメラ位置を復元する。`ResetCamera("")` は通常視点へ切り替え、カメラを Presentation 座標 `[0, 1.6, 4]` に置き、`z=0` の表示面を正面から見る。Presenter anchor の Body は腰、Head は腰から上方0.65m、LeftHand／RightHand は左右0.35m・上方0.25m・前方0.25mの仮想姿勢とし、腰の向きに合わせて回転させる。実際の頭・手のトラッキングは行わない。これらの確認操作は Source・Dist を変更しない。
 
 ### Cue 確認と適用確認
 
