@@ -77,6 +77,27 @@ function validateBootstrap(delivery: DeliveryManifestWire, bootstrap: Bootstrap)
   )
     throw new AudienceConnectionError("delivery-mismatch");
 }
+function sameConnectionIdentity(previous: PreparedConnection, next: PreparedConnection): boolean {
+  const before = previous.bootstrap;
+  const after = next.bootstrap;
+  return (
+    previous.session.id === next.session.id &&
+    before.endpoint === after.endpoint &&
+    before.fingerprint === after.fingerprint &&
+    before.runtimeId === after.runtimeId &&
+    before.runtimeKind === after.runtimeKind &&
+    before.assignmentEpoch === after.assignmentEpoch &&
+    before.presentationId === after.presentationId &&
+    before.presentationRevision === after.presentationRevision &&
+    before.projectionProfileId === after.projectionProfileId &&
+    samePublication(previous.delivery.publication, after.publicationFence) &&
+    previous.delivery.projectionInstance?.participantId ===
+      next.delivery.projectionInstance?.participantId &&
+    previous.delivery.projectionProfile?.key?.role === next.delivery.projectionProfile?.key?.role &&
+    previous.delivery.projectionProfile?.key?.capabilityProfileId ===
+      next.delivery.projectionProfile?.key?.capabilityProfileId
+  );
+}
 function expiry(connection: PreparedConnection, now: number): number {
   const values = [
     Date.parse(connection.bootstrap.expiresAt),
@@ -297,6 +318,15 @@ export function createJoinController(options: {
         const nextSession = { ...session, publicationFence: { ...bootstrap.publicationFence } };
         const connection = structuredClone({ session: nextSession, delivery, bootstrap });
         expiry(connection, now());
+        // Asset URLs renew more often than Realtime credentials. Keep the active
+        // credential until its renewal window to avoid restarting both streams.
+        if (
+          !reconnecting &&
+          prepared &&
+          Date.parse(prepared.bootstrap.expiresAt) - now() > 30_000 &&
+          sameConnectionIdentity(prepared, connection)
+        )
+          connection.bootstrap = prepared.bootstrap;
         joinedSession = nextSession;
         prepared = connection;
         revision++;

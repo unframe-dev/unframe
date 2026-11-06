@@ -61,6 +61,106 @@ function setup() {
 }
 afterEach(() => vi.useRealTimers());
 
+test("素材URLを繰り返し更新しても十分有効なRealtime資格とその元の期限を維持する", async () => {
+  const { controller, client, delivery, bootstrap } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  const original = controller.getPrepared()!.bootstrap;
+  client.delivery.mockImplementation(async () => {
+    for (const asset of delivery.assetAccess!) asset.expiresAtUnixMs = String(Date.now() + 120_000);
+    return delivery;
+  });
+  client.bootstrap.mockImplementation(async () => ({
+    ...bootstrap,
+    credential: `renewed-${Date.now()}`,
+    expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+  }));
+  await vi.advanceTimersByTimeAsync(270_000);
+  expect(controller.getPrepared()?.bootstrap).toEqual(original);
+  expect(controller.getPrepared()?.delivery.assetAccess?.[0]?.expiresAtUnixMs).toBe(
+    String(clock + 390_000),
+  );
+  expect(controller.getSnapshot()).toMatchObject({ phase: "prepared", revision: 4 });
+  controller.dispose();
+});
+
+test.each([
+  ["runtimeId", "new-runtime"],
+  ["runtimeKind", "VenueEdge"],
+  ["endpoint", "https://new-runtime.example.test"],
+  ["fingerprint", "new-fingerprint"],
+  ["presentationRevision", 2],
+] as const)("%sが変わった更新では新しいRealtime資格を使う", async (field, value) => {
+  const { controller, bootstrap } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  Object.assign(bootstrap, { [field]: value, credential: "new-credential" });
+  await controller.refresh();
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("new-credential");
+  controller.dispose();
+});
+
+test.each([
+  [
+    "participant",
+    (delivery: DeliveryManifestWire, _bootstrap: Bootstrap) => {
+      delivery.projectionInstance!.participantId = "new-participant";
+    },
+  ],
+  [
+    "assignment",
+    (delivery: DeliveryManifestWire, bootstrap: Bootstrap) => {
+      delivery.projectionInstance!.assignmentEpoch = "2";
+      bootstrap.assignmentEpoch = 2;
+    },
+  ],
+  [
+    "projection",
+    (delivery: DeliveryManifestWire, bootstrap: Bootstrap) => {
+      delivery.projectionProfile!.projectionProfileId = "new-projection";
+      delivery.projectionInstance!.projectionProfileId = "new-projection";
+      bootstrap.projectionProfileId = "new-projection";
+    },
+  ],
+] as const)("%sが変わったDelivery更新では新しいRealtime資格を使う", async (_field, change) => {
+  const { controller, bootstrap, delivery } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  bootstrap.credential = "new-credential";
+  change(delivery, bootstrap);
+  await controller.refresh();
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("new-credential");
+  controller.dispose();
+});
+
+test("明示再接続では同じidentityで十分有効な資格も新しい資格へ置き換える", async () => {
+  const { controller, bootstrap } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  bootstrap.credential = "new-credential";
+  await controller.reconnect();
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("new-credential");
+  controller.dispose();
+});
+
+test("24時間資格も元の期限の30秒前になれば新しい資格に切り替える", async () => {
+  const { controller, bootstrap, delivery, client } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  for (const asset of delivery.assetAccess!) asset.expiresAtUnixMs = String(clock + 172_800_000);
+  bootstrap.credential = "new-credential";
+  bootstrap.expiresAt = new Date(clock + 172_800_000).toISOString();
+  await vi.advanceTimersByTimeAsync(90_000);
+  expect(controller.getPrepared()?.bootstrap.credential).toBe("secret-credential");
+  await vi.advanceTimersByTimeAsync(86_280_000);
+  expect(client.bootstrap).toHaveBeenCalledTimes(3);
+  expect(controller.getPrepared()?.bootstrap).toMatchObject({
+    credential: "new-credential",
+    expiresAt: new Date(clock + 172_800_000).toISOString(),
+  });
+  controller.dispose();
+});
+
 test("購読用storeは参加状態の正本で資格を含まず退出を通知する", async () => {
   const { controller } = setup();
   const phases: string[] = [];
