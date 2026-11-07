@@ -185,13 +185,21 @@ export function createRuntimeReducer(inputDelivery: DeliveryManifestWire) {
         const target = track.target!;
         const node = wireView.nodeStates!.find((value) => value.nodeId === target.nodeId)!;
         const value = effective.nodeStates[target.nodeId!]!;
-        if (target.property === 1) node.opacity = value.opacity;
-        else {
-          const property = ({ 2: "position", 3: "rotation", 4: "scale" } as const)[
-            target.property as 2 | 3 | 4
-          ];
-          requireValue(property);
-          node.transform = { ...node.transform!, [property]: value.transform[property] };
+        if (target.property === 1) {
+          node.opacity = value.opacity;
+        } else {
+          const transform = node.transform!;
+          if (target.property === 2) {
+            const [x, y, z] = value.transform.position;
+            transform.position = { x, y, z };
+          } else if (target.property === 3) {
+            const [x, y, z, w] = value.transform.rotation;
+            transform.rotation = { x, y, z, w };
+          } else {
+            requireValue(target.property === 4);
+            const [x, y, z] = value.transform.scale;
+            transform.scale = { x, y, z };
+          }
         }
       }
     };
