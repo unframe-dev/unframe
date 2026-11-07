@@ -31,6 +31,15 @@ namespace Unframe.Unity.PresentationRuntime
         private bool sessionStarted, ownsConnection, lastCalibrationValid, lastCanAdvance;
         private Task stopTask = Task.CompletedTask;
         private string message = "", roomCode = "";
+        private string lastCalibrationMessage, lastConnectionFailure, connectedSessionId;
+        private bool SessionEnded => room != null &&
+            (connectedSessionId == room.SessionId && entry?.LastErrorCode == "session-ended"
+                || flow.Role == QuestOnboardingRole.Audience && api?.ViewerErrorCode == "session-ended");
+        private bool ConnectionFailed => room != null && ownsConnection && entry != null
+            && (!entry.IsRunning || entry.ConnectionStage == PresentationConnectionStage.Failed);
+        private string ConnectionFailure => ConnectionFailed ? "接続が切れました。「再接続」で受信を再開してください。" : "";
+        private string CalibrationMessage => CalibrationComplete ? "位置合わせが完了しました"
+            : calibration?.CameraPreview?.CalibrationMessage ?? "マーカー全体を視界に収め、静止して待ってください。";
         private Text inputText;
         private bool CalibrationComplete => calibration?.Calibration?.IsValid == true && (entry?.PlacementReady ?? true);
         private bool CameraPermissionRequired => calibration?.CameraPreview?.NeedsCameraPermission == true;
@@ -48,6 +57,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task RetryConnectionAsync()
         {
+            if (SessionEnded) { ShowSessionEnded(); await stopTask; return; }
             if (flow.Role == QuestOnboardingRole.Audience && room != null
                 && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable"))
             {
@@ -78,6 +88,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void SetComplete(bool complete)
         {
+            if (IsComplete && !complete && panel != null && head != null) PositionPanelAtHead();
             IsComplete = complete;
             if (entry != null) entry.PresentationDisplayEnabled = complete;
         }
@@ -143,9 +154,13 @@ namespace Unframe.Unity.PresentationRuntime
             if (disconnect) stopTask = StopManagedConnectionAsync();
         }
 
-        private async Task StopManagedConnectionAsync()
+        private Task StopManagedConnectionAsync() => StopManagedConnectionAfterAsync(stopTask);
+
+        private async Task StopManagedConnectionAfterAsync(Task previousStop)
         {
             var stoppingApi = api;
+            await previousStop;
+            connectedSessionId = null;
             try
             {
                 if (ownsConnection && session != null) { ownsConnection = false; await session.ExitAsync(); }
@@ -177,20 +192,22 @@ namespace Unframe.Unity.PresentationRuntime
             QuestPresentationUiFont.ConfigureCanvas(canvas);
             QuestUiTheme.ApplySurface(panel.GetComponent<Image>());
             if (hadPanel) panel.transform.SetPositionAndRotation(position, rotation);
-            else
-            {
-                Vector3 forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
-                Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
-                panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
-            }
+            else PositionPanelAtHead();
             QuestUiBrand.Create(panel.transform, new Vector2(0, 365));
             DrawPage();
-            Label("Message", busy ? "処理しています…" : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
-            if (flow.Page != QuestOnboardingPage.Role)
+            Label("Message", busy ? "処理しています…" : ConnectionFailed ? ConnectionFailure : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
+            if (flow.Page != QuestOnboardingPage.Role && flow.Page != QuestOnboardingPage.Ended)
                 Button("Back", "戻る", -350, -350, 220, Back, false);
             if (api != null && (flow.Page == QuestOnboardingPage.Role || flow.Role == QuestOnboardingRole.Presenter))
                 Button("ClearAuthentication", "認証情報を削除", 280, -350, 420, () => { _ = ClearSavedAuthenticationAsync(); }, false, 60, 24);
             leftAim = Aim("Left aim"); rightAim = Aim("Right aim");
+        }
+
+        private void PositionPanelAtHead()
+        {
+            Vector3 forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            Quaternion yaw = Quaternion.LookRotation(forward.sqrMagnitude > 0.001f ? forward : Vector3.forward);
+            panel.transform.SetPositionAndRotation(head.position + yaw * new Vector3(0, -0.08f, 1.5f), yaw);
         }
 
         private void DrawPage()
@@ -300,9 +317,10 @@ namespace Unframe.Unity.PresentationRuntime
                         Button("MarkerSize" + size, size + " mm", -330 + i * 220, 85, 205,
                             () => { calibration?.SelectMarkerSize(size); message = "同じサイズを閲覧側でも選択してください"; Draw(); }, size == markerSize, 62, 25);
                     }
-                    bool valid = CalibrationComplete;
-                    Label("Alignment", valid ? "位置合わせが完了しました" : "マーカーを見ながら、頭をゆっくり動かします", new Vector2(0, 5), new Vector2(920, 70), 28, QuestUiTheme.Text);
-                    Button("Permission", CameraPermissionRequired ? "カメラを許可" : "カメラを再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
+                    Label("Alignment", CalibrationMessage, new Vector2(0, 5), new Vector2(920, 70), 28, QuestUiTheme.Text);
+                    if (ConnectionFailed)
+                        Button("RetryConnection", "再接続", 0, -80, 820, () => Run(RetryPreparationConnection));
+                    else Button("Permission", CameraPermissionRequired ? "カメラを許可" : "カメラを再確認", 0, -80, 820, () => { calibration?.CameraPreview?.RetryCameraPermission(); Draw(); }, false);
                     Button("Aligned", "位置合わせを確認して次へ", 0, -175, 820, () =>
                     {
                         if (!QuestOnboardingStart.CanAdvance(flow.Role, CalibrationComplete,
@@ -334,6 +352,12 @@ namespace Unframe.Unity.PresentationRuntime
                         });
                     });
                     FindButton("Begin").interactable &= CanAdvance;
+                    if (ConnectionFailed)
+                        Button("RetryConnection", "再接続", 0, -90, 820, () => Run(RetryPreparationConnection));
+                    break;
+                case QuestOnboardingPage.Ended:
+                    Title("プレゼンは終了しました", "ご参加ありがとうございました");
+                    Button("LeaveEndedSession", "役割選択へ戻る", 0, 20, 820, ResetFlow);
                     break;
             }
         }
@@ -393,19 +417,22 @@ namespace Unframe.Unity.PresentationRuntime
             if (!ownsConnection || !entry.IsRunning || entry.ConnectionStage == PresentationConnectionStage.Failed)
             {
                 string connectingId = room.SessionId;
+                connectedSessionId = null;
                 Func<CancellationToken, Task<string>> provider = flow.Role == QuestOnboardingRole.Audience
-                    ? token => api.ViewerCredentialAsync(connectingId, token) : api.CredentialAsync;
+                    ? token => ViewerCredentialAsync(connectingId, token) : api.CredentialAsync;
                 session.ConfigureConnection(api.Origin, connectingId, provider, managedByOnboarding: true,
                     leaseProvider: flow.Role == QuestOnboardingRole.Audience
-                        ? token => api.AcquireViewerCredentialAsync(connectingId, token) : (Func<CancellationToken, Task<PresentationCredentialLease>>)null);
+                        ? token => AcquireViewerCredentialAsync(connectingId, token) : (Func<CancellationToken, Task<PresentationCredentialLease>>)null);
                 ownsConnection = true;
                 await session.ConnectAsync(); token.ThrowIfCancellationRequested();
                 if (!String.IsNullOrEmpty(session.LastErrorCode)) throw new InvalidOperationException(session.LastErrorCode);
+                connectedSessionId = connectingId;
             }
             // Asset downloads can outlast a fixed connection timeout; keep the operation cancellable until ready or failed.
             while (!entry.ControlReady && entry.IsRunning && entry.ConnectionStage != PresentationConnectionStage.Failed)
                 await Task.Delay(100, token);
             token.ThrowIfCancellationRequested();
+            if (SessionEnded) throw new QuestOnboardingApiException("session-ended");
             if (!entry.ControlReady && flow.Role == QuestOnboardingRole.Audience && (!api.HasViewerCredential(room.SessionId)
                 || entry.LastErrorCode == "authentication-required" || entry.LastErrorCode == "credential-unavailable"))
                 throw new QuestOnboardingApiException("viewer-authentication-required");
@@ -415,6 +442,35 @@ namespace Unframe.Unity.PresentationRuntime
             message = "";
             flow.ConnectionReady();
         }
+        private async Task<string> ViewerCredentialAsync(string id, CancellationToken token)
+        {
+            using (var lease = await AcquireViewerCredentialAsync(id, token)) return lease.Bearer;
+        }
+
+        private async Task<PresentationCredentialLease> AcquireViewerCredentialAsync(string id, CancellationToken token)
+        {
+            try { return await api.AcquireViewerCredentialAsync(id, token); }
+            catch (QuestOnboardingApiException exception) when (exception.Code == "session-ended")
+            { throw new PresentationConnectionException("session-ended"); }
+        }
+
+        private async Task RetryPreparationConnection(CancellationToken token)
+        {
+            await RetryConnectionAsync();
+            token.ThrowIfCancellationRequested();
+            if (room != null && flow.Page != QuestOnboardingPage.Ended) await Connect(token);
+        }
+
+        private void ShowSessionEnded()
+        {
+            CancelOperation();
+            SetComplete(false);
+            room = null;
+            message = "";
+            flow.GoTo(QuestOnboardingPage.Ended);
+            Draw();
+        }
+
         private async void Run(Func<CancellationToken, Task> action)
         {
             if (busy) return;
@@ -425,6 +481,7 @@ namespace Unframe.Unity.PresentationRuntime
             {
                 if (current == revision)
                 {
+                    if (exception.Code == "session-ended") { ShowSessionEnded(); return; }
                     if (flow.Role == QuestOnboardingRole.Audience)
                     {
                         stopTask = StopManagedConnectionAsync(); await stopTask;
@@ -452,6 +509,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
             finally { if (current == revision && this != null) { busy = false; Draw(); } }
         }
+
         private string FormatRoomCode() => roomCode.Length <= 4 ? roomCode : roomCode.Substring(0, 4) + "-" + roomCode.Substring(4);
 
         private void Keyboard(string characters, float top, Action<char> append, Action remove)
@@ -523,6 +581,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private void Update()
         {
+            if (!busy && room != null && SessionEnded) { ShowSessionEnded(); return; }
             bool viewerExpired = flow.Role == QuestOnboardingRole.Audience && room != null && api != null
                 && (flow.Page == QuestOnboardingPage.Calibration || flow.Page == QuestOnboardingPage.Ready || IsComplete)
                 && (!api.HasViewerCredential(room.SessionId) || entry?.LastErrorCode == "authentication-required" || entry?.LastErrorCode == "credential-unavailable");
@@ -539,10 +598,15 @@ namespace Unframe.Unity.PresentationRuntime
             }
             bool valid = calibration?.Calibration?.IsValid == true;
             bool canAdvance = CanAdvance;
-            if ((valid != lastCalibrationValid || canAdvance != lastCanAdvance)
+            string calibrationMessage = CalibrationMessage;
+            string connectionFailure = ConnectionFailure;
+            if ((valid != lastCalibrationValid || canAdvance != lastCanAdvance
+                || calibrationMessage != lastCalibrationMessage || connectionFailure != lastConnectionFailure)
                 && (flow.Page == QuestOnboardingPage.Calibration || flow.Page == QuestOnboardingPage.Ready) && !busy) Draw();
             lastCalibrationValid = valid;
             lastCanAdvance = canAdvance;
+            lastCalibrationMessage = calibrationMessage;
+            lastConnectionFailure = connectionFailure;
         }
         private void OnDisable() { ResetFlowState(); if (panel != null) panel.SetActive(false); }
         private void OnEnable() { if (head != null && !IsComplete) Draw(); }

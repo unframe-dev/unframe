@@ -26,7 +26,9 @@ namespace Unframe.Unity.PresentationRuntime
         private bool resetWasPressed;
         private bool menuWasPressed;
         private bool menuOpen = true;
-        private bool wasAudience;
+        private bool? audienceRole;
+        private string audienceSessionId;
+        private string audienceOrigin;
         private bool detailsOpen;
         private bool stepsOpen;
         private int stepPage;
@@ -41,7 +43,7 @@ namespace Unframe.Unity.PresentationRuntime
         public Transform Head => head;
         public bool MenuOpen => OnboardingActive || menuOpen;
         public bool GuidanceVisible => !OnboardingActive && !menuOpen && !AudienceMode;
-        public bool AudienceMode => entry != null && entry.ControlReady && !entry.IsPresenter;
+        public bool AudienceMode => ResolveAudienceMode();
         private readonly List<Button> buttons = new List<Button>();
         private Task operation;
         private int operationRevision;
@@ -60,6 +62,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             UnregisterRayHandler();
             DestroyPanel();
+            if (entry != sessionEntry) audienceRole = null;
             session = controller;
             entry = sessionEntry;
             calibrationSource = source;
@@ -68,12 +71,25 @@ namespace Unframe.Unity.PresentationRuntime
             Refresh();
         }
 
+        private bool ResolveAudienceMode()
+        {
+            if (session != null && (audienceSessionId != session.SessionId || audienceOrigin != session.ControlPlaneOrigin))
+            {
+                audienceSessionId = session.SessionId;
+                audienceOrigin = session.ControlPlaneOrigin;
+                audienceRole = null;
+            }
+            if (entry != null && entry.ControlReady) audienceRole = !entry.IsPresenter;
+            return audienceRole ?? (onboarding != null && onboarding.Flow.Role == QuestOnboardingRole.Audience);
+        }
+
         private QuestPresentationDisplayState ReadDisplayState()
         {
             PresentationCalibrationState calibration = calibrationSource != null ? calibrationSource.Calibration : entry?.Calibration;
-            string error = !String.IsNullOrEmpty(operationError) ? operationError
-                : !String.IsNullOrEmpty(session?.LastErrorCode) ? session.LastErrorCode : entry?.LastErrorCode;
-            liveDisplayState.Audience = entry != null && entry.ControlReady && !entry.IsPresenter;
+            string connectionError = !String.IsNullOrEmpty(session?.LastErrorCode) ? session.LastErrorCode : entry?.LastErrorCode;
+            string error = connectionError == "session-ended" ? connectionError
+                : !String.IsNullOrEmpty(operationError) ? operationError : connectionError;
+            liveDisplayState.Audience = AudienceMode;
             liveDisplayState.Presenter = entry?.IsPresenter == true;
             liveDisplayState.IsRunning = entry?.IsRunning == true;
             liveDisplayState.Stage = entry?.ConnectionStage ?? PresentationConnectionStage.NotConfigured;
@@ -115,12 +131,12 @@ namespace Unframe.Unity.PresentationRuntime
                 calibrationSource.AlignmentVisualizationVisible = OnboardingActive || !calibrationSource.Calibration.IsValid;
             QuestPresentationDisplayState display = ReadDisplayState();
             bool audience = display.Audience;
-            if (audience && !wasAudience) menuOpen = false;
-            wasAudience = audience;
             bool busy = display.Busy;
             string error = display.Error;
             var reachedSteps = display.ReachedSteps ?? Array.Empty<Unframe.Realtime.StepSelection>();
-            StatusText = !String.IsNullOrEmpty(error) ? "接続を確認してください。詳細と再接続から復帰できます。"
+            bool sessionEnded = error == "session-ended";
+            StatusText = sessionEnded ? "プレゼンは終了しました。接続を解除してルームの選択に戻ってください。"
+                : !String.IsNullOrEmpty(error) ? "接続を確認してください。詳細と再接続から復帰できます。"
                 : display.Stage == PresentationConnectionStage.NotConfigured ? "プレゼンへの接続情報が必要です。"
                 : display.Stage == PresentationConnectionStage.Connecting ? "プレゼンに接続しています…"
                 : display.Stage == PresentationConnectionStage.LoadingAssets ? "プレゼンを読み込んでいます…"
@@ -148,7 +164,7 @@ namespace Unframe.Unity.PresentationRuntime
             }
             if (details != null)
             {
-                details.gameObject.SetActive(detailsOpen && !audience);
+                details.gameObject.SetActive(detailsOpen);
                 details.text = "接続: " + display.Stage + "　再生: " + display.PlaybackStatus
                     + "\n素材: " + (display.AssetsReady ? "準備済み" : "未準備")
                     + "　位置合わせ: " + (display.Calibrated ? "完了" : "未完了")
@@ -164,8 +180,8 @@ namespace Unframe.Unity.PresentationRuntime
             var state = new QuestPresentationUiState(audience, display.Presenter,
                 !busy && display.CanControlPresentation, display.PlaybackStatus);
             SetVisible("CameraPermission", !confirmEnd && display.NeedsCameraPermission);
-            SetVisible("Connect", !audience && !confirmEnd && detailsOpen && !display.IsRunning);
-            SetEnabled("Connect", !busy && display.HasConnectionSettings && !display.IsRunning);
+            SetVisible("Connect", !sessionEnded && !audience && !confirmEnd && detailsOpen && !display.IsRunning);
+            SetEnabled("Connect", !sessionEnded && !busy && display.HasConnectionSettings && !display.IsRunning);
             SetVisible("Resume", !audience && !confirmEnd && !detailsOpen && display.PlaybackStatus != "Running");
             SetEnabled("Resume", state.CanResume);
             SetVisible("Pause", !audience && !confirmEnd && !detailsOpen && display.PlaybackStatus == "Running");
@@ -183,8 +199,8 @@ namespace Unframe.Unity.PresentationRuntime
             SetVisible("Close", !confirmEnd);
             SetVisible("Details", !confirmEnd);
             if (FindButton("Details") != null) FindButton("Details").GetComponentInChildren<Text>().text = detailsOpen ? "戻る" : "設定";
-            SetVisible("Retry", !confirmEnd && ((detailsOpen && display.IsRunning) || !String.IsNullOrEmpty(error)));
-            SetEnabled("Retry", !busy && display.HasConnectionSettings);
+            SetVisible("Retry", !sessionEnded && !confirmEnd && ((detailsOpen && display.IsRunning) || !String.IsNullOrEmpty(error)));
+            SetEnabled("Retry", !sessionEnded && !busy && display.HasConnectionSettings);
             SetVisible("Exit", detailsOpen && !confirmEnd);
             SetVisible("ClearAuthentication", !audience && detailsOpen && !confirmEnd && onboarding != null);
             SetEnabled("ClearAuthentication", !busy && onboarding != null && onboarding.CanClearSavedAuthentication);

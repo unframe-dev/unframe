@@ -37,21 +37,21 @@ public sealed class PassthroughCameraDevicePreview : MonoBehaviour
     {
         get
         {
-            if (alignment != null && alignment.IsConfirmed) return "Alignment complete";
-            if (alignment != null && !alignment.TrackingAvailable) return "Tracking lost. Look around to recover.";
+            if (alignment != null && alignment.IsConfirmed) return "位置合わせが完了しました";
+            if (alignment != null && !alignment.TrackingAvailable) return "追跡を見失いました。周囲を見回して復帰を待ってください。";
 #if UNITY_EDITOR
-            return "Use Quest 3 to align with the marker.";
+            return "位置合わせは Quest 3 / 3S の実機で行ってください。";
 #else
-            if (!sessionState.Supported) return "This device does not support camera alignment.";
-            if (requesting) return "Allow camera access to continue.";
-            if (!sessionState.PermissionGranted) return "Camera access required. Retry or allow it in app settings.";
+            if (!sessionState.Supported) return "この端末はカメラによる位置合わせに対応していません。";
+            if (requesting) return "カメラのアクセス許可を待っています。";
+            if (!sessionState.PermissionGranted) return "カメラの許可が必要です。再試行するか、アプリの設定で許可してください。";
 #if !UNFRAME_OPENCV_FOR_UNITY
-            return "Marker recognition is unavailable in this build.";
+            return "このアプリにはマーカー認識機能がありません。対応版のアプリをご利用ください。";
 #else
             if (health.GetState(Time.realtimeSinceStartupAsDouble) == PassthroughCameraFeedState.Stalled)
-                return "Camera paused. Retry camera access.";
-            if (alignment != null && alignment.CalibrationProgress > 0) return "Marker found. Hold still.";
-            return "Find the marker. Keep the full border visible.";
+                return "カメラ映像が停止しています。「カメラを再確認」を選んでください。";
+            if (alignment != null && alignment.CalibrationProgress > 0) return "マーカーを検出しました。頭を動かさずに待ってください。";
+            return "マーカー全体を視界に収め、静止して待ってください。";
 #endif
 #endif
         }
