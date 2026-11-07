@@ -62,10 +62,11 @@ function setup() {
   return { delivery, view, next, contentRoot, session, created };
 }
 
-it("releases retired group textures after detaching their draw references and reuses shared textures", async () => {
+it("reuses prepared future textures and releases completed-only textures after advancing", async () => {
   const { delivery, view, next, session, contentRoot, created } = setup();
   await session.present(delivery, view);
   expect(created).toHaveLength(3);
+  await vi.waitFor(() => expect(created).toHaveLength(4));
   const root = contentRoot.children[0];
   await session.present(delivery, next);
   expect(contentRoot.children).toEqual([root]);
@@ -73,9 +74,7 @@ it("releases retired group textures after detaching their draw references and re
   expect(created[2]!.dispose).toHaveBeenCalledOnce();
   expect(created[0]!.dispose).not.toHaveBeenCalled();
   expect(created[1]!.dispose).not.toHaveBeenCalled();
-  await session.present(delivery, view);
-  expect(created).toHaveLength(5);
-  expect(created[3]!.dispose).toHaveBeenCalledOnce();
+  expect(created[3]!.dispose).not.toHaveBeenCalled();
   session.dispose();
   expect(created.every((item) => item.dispose.mock.calls.length === 1)).toBe(true);
 });
@@ -106,7 +105,9 @@ it("detaches the old display before loading a jump that cannot coexist within th
     return result;
   });
   await session.present(delivery, next);
-  expect(created.slice(0, 3).every((item) => item.dispose.mock.calls.length === 1)).toBe(true);
+  expect(created[2]!.dispose).toHaveBeenCalledOnce();
+  expect(created[0]!.dispose).not.toHaveBeenCalled();
+  expect(created[1]!.dispose).not.toHaveBeenCalled();
   expect(contentRoot.children).toHaveLength(1);
   expect(contentRoot.children[0]).not.toBe(previousRoot);
   session.dispose();

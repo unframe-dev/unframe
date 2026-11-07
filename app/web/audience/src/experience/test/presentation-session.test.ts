@@ -52,6 +52,10 @@ beforeEach(() => {
   vi.mocked(createPngTexturePool).mockImplementation(async () => ({
     assets: [],
     residentAssets: [],
+    activateGroup: vi.fn(),
+    warm: vi.fn(async () => {}),
+    stopWarming: vi.fn(async () => {}),
+    discardWarm: vi.fn(),
     canAcquire: vi.fn(() => true),
     acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
     retainedCpuBytes: 0,
@@ -88,6 +92,8 @@ describe("presentation session resources", () => {
     const { session } = setup();
     await session.present(delivery, view);
     await expect(session.present(delivery, view)).rejects.toThrow("budget");
+    const pool = await vi.mocked(createPngTexturePool).mock.results[0]!.value;
+    expect(pool.activateGroup).toHaveBeenCalledOnce();
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentCpuBytes).toBe(4096);
     expect(vi.mocked(createPresentation).mock.calls[1]![0].residentResources).toEqual({
       gpuBytes: 100,
@@ -102,6 +108,10 @@ describe("presentation session resources", () => {
     vi.mocked(createPngTexturePool).mockResolvedValueOnce({
       assets: [{ checksum: "shared" }],
       residentAssets: [{ checksum: "shared" }],
+      activateGroup: vi.fn(),
+      warm: vi.fn(async () => {}),
+      stopWarming: vi.fn(async () => {}),
+      discardWarm: vi.fn(),
       canAcquire: vi.fn(() => true),
       acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
       retainedCpuBytes: 0,
@@ -170,6 +180,8 @@ describe("presentation session resources", () => {
     finish(discarded);
     await Promise.all([pending, replacement]);
     expect(discarded.dispose).toHaveBeenCalledOnce();
+    const discardedPool = await vi.mocked(createPngTexturePool).mock.results[0]!.value;
+    expect(discardedPool.activateGroup).not.toHaveBeenCalled();
     expect(vi.mocked(createPresentation).mock.calls[1]![0].host).toBe(nextHost);
     session.dispose();
   });
@@ -446,6 +458,10 @@ it("waits for PNG residency, reuses it for the same delivery and releases it wit
   const pool = {
     assets: [],
     residentAssets: [],
+    activateGroup: vi.fn(),
+    warm: vi.fn(async () => {}),
+    stopWarming: vi.fn(async () => {}),
+    discardWarm: vi.fn(),
     canAcquire: vi.fn(() => true),
     acquire: vi.fn(async () => ({ assets: [], release: vi.fn() })),
     retainedCpuBytes: 0,
@@ -552,5 +568,30 @@ it("rejects shadow-casting lights when the XR renderer cannot expose shadow supp
   } as DeliveryManifestWire;
   await expect(session.present(lit, view)).rejects.toThrow("shadow");
   expect(createPresentation).not.toHaveBeenCalled();
+  session.dispose();
+});
+
+it("shows the current group without waiting for speculative textures and preserves warming on view updates", async () => {
+  const createPool = vi.mocked(createPngTexturePool).getMockImplementation()!;
+  vi.mocked(createPngTexturePool).mockImplementationOnce(async (options) => {
+    const pool = await createPool(options);
+    vi.mocked(pool.warm).mockImplementation(() => new Promise(() => {}));
+    return pool;
+  });
+  const current = loaded();
+  vi.mocked(current.applyView).mockReturnValue(true);
+  vi.mocked(createPresentation).mockResolvedValue(current);
+  const { session } = setup();
+  await session.present(delivery, view);
+  const pool = await vi.mocked(createPngTexturePool).mock.results[0]!.value;
+  expect(pool.warm).toHaveBeenCalledWith({
+    signal: expect.any(AbortSignal),
+    residentCpuBytes: 4096,
+    residentResources: { gpuBytes: 100, bindings: 1 },
+  });
+  vi.mocked(pool.stopWarming).mockClear();
+  await session.present(delivery, view);
+  expect(pool.stopWarming).not.toHaveBeenCalled();
+  expect(current.applyView).toHaveBeenCalledOnce();
   session.dispose();
 });
