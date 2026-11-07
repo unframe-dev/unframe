@@ -562,6 +562,72 @@ public sealed class QuestRoomParticipationTests
     }
 
     [Test]
+    public async Task DeliveryDeadlineDoesNotLoseALateViewerRotationOrRetainItsLease()
+    {
+        var time = DateTimeOffset.UtcNow;
+        var refreshStarted = new TaskCompletionSource<bool>();
+        var rotation = new TaskCompletionSource<HttpResponseMessage>();
+        int deliveryRequests = 0;
+        var handler = new DeferredHandler
+        {
+            Respond = (request, token) =>
+            {
+                if (request.Method == HttpMethod.Delete) return Task.FromResult(Json("{}", HttpStatusCode.NoContent));
+                if (request.RequestUri.AbsolutePath.EndsWith("/refresh"))
+                {
+                    Assert.That(request.Headers.Authorization.Parameter, Is.EqualTo("viewer_original"));
+                    refreshStarted.TrySetResult(true);
+                    return DelayedResponse(rotation.Task, token);
+                }
+                return Task.FromResult(request.RequestUri.AbsolutePath == "/viewer-credentials"
+                    ? Json(ViewerJson("viewer_original", time.AddMinutes(1)), HttpStatusCode.Created)
+                    : Json("{\"id\":\"shared-room\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}"));
+            }
+        };
+        var deliveryHandler = new Handler
+        {
+            Respond = _ =>
+            {
+                deliveryRequests++;
+                return Json("{}");
+            }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, now: () => time))
+        using (var client = new HttpClient(deliveryHandler))
+        {
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            time = time.AddSeconds(31);
+            var connection = new PresentationControlPlaneConnection(api.Origin, "shared-room",
+                token => api.ViewerCredentialAsync("shared-room", token),
+                credentialLeaseProvider: token => api.AcquireViewerCredentialAsync("shared-room", token),
+                requestTimeout: TimeSpan.FromMilliseconds(100));
+            Task delivery = connection.LoadDeliveryAsync(client, CancellationToken.None);
+            try
+            {
+                Assert.That(await Task.WhenAny(refreshStarted.Task, Task.Delay(3000)), Is.SameAs(refreshStarted.Task));
+                Assert.That(await Task.WhenAny(delivery, Task.Delay(3000)), Is.SameAs(delivery), "The request deadline must finish while rotation is still awaiting its response.");
+                Assert.That(delivery.IsCanceled, Is.True);
+                Assert.That(rotation.Task.IsCompleted, Is.False);
+                rotation.SetResult(Json(ViewerJson("viewer_renewed", time.AddHours(1))));
+                Task<string> credential = api.ViewerCredentialAsync("shared-room", CancellationToken.None);
+                Assert.That(await Task.WhenAny(credential, Task.Delay(5000)), Is.SameAs(credential), "The late credential lease must not block subsequent credential requests.");
+                Assert.That(await credential, Is.EqualTo("viewer_renewed"));
+                Assert.That(api.HasViewerCredential("shared-room"), Is.True);
+                Assert.That(deliveryRequests, Is.Zero);
+            }
+            finally
+            {
+                rotation.TrySetResult(Json(ViewerJson("viewer_renewed", time.AddHours(1))));
+                if (await Task.WhenAny(delivery, Task.Delay(5000)) == delivery)
+                {
+                    try { await delivery; }
+                    catch (OperationCanceledException) { }
+                }
+            }
+        }
+    }
+
+    [Test]
     public async Task RevokesACredentialFromALateIssuanceResponseAfterCancellation()
     {
         var issued = new TaskCompletionSource<HttpResponseMessage>();

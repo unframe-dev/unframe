@@ -324,8 +324,10 @@ public sealed class QuestPresentationStatusViewTests
         Assert.That(view.FindButton("Exit").interactable, Is.True);
     }
 
-    [Test]
-    public void ExternalAudienceKeepsItsRoleAndMenuAcrossReconnectAndResetsOnSessionChange()
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public void ExternalRoleOverridesAudienceSelectionAndSurvivesReconnect(bool externalPresenter, bool previouslyConnectedAudience)
     {
         host = new GameObject("External audience reconnect");
         head = new GameObject("Head", typeof(Camera));
@@ -357,16 +359,41 @@ public sealed class QuestPresentationStatusViewTests
             typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
             try
             {
-                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
                 var view = host.AddComponent<QuestPresentationStatusView>();
                 view.Configure(entry, null, head.transform, session);
+                if (externalPresenter)
+                {
+                    var onboarding = host.AddComponent<QuestOnboardingView>();
+                    onboarding.Configure(null, entry, null, head.transform, null);
+                    onboarding.Flow.SelectRole(QuestOnboardingRole.Audience);
+                    onboarding.CompleteExternalConnection();
+                    view.AttachOnboarding(onboarding);
+                }
+                if (previouslyConnectedAudience)
+                {
+                    typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+                    view.Refresh();
+                    Assert.That(view.AudienceMode, Is.True);
+                    typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+                    session.ConfigureConnection(new System.Uri("https://api.example.com/"), "audience-session",
+                        _ => System.Threading.Tasks.Task.FromResult("presenter-credential"));
+                }
+                if (externalPresenter)
+                {
+                    delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Presenter;
+                    Assert.That(store.TryReceiveDelivery(delivery, out error), Is.True, error);
+                }
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+                view.Refresh();
                 Assert.That(entry.ControlReady, Is.True);
-                Assert.That(view.AudienceMode, Is.True);
+                Assert.That(entry.IsPresenter, Is.EqualTo(externalPresenter));
+                Assert.That(view.AudienceMode, Is.EqualTo(!externalPresenter));
+                Assert.That(view.FindButton("Next").gameObject.activeSelf, Is.EqualTo(externalPresenter));
                 view.SetMenuOpen(true);
                 typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
                 view.Refresh();
-                Assert.That(view.AudienceMode, Is.True);
-                Assert.That(view.FindButton("Next").gameObject.activeSelf, Is.False);
+                Assert.That(view.AudienceMode, Is.EqualTo(!externalPresenter));
+                Assert.That(view.FindButton("Next").gameObject.activeSelf, Is.EqualTo(externalPresenter));
                 typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
                 view.Refresh();
                 Assert.That(view.MenuOpen, Is.True);
@@ -374,7 +401,7 @@ public sealed class QuestPresentationStatusViewTests
                 session.ConfigureConnection(new System.Uri("https://api.example.com/"), "different-session",
                     _ => System.Threading.Tasks.Task.FromResult("private-credential"));
                 view.Refresh();
-                Assert.That(view.AudienceMode, Is.False);
+                Assert.That(view.AudienceMode, Is.EqualTo(externalPresenter));
             }
             finally
             {

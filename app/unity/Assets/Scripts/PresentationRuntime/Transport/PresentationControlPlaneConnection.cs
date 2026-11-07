@@ -304,8 +304,7 @@ namespace Unframe.Unity.PresentationRuntime
             PresentationCredentialLease lease;
             try
             {
-                lease = credentialLeaseProvider != null ? await credentialLeaseProvider(token)
-                    : new PresentationCredentialLease(await credentialProvider(token));
+                lease = await AcquireCredentialAsync(token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
             catch (PresentationConnectionException) { throw; }
@@ -318,6 +317,39 @@ namespace Unframe.Unity.PresentationRuntime
                 return new CredentialRequest(request, lease);
             }
             catch { lease?.Dispose(); throw; }
+        }
+
+        private async Task<PresentationCredentialLease> AcquireCredentialAsync(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            Task<PresentationCredentialLease> pending = credentialLeaseProvider != null
+                ? credentialLeaseProvider(token) : AcquireBearerLeaseAsync(token);
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (token.Register(() => cancelled.TrySetResult(true)))
+            {
+                if (await Task.WhenAny(pending, cancelled.Task) != pending)
+                {
+                    // Rotation can finish after the request ends; its lease must still release the credential gate.
+                    _ = ReleaseLateCredentialAsync(pending);
+                    token.ThrowIfCancellationRequested();
+                }
+                PresentationCredentialLease lease = await pending;
+                if (token.IsCancellationRequested)
+                {
+                    lease?.Dispose();
+                    token.ThrowIfCancellationRequested();
+                }
+                return lease;
+            }
+        }
+
+        private async Task<PresentationCredentialLease> AcquireBearerLeaseAsync(CancellationToken token)
+            => new PresentationCredentialLease(await credentialProvider(token));
+
+        private static async Task ReleaseLateCredentialAsync(Task<PresentationCredentialLease> pending)
+        {
+            try { using (await pending) { } }
+            catch (Exception) { }
         }
 
         private static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)

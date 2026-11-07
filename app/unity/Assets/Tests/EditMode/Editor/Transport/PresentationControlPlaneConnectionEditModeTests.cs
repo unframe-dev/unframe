@@ -92,6 +92,65 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
         }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task CredentialDeadlineStopsWaitingAndReleasesALateLease(bool bootstrap)
+    {
+        var pending = new TaskCompletionSource<PresentationCredentialLease>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int requests = 0;
+        using (var client = new HttpClient(new Worker { Respond = _ => { requests++; return new HttpResponseMessage(HttpStatusCode.Unauthorized); } }))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session",
+                _ => Task.FromResult("unused"), credentialLeaseProvider: _ => pending.Task,
+                requestTimeout: TimeSpan.FromMilliseconds(100));
+            var method = typeof(PresentationControlPlaneConnection).GetMethod("LoadBootstrapAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Task request = bootstrap ? (Task)method.Invoke(connection, new object[] { client, new DeliveryManifest(), CancellationToken.None })
+                : connection.LoadDeliveryAsync(client, CancellationToken.None);
+            try
+            {
+                Assert.That(await Task.WhenAny(request, Task.Delay(3000)), Is.SameAs(request), "The request must finish before credential rotation responds.");
+                Assert.That(request.IsCanceled, Is.True);
+                Assert.That(requests, Is.Zero);
+            }
+            finally
+            {
+                pending.TrySetResult(new PresentationCredentialLease("late-token", () => released.TrySetResult(true)));
+                try { await request; }
+                catch (OperationCanceledException) { }
+                catch (PresentationConnectionException) { }
+                Assert.That(await Task.WhenAny(released.Task, Task.Delay(3000)), Is.SameAs(released.Task), "Late credentials must not keep the rotation gate locked.");
+            }
+        }
+    }
+
+    [Test]
+    public async Task LocalCancellationStopsWaitingForABearerProviderThatCompletesLater()
+    {
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        int requests = 0;
+        using (var cancellation = new CancellationTokenSource())
+        using (var client = new HttpClient(new Worker { Respond = _ => { requests++; return new HttpResponseMessage(HttpStatusCode.Unauthorized); } }))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => pending.Task);
+            Task request = connection.LoadDeliveryAsync(client, cancellation.Token);
+            cancellation.Cancel();
+            try
+            {
+                Assert.That(await Task.WhenAny(request, Task.Delay(3000)), Is.SameAs(request));
+                Assert.That(request.IsCanceled, Is.True);
+                Assert.That(requests, Is.Zero);
+            }
+            finally
+            {
+                pending.TrySetException(new InvalidOperationException("Credential renewal failed after cancellation."));
+                try { await request; }
+                catch (OperationCanceledException) { }
+                catch (PresentationConnectionException) { }
+            }
+        }
+    }
+
     [Test]
     public void CredentialProviderPreservesTheSessionEndedReason()
     {

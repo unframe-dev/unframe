@@ -26,7 +26,7 @@ namespace Unframe.Unity.PresentationRuntime
         private bool resetWasPressed;
         private bool menuWasPressed;
         private bool menuOpen = true;
-        private bool audienceRole;
+        private bool? audienceRole;
         private string audienceSessionId;
         private string audienceOrigin;
         private bool detailsOpen;
@@ -62,7 +62,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             UnregisterRayHandler();
             DestroyPanel();
-            if (entry != sessionEntry) audienceRole = false;
+            if (entry != sessionEntry) audienceRole = null;
             session = controller;
             entry = sessionEntry;
             calibrationSource = source;
@@ -73,16 +73,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         private bool ResolveAudienceMode()
         {
-            if (onboarding != null && onboarding.Flow.Role != QuestOnboardingRole.None)
-                return onboarding.Flow.Role == QuestOnboardingRole.Audience;
             if (session != null && (audienceSessionId != session.SessionId || audienceOrigin != session.ControlPlaneOrigin))
             {
                 audienceSessionId = session.SessionId;
                 audienceOrigin = session.ControlPlaneOrigin;
-                audienceRole = false;
+                audienceRole = null;
             }
             if (entry != null && entry.ControlReady) audienceRole = !entry.IsPresenter;
-            return audienceRole;
+            return audienceRole ?? (onboarding != null && onboarding.Flow.Role == QuestOnboardingRole.Audience);
         }
 
         private QuestPresentationDisplayState ReadDisplayState()
