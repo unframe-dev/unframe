@@ -273,6 +273,125 @@ public sealed class PresentationScenePlaybackEditModeTests
         }
     }
 
+    [UnityTest]
+    public IEnumerator VideoReservationsDoNotConsumeThePngTextureWindowBudget()
+    {
+        CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot);
+        var bakedDelivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        var render = bakedDelivery.ProjectionProfile.RenderSurfaces[0].Clone();
+        foreach (var surface in bakedDelivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+            if (surface.SurfaceId == render.SemanticSurfaceId)
+            {
+                manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Add(surface.Clone());
+                foreach (var source in bakedDelivery.ProjectionProfile.RuntimeCatalog.Nodes)
+                    if (source.NodeId == surface.HostNodeId)
+                        foreach (var target in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+                            if (target.NodeId == source.NodeId) target.Surface = source.Surface.Clone();
+            }
+        foreach (var projection in bakedDelivery.ProjectionProfile.SemanticSurfaces)
+            if (projection.SemanticSurfaceId == render.SemanticSurfaceId)
+                manifest.ProjectionProfile.SemanticSurfaces.Add(projection.Clone());
+        manifest.ProjectionProfile.RenderSurfaces.Add(render);
+        manifest.CapabilityProfile = bakedDelivery.CapabilityProfile.Clone();
+        manifest.CapabilityProfile.Limits.Texture.MaxGpuBytes = 4;
+        manifest.CapabilityProfile.Limits.Texture.MaxTextureBindings = 1;
+        manifest.Residency.Textures = bakedDelivery.Residency.Textures.Clone();
+        manifest.AssetAccess.Add(PresentationTextureResidencyEditModeTests.Access("asset:texture"));
+        byte[] png = (byte[])typeof(PresentationTextureResidencyEditModeTests).GetField("Png", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+        byte[] video = PresentationTestFixtures.Load("Video").bytes;
+        string checksum;
+        using (var hash = System.Security.Cryptography.SHA256.Create())
+            checksum = "sha256:" + System.BitConverter.ToString(hash.ComputeHash(video)).Replace("-", "").ToLowerInvariant();
+        var artifact = new VideoArtifact
+        {
+            ArtifactId = "artifact:video",
+            ContractVersion = 1,
+            VideoAssetId = "asset:video",
+            Checksum = checksum,
+            EncodedSizeBytes = (ulong)video.Length,
+            Codec = VideoCodec.H264,
+            PixelSize = new PixelSize { Width = 320, Height = 180 },
+            DurationMs = 6000,
+            HasAudio = true,
+            Fit = SurfaceFit.Contain,
+            RequiredFeatures = { VideoFeature.H264, VideoFeature.Audio },
+        };
+        var videoRender = render.Clone();
+        videoRender.RenderSurfaceId = "render:video";
+        videoRender.SemanticSurfaceId = "surface:video";
+        videoRender.RendererKind = RendererKind.Video;
+        videoRender.Artifacts.Clear(); videoRender.Artifacts.Add(new DeliveredArtifact { Video = artifact });
+        foreach (var binding in videoRender.StateBindings) binding.Artifact.ArtifactId = artifact.ArtifactId;
+        manifest.ProjectionProfile.RenderSurfaces.Add(videoRender);
+        var pngSemantic = manifest.ProjectionProfile.RuntimeCatalog.Surfaces[0];
+        pngSemantic.LogicalSize = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+        pngSemantic.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+        var semantic = pngSemantic.Clone();
+        string pngHost = semantic.HostNodeId;
+        semantic.SurfaceId = videoRender.SemanticSurfaceId; semantic.HostNodeId = "node:video";
+        semantic.Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:video" } };
+        manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Add(semantic);
+        foreach (var source in bakedDelivery.ProjectionProfile.RuntimeCatalog.Nodes)
+            if (source.NodeId == pngHost)
+            {
+                var host = source.Clone(); host.NodeId = semantic.HostNodeId; host.Owner = semantic.Owner.Clone();
+                host.Surface.SemanticSurfaceId = semantic.SurfaceId;
+                manifest.ProjectionProfile.RuntimeCatalog.Nodes.Add(host);
+            }
+        var videoProjection = manifest.ProjectionProfile.SemanticSurfaces[0].Clone();
+        videoProjection.SemanticSurfaceId = semantic.SurfaceId;
+        videoProjection.RenderSurfaceIds.Clear(); videoProjection.RenderSurfaceIds.Add(videoRender.RenderSurfaceId);
+        manifest.ProjectionProfile.SemanticSurfaces.Add(videoProjection);
+        manifest.CapabilityProfile.Renderers.Video = new VideoCapability
+        { Supported = true, ContractVersion = 1, Features = { VideoFeature.H264, VideoFeature.Audio } };
+        manifest.CapabilityProfile.Limits.Video = new VideoLimits
+        {
+            TierId = "video-test",
+            MaxWidth = 320,
+            MaxHeight = 180,
+            MaxPixels = 320 * 180,
+            MaxConcurrentDecoders = 1,
+            MaxDecodedFrameBytes = 320 * 180 * 4,
+            MaxEncodedBytes = (ulong)video.Length,
+        };
+        manifest.AssetAccess.Add(new AssetAccessBinding
+        { AssetId = artifact.VideoAssetId, Checksum = checksum, EncodedSizeBytes = (ulong)video.Length, MediaType = "video/mp4" });
+        manifest.Residency.Video = new VideoResidencyPlan
+        {
+            BudgetTierId = "video-test",
+            MaximumConcurrentDecoders = 1,
+            MaximumDecodedFrameBytes = 320 * 180 * 4,
+            TotalEncodedBytes = (ulong)video.Length,
+            Videos = { new VideoResidencyBinding { AssetId = artifact.VideoAssetId, Checksum = checksum,
+                EncodedSizeBytes = (ulong)video.Length, DecodedFrameBytes = 320 * 180 * 4 } },
+        };
+        manifest.Residency.TotalSelectedEncodedBytes = (ulong)png.Length + (ulong)video.Length;
+        var initial = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
+        initial.ActiveRuns.Clear(); initial.SurfaceStates.Clear();
+        initial.SurfaceStates.Add(new SurfaceRuntimeState
+        { SurfaceId = render.SemanticSurfaceId, StateId = render.Artifacts[0].BakedWeb.States[0].StateId });
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(manifest, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        var root = new GameObject("independent video and PNG budgets");
+        var hierarchy = new PresentationNodeHierarchy();
+        using (var renderer = new PresentationSceneRenderer())
+        {
+            try
+            {
+                Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+                Task load = renderer.LoadAsync(store, hierarchy,
+                    (asset, _) => Task.FromResult(asset.AssetId == artifact.VideoAssetId ? video : png), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                Assert.That(renderer.Textures.ResidentGpuBytes, Is.EqualTo(4));
+                Assert.That(renderer.IsReady(store), Is.True);
+            }
+            finally { hierarchy.Clear(); Object.DestroyImmediate(root); }
+        }
+    }
+
     private static void CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot)
     {
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,

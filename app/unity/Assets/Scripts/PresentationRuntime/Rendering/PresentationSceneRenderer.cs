@@ -88,8 +88,9 @@ namespace Unframe.Unity.PresentationRuntime
                 }, token);
                 token.ThrowIfCancellationRequested();
                 native.GetTextureUsage(out ulong nativeGpu, out ulong nativeBindings);
-                preloadGpu = checked(modelGpuBytes + nativeGpu + store.Delivery.Residency.Video.MaximumDecodedFrameBytes);
-                preloadBindings = checked(modelTextureBindings + nativeBindings + store.Delivery.Residency.Video.MaximumConcurrentDecoders);
+                // Video residency has its own limits, independent of the PNG/model texture budget.
+                preloadGpu = checked(modelGpuBytes + nativeGpu);
+                preloadBindings = checked(modelTextureBindings + nativeBindings);
                 preloadCpu = checked(nativeGpu + store.Delivery.Residency.Models.TotalEncodedBytes + store.Delivery.Residency.Video.TotalEncodedBytes
                     + store.Delivery.Residency.Video.MaximumDecodedFrameBytes);
                 foreach (var asset in store.Delivery.AssetAccess)
