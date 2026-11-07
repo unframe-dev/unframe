@@ -270,4 +270,119 @@ public sealed class QuestPresentationStatusViewTests
         if (entering) Assert.That(onboarding.Flow.Role, Is.EqualTo(QuestOnboardingRole.Presenter));
         else Assert.That(view.Panel.transform.Find("Details text").gameObject.activeSelf, Is.True);
     }
+
+    [Test]
+    public void AudienceRoleAndOpenRecoveryMenuSurviveUnavailableControlConnection()
+    {
+        host = new GameObject("Audience recovery");
+        head = new GameObject("Head", typeof(Camera));
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        var onboarding = host.AddComponent<QuestOnboardingView>();
+        onboarding.Configure(null, entry, null, head.transform, null);
+        onboarding.Flow.SelectRole(QuestOnboardingRole.Audience);
+        onboarding.CompleteExternalConnection();
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(entry, null, head.transform);
+        view.AttachOnboarding(onboarding);
+        view.SetMenuOpen(true);
+
+        view.Refresh();
+
+        Assert.That(entry.ControlReady, Is.False);
+        Assert.That(view.AudienceMode, Is.True);
+        Assert.That(view.Panel.transform.Find("Heading").GetComponent<Text>().text, Is.EqualTo("鑑賞メニュー"));
+        Assert.That(view.FindButton("Next").gameObject.activeSelf, Is.False);
+        Assert.That(view.FindButton("Resume").gameObject.activeSelf, Is.False);
+        Assert.That(view.MenuOpen, Is.True);
+        view.FindButton("Details").onClick.Invoke();
+        view.Refresh();
+        Assert.That(view.Panel.transform.Find("Details text").gameObject.activeSelf, Is.True);
+        Assert.That(view.MenuOpen, Is.True);
+    }
+
+    [Test]
+    public void EndedSessionExplainsCompletionAndOffersExitWithoutReconnect()
+    {
+        host = new GameObject("Ended session");
+        head = new GameObject("Head", typeof(Camera));
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        var session = host.AddComponent<QuestPresentationSession>();
+        session.ConfigureConnection(new System.Uri("https://api.example.com/"), "ended-session",
+            _ => System.Threading.Tasks.Task.FromResult("private-credential"));
+        typeof(QuestPresentationEntry).GetField("<LastErrorCode>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)
+            .SetValue(entry, "session-ended");
+        var view = host.AddComponent<QuestPresentationStatusView>();
+        view.Configure(entry, null, head.transform, session);
+        typeof(QuestPresentationStatusView).GetField("operationError", BindingFlags.Instance | BindingFlags.NonPublic)
+            .SetValue(view, "operation-failed");
+        view.FindButton("Details").onClick.Invoke();
+
+        Assert.That(view.StatusText, Does.Contain("終了しました"));
+        Assert.That(view.FindButton("Retry").gameObject.activeSelf, Is.False);
+        Assert.That(view.FindButton("Connect").gameObject.activeSelf, Is.False);
+        Assert.That(view.FindButton("Exit").gameObject.activeSelf, Is.True);
+        Assert.That(view.FindButton("Exit").interactable, Is.True);
+    }
+
+    [Test]
+    public void ExternalAudienceKeepsItsRoleAndMenuAcrossReconnectAndResetsOnSessionChange()
+    {
+        host = new GameObject("External audience reconnect");
+        head = new GameObject("Head", typeof(Camera));
+        var entry = host.AddComponent<QuestPresentationEntry>();
+        var session = host.AddComponent<QuestPresentationSession>();
+        session.ConfigureConnection(new System.Uri("https://api.example.com/"), "audience-session",
+            _ => System.Threading.Tasks.Task.FromResult("private-credential"));
+        var runtime = host.GetComponent<PresentationBakedRuntime>();
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var store = (PresentationRuntimeDataStore)typeof(PresentationBakedRuntime).GetField("store", flags).GetValue(runtime);
+        var delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        delivery.ProjectionProfile.Key.Role = Unframe.Presentation.SessionRole.Viewer;
+        Assert.That(store.TryReceiveDelivery(delivery, out string error), Is.True, error);
+        using (var renderer = new PresentationSceneRenderer())
+        using (var realtime = new PresentationRealtimeConnection(store, new PresentationTextureResidency()))
+        using (var lifetime = new System.Threading.CancellationTokenSource())
+        {
+            typeof(PresentationSceneRenderer).GetProperty("Spatial").SetValue(renderer, new PresentationSpatialRenderer());
+            typeof(PresentationSceneRenderer).GetProperty("Textures").SetValue(renderer, new PresentationTextureResidency());
+            typeof(PresentationSceneRenderer).GetProperty("Models").SetValue(renderer, new PresentationModelResidency());
+            typeof(PresentationSceneRenderer).GetProperty("Videos").SetValue(renderer, new PresentationVideoResidency());
+            typeof(PresentationSceneRenderer).GetField("loaded", flags).SetValue(renderer, true);
+            typeof(PresentationSceneRenderer).GetField("files", flags).SetValue(renderer, new PresentationRuntimeAssetFiles());
+            typeof(PresentationSceneRenderer).GetField("native", flags).SetValue(renderer, new PresentationNativeSurfaceRenderer());
+            typeof(PresentationBakedRuntime).GetField("sceneRenderer", flags).SetValue(runtime, renderer);
+            typeof(PresentationBakedRuntime).GetField("connection", flags).SetValue(runtime, realtime);
+            typeof(PresentationBakedRuntime).GetProperty("DownloadReady").SetValue(runtime, true);
+            typeof(QuestPresentationEntry).GetField("runtime", flags).SetValue(entry, runtime);
+            typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, lifetime);
+            try
+            {
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+                var view = host.AddComponent<QuestPresentationStatusView>();
+                view.Configure(entry, null, head.transform, session);
+                Assert.That(entry.ControlReady, Is.True);
+                Assert.That(view.AudienceMode, Is.True);
+                view.SetMenuOpen(true);
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+                view.Refresh();
+                Assert.That(view.AudienceMode, Is.True);
+                Assert.That(view.FindButton("Next").gameObject.activeSelf, Is.False);
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, true);
+                view.Refresh();
+                Assert.That(view.MenuOpen, Is.True);
+                typeof(PresentationRealtimeConnection).GetProperty("ControlReady").SetValue(realtime, false);
+                session.ConfigureConnection(new System.Uri("https://api.example.com/"), "different-session",
+                    _ => System.Threading.Tasks.Task.FromResult("private-credential"));
+                view.Refresh();
+                Assert.That(view.AudienceMode, Is.False);
+            }
+            finally
+            {
+                lifetime.Cancel();
+                typeof(QuestPresentationEntry).GetField("lifetime", flags).SetValue(entry, null);
+                typeof(PresentationBakedRuntime).GetField("connection", flags).SetValue(runtime, null);
+                typeof(PresentationBakedRuntime).GetField("sceneRenderer", flags).SetValue(runtime, null);
+            }
+        }
+    }
 }

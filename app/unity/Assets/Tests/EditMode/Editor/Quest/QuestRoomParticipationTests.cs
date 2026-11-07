@@ -398,6 +398,33 @@ public sealed class QuestRoomParticipationTests
         }
     }
 
+    [Test]
+    public async Task EndedViewerRefreshReleasesItsCredentialAndPreservesTheTerminalReason()
+    {
+        var time = DateTimeOffset.UtcNow;
+        var handler = new Handler
+        {
+            Respond = request =>
+            {
+                if (request.Method == HttpMethod.Delete) return Json("{}", HttpStatusCode.Gone);
+                if (request.RequestUri.AbsolutePath.EndsWith("/refresh"))
+                    return Json("{\"error\":{\"code\":\"session_ended\"}}", HttpStatusCode.Gone);
+                if (request.RequestUri.AbsolutePath == "/viewer-credentials")
+                    return Json(ViewerJson("viewer_original", time.AddSeconds(60)), HttpStatusCode.Created);
+                return Json("{\"id\":\"shared-room\",\"state\":\"Waiting\",\"presentationId\":\"p1\"}");
+            }
+        };
+        using (var api = new QuestOnboardingApi(new Uri("https://api.example"), new Uri("https://web.example"), "unity", handler, now: () => time))
+        {
+            await api.JoinSessionAsync("ABCD-EFGH", CancellationToken.None);
+            time = time.AddSeconds(31);
+            var error = Assert.ThrowsAsync<QuestOnboardingApiException>(() => api.ViewerCredentialAsync("shared-room", CancellationToken.None));
+            Assert.That(error.Code, Is.EqualTo("session-ended"));
+            Assert.That(api.ViewerErrorCode, Is.EqualTo("session-ended"));
+            Assert.That(api.HasViewerCredential("shared-room"), Is.False);
+        }
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public async Task ViewerRefreshExchangesOnlyItsOwnCredentialAndPreservesTheAccount(bool rejected)

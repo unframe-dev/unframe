@@ -44,7 +44,34 @@ public sealed class QuestOnboardingExperienceTests
         Vector3 target = view.FindButton("Aligned").transform.position;
         Assert.That(view.HandleRay(new Ray(head.transform.position, target - head.transform.position)), Is.True);
         Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Calibration));
-        Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("頭をゆっくり動かします"));
+        Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("マーカー全体"));
+    }
+
+    [Test]
+    public void CalibrationUsesCameraFailureGuidanceAndRefreshesWhenTrackingChanges()
+    {
+        var view = CreateView();
+        var cameraHost = new GameObject("Calibration camera");
+        try
+        {
+            var preview = cameraHost.AddComponent<PassthroughCameraDevicePreview>();
+            var alignment = cameraHost.GetComponent<AprilTagOriginAlignment>();
+            var calibration = cameraHost.AddComponent<AprilTagPresentationCalibration>();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(PassthroughCameraDevicePreview).GetField("alignment", flags).SetValue(preview, alignment);
+            typeof(AprilTagPresentationCalibration).GetField("alignment", flags).SetValue(calibration, alignment);
+            view.Configure(null, null, calibration, head.transform, null);
+            view.Flow.GoTo(QuestOnboardingPage.Calibration);
+            view.Refresh();
+            Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("Quest"));
+
+            typeof(AprilTagOriginAlignment).GetProperty("TrackingAvailable").SetValue(alignment, false);
+            typeof(QuestOnboardingView).GetMethod("Update", flags).Invoke(view, null);
+
+            Assert.That(view.Panel.transform.Find("Alignment").GetComponent<Text>().text, Does.Contain("追跡"));
+            Assert.That(view.FindButton("Aligned").interactable, Is.False);
+        }
+        finally { Object.DestroyImmediate(cameraHost); }
     }
 
     [UnityTest]

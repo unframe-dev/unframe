@@ -298,6 +298,7 @@ public sealed class QuestOnboardingApi : IDisposable
     public Task<QuestOnboardingRoom> JoinSessionAsync(string code, CancellationToken token)
         => viewer.JoinAsync((code ?? String.Empty).Trim().ToUpperInvariant(), token);
 
+    public string ViewerErrorCode => viewer.TerminalErrorCode;
     public bool HasViewerCredential(string sessionId) => viewer.IsValid(sessionId);
     public Task<string> ViewerCredentialAsync(string sessionId, CancellationToken token) => viewer.CredentialAsync(sessionId, token);
     public Task<PresentationCredentialLease> AcquireViewerCredentialAsync(string sessionId, CancellationToken token)

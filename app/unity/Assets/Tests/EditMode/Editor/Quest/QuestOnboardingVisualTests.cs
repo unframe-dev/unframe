@@ -58,7 +58,7 @@ public sealed class QuestOnboardingVisualTests
             Directory.CreateDirectory(directory);
             var expected = new[] { QuestOnboardingPage.Role, QuestOnboardingPage.Authentication,
                 QuestOnboardingPage.Presentations, QuestOnboardingPage.Preparation,
-                QuestOnboardingPage.Calibration, QuestOnboardingPage.Ready, QuestOnboardingPage.RoomCode };
+                QuestOnboardingPage.Calibration, QuestOnboardingPage.Ready, QuestOnboardingPage.RoomCode, QuestOnboardingPage.Ended };
             for (int screen = 0; screen < expected.Length; screen++)
             {
                 view.Flow.GoTo(expected[screen]);

@@ -70,9 +70,83 @@ public sealed class QuestOnboardingRecoveryTests
         Set(entry, "lifetime", connectionLifetime);
         view.Configure(null, entry, null, head.transform, api);
         Set(view, "room", Room("session"));
+        Set(view, "connectedSessionId", "session");
         Set(view, "ownsConnection", true);
         Set(view, "message", "ルームの準備を待っています。");
         Assert.That(entry.ControlReady, Is.True);
+    }
+
+    [TestCase(QuestOnboardingPage.Calibration)]
+    [TestCase(QuestOnboardingPage.Ready)]
+    public void ConnectionFailureDuringAlignmentExplainsRecoveryAndOffersRetry(QuestOnboardingPage page)
+    {
+        PrepareConnectedEntry();
+        view.Flow.SelectRole(QuestOnboardingRole.Presenter);
+        view.Flow.GoTo(page);
+        connectionLifetime.Cancel();
+        typeof(QuestPresentationEntry).GetProperty("LastErrorCode").SetValue(host.GetComponent<QuestPresentationEntry>(), "network-unavailable");
+        Set(host.GetComponent<QuestPresentationEntry>(), "connectionStage", PresentationConnectionStage.Failed);
+
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+
+        Assert.That(view.FindButton("RetryConnection"), Is.Not.Null);
+        Assert.That(view.FindButton("RetryConnection").interactable, Is.True);
+        Assert.That(view.Panel.transform.Find("Message").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("再接続"));
+        Assert.That(view.FindButton(page == QuestOnboardingPage.Ready ? "Begin" : "Aligned").interactable, Is.False);
+    }
+
+    [Test]
+    public void EndedAudienceSessionReturnsToCompletionInsteadOfRejoining()
+    {
+        PrepareConnectedEntry(false);
+        view.Flow.SelectRole(QuestOnboardingRole.Audience);
+        view.CompleteExternalConnection();
+        head.transform.position = new Vector3(5, 0, 0);
+        typeof(QuestPresentationEntry).GetProperty("LastErrorCode").SetValue(host.GetComponent<QuestPresentationEntry>(), "session-ended");
+
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+
+        Assert.That(view.IsComplete, Is.False);
+        Assert.That(view.Flow.Page.ToString(), Is.EqualTo("Ended"));
+        Assert.That(view.Panel.transform.Find("Heading").GetComponent<UnityEngine.UI.Text>().text, Does.Contain("終了"));
+        Assert.That(view.FindButton("Join"), Is.Null);
+        Assert.That(view.FindButton("RetryConnection"), Is.Null);
+        Assert.That(Vector3.Distance(view.Panel.transform.position, head.transform.position), Is.LessThan(2));
+        view.FindButton("LeaveEndedSession").onClick.Invoke();
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Role));
+    }
+
+    [Test]
+    public void PreviousAudienceCompletionDoesNotEndADifferentPresenterRoom()
+    {
+        PrepareConnectedEntry(false);
+        view.Flow.SelectRole(QuestOnboardingRole.Audience);
+        var viewer = typeof(QuestOnboardingApi).GetField("viewer", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(api);
+        viewer.GetType().GetProperty("TerminalErrorCode").SetValue(viewer, "session-ended");
+        typeof(QuestPresentationEntry).GetProperty("LastErrorCode").SetValue(host.GetComponent<QuestPresentationEntry>(), "session-ended");
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+        view.FindButton("LeaveEndedSession").onClick.Invoke();
+        view.Flow.SelectRole(QuestOnboardingRole.Presenter);
+        view.Flow.GoTo(QuestOnboardingPage.Preparation);
+        Set(view, "room", Room("another-session"));
+
+        typeof(QuestOnboardingView).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(view, null);
+
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Preparation));
+    }
+
+    [Test]
+    public async Task RepeatedCancellationWaitsForThePreviousStopBeforeReleasingCredentials()
+    {
+        var previous = new TaskCompletionSource<bool>();
+        Set(view, "stopTask", previous.Task);
+        view.ResetFlow();
+        view.ResetFlow();
+        var stopping = (Task)typeof(QuestOnboardingView).GetField("stopTask", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(view);
+        Assert.That(stopping.IsCompleted, Is.False);
+        previous.SetResult(true);
+        await stopping;
+        Assert.That(stopping.IsCompleted, Is.True);
     }
 
     [Test]

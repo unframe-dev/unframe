@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace Unframe.Unity.PresentationRuntime
 {
     public enum QuestOnboardingRole { None, Presenter, Audience }
-    public enum QuestOnboardingPage { Role, Authentication, Rooms, RoomCode, Presentations, Preparation, Join, Calibration, Ready }
+    public enum QuestOnboardingPage { Role, Authentication, Rooms, RoomCode, Presentations, Preparation, Join, Calibration, Ready, Ended }
 
     public static class QuestOnboardingStart
     {

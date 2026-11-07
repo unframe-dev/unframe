@@ -44,6 +44,7 @@ namespace Unframe.Unity.PresentationRuntime
             public Publication publicationFence;
         }
 
+        private readonly TimeSpan requestTimeout;
         private readonly Uri controlPlane;
         private readonly string sessionId;
         private readonly Func<CancellationToken, Task<string>> credentialProvider;
@@ -62,13 +63,15 @@ namespace Unframe.Unity.PresentationRuntime
         public PresentationControlPlaneConnection(Uri controlPlane, string sessionId, Func<CancellationToken, Task<string>> credentialProvider,
             PresentationRuntimeHost runtimeHost = null, Func<HttpMessageHandler> httpHandlerFactory = null,
             Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, Action<PresentationConnectionStage> reportStage = null, PresentationSessionDiagnostics diagnostics = null,
-            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null)
+            Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider = null, TimeSpan? requestTimeout = null)
         {
             if (controlPlane == null || !controlPlane.IsAbsoluteUri || controlPlane.Scheme != "https"
                 || controlPlane.AbsolutePath != "/" || !string.IsNullOrEmpty(controlPlane.UserInfo)
                 || !string.IsNullOrEmpty(controlPlane.Query) || !string.IsNullOrEmpty(controlPlane.Fragment)
                 || string.IsNullOrEmpty(sessionId) || credentialProvider == null)
                 throw new ArgumentException("An authenticated HTTPS Control Plane origin and session are required.");
+            this.requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
+            if (this.requestTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(requestTimeout));
             this.reportStage = reportStage;
             this.diagnostics = diagnostics?.ForSession(sessionId);
             this.controlPlane = controlPlane;
@@ -173,6 +176,15 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task<DeliveryManifest> LoadDeliveryAsync(HttpClient client, CancellationToken token)
         {
+            using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                deadline.CancelAfter(requestTimeout);
+                return await LoadDeliveryCoreAsync(client, deadline.Token);
+            }
+        }
+
+        private async Task<DeliveryManifest> LoadDeliveryCoreAsync(HttpClient client, CancellationToken token)
+        {
             using (CredentialRequest authenticated = await RequestAsync(HttpMethod.Post, "delivery", token))
             {
                 HttpRequestMessage request = authenticated.Request;
@@ -197,6 +209,15 @@ namespace Unframe.Unity.PresentationRuntime
         }
 
         private async Task<Bootstrap> LoadBootstrapAsync(HttpClient client, DeliveryManifest delivery, CancellationToken token)
+        {
+            using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                deadline.CancelAfter(requestTimeout);
+                return await LoadBootstrapCoreAsync(client, delivery, deadline.Token);
+            }
+        }
+
+        private async Task<Bootstrap> LoadBootstrapCoreAsync(HttpClient client, DeliveryManifest delivery, CancellationToken token)
         {
             diagnostics?.Record("http.request", kind: "Bootstrap", direction: "send");
             using (CredentialRequest authenticated = await RequestAsync(HttpMethod.Post, "bootstrap", token))
@@ -228,7 +249,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         private static async Task<PresentationConnectionException> ResponseFailureAsync(HttpResponseMessage response, CancellationToken token)
         {
-            if (response.StatusCode == System.Net.HttpStatusCode.Conflict
+            if ((response.StatusCode == System.Net.HttpStatusCode.Conflict || response.StatusCode == System.Net.HttpStatusCode.Gone)
                 && string.Equals(response.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase))
             {
                 try
@@ -236,9 +257,13 @@ namespace Unframe.Unity.PresentationRuntime
                     byte[] bytes = await ReadBoundedAsync(response.Content, 64 * 1024, token);
                     Struct body = JsonParser.Default.Parse<Struct>(System.Text.Encoding.UTF8.GetString(bytes));
                     if (body.Fields.TryGetValue("error", out Value error) && error.KindCase == Value.KindOneofCase.StructValue
-                        && error.StructValue.Fields.TryGetValue("code", out Value code) && code.KindCase == Value.KindOneofCase.StringValue
-                        && code.StringValue == "runtime_unavailable")
-                        return new PresentationConnectionException("runtime-unavailable");
+                        && error.StructValue.Fields.TryGetValue("code", out Value code) && code.KindCase == Value.KindOneofCase.StringValue)
+                    {
+                        if (response.StatusCode == System.Net.HttpStatusCode.Gone && code.StringValue == "session_ended")
+                            return new PresentationConnectionException("session-ended");
+                        if (response.StatusCode == System.Net.HttpStatusCode.Conflict && code.StringValue == "runtime_unavailable")
+                            return new PresentationConnectionException("runtime-unavailable");
+                    }
                 }
                 catch (Exception) when (!token.IsCancellationRequested) { }
             }
@@ -283,6 +308,7 @@ namespace Unframe.Unity.PresentationRuntime
                     : new PresentationCredentialLease(await credentialProvider(token));
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch (PresentationConnectionException) { throw; }
             catch (Exception) { throw new PresentationConnectionException("credential-unavailable"); }
             try
             {

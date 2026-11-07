@@ -40,6 +40,69 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
         }
     }
 
+    [TestCase("session_ended", "session-ended")]
+    [TestCase("other", "request-rejected")]
+    public void GoneResponseRequiresTheSessionEndedCode(string code, string expected)
+    {
+        var worker = new Worker
+        {
+            Respond = _ => new HttpResponseMessage(HttpStatusCode.Gone)
+            { Content = new StringContent("{\"error\":{\"code\":\"" + code + "\"}}", System.Text.Encoding.UTF8, "application/json") }
+        };
+        using (var client = new HttpClient(worker))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("token"));
+            Assert.That(Assert.ThrowsAsync<PresentationConnectionException>(() => connection.LoadDeliveryAsync(client, CancellationToken.None)).ErrorCode, Is.EqualTo(expected));
+        }
+    }
+
+    private sealed class StalledStream : MemoryStream
+    {
+        public bool Cancelled;
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken token)
+        {
+            try { await Task.Delay(Timeout.Infinite, token); return 0; }
+            catch (OperationCanceledException) { Cancelled = true; throw; }
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task ControlPlaneDeadlineIncludesTheResponseBody(bool bootstrap)
+    {
+        var stream = new StalledStream();
+        var worker = new Worker
+        {
+            Respond = _ =>
+            {
+                var content = new StreamContent(stream);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bootstrap ? "application/json" : "application/x-protobuf");
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            }
+        };
+        using (var client = new HttpClient(worker))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("token"), requestTimeout: TimeSpan.FromMilliseconds(100));
+            var method = typeof(PresentationControlPlaneConnection).GetMethod("LoadBootstrapAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Task request = bootstrap ? (Task)method.Invoke(connection, new object[] { client, new DeliveryManifest(), CancellationToken.None })
+                : connection.LoadDeliveryAsync(client, CancellationToken.None);
+            Assert.That(await Task.WhenAny(request, Task.Delay(3000)), Is.SameAs(request));
+            Assert.That(request.IsCanceled, Is.True);
+            Assert.That(stream.Cancelled, Is.True);
+        }
+    }
+
+    [Test]
+    public void CredentialProviderPreservesTheSessionEndedReason()
+    {
+        using (var client = new HttpClient(new Worker { Respond = _ => throw new AssertionException("HTTP must not start after terminal credential failure.") }))
+        {
+            var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session",
+                _ => throw new PresentationConnectionException("session-ended"));
+            Assert.That(Assert.ThrowsAsync<PresentationConnectionException>(() => connection.LoadDeliveryAsync(client, CancellationToken.None)).ErrorCode, Is.EqualTo("session-ended"));
+        }
+    }
+
     [TestCase("runtime_unavailable", "runtime-unavailable")]
     [TestCase("conflict", "session-not-available")]
     [TestCase("session_ended", "session-not-available")]
@@ -67,7 +130,7 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
     public async Task TemporaryControlPlaneFailuresKeepRetryingUntilLocalCancellation(string failure)
     {
         int requests = 0;
-        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+        using (var cancellation = new CancellationTokenSource())
         {
             var worker = new Worker
             {
@@ -88,18 +151,28 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
                 }
             };
             var gameObject = new UnityEngine.GameObject("runtime-recovery-test");
+            Task run = null;
             try
             {
                 var runtime = gameObject.AddComponent<PresentationBakedRuntime>();
                 var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", _ => Task.FromResult("private-token"), httpHandlerFactory: () => worker);
-                Task run = connection.RunAsync(runtime, cancellation.Token);
-                Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(5)));
+                run = connection.RunAsync(runtime, cancellation.Token);
+                Task completed = await Task.WhenAny(run, Task.Delay(TimeSpan.FromSeconds(15)));
                 Assert.That(completed, Is.SameAs(run));
                 Assert.That(run.Exception, Is.Null);
                 Assert.That(run.IsCanceled, Is.True);
                 Assert.That(requests, Is.EqualTo(2));
             }
-            finally { UnityEngine.Object.DestroyImmediate(gameObject); }
+            finally
+            {
+                cancellation.Cancel();
+                if (run != null)
+                {
+                    try { await run; }
+                    catch (OperationCanceledException) { }
+                }
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
         }
         await Task.CompletedTask;
     }

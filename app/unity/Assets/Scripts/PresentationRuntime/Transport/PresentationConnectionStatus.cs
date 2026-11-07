@@ -39,7 +39,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         public static bool CanRetryControlPlane(Exception exception)
         {
-            if (exception is HttpRequestException || exception is System.Threading.Tasks.TaskCanceledException) return true;
+            if (exception is HttpRequestException || exception is OperationCanceledException) return true;
             return exception is PresentationConnectionException failure
                 && (failure.ErrorCode == "runtime-unavailable" || failure.ErrorCode == "service-busy" || failure.ErrorCode == "service-unavailable");
         }

@@ -11,6 +11,8 @@ using Unframe.Unity.PresentationRuntime;
 
 internal sealed class QuestAnonymousViewer
 {
+    [Serializable] private sealed class ApiError { public string code; }
+    [Serializable] private sealed class ApiErrorResponse { public ApiError error; }
     [Serializable] private sealed class JoinRequest { public string joinCode; }
     [Serializable] private sealed class CredentialResponse { public string token; public string expiresAt; public string sessionId; public string participantId; }
     [Serializable] private sealed class RoomResponse { public string id; public string presentationId; public string state; }
@@ -29,6 +31,8 @@ internal sealed class QuestAnonymousViewer
     public QuestAnonymousViewer(HttpClient client, Uri origin, Func<DateTimeOffset> now)
     { this.client = client; this.origin = origin; this.now = now; }
 
+    public string TerminalErrorCode { get; private set; }
+
     public bool IsValid(string id) => !disposed && sessionId == id && credential != null && expiresAt > now();
 
     public async Task<QuestOnboardingRoom> JoinAsync(string code, CancellationToken token)
@@ -40,12 +44,13 @@ internal sealed class QuestAnonymousViewer
             if (disposed) throw new ObjectDisposedException(nameof(QuestAnonymousViewer));
             await ClearAndRevokeAsync();
             if (pendingRevocation != null) throw new QuestOnboardingApiException("viewer-revocation-pending");
+            TerminalErrorCode = null;
             using (var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token))
             {
                 // A cancelled UI must still revoke a credential whose issuance response arrives late.
                 using (var response = await SendAsync(HttpMethod.Post, "/viewer-credentials", new JoinRequest { joinCode = code }, null, lifetime.Token))
                 {
-                    RequireSuccess(response);
+                    await RequireSuccessAsync(response);
                     SetCredential(JsonUtility.FromJson<CredentialResponse>(await response.Content.ReadAsStringAsync()), null);
                 }
                 try
@@ -54,7 +59,7 @@ internal sealed class QuestAnonymousViewer
                     linked.Token.ThrowIfCancellationRequested();
                     using (var response = await SendAsync(HttpMethod.Get, "/sessions/" + Uri.EscapeDataString(sessionId), null, credential, linked.Token))
                     {
-                        RequireSuccess(response);
+                        await RequireSuccessAsync(response);
                         var room = JsonUtility.FromJson<RoomResponse>(await response.Content.ReadAsStringAsync());
                         if (room?.id != sessionId || room.state != "Waiting" && room.state != "Presenting")
                             throw new QuestOnboardingApiException(room?.state == "Ended" ? "session-ended" : "invalid-response");
@@ -66,6 +71,11 @@ internal sealed class QuestAnonymousViewer
                         _ = MaintainAsync(sessionId, lease.Token);
                         return new QuestOnboardingRoom { SessionId = sessionId, JoinCode = code, State = room.state, PresentationId = room.presentationId };
                     }
+                }
+                catch (QuestOnboardingApiException error)
+                {
+                    if (error.Code == "session-ended") TerminalErrorCode = error.Code;
+                    await ClearAndRevokeAsync(); throw;
                 }
                 catch { await ClearAndRevokeAsync(); throw; }
             }
@@ -83,7 +93,7 @@ internal sealed class QuestAnonymousViewer
         await gate.WaitAsync(token);
         try
         {
-            if (!IsValid(id)) throw new QuestOnboardingApiException("viewer-authentication-required");
+            if (!IsValid(id)) throw new QuestOnboardingApiException(TerminalErrorCode ?? "viewer-authentication-required");
             if (now() >= refreshAt)
             {
                 try
@@ -91,18 +101,18 @@ internal sealed class QuestAnonymousViewer
                     // Capture the replacement before honoring cancellation; the old token is invalid after rotation.
                     using (var response = await SendAsync(HttpMethod.Post, "/viewer-credentials/refresh", new object(), credential, lifetime.Token))
                     {
-                        RequireSuccess(response);
+                        await RequireSuccessAsync(response);
                         SetCredential(JsonUtility.FromJson<CredentialResponse>(await response.Content.ReadAsStringAsync()), id);
                         token.ThrowIfCancellationRequested();
                     }
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (QuestOnboardingApiException error) when (error.Code == "viewer-authentication-required" || error.Code == "invalid-response")
-                { await ClearAndRevokeAsync(); throw; }
+                catch (QuestOnboardingApiException error) when (error.Code == "viewer-authentication-required" || error.Code == "invalid-response" || error.Code == "session-ended")
+                { TerminalErrorCode = error.Code; await ClearAndRevokeAsync(); throw; }
                 catch (Exception) when (IsValid(id))
                 { refreshAt = now().AddMilliseconds(Math.Max(100, Math.Min(5000, (expiresAt - now()).TotalMilliseconds / 2))); }
             }
-            if (!IsValid(id)) throw new QuestOnboardingApiException("viewer-authentication-required");
+            if (!IsValid(id)) throw new QuestOnboardingApiException(TerminalErrorCode ?? "viewer-authentication-required");
             return new PresentationCredentialLease(credential, () => gate.Release());
         }
         catch { gate.Release(); throw; }
@@ -190,10 +200,19 @@ internal sealed class QuestAnonymousViewer
         }
     }
 
-    private static void RequireSuccess(HttpResponseMessage response)
+    private static async Task RequireSuccessAsync(HttpResponseMessage response)
     {
         if (response.IsSuccessStatusCode) return;
         int status = (int)response.StatusCode;
+        if (response.StatusCode == HttpStatusCode.Gone)
+        {
+            try
+            {
+                if (JsonUtility.FromJson<ApiErrorResponse>(await response.Content.ReadAsStringAsync())?.error?.code == "session_ended")
+                    throw new QuestOnboardingApiException("session-ended");
+            }
+            catch (ArgumentException) { }
+        }
         throw new QuestOnboardingApiException(status == 401 ? "viewer-authentication-required" : status == 404 ? "not-found"
             : status == 409 ? "not-ready" : status == 429 ? "rate-limited" : status == 403 ? "forbidden" : "request-failed");
     }
