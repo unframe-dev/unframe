@@ -111,11 +111,17 @@ it("renews asset URLs through HTTP without replacing either active Realtime stre
     restartState: vi.fn(),
     getReadiness: () => ({ reliableSequence: "1", presentationOriginVersion: "1" }),
   };
+  let unsubscribe: (() => void) | undefined;
   try {
     await controller.join("ABCD-EFGH");
     const connection = controller.getPrepared();
     assert.isNotNull(connection);
-    realtime.install(runtimeInput, connection, () => controller.getPrepared()!, restart);
+    let current = connection;
+    unsubscribe = controller.subscribe(() => {
+      const prepared = controller.getPrepared();
+      if (prepared) current = prepared;
+    });
+    realtime.install(runtimeInput, connection, () => current, restart);
     const control = sockets[0]!;
     control.dispatchEvent(new Event("open"));
     control.receive("unframe.realtime.ControlServerItem", {
@@ -134,7 +140,10 @@ it("renews asset URLs through HTTP without replacing either active Realtime stre
     state.receive("unframe.realtime.StateServerItem", {
       connected: { connectionId: "connection", nextStateFrameSequence: "1" },
     });
-    await vi.advanceTimersByTimeAsync(270_000);
+    for (let renewal = 0; renewal < 3; renewal++) {
+      vi.advanceTimersByTime(90_000);
+      await vi.advanceTimersByTimeAsync(0);
+    }
     expect(controller.getPrepared()?.bootstrap).toEqual(bootstrap);
     expect(controller.getPrepared()?.delivery.assetAccess?.[0]?.expiresAtUnixMs).toBe(
       String(now + 390_000),
@@ -145,6 +154,7 @@ it("renews asset URLs through HTTP without replacing either active Realtime stre
     expect(restart).not.toHaveBeenCalled();
     expect(runtimeInput.disconnected).not.toHaveBeenCalled();
   } finally {
+    unsubscribe?.();
     realtime.dispose();
     controller.dispose();
   }

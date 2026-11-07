@@ -61,6 +61,68 @@ function setup() {
 }
 afterEach(() => vi.useRealTimers());
 
+test.each(["join", "delivery", "bootstrap"] as const)(
+  "%sの応答が止まっても30秒で参加待ちを終了し、遅延応答を無視して再参加できる",
+  async (stage) => {
+    const { controller, client, session, delivery, bootstrap } = setup();
+    let complete!: (value: never) => void;
+    client[stage].mockImplementationOnce(
+      () =>
+        new Promise<never>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const work = controller.join("ABCD-EFGH");
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "request-timeout" });
+    await work;
+    const signal = client[stage].mock.calls[0]?.at(-1) as AbortSignal;
+    expect(signal.aborted).toBe(true);
+    await controller.join("JKLM-NPQR");
+    complete({ join: session, delivery, bootstrap }[stage] as never);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(controller.getSnapshot()).toMatchObject({ phase: "prepared", revision: 1 });
+    controller.dispose();
+  },
+);
+
+test("更新の応答停止は有効な接続を保持して再試行できる", async () => {
+  const { controller, client, bootstrap, delivery } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  delivery.assetAccess!.forEach((asset) => {
+    asset.expiresAtUnixMs = String(clock + 120_000);
+  });
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockImplementationOnce(() => new Promise(() => {}));
+  const work = controller.refresh();
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(controller.getSnapshot()).toMatchObject({
+    phase: "prepared",
+    refreshing: false,
+    refreshError: "request-timeout",
+    revision: 1,
+  });
+  await work;
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "prepared", revision: 2 });
+  controller.dispose();
+});
+
+test("再接続の応答停止を時間制限し再取得を再試行する", async () => {
+  const { controller, client, bootstrap } = setup();
+  bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();
+  await controller.join("ABCD-EFGH");
+  client.delivery.mockImplementationOnce(() => new Promise(() => {}));
+  const work = controller.reconnect();
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "recovering" });
+  await work;
+  await vi.advanceTimersByTimeAsync(250);
+  expect(controller.getSnapshot()).toMatchObject({ phase: "prepared", revision: 2 });
+  controller.dispose();
+});
+
 test("素材URLを繰り返し更新しても十分有効なRealtime資格とその元の期限を維持する", async () => {
   const { controller, client, delivery, bootstrap } = setup();
   bootstrap.expiresAt = new Date(clock + 86_400_000).toISOString();

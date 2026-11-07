@@ -96,6 +96,22 @@ export function createAudienceRealtime(
           kind: Object.keys(value)[0] ?? "unknown",
         });
       };
+      const restartState = () => {
+        if (closed || !state) return;
+        const previous = state;
+        state = null;
+        recoveringState = true;
+        stateConnected = false;
+        readySent = false;
+        started = Date.now();
+        options.recorder?.record("connection.retry", { ...scope, kind: "keyframe" });
+        try {
+          previous.close(1000);
+          input.restartState();
+        } catch {
+          fail({ code: "runtime-recovery-failed", channel: "state" });
+        }
+      };
       const connect = (
         channel: "control" | "state",
         type: string,
@@ -152,14 +168,20 @@ export function createAudienceRealtime(
         const current = () => !closed && (channel === "control" || state === socket);
         let recordClose: ((event: CloseEvent) => void) | undefined;
         socket.addEventListener("error", () => {
-          if (current()) recordClose = fail({ code: "socket-error", channel });
+          if (!current()) return;
+          if (channel === "state") {
+            restartState();
+          } else {
+            recordClose = fail({ code: "socket-error", channel });
+          }
         });
         socket.addEventListener("close", (event) => {
           if (recordClose) {
             recordClose(event);
             recordClose = undefined;
           } else if (current()) {
-            fail({ code: "socket-closed", channel }, event);
+            if (channel === "state") restartState();
+            else fail({ code: "socket-closed", channel }, event);
           }
         });
         return socket;
@@ -174,18 +196,11 @@ export function createAudienceRealtime(
         close,
         recover(kind) {
           if (closed) return;
-          options.recorder?.record("connection.retry", { ...scope, kind });
           if (kind === "snapshot") {
+            options.recorder?.record("connection.retry", { ...scope, kind });
             fail({ code: "snapshot-recovery", channel: "control", input: lastInput });
           } else if (receivedState && state && !recoveringState) {
-            recoveringState = true;
-            stateConnected = false;
-            readySent = false;
-            const previous = state;
-            state = null;
-            input.restartState();
-            previous.close(1000);
-            started = Date.now();
+            restartState();
           }
         },
       };
@@ -239,10 +254,13 @@ export function createAudienceRealtime(
           }
           if (item.stateConnectionNonce) {
             const nonce = item.stateConnectionNonce;
-            if (!cut || !connectionId || !nonce.nonce?.length || !nonce.expiresInMs || state) {
+            if (!cut || !connectionId || !nonce.nonce?.length || !nonce.expiresInMs) {
               fail({ code: "invalid-state-nonce", channel: "control" });
               return;
             }
+            // Control can announce detachment before the old State socket delivers its close event.
+            restartState();
+            if (closed) return;
             stateConnected = false;
             readySent = false;
             state = connect(

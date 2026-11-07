@@ -330,6 +330,124 @@ it("keeps Control and rendered state while replacing a lost State attachment", (
   }
 });
 
+it.each(["close", "error", "nonce-first"])(
+  "reattaches a lost State stream without closing Control when %s arrives first",
+  async (first) => {
+    const h = setup();
+    try {
+      const control = h.sockets[0]!;
+      control.open();
+      control.receive("unframe.realtime.ControlServerItem", {
+        connectionSnapshot: {
+          schemaVersion: 1,
+          connectionId: "connection",
+          reliableSequence: "5",
+          fence: { presentationOriginVersion: "1" },
+        },
+      });
+      const nonce = () =>
+        control.receive("unframe.realtime.ControlServerItem", {
+          stateConnectionNonce: { nonce: new Uint8Array([2]), expiresInMs: 30000 },
+        });
+      nonce();
+      const previous = h.sockets[1]!;
+      previous.open();
+      previous.receive("unframe.realtime.StateServerItem", {
+        connected: { connectionId: "connection", nextStateFrameSequence: "1" },
+      });
+      h.setReady();
+      await vi.advanceTimersByTimeAsync(100);
+      if (first === "nonce-first") nonce();
+      else previous.dispatchEvent(new Event(first));
+      expect(h.input.disconnected).not.toHaveBeenCalled();
+      expect(control.readyState).toBe(1);
+      expect(h.input.restartState).toHaveBeenCalledOnce();
+      if (first !== "nonce-first") nonce();
+      const replacement = h.sockets[2]!;
+      replacement.open();
+      replacement.receive("unframe.realtime.StateServerItem", {
+        connected: { connectionId: "connection", nextStateFrameSequence: "1" },
+      });
+      const count = vi.mocked(h.input.applyState).mock.calls.length;
+      previous.dispatchEvent(new Event("close"));
+      previous.receive("unframe.realtime.StateServerItem", {
+        stateFrame: { kind: 1, frameSequence: "99" },
+      });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(h.input.applyState).toHaveBeenCalledTimes(count);
+      expect(h.input.disconnected).not.toHaveBeenCalled();
+      expect(
+        control.sent.filter(
+          (item) =>
+            item instanceof Uint8Array &&
+            decodeWireMessage("unframe.realtime.ControlClientItem", item).stateReady,
+        ),
+      ).toHaveLength(2);
+    } finally {
+      h.cleanup();
+    }
+  },
+);
+
+it("disconnects if a lost State stream receives no replacement nonce within the recovery timeout", async () => {
+  const h = setup();
+  try {
+    const control = h.sockets[0]!;
+    control.open();
+    control.receive("unframe.realtime.ControlServerItem", {
+      connectionSnapshot: {
+        schemaVersion: 1,
+        connectionId: "connection",
+        fence: { presentationOriginVersion: "1" },
+      },
+    });
+    control.receive("unframe.realtime.ControlServerItem", {
+      stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+    });
+    const state = h.sockets[1]!;
+    state.open();
+    state.dispatchEvent(new Event("close"));
+    expect(h.input.disconnected).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(30100);
+    expect(h.input.disconnected).toHaveBeenCalledOnce();
+    expect(h.recorder.getLastDisconnect(h.connection.session.id)).toMatchObject({
+      code: "ready-timeout",
+    });
+  } finally {
+    h.cleanup();
+  }
+});
+
+it.each(["error", "close"])("fails closed when State recovery throws after %s", (event) => {
+  const h = setup();
+  try {
+    const control = h.sockets[0]!;
+    control.open();
+    control.receive("unframe.realtime.ControlServerItem", {
+      connectionSnapshot: {
+        schemaVersion: 1,
+        connectionId: "connection",
+        fence: { presentationOriginVersion: "1" },
+      },
+    });
+    control.receive("unframe.realtime.ControlServerItem", {
+      stateConnectionNonce: { nonce: new Uint8Array([1]), expiresInMs: 30000 },
+    });
+    vi.mocked(h.input.restartState).mockImplementation(() => {
+      throw new Error("private-recovery-error");
+    });
+    h.sockets[1]!.dispatchEvent(new Event(event));
+    expect(h.input.disconnected).toHaveBeenCalledOnce();
+    expect(control.readyState).toBe(3);
+    expect(h.recorder.getLastDisconnect(h.connection.session.id)).toMatchObject({
+      code: "runtime-recovery-failed",
+      channel: "state",
+    });
+  } finally {
+    h.cleanup();
+  }
+});
+
 it("旧socketの診断は新Sessionに混ざらず資格やendpointを含めない", () => {
   const h = setup();
   h.recorder.setContext({ sessionId: "new-session", runtimeId: "new-runtime" });

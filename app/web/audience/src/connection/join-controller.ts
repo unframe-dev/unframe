@@ -252,6 +252,18 @@ export function createJoinController(options: {
     const current = () => !disposed && token === generation && !pending.signal.aborted;
     const retaining = prepared !== null;
     if (retaining) publishPrepared(true);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    let cancelDeadline!: () => void;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      deadlineTimer = setTimeout(() => {
+        timedOut = true;
+        reject(new AudienceConnectionError("request-timeout"));
+      }, 30_000);
+      cancelDeadline = () => reject(new AudienceConnectionError("aborted"));
+      pending.signal.addEventListener("abort", cancelDeadline, { once: true });
+    });
+    const receive = <T>(work: Promise<T>) => Promise.race([work, deadline]);
     const work = (async () => {
       try {
         if (code !== undefined) {
@@ -260,7 +272,7 @@ export function createJoinController(options: {
           options.recorder?.record("session.join", { stage: "request" });
           publish({ phase: "joining" });
           options.recorder?.record("http.request", { direction: "send", kind: "join" });
-          const joined = await options.client.join(code, pending.signal);
+          const joined = await receive(options.client.join(code, pending.signal));
           if (!current()) return;
           joinedSession = structuredClone(joined);
           options.recorder?.setContext({ sessionId: joined.id });
@@ -281,7 +293,7 @@ export function createJoinController(options: {
         if (!retaining && !recovering) publish({ phase: "delivery", session: publicSession });
         options.recorder?.record("delivery.received", { stage: retaining ? "refresh" : "request" });
         options.recorder?.record("http.request", { direction: "send", kind: "delivery" });
-        const delivery = await options.client.delivery(session.id, pending.signal);
+        const delivery = await receive(options.client.delivery(session.id, pending.signal));
         if (!current()) return;
         validateDelivery(session, delivery, options.capabilityProfileId);
         options.recorder?.record("http.response", {
@@ -298,7 +310,7 @@ export function createJoinController(options: {
           stage: retaining ? "refresh" : "request",
         });
         options.recorder?.record("http.request", { direction: "send", kind: "bootstrap" });
-        const bootstrap = await options.client.bootstrap(session.id, pending.signal);
+        const bootstrap = await receive(options.client.bootstrap(session.id, pending.signal));
         if (!current()) return;
         if (retaining) expire();
         if (!current()) return;
@@ -347,6 +359,7 @@ export function createJoinController(options: {
           (error.code === "runtime-unavailable" ||
             ((recovering || reconnecting) &&
               (error.code === "network-error" ||
+                error.code === "request-timeout" ||
                 (error.code === "http-error" &&
                   (error.status === 429 || (error.status ?? 0) >= 500)))))
         ) {
@@ -388,10 +401,13 @@ export function createJoinController(options: {
           });
         }
       } finally {
+        clearTimeout(deadlineTimer);
+        pending.signal.removeEventListener("abort", cancelDeadline);
         if (current()) {
           request = null;
           pendingWork = null;
         }
+        if (timedOut) pending.abort();
       }
     })();
     pendingWork = work;

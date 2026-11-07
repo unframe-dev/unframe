@@ -84,6 +84,7 @@ function contractFixture() {
 const sessions: ReturnType<typeof createViewingSession>[] = [];
 afterEach(() => {
   for (const session of sessions.splice(0)) session.dispose();
+  vi.useRealTimers();
 });
 class RealtimeSocket extends EventTarget {
   readyState = 1;
@@ -312,7 +313,48 @@ test("a reliable gap removes stale presentation and requests a fresh Snapshot", 
   });
 });
 
+test("crossed Control and State cuts recover on the next keyframe without requesting reconnection", async () => {
+  vi.useFakeTimers();
+  const { viewer, start, keyframe, fence } = setup();
+  await start();
+  const input = viewer.getInput()!;
+  input.applyState(keyframe());
+  await viewer.waitForIdle();
+  const requests: unknown[] = [];
+  const unsubscribe = viewer.subscribe((state) => {
+    if (state.recovery) requests.push(state.recovery);
+  });
+  const ahead = keyframe("2");
+  ahead.stateFrame!.baseReliableSequence = "1";
+  input.applyState(ahead);
+  await viewer.waitForIdle();
+  expect(viewer.getSnapshot().runtime?.stateSync).toBe("awaiting-keyframe");
+  input.applyControl({
+    reliableEvent: {
+      fence,
+      eventId: "advance",
+      sequence: "1",
+      occurredAtRuntimeTimeMs: "0",
+      forceAdvanceAccepted: {},
+    },
+  });
+  await vi.advanceTimersByTimeAsync(50);
+  const matching = keyframe("3");
+  matching.stateFrame!.baseReliableSequence = "1";
+  input.applyState(matching);
+  await viewer.waitForIdle();
+  await vi.advanceTimersByTimeAsync(300);
+  expect(viewer.getSnapshot()).toMatchObject({
+    phase: "viewing",
+    recovery: null,
+    runtime: { stateSync: "ready", reliableSequence: "1", stateSequence: "3" },
+  });
+  expect(requests).toEqual([]);
+  unsubscribe();
+});
+
 test("a State delta gap preserves display and emits a stable keyframe recovery request", async () => {
+  vi.useFakeTimers();
   const { viewer, start, keyframe, nodeId, rendered, fence } = setup();
   await start();
   const input = viewer.getInput()!;
@@ -328,6 +370,8 @@ test("a State delta gap preserves display and emits a stable keyframe recovery r
     },
   });
   await viewer.waitForIdle();
+  expect(viewer.getSnapshot().recovery).toBeNull();
+  await vi.advanceTimersByTimeAsync(300);
   const recovery = viewer.getSnapshot().recovery;
   expect(recovery).toMatchObject({ kind: "keyframe", afterSequence: "0" });
   expect(rendered()?.nodeStates[nodeId]?.opacity).toBe(0.25);

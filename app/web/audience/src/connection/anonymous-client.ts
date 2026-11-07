@@ -50,6 +50,42 @@ export function createAnonymousAudienceClient(
     Response,
     "status" | "headers" | "redirected" | "json" | "arrayBuffer"
   >;
+  async function bounded<T>(
+    work: (signal: AbortSignal) => Promise<T>,
+    signal?: AbortSignal,
+    onLateSuccess?: (value: T) => Promise<void>,
+  ) {
+    if (signal?.aborted) throw new AudienceConnectionError("aborted");
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let abandoned = false;
+    let cancelled!: () => void;
+    const cancelledWork = new Promise<never>((_resolve, reject) => {
+      cancelled = () => {
+        abandoned = true;
+        controller.abort();
+        reject(new AudienceConnectionError("aborted"));
+      };
+      timer = setTimeout(() => {
+        abandoned = true;
+        controller.abort();
+        reject(new AudienceConnectionError("network-error"));
+      }, 30000);
+      signal?.addEventListener("abort", cancelled, { once: true });
+    });
+    try {
+      return await Promise.race([
+        cancelledWork,
+        work(controller.signal).then((value) => {
+          if (abandoned) void onLateSuccess?.(value).catch(() => {});
+          return value;
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancelled);
+    }
+  }
   async function request(
     send: (options: {
       init: RequestInit;
@@ -96,9 +132,16 @@ export function createAnonymousAudienceClient(
     }
   }
   async function revoke(value: ViewerCredential) {
-    await request((options) => rpc["viewer-credentials"].$delete({}, options), 204, value.token);
+    await bounded((signal) =>
+      request(
+        (options) => rpc["viewer-credentials"].$delete({}, options),
+        204,
+        value.token,
+        signal,
+      ),
+    );
   }
-  async function ensure(id: string) {
+  async function ensure(id: string, signal?: AbortSignal) {
     if (!credential || credential.sessionId !== id || Date.parse(credential.expiresAt) <= now())
       throw new AudienceConnectionError("unauthorized");
     if (Date.parse(credential.expiresAt) - now() > 5 * 60000) return;
@@ -106,12 +149,18 @@ export function createAnonymousAudienceClient(
       const old = credential;
       const token = generation;
       const work = (async () => {
-        const next = await read(
-          await request(
-            (options) => rpc["viewer-credentials"].refresh.$post({}, options),
-            200,
-            old.token,
-          ),
+        const next = await bounded(
+          async (signal) =>
+            read(
+              await request(
+                (options) => rpc["viewer-credentials"].refresh.$post({}, options),
+                200,
+                old.token,
+                signal,
+              ),
+            ),
+          signal,
+          revoke,
         );
         if (generation !== token || credential !== old) {
           await revoke(next).catch(() => {});
@@ -150,13 +199,18 @@ export function createAnonymousAudienceClient(
       const token = generation;
       await leaving.catch(() => {});
       if (token !== generation || signal?.aborted) throw new AudienceConnectionError("aborted");
-      const issued = await read(
-        await request(
-          (options) => rpc["viewer-credentials"].$post({ json: { joinCode } }, options),
-          201,
-          null,
-          signal,
-        ),
+      const issued = await bounded(
+        async (signal) =>
+          read(
+            await request(
+              (options) => rpc["viewer-credentials"].$post({ json: { joinCode } }, options),
+              201,
+              null,
+              signal,
+            ),
+          ),
+        signal,
+        revoke,
       );
       if (token !== generation || signal?.aborted) {
         await revoke(issued).catch(() => {});
@@ -179,11 +233,11 @@ export function createAnonymousAudienceClient(
       }
     },
     async delivery(id: string, signal?: AbortSignal) {
-      await ensure(id);
+      await ensure(id, signal);
       return client.delivery(id, signal);
     },
     async bootstrap(id: string, signal?: AbortSignal) {
-      await ensure(id);
+      await ensure(id, signal);
       return client.bootstrap(id, signal);
     },
     leave,
