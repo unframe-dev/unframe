@@ -66,6 +66,7 @@ export function createViewingSession(host: Host, state = createViewingStore()) {
   let disposed = false;
   let generation = 0;
   let recoveryId = 0;
+  let keyframeMissingSince: number | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
   let settling: Promise<void> | null = null;
   function publish(next: ViewingSnapshot) {
@@ -92,6 +93,7 @@ export function createViewingSession(host: Host, state = createViewingStore()) {
     input = null;
     runtime = null;
     settling = null;
+    keyframeMissingSince = null;
     if (reset) previous?.reset();
   }
   function fail(error: string, stopHost = false) {
@@ -119,10 +121,14 @@ export function createViewingSession(host: Host, state = createViewingStore()) {
       const state = runtime.getSnapshot();
       const sequence = BigInt(state.reliableSequence);
       if (sequence > minimumReliableSequence) minimumReliableSequence = sequence;
+      const awaitingKeyframe = state.phase === "ready" && state.stateSync === "awaiting-keyframe";
+      if (awaitingKeyframe) keyframeMissingSince ??= performance.now();
+      else keyframeMissingSince = null;
       const kind: "snapshot" | "keyframe" | null =
         state.phase === "resync-required"
           ? "snapshot"
-          : state.phase === "ready" && state.stateSync === "awaiting-keyframe"
+          : // Control and State arrive independently; a matching keyframe usually follows the cut.
+            keyframeMissingSince !== null && performance.now() - keyframeMissingSince >= 250
             ? "keyframe"
             : null;
       const recovery = kind

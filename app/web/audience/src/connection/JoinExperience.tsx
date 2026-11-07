@@ -30,6 +30,7 @@ const errorText: Record<string, string> = {
   "invalid-session-id": "セッション情報が正しくありません。もう一度参加してください。",
   aborted: "接続準備をキャンセルしました。",
   "network-error": "サーバーに接続できません。通信環境を確認し、もう一度お試しください。",
+  "request-timeout": "サーバーの応答が時間内に届きませんでした。もう一度お試しください。",
   "http-error": "サーバーが要求を受け付けませんでした。",
   unauthorized: "参加資格を確認できません。もう一度お試しください。",
   forbidden: "このルームを視聴する権限がありません。",

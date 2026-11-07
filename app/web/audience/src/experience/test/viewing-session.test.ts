@@ -122,11 +122,14 @@ test("assignment changes replace runtime without restarting camera and reject th
   viewer.dispose();
 });
 test("reports one recovery request for each missing state baseline and clears it after recovery", async () => {
+  vi.useFakeTimers();
   const { viewer, snapshot } = setup();
   await viewer.start(delivery());
   const input = viewer.getInput()!;
   Object.assign(snapshot, { phase: "ready", rendering: "ready", stateSync: "awaiting-keyframe" });
   input.applyState({ stateFrame: { kind: 1, frameSequence: "1" } });
+  expect(viewer.getSnapshot().recovery).toBeNull();
+  await vi.advanceTimersByTimeAsync(300);
   expect(viewer.getSnapshot().recovery?.kind).toBe("keyframe");
   const request = viewer.getSnapshot().recovery;
   input.applyState({ stateFrame: { kind: 1, frameSequence: "1" } });
@@ -140,6 +143,43 @@ test("reports one recovery request for each missing state baseline and clears it
   viewer.restartInput();
   input.applyControl({ projectionAdvance: { fromExclusive: "0", throughSequence: "1" } });
   expect(viewer.getInput()).not.toBe(input);
+  viewer.dispose();
+});
+
+test("allows a matching keyframe to catch up before requesting State reconnection", async () => {
+  vi.useFakeTimers();
+  const { viewer, snapshot } = setup();
+  await viewer.start(delivery());
+  const input = viewer.getInput()!;
+  Object.assign(snapshot, { phase: "ready", rendering: "ready", stateSync: "ready" });
+  input.applyState({ stateFrame: { kind: 1, frameSequence: "1" } });
+  const requests: unknown[] = [];
+  const unsubscribe = viewer.subscribe((state) => {
+    if (state.recovery) requests.push(state.recovery);
+  });
+  snapshot.stateSync = "awaiting-keyframe";
+  input.applyControl({ projectionAdvance: { fromExclusive: "0", throughSequence: "1" } });
+  await vi.advanceTimersByTimeAsync(50);
+  snapshot.stateSync = "ready";
+  input.applyState({ stateFrame: { kind: 1, frameSequence: "2" } });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(requests).toEqual([]);
+  unsubscribe();
+  viewer.dispose();
+});
+
+test("a fresh input starts its own keyframe grace period", async () => {
+  vi.useFakeTimers();
+  const { viewer, snapshot } = setup();
+  await viewer.start(delivery());
+  Object.assign(snapshot, { phase: "ready", rendering: "ready", stateSync: "awaiting-keyframe" });
+  viewer.getInput()!.applyControl({ connectionSnapshot: {} });
+  await vi.advanceTimersByTimeAsync(200);
+  viewer.restartInput();
+  await vi.advanceTimersByTimeAsync(100);
+  expect(viewer.getSnapshot().recovery).toBeNull();
+  await vi.advanceTimersByTimeAsync(200);
+  expect(viewer.getSnapshot().recovery?.kind).toBe("keyframe");
   viewer.dispose();
 });
 test("disconnect hides and resets playback; reconnection requires a fresh bound input", async () => {

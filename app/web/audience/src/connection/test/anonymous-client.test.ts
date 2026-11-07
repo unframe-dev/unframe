@@ -2,6 +2,9 @@ import { audienceWebCapabilityProfileId } from "@unframe-dev/contracts/presentat
 import { createServer } from "node:http";
 import { afterEach, assert, expect, it, vi } from "vite-plus/test";
 import { createAnonymousAudienceClient } from "../anonymous-client";
+import { createJoinController } from "../join-controller";
+import { encodeWireMessage, type DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
+import deliveryFixture from "../../../../../../packages/contracts/presentation/fixtures/wire/valid-delivery.json";
 import { readSharedJoinCode } from "../shared-join-code";
 
 const config = {
@@ -257,4 +260,276 @@ it("does not complete a join after the viewer has left while the session respons
   completeJoin(Response.json(session));
   await expect(joining).rejects.toMatchObject({ code: "aborted" });
   await expect(client.bootstrap("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
+
+it.each(["response", "body"])(
+  "bounds a stalled credential refresh %s and ignores its late result",
+  async (stage) => {
+    vi.useFakeTimers();
+    let clock = now;
+    let complete!: (response: Response) => void;
+    let completeBody!: (value: unknown) => void;
+    const issue = (token: string, status = 200) =>
+      Response.json(
+        {
+          token,
+          expiresAt: new Date(clock + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status },
+      );
+    const stalled = new Promise<Response>((resolve) => {
+      complete = resolve;
+    });
+    const stalledBody = new Promise<unknown>((resolve) => {
+      completeBody = resolve;
+    });
+    const response = issue("viewer_late");
+    if (stage === "body") vi.spyOn(response, "json").mockReturnValue(stalledBody);
+    const requestFetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(issue("viewer_old", 201))
+      .mockResolvedValueOnce(Response.json(session))
+      .mockImplementationOnce(() => (stage === "response" ? stalled : Promise.resolve(response)))
+      .mockImplementationOnce(async () => issue("viewer_current"))
+      .mockResolvedValueOnce(new Response(null, { status: 409 }));
+    const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+    await client.join("ABCD-EFGH");
+    clock += 58 * 60000;
+    const first = client.delivery("session");
+    const failed = expect(first).rejects.toMatchObject({ code: "network-error" });
+    await vi.advanceTimersByTimeAsync(30000);
+    await failed;
+    await expect(client.delivery("session")).rejects.toMatchObject({ status: 409 });
+    requestFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    if (stage === "response") complete(response);
+    else completeBody(await issue("viewer_late").json());
+    await vi.advanceTimersByTimeAsync(0);
+    const [revocationUrl, revocation] = requestFetch.mock.calls.at(-1)!;
+    expect(revocationUrl).toBe("https://api.example/viewer-credentials");
+    expect(revocation?.method).toBe("DELETE");
+    expect(new Headers(revocation?.headers).get("Authorization")).toBe("Bearer viewer_late");
+    requestFetch.mockResolvedValueOnce(new Response(null, { status: 409 }));
+    await expect(client.bootstrap("session")).rejects.toMatchObject({ status: 409 });
+    const [url, init] = requestFetch.mock.calls.at(-1)!;
+    expect(url).toBe("https://api.example/sessions/session/bootstrap");
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer viewer_current");
+  },
+);
+
+it("bounds credential revocation even when fetch ignores cancellation", async () => {
+  vi.useFakeTimers();
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_old",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockResolvedValueOnce(Response.json(session))
+    .mockImplementationOnce(() => new Promise<Response>(() => {}));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => now });
+  await client.join("ABCD-EFGH");
+  const leaving = expect(client.leave()).rejects.toMatchObject({ code: "network-error" });
+  await vi.advanceTimersByTimeAsync(30000);
+  await leaving;
+  await expect(client.delivery("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
+
+it("cancels a pending credential rotation with its delivery request", async () => {
+  let clock = now;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_old",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockResolvedValueOnce(Response.json(session))
+    .mockImplementationOnce(() => new Promise<Response>(() => {}));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await client.join("ABCD-EFGH");
+  clock += 58 * 60000;
+  const controller = new AbortController();
+  const pending = client.delivery("session", controller.signal);
+  await vi.waitFor(() => expect(requestFetch).toHaveBeenCalledTimes(3));
+  const failure = expect(pending).rejects.toMatchObject({ code: "aborted" });
+  controller.abort();
+  await failure;
+  expect(requestFetch.mock.calls[2]![1]?.signal?.aborted).toBe(true);
+});
+
+it("does not dispatch credential rotation for an already cancelled request", async () => {
+  let clock = now;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          token: "viewer_old",
+          expiresAt: new Date(now + 3600000).toISOString(),
+          sessionId: "session",
+          participantId: "anonymous_test",
+        },
+        { status: 201 },
+      ),
+    )
+    .mockResolvedValueOnce(Response.json(session));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => clock });
+  await client.join("ABCD-EFGH");
+  clock += 58 * 60000;
+  const controller = new AbortController();
+  controller.abort();
+  await expect(client.delivery("session", controller.signal)).rejects.toMatchObject({
+    code: "aborted",
+  });
+  expect(requestFetch).toHaveBeenCalledTimes(2);
+});
+
+it("revokes a late credential issuance after its join was cancelled", async () => {
+  let complete!: (value: Response) => void;
+  const requestFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          complete = resolve;
+        }),
+    )
+    .mockResolvedValueOnce(new Response(null, { status: 204 }));
+  const client = createAnonymousAudienceClient(config, { fetch: requestFetch, now: () => now });
+  const controller = new AbortController();
+  const joining = client.join("ABCD-EFGH", controller.signal);
+  await vi.waitFor(() => expect(requestFetch).toHaveBeenCalledOnce());
+  const failure = expect(joining).rejects.toMatchObject({ code: "aborted" });
+  controller.abort();
+  await failure;
+  complete(
+    Response.json(
+      {
+        token: "viewer_late",
+        expiresAt: new Date(now + 3600000).toISOString(),
+        sessionId: "session",
+        participantId: "anonymous_test",
+      },
+      { status: 201 },
+    ),
+  );
+  await vi.waitFor(() => expect(requestFetch).toHaveBeenCalledTimes(2));
+  const [url, init] = requestFetch.mock.calls[1]!;
+  expect(url).toBe("https://api.example/viewer-credentials");
+  expect(init?.method).toBe("DELETE");
+  expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer viewer_late");
+  await expect(client.delivery("session")).rejects.toMatchObject({ code: "unauthorized" });
+});
+
+it("requires rejoining when a timed-out server rotation has invalidated the old API credential", async () => {
+  vi.useFakeTimers();
+  let clock = now;
+  const delivery = structuredClone(deliveryFixture.value) as DeliveryManifestWire;
+  delivery.projectionProfile!.key!.role = 2;
+  for (const asset of delivery.assetAccess!) asset.expiresAtUnixMs = String(now + 86400000);
+  const publicSession = {
+    ...session,
+    id: delivery.sessionId!,
+    presentationId: delivery.publication!.presentationId!,
+    publicationFence: { ...delivery.publication!, publicationEpoch: 1 },
+  };
+  const bootstrap = {
+    endpoint: "https://runtime.example.test",
+    fingerprint: null,
+    runtimeId: "runtime",
+    runtimeKind: "Cloud",
+    assignmentEpoch: 1,
+    presentationId: publicSession.presentationId,
+    presentationRevision: 1,
+    credential: "runtime-jwt",
+    expiresAt: new Date(now + 86400000).toISOString(),
+    publicationFence: publicSession.publicationFence,
+    projectionProfileId: delivery.projectionProfile!.projectionProfileId!,
+  };
+  let issued = 0;
+  let rotated = false;
+  let complete!: (value: Response) => void;
+  const credential = (token: string, status: number) =>
+    Response.json(
+      {
+        token,
+        sessionId: publicSession.id,
+        participantId: "anonymous_test",
+        expiresAt: new Date(clock + 3600000).toISOString(),
+      },
+      { status },
+    );
+  const requestFetch = vi.fn<typeof globalThis.fetch>(async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/viewer-credentials" && init?.method === "DELETE")
+      return new Response(null, { status: 204 });
+    if (path === "/viewer-credentials") return credential(`viewer_join_${++issued}`, 201);
+    if (path === "/viewer-credentials/refresh") {
+      if (rotated) return new Response(null, { status: 401 });
+      rotated = true;
+      return new Promise<Response>((resolve) => {
+        complete = resolve;
+      });
+    }
+    if (path === "/sessions/join") return Response.json(publicSession);
+    if (path.endsWith("/delivery"))
+      return new Response(new Uint8Array(encodeWireMessage(deliveryFixture.typeName, delivery)), {
+        headers: { "Content-Type": "application/x-protobuf" },
+      });
+    if (path.endsWith("/bootstrap")) return Response.json(bootstrap);
+    throw new Error("Unexpected test request");
+  });
+  const client = createAnonymousAudienceClient(
+    { ...config, capabilityProfileId: "synthetic-test-only" },
+    { fetch: requestFetch, now: () => clock },
+  );
+  const controller = createJoinController({
+    client,
+    capabilityProfileId: "synthetic-test-only",
+    now: () => clock,
+  });
+  try {
+    await controller.join("ABCD-EFGH");
+    expect(controller.getSnapshot().phase).toBe("prepared");
+    clock += 58 * 60000;
+    const refreshing = controller.refresh();
+    await vi.advanceTimersByTimeAsync(30000);
+    await refreshing;
+    expect(rotated).toBe(true);
+    expect(controller.getSnapshot()).toMatchObject({ phase: "prepared", refreshing: false });
+    await controller.refresh();
+    expect(controller.getSnapshot()).toMatchObject({ phase: "error", error: "unauthorized" });
+    expect(controller.getPrepared()).toBeNull();
+    await controller.join("ABCD-EFGH");
+    expect(controller.getSnapshot().phase).toBe("prepared");
+    complete(credential("viewer_late_rotation", 200));
+    await vi.advanceTimersByTimeAsync(0);
+    const revoked = requestFetch.mock.calls.filter(([, init]) => init?.method === "DELETE");
+    expect(
+      revoked.some(
+        ([, init]) =>
+          new Headers(init?.headers).get("Authorization") === "Bearer viewer_late_rotation",
+      ),
+    ).toBe(true);
+    expect(controller.getSnapshot().phase).toBe("prepared");
+    await controller.refresh();
+    expect(controller.getSnapshot().phase).toBe("prepared");
+  } finally {
+    controller.dispose();
+  }
 });
