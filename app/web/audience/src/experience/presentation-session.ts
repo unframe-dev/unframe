@@ -51,6 +51,8 @@ export function createPresentationSession(options: {
   });
   let request: AbortController | null = null;
   let work: Promise<void> = Promise.resolve();
+  let presenting = false;
+  let presentedGroup: string | null = null;
 
   function clearPresentation() {
     effects.dispose();
@@ -60,6 +62,7 @@ export function createPresentationSession(options: {
     presentation?.dispose();
     presentation = null;
     presentationDelivery = null;
+    presentedGroup = null;
     updateShadows(false);
     textureLease?.release();
     textureLease = null;
@@ -76,6 +79,16 @@ export function createPresentationSession(options: {
     const currentRenderer = renderer;
     if (!active || !currentHost || !currentRenderer)
       throw new Error("Presentation requires an active XR scene");
+    const groupId = participantRuntimeViewSchema.parse(view).progression.currentGroupId;
+    if (
+      !presenting &&
+      presentationDelivery === delivery &&
+      presentedGroup === groupId &&
+      presentation
+    ) {
+      currentRenderer.resetState();
+      if (presentation.applyView(view)) return;
+    }
     const requiresShadows =
       delivery.projectionProfile?.runtimeCatalog?.nodes?.some(
         (node) =>
@@ -88,6 +101,7 @@ export function createPresentationSession(options: {
     request?.abort();
     const pending = new AbortController();
     request = pending;
+    presenting = true;
     const uploadTexture = (texture: Texture) => {
       try {
         currentRenderer.initTexture(texture);
@@ -99,7 +113,8 @@ export function createPresentationSession(options: {
     work = (async () => {
       await previousWork.catch(() => undefined);
       if (!active || pending.signal.aborted || host !== currentHost) return;
-      const groupId = participantRuntimeViewSchema.parse(view).progression.currentGroupId;
+      await texturePool?.stopWarming();
+      if (!active || pending.signal.aborted || host !== currentHost) return;
       // The SDK preserves the current GL program; release it before disposal can delete that program.
       if (presentation) renderer?.resetState();
       const previousPool = texturePool;
@@ -120,6 +135,7 @@ export function createPresentationSession(options: {
         if (pool !== texturePool) pool.dispose();
         return;
       }
+      if (pool !== previousPool) previousPool?.discardWarm();
       const externalResources = () => ({
         gpuBytes:
           previousResources.gpuBytes + (pool === previousPool ? 0 : (previousPool?.gpuBytes ?? 0)),
@@ -141,6 +157,17 @@ export function createPresentationSession(options: {
         }
         previousResources = { gpuBytes: 0, bindings: 0, videoDecoders: 0 };
       }
+      const warm = () => {
+        if (!presentation || texturePool !== pool) return;
+        void pool.warm({
+          signal: pending.signal,
+          residentCpuBytes: presentation.retainedCpuBytes,
+          residentResources: {
+            gpuBytes: presentation.resourceUsage.gpuBytes,
+            bindings: presentation.resourceUsage.bindings,
+          },
+        });
+      };
       let lease: PngTextureLease | null = null;
       let next: Awaited<ReturnType<typeof createPresentation>> | null = null;
       try {
@@ -155,15 +182,19 @@ export function createPresentationSession(options: {
         if (!active || pending.signal.aborted || host !== currentHost) return;
         if (presentationDelivery === delivery) presentation?.updatePngTextures(lease.assets);
         if (presentationDelivery === delivery && presentation?.applyView(view)) {
+          pool.activateGroup(groupId);
           textureLease?.release();
           textureLease = lease;
           lease = null;
+          presentedGroup = groupId;
+          warm();
           return;
         }
         if (presentation && presentation.resourceUsage.videoDecoders > 0) {
           presentation.releaseVideoDecoders(uploadTexture);
           previousResources = presentation.resourceUsage;
         }
+        pool.discardWarm();
         next = await createPresentation({
           host: currentHost,
           delivery,
@@ -192,19 +223,26 @@ export function createPresentationSession(options: {
         presentation = next;
         next = null;
         if (previousPool !== pool) previousPool?.dispose();
+        pool.activateGroup(groupId);
         textureLease?.release();
         textureLease = lease;
         lease = null;
         texturePool = pool;
         presentationDelivery = delivery;
+        presentedGroup = groupId;
         updateShadows(requiresShadows);
+        warm();
       } finally {
         next?.dispose();
         lease?.release();
         if (texturePool !== pool) pool.dispose();
       }
     })();
-    await work;
+    try {
+      await work;
+    } finally {
+      if (request === pending) presenting = false;
+    }
   }
   return {
     attachScene(nextHost: PresentationHost, nextRenderer: SceneRenderer) {

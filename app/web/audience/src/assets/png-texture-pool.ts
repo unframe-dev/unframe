@@ -117,6 +117,12 @@ export interface PngTextureLease {
   release(): void;
 }
 
+interface TextureRequest {
+  signal?: AbortSignal;
+  residentCpuBytes?: number;
+  residentResources?: { gpuBytes: number; bindings: number };
+}
+
 export async function createPngTexturePool(options: {
   delivery: DeliveryManifestWire;
   fetcher?: typeof fetch;
@@ -165,7 +171,12 @@ export async function createPngTexturePool(options: {
   }
   const loaded = new Map<
     string,
-    { asset: PngTextureAsset; item: Awaited<ReturnType<typeof loadPngTexture>>; pins: number }
+    {
+      asset: PngTextureAsset;
+      item: Awaited<ReturnType<typeof loadPngTexture>>;
+      pins: number;
+      warm: boolean;
+    }
   >();
   const encoded = new Map<string, Uint8Array<ArrayBuffer>>();
   const encodedLimit =
@@ -174,6 +185,36 @@ export async function createPngTexturePool(options: {
   let encodedBytes = 0;
   let disposed = false;
   let work: Promise<unknown> = Promise.resolve();
+  let warming: { controller: AbortController; done: Promise<void> } | null = null;
+  let currentGroup: string | null = null;
+  const completedGroups = new Set<string>();
+  function futureAssets() {
+    const candidates = new Map<string, PngTextureAsset>();
+    for (const [groupId, assets] of windows) {
+      if (groupId === currentGroup || completedGroups.has(groupId)) continue;
+      for (const asset of assets) candidates.set(asset.checksum, asset);
+    }
+    return candidates;
+  }
+  function activateGroup(groupId: string) {
+    if (disposed) fail("pool disposed");
+    if (!windows.has(groupId)) fail("unknown group window");
+    warming?.controller.abort();
+    if (currentGroup && currentGroup !== groupId) completedGroups.add(currentGroup);
+    currentGroup = groupId;
+    const future = futureAssets();
+    for (const [checksum, entry] of loaded) {
+      entry.warm = future.has(checksum);
+      if (entry.pins > 0 || entry.warm) continue;
+      entry.item.dispose();
+      loaded.delete(checksum);
+    }
+    for (const [checksum, bytes] of encoded) {
+      if (future.has(checksum)) continue;
+      encodedBytes -= bytes.byteLength;
+      encoded.delete(checksum);
+    }
+  }
   function cache(checksum: string, bytes: Uint8Array<ArrayBuffer>) {
     const previous = encoded.get(checksum);
     if (previous) encodedBytes -= previous.byteLength;
@@ -190,7 +231,7 @@ export async function createPngTexturePool(options: {
   function release(checksums: readonly string[]) {
     for (const checksum of checksums) {
       const entry = loaded.get(checksum);
-      if (!entry || --entry.pins > 0) continue;
+      if (!entry || --entry.pins > 0 || entry.warm) continue;
       entry.item.dispose();
       loaded.delete(checksum);
     }
@@ -203,10 +244,16 @@ export async function createPngTexturePool(options: {
       return fail("texture descriptor not resident");
     return { texture: entry.item.texture, dispose() {} };
   }
-  function canAcquire(groupId: string, resident = { gpuBytes: 0, bindings: 0 }) {
-    if (disposed) fail("pool disposed");
-    const required = windows.get(groupId) ?? fail("unknown group window");
-    const union = new Map([...loaded].map(([key, value]) => [key, value.asset]));
+  function fits(
+    required: readonly PngTextureAsset[],
+    resident: { gpuBytes: number; bindings: number },
+    includeWarm = true,
+  ) {
+    const union = new Map(
+      [...loaded]
+        .filter(([, value]) => includeWarm || value.pins > 0)
+        .map(([key, value]) => [key, value.asset]),
+    );
     for (const asset of required) union.set(asset.checksum, asset);
     const gpu = [...union.values()].reduce(
       (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
@@ -217,13 +264,33 @@ export async function createPngTexturePool(options: {
       union.size + resident.bindings <= uint(limits?.maxTextureBindings)
     );
   }
-  async function acquire(
-    groupId: string,
-    request: {
-      signal?: AbortSignal;
-      residentCpuBytes?: number;
-      residentResources?: { gpuBytes: number; bindings: number };
-    } = {},
+  function canAcquire(groupId: string, resident = { gpuBytes: 0, bindings: 0 }) {
+    if (disposed) fail("pool disposed");
+    return fits(windows.get(groupId) ?? fail("unknown group window"), resident, false);
+  }
+  function discardWarm(keep: readonly PngTextureAsset[] = []) {
+    if (!keep.length) {
+      encoded.clear();
+      encodedBytes = 0;
+    }
+    const retained = new Set(keep.map((asset) => asset.checksum));
+    for (const [checksum, entry] of loaded) {
+      if (retained.has(checksum)) continue;
+      entry.warm = false;
+      if (entry.pins > 0) continue;
+      entry.item.dispose();
+      loaded.delete(checksum);
+    }
+  }
+  async function stopWarming() {
+    const previous = warming;
+    previous?.controller.abort();
+    await previous?.done;
+  }
+  async function acquireAssets(
+    required: PngTextureAsset[],
+    request: TextureRequest,
+    background = false,
   ): Promise<PngTextureLease> {
     const previous = work;
     const pending = (async () => {
@@ -233,14 +300,14 @@ export async function createPngTexturePool(options: {
         if (request.signal?.aborted) fail("load cancelled");
       };
       check();
-      const required = windows.get(groupId) ?? fail("unknown group window");
+      const resident = request.residentResources ?? { gpuBytes: 0, bindings: 0 };
+      if (!background && !fits(required, resident)) discardWarm(required);
       const union = new Map([...loaded].map(([key, value]) => [key, value.asset]));
       for (const asset of required) union.set(asset.checksum, asset);
       const gpu = [...union.values()].reduce(
         (sum, asset) => sum + asset.pixelSize[0] * asset.pixelSize[1] * 4,
         0,
       );
-      const resident = request.residentResources ?? { gpuBytes: 0, bindings: 0 };
       if (
         !Number.isSafeInteger(resident.gpuBytes) ||
         resident.gpuBytes < 0 ||
@@ -282,7 +349,7 @@ export async function createPngTexturePool(options: {
               bytes = value;
             },
           });
-          loaded.set(asset.checksum, { asset, item, pins: 1 });
+          loaded.set(asset.checksum, { asset, item, pins: 1, warm: false });
           acquired.push(asset.checksum);
           check();
           const previousUpdate = item.texture.onUpdate;
@@ -319,8 +386,59 @@ export async function createPngTexturePool(options: {
     work = pending;
     return pending;
   }
+  async function acquire(groupId: string, request: TextureRequest = {}) {
+    await stopWarming();
+    return acquireAssets(windows.get(groupId) ?? fail("unknown group window"), request);
+  }
+  function warm(request: TextureRequest = {}) {
+    const previous = warming;
+    previous?.controller.abort();
+    if (disposed || request.signal?.aborted) return Promise.resolve();
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    request.signal?.addEventListener("abort", cancel, { once: true });
+    const task = { controller, done: Promise.resolve() };
+    warming = task;
+    task.done = (async () => {
+      await previous?.done;
+      // Only observed departures prove a group is complete; window ID order is not progression.
+      for (const asset of futureAssets().values()) {
+        if (disposed || controller.signal.aborted) break;
+        const existing = loaded.get(asset.checksum);
+        if (existing) {
+          existing.warm = true;
+          continue;
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        if (disposed || controller.signal.aborted) break;
+        if (!fits([asset], request.residentResources ?? { gpuBytes: 0, bindings: 0 })) continue;
+        try {
+          const lease = await acquireAssets(
+            [asset],
+            { ...request, signal: controller.signal },
+            true,
+          );
+          const entry = loaded.get(asset.checksum);
+          if (entry && !disposed && !controller.signal.aborted) entry.warm = true;
+          lease.release();
+        } catch {
+          // Speculative loading must never reject foreground playback.
+        }
+      }
+    })()
+      .catch(() => undefined)
+      .finally(() => {
+        request.signal?.removeEventListener("abort", cancel);
+        if (warming === task) warming = null;
+      });
+    return task.done;
+  }
   return {
     assets,
+    warm,
+    activateGroup,
+    stopWarming,
+    discardWarm,
     get residentAssets() {
       return [...loaded.values()].map((entry) => entry.asset);
     },
@@ -342,6 +460,7 @@ export async function createPngTexturePool(options: {
     dispose() {
       if (disposed) return;
       disposed = true;
+      warming?.controller.abort();
       for (const entry of loaded.values()) entry.item.dispose();
       loaded.clear();
       encoded.clear();

@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vite-plus/test";
+import { assert, expect, it, vi } from "vite-plus/test";
 import { Texture } from "three";
 import type { DeliveryManifestWire } from "@unframe-dev/contracts/presentation";
 import { pngDeliveryFixture as fixture } from "../../test-support/png-delivery-fixture";
@@ -542,3 +542,320 @@ it.each<{
     }
   },
 );
+
+it("warms unused textures within spare capacity and reuses them for a later group", async () => {
+  const context = setup();
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-0"] },
+      { groupId: "last", assetIds: ["png:texture-1", "png:texture-2", "png:texture-3"] },
+    ],
+    maximumResidentGpuBytes: "10125312",
+    maximumResidentTextureBindings: "3",
+  });
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  expect(pool.residentAssets).toHaveLength(1);
+  await pool.warm();
+  expect(pool.residentAssets).toHaveLength(4);
+  expect(context.assets.every((asset) => asset.releaseCpuCopy.mock.calls.length === 1)).toBe(true);
+  const next = await pool.acquire("last");
+  expect(context.assets).toHaveLength(4);
+  first.release();
+  next.release();
+  pool.dispose();
+  expect(context.assets.every((asset) => asset.dispose.mock.calls.length === 1)).toBe(true);
+});
+
+function splitWindows(context: ReturnType<typeof setup>) {
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-0"] },
+      { groupId: "last", assetIds: ["png:texture-1"] },
+      { groupId: "other", assetIds: ["png:texture-2"] },
+      { groupId: "future", assetIds: ["png:texture-3"] },
+    ],
+    maximumResidentGpuBytes: "9437184",
+    maximumResidentTextureBindings: "1",
+  });
+}
+
+it.each([
+  { gpuBytes: 1, bindings: 0, gpuLimit: "9437184", bindingLimit: "8" },
+  { gpuBytes: 0, bindings: 1, gpuLimit: "99999999", bindingLimit: "2" },
+])("leaves room for other resident media while warming: %o", async (residentResources) => {
+  const context = setup();
+  splitWindows(context);
+  const limits = context.delivery.capabilityProfile!.limits!.texture!;
+  limits.maxGpuBytes = residentResources.gpuLimit;
+  limits.maxTextureBindings = residentResources.bindingLimit;
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  await pool.warm({ residentResources });
+  expect(pool.residentAssets).toHaveLength(1);
+  expect(pool.getTexture(first.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  first.release();
+  pool.dispose();
+});
+
+it("evicts unused warmed textures to admit a foreground window without dropping the current one", async () => {
+  const context = setup();
+  splitWindows(context);
+  context.delivery.capabilityProfile!.limits!.texture!.maxTextureBindings = "2";
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  await pool.warm();
+  expect(pool.residentAssets).toHaveLength(2);
+  expect(pool.canAcquire("first", { gpuBytes: 0, bindings: 1 })).toBe(true);
+  const next = await pool.acquire("first", { residentResources: { gpuBytes: 0, bindings: 1 } });
+  expect(pool.residentAssets).toHaveLength(1);
+  expect(context.assets[1]!.dispose).toHaveBeenCalledOnce();
+  expect(context.assets[0]!.dispose).not.toHaveBeenCalled();
+  first.release();
+  next.release();
+  pool.dispose();
+});
+
+it("keeps foreground textures usable when speculative loading fails", async () => {
+  const context = setup();
+  splitWindows(context);
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  context.loadTexture.mockRejectedValueOnce(new Error("offline"));
+  await expect(pool.warm()).resolves.toBeUndefined();
+  expect(pool.getTexture(first.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  const next = await pool.acquire("last");
+  expect(next.assets[0]!.assetId).toBe("png:texture-1");
+  first.release();
+  next.release();
+  pool.dispose();
+});
+
+it("does not decode speculative textures when current media consumes the serial CPU budget", async () => {
+  const context = setup();
+  splitWindows(context);
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  await pool.warm({
+    residentCpuBytes: Number(
+      context.delivery.capabilityProfile!.limits!.texture!.maxSerialLoadCpuBytes,
+    ),
+  });
+  expect(context.assets).toHaveLength(1);
+  expect(pool.getTexture(first.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  first.release();
+  pool.dispose();
+});
+
+it("aborts a slow speculative network request before acquiring a foreground group", async () => {
+  const { pool, fetcher, decode } = await setupRefreshedAccess();
+  let backgroundSignal: AbortSignal | undefined;
+  fetcher.mockImplementationOnce(
+    (_url, options) =>
+      new Promise((_resolve, reject) => {
+        backgroundSignal = options?.signal as AbortSignal;
+        backgroundSignal.addEventListener("abort", () => reject(new Error("cancelled")), {
+          once: true,
+        });
+      }),
+  );
+  const warming = pool.warm();
+  await vi.waitFor(() => expect(backgroundSignal).toBeDefined());
+  const next = await pool.acquire("last");
+  await warming;
+  expect(backgroundSignal?.aborted).toBe(true);
+  expect(decode).toHaveBeenCalledOnce();
+  expect(pool.getTexture(next.assets[0]!).texture).toBeInstanceOf(Texture);
+  next.release();
+  pool.dispose();
+});
+
+it("drains uncancellable speculative decoding before foreground work and disposes the cancelled result", async () => {
+  const context = setup();
+  splitWindows(context);
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  const cancelled = { texture: new Texture(), releaseCpuCopy: vi.fn(), dispose: vi.fn() };
+  let finish!: (value: typeof cancelled) => void;
+  let signal: AbortSignal | undefined;
+  context.loadTexture.mockImplementationOnce((_asset, options) => {
+    signal = options?.signal;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  const warming = pool.warm();
+  await vi.waitFor(() => expect(signal).toBeDefined());
+  const foreground = pool.acquire("last");
+  expect(signal?.aborted).toBe(true);
+  expect(context.assets).toHaveLength(1);
+  finish(cancelled);
+  const next = await foreground;
+  await warming;
+  expect(cancelled.dispose).toHaveBeenCalledOnce();
+  expect(cancelled.releaseCpuCopy).not.toHaveBeenCalled();
+  expect(pool.getTexture(next.assets[0]!).texture).not.toBe(cancelled.texture);
+  first.release();
+  next.release();
+  pool.dispose();
+});
+
+it("cancels warming and releases a late decoded texture when the pool is disposed", async () => {
+  const context = setup();
+  splitWindows(context);
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  const cancelled = { texture: new Texture(), releaseCpuCopy: vi.fn(), dispose: vi.fn() };
+  let finish!: (value: typeof cancelled) => void;
+  context.loadTexture.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const warming = pool.warm();
+  await vi.waitFor(() => expect(finish).toBeDefined());
+  pool.dispose();
+  finish(cancelled);
+  await warming;
+  expect(cancelled.dispose).toHaveBeenCalledOnce();
+  expect(pool.residentAssets).toHaveLength(0);
+  expect(pool.retainedCpuBytes).toBe(0);
+  first.release();
+});
+
+it("preserves requested warmed textures while evicting other speculative textures", async () => {
+  const context = setup();
+  splitWindows(context);
+  context.delivery.capabilityProfile!.limits!.texture!.maxTextureBindings = "4";
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  await pool.warm();
+  const warmed = pool.assets.find((asset) => asset.assetId === "png:texture-1")!;
+  const texture = pool.getTexture(warmed).texture;
+  expect(context.assets).toHaveLength(4);
+  const next = await pool.acquire("last", { residentResources: { gpuBytes: 0, bindings: 2 } });
+  expect(pool.getTexture(next.assets[0]!).texture).toBe(texture);
+  expect(context.assets).toHaveLength(4);
+  expect(pool.residentAssets).toHaveLength(2);
+  first.release();
+  next.release();
+  pool.dispose();
+});
+
+it("reclaims speculative encoded CPU memory before preparing replacement media", async () => {
+  const context = setup();
+  splitWindows(context);
+  context.loadTexture.mockImplementation(async (_asset, options) => {
+    options?.onEncodedBytes?.(new Uint8Array([1, 2, 3]));
+    const result = { texture: new Texture(), dispose: vi.fn(), releaseCpuCopy: vi.fn() };
+    context.assets.push(result);
+    return result;
+  });
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  await pool.warm();
+  expect(pool.retainedCpuBytes).toBe(12);
+  pool.discardWarm();
+  expect(pool.retainedCpuBytes).toBe(0);
+  expect(pool.residentAssets).toHaveLength(1);
+  expect(pool.getTexture(first.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  first.release();
+  pool.dispose();
+});
+
+it("retires completed-only textures and spends the freed capacity on unvisited groups", async () => {
+  const context = setup();
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "z-first",
+    groupWindows: [
+      { groupId: "a-current", assetIds: ["png:texture-1", "png:texture-2"] },
+      { groupId: "m-later", assetIds: ["png:texture-1", "png:texture-3"] },
+      { groupId: "z-first", assetIds: ["png:texture-0", "png:texture-1"] },
+    ],
+    maximumResidentGpuBytes: "13107200",
+    maximumResidentTextureBindings: "2",
+  });
+  context.delivery.capabilityProfile!.limits!.texture!.maxTextureBindings = "3";
+  context.loadTexture.mockImplementation(async (_asset, options) => {
+    options?.onEncodedBytes?.(new Uint8Array([1, 2, 3]));
+    const result = { texture: new Texture(), dispose: vi.fn(), releaseCpuCopy: vi.fn() };
+    context.assets.push(result);
+    return result;
+  });
+  const pool = await createPool(context);
+  const first = await pool.acquire("z-first");
+  pool.activateGroup("z-first");
+  await pool.warm();
+  expect(pool.residentAssets.map((asset) => asset.assetId)).toEqual([
+    "png:texture-0",
+    "png:texture-1",
+    "png:texture-2",
+  ]);
+  const shared = pool.getTexture(first.assets[1]!).texture;
+  const next = await pool.acquire("a-current");
+  pool.activateGroup("a-current");
+  first.release();
+  expect(context.assets[0]!.dispose).toHaveBeenCalledOnce();
+  expect(pool.retainedCpuBytes).toBe(3);
+  expect(pool.getTexture(next.assets[0]!).texture).toBe(shared);
+  await pool.warm();
+  expect(pool.residentAssets.map((asset) => asset.assetId)).toEqual([
+    "png:texture-1",
+    "png:texture-2",
+    "png:texture-3",
+  ]);
+  expect(context.assets).toHaveLength(4);
+  next.release();
+  pool.dispose();
+});
+
+it("does not infer completed groups when first joining a later group", async () => {
+  const context = setup();
+  splitWindows(context);
+  const pool = await createPool(context);
+  const current = await pool.acquire("last");
+  pool.activateGroup("last");
+  await pool.warm();
+  expect(pool.residentAssets.map((asset) => asset.assetId)).toContain("png:texture-0");
+  expect(context.assets).toHaveLength(4);
+  current.release();
+  expect(context.assets[0]!.dispose).toHaveBeenCalledOnce();
+  pool.dispose();
+});
+
+it("retains an image shared with an unvisited group through a different asset alias", async () => {
+  const context = setup();
+  const states =
+    context.delivery.projectionProfile!.renderSurfaces![2]!.artifacts![0]!.bakedWeb!.states!;
+  const checksum = states[0]!.texture!.checksum;
+  assert.isDefined(checksum);
+  states[1]!.texture!.checksum = checksum;
+  context.delivery.assetAccess![3]!.checksum = checksum;
+  Object.assign(context.delivery.residency!.textures!, {
+    initialGroupId: "first",
+    groupWindows: [
+      { groupId: "first", assetIds: ["png:texture-2"] },
+      { groupId: "last", assetIds: ["png:texture-3"] },
+    ],
+    maximumResidentGpuBytes: "3227648",
+    maximumResidentTextureBindings: "1",
+    totalDecodedGpuBytes: "16334848",
+  });
+  context.delivery.residency!.textures!.textures!.pop();
+  const pool = await createPool(context);
+  const first = await pool.acquire("first");
+  pool.activateGroup("first");
+  await pool.warm();
+  const next = await pool.acquire("last");
+  pool.activateGroup("last");
+  first.release();
+  expect(pool.getTexture(next.assets[0]!).texture).toBe(context.assets[0]!.texture);
+  expect(context.assets).toHaveLength(1);
+  expect(context.assets[0]!.dispose).not.toHaveBeenCalled();
+  next.release();
+  expect(context.assets[0]!.dispose).toHaveBeenCalledOnce();
+  pool.dispose();
+});

@@ -30,6 +30,19 @@ namespace Unframe.Unity.PresentationRuntime
         private readonly List<SortingGroup> sortingGroups = new List<SortingGroup>();
         private readonly Dictionary<string, TMP_FontAsset> fonts = new Dictionary<string, TMP_FontAsset>();
 
+        public void GetTextureUsage(out ulong gpuBytes, out ulong bindings)
+        {
+            gpuBytes = bindings = 0;
+            var seen = new HashSet<Texture2D>();
+            foreach (var font in fonts.Values)
+                foreach (var atlas in font.atlasTextures)
+                {
+                    if (atlas == null || !seen.Add(atlas)) continue;
+                    gpuBytes = checked(gpuBytes + (ulong)atlas.width * (ulong)atlas.height * 4);
+                    bindings++;
+                }
+        }
+
         public bool IsReady
         {
             get
