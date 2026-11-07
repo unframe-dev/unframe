@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Threading;
 using Unframe.Delivery;
 using UnityEngine;
 
@@ -56,9 +57,9 @@ namespace Unframe.Unity.PresentationRuntime
             return true;
         }
 
-        public bool TryLoad(TextureResidencyBinding binding, AssetAccessBinding access, byte[] bytes, out string error)
+        private static bool ValidateEncoded(TextureResidencyBinding binding, AssetAccessBinding access, byte[] bytes, CancellationToken token)
         {
-            error = "asset-texture-residency-failed";
+            token.ThrowIfCancellationRequested();
             if (binding == null || binding.PixelSize == null || access == null || bytes == null
                 || binding.AssetId != access.AssetId || binding.Checksum != access.Checksum
                 || access.MediaType != "image/png" || access.EncodedSizeBytes != (ulong)bytes.LongLength
@@ -78,6 +79,33 @@ namespace Unframe.Unity.PresentationRuntime
                 if (binding.Checksum != actual) return false;
             }
 
+            token.ThrowIfCancellationRequested();
+            return true;
+        }
+
+        public static bool TryPrepare(TextureResidencyBinding binding, AssetAccessBinding access, byte[] bytes,
+            out byte[] rgba, CancellationToken token = default)
+        {
+            rgba = null;
+            return ValidateEncoded(binding, access, bytes, token)
+                && TryDecode(bytes, (int)binding.PixelSize.Width, (int)binding.PixelSize.Height, out rgba, token);
+        }
+
+        public bool TryLoad(TextureResidencyBinding binding, AssetAccessBinding access, byte[] bytes, out string error)
+        {
+            error = "asset-texture-residency-failed";
+            if (!ValidateEncoded(binding, access, bytes, default)) return false;
+            if (TryRetain(binding, out error)) return true;
+            return TryDecode(bytes, (int)binding.PixelSize.Width, (int)binding.PixelSize.Height, out byte[] rgba, default)
+                && TryUpload(binding, rgba, out error);
+        }
+
+        internal bool TryUpload(TextureResidencyBinding binding, byte[] rgba, out string error)
+        {
+            error = "asset-texture-residency-failed";
+            ulong width = binding.PixelSize.Width, height = binding.PixelSize.Height;
+            ulong raw = width * height * 4;
+            if (rgba == null || (ulong)rgba.LongLength != raw) return false;
             if (descriptors.TryGetValue(binding.Checksum, out TextureResidencyBinding existing))
             {
                 if (!existing.PixelSize.Equals(binding.PixelSize) || existing.DecodedGpuBytes != binding.DecodedGpuBytes
@@ -99,8 +127,6 @@ namespace Unframe.Unity.PresentationRuntime
                 error = null;
                 return true;
             }
-
-            if (!TryDecode(bytes, (int)width, (int)height, out byte[] rgba)) return false;
 
             Texture2D texture = null;
             try
@@ -134,7 +160,7 @@ namespace Unframe.Unity.PresentationRuntime
 
         // The portable encoder emits one sRGB chunk and stored DEFLATE blocks with filter zero.
         // Decode directly into the upload buffer to keep the declared two-RGBA-copy peak.
-        private static bool TryDecode(byte[] png, int width, int height, out byte[] rgba)
+        private static bool TryDecode(byte[] png, int width, int height, out byte[] rgba, CancellationToken token)
         {
             rgba = null;
             if (ReadUInt32(png, 33) != 1 || png[37] != 115 || png[38] != 82 || png[39] != 71 || png[40] != 66 || png[41] != 0
@@ -143,7 +169,7 @@ namespace Unframe.Unity.PresentationRuntime
             if (ReadUInt32(png, 46) != end - 54 || png[54] != 0x78 || png[55] != 0x01
                 || ReadUInt32(png, png.Length - 12) != 0 || png[png.Length - 8] != 73 || png[png.Length - 7] != 69
                 || png[png.Length - 6] != 78 || png[png.Length - 5] != 68) return false;
-            if (!ValidChunkCrc(png, 8) || !ValidChunkCrc(png, 33) || !ValidChunkCrc(png, 46) || !ValidChunkCrc(png, png.Length - 12)) return false;
+            if (!ValidChunkCrc(png, 8, token) || !ValidChunkCrc(png, 33, token) || !ValidChunkCrc(png, 46, token) || !ValidChunkCrc(png, png.Length - 12, token)) return false;
             byte[] output = new byte[width * height * 4];
             int cursor = 56;
             int scanline = 0;
@@ -151,6 +177,7 @@ namespace Unframe.Unity.PresentationRuntime
             uint a = 1, b = 0;
             while (cursor < end - 4)
             {
+                token.ThrowIfCancellationRequested();
                 if (cursor + 5 > end - 4) return false;
                 int final = png[cursor++];
                 int length = png[cursor] | png[cursor + 1] << 8;
@@ -191,14 +218,18 @@ namespace Unframe.Unity.PresentationRuntime
             return table;
         }
 
-        private static bool ValidChunkCrc(byte[] png, int start)
+        private static bool ValidChunkCrc(byte[] png, int start, CancellationToken token)
         {
             if (start < 0 || start > png.Length - 12) return false;
             uint length = ReadUInt32(png, start);
             if (length > png.Length - start - 12) return false;
             int end = start + 8 + (int)length;
             uint crc = uint.MaxValue;
-            for (int index = start + 4; index < end; index++) crc = CrcTable[(crc ^ png[index]) & 255] ^ (crc >> 8);
+            for (int index = start + 4; index < end; index++)
+            {
+                if ((index & 65535) == 0) token.ThrowIfCancellationRequested();
+                crc = CrcTable[(crc ^ png[index]) & 255] ^ (crc >> 8);
+            }
             return ~crc == ReadUInt32(png, end);
         }
 

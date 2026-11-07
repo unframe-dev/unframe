@@ -165,6 +165,7 @@ namespace Unframe.Unity.PresentationRuntime
                 effects.Clear();
                 playback.Clear();
                 clock = null;
+                if (sceneRenderer != null) await sceneRenderer.StopPreloadingAsync();
                 sceneRenderer?.Dispose();
                 sceneRenderer = null;
                 refreshRenderer = null;

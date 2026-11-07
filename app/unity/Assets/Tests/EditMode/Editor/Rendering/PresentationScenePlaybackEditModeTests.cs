@@ -155,6 +155,124 @@ public sealed class PresentationScenePlaybackEditModeTests
         }
     }
 
+    [UnityTest]
+    public IEnumerator SceneRefreshReusesPreparedPngAndReleasesTheCompletedGroupTexture()
+    {
+        CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot);
+        var bakedDelivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+        var render = bakedDelivery.ProjectionProfile.RenderSurfaces[0].Clone();
+        string surfaceId = render.SemanticSurfaceId;
+        foreach (var sourceSurface in bakedDelivery.ProjectionProfile.RuntimeCatalog.Surfaces)
+            if (sourceSurface.SurfaceId == surfaceId)
+            {
+                manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Add(sourceSurface.Clone());
+                foreach (var source in bakedDelivery.ProjectionProfile.RuntimeCatalog.Nodes)
+                    if (source.NodeId == sourceSurface.HostNodeId)
+                        foreach (var target in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+                            if (target.NodeId == source.NodeId) target.Surface = source.Surface.Clone();
+            }
+        foreach (var projection in bakedDelivery.ProjectionProfile.SemanticSurfaces)
+            if (projection.SemanticSurfaceId == surfaceId) manifest.ProjectionProfile.SemanticSurfaces.Add(projection.Clone());
+        manifest.ProjectionProfile.RenderSurfaces.Add(render);
+        manifest.CapabilityProfile = bakedDelivery.CapabilityProfile.Clone();
+        manifest.Residency.Textures = bakedDelivery.Residency.Textures.Clone();
+        manifest.AssetAccess.Add(PresentationTextureResidencyEditModeTests.Access("asset:texture"));
+        manifest.Residency.TotalSelectedEncodedBytes = 172;
+        byte[] firstPng = (byte[])typeof(PresentationTextureResidencyEditModeTests).GetField("Png", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
+        byte[] nextPng = PresentationTexturePreloaderEditModeTests.PngVariant(180, out var nextBinding, out var nextAccess);
+        manifest.AssetAccess.Add(nextAccess);
+        var artifact = render.Artifacts[0].BakedWeb;
+        var nextState = artifact.States[0].Clone(); nextState.StateId = "state:next";
+        nextState.Texture.AssetId = nextBinding.AssetId; nextState.Texture.Checksum = nextBinding.Checksum;
+        var nextRender = render.Clone(); nextRender.RenderSurfaceId = "render:next"; nextRender.SemanticSurfaceId = "surface:next";
+        nextRender.Artifacts[0].BakedWeb.States.Clear(); nextRender.Artifacts[0].BakedWeb.States.Add(nextState);
+        var nextStateBinding = render.StateBindings[0].Clone(); nextStateBinding.StateId = nextState.StateId;
+        nextRender.StateBindings.Clear(); nextRender.StateBindings.Add(nextStateBinding);
+        manifest.ProjectionProfile.RenderSurfaces.Add(nextRender);
+        var semantic = manifest.ProjectionProfile.RuntimeCatalog.Surfaces[0];
+        semantic.LogicalSize = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+        semantic.PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 };
+        semantic.Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:local" } };
+        var nextSemantic = semantic.Clone(); nextSemantic.SurfaceId = nextRender.SemanticSurfaceId; nextSemantic.HostNodeId = "node:next";
+        nextSemantic.Owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:next" } };
+        nextSemantic.ReachableStateIds.Clear(); nextSemantic.ReachableStateIds.Add(nextState.StateId);
+        manifest.ProjectionProfile.RuntimeCatalog.Surfaces.Add(nextSemantic);
+        ProjectedNodeDefinition nextHost = null;
+        foreach (var node in manifest.ProjectionProfile.RuntimeCatalog.Nodes)
+            if (node.NodeId == semantic.HostNodeId) { nextHost = node.Clone(); break; }
+        Assert.That(nextHost, Is.Not.Null);
+        nextHost.NodeId = nextSemantic.HostNodeId; nextHost.Surface.SemanticSurfaceId = nextSemantic.SurfaceId;
+        nextHost.Owner = nextSemantic.Owner.Clone();
+        manifest.ProjectionProfile.RuntimeCatalog.Nodes.Add(nextHost);
+        var nextProjection = manifest.ProjectionProfile.SemanticSurfaces[0].Clone(); nextProjection.SemanticSurfaceId = nextSemantic.SurfaceId;
+        nextProjection.RenderSurfaceIds.Clear(); nextProjection.RenderSurfaceIds.Add(nextRender.RenderSurfaceId);
+        var semanticState = nextProjection.States[0].Clone(); semanticState.StateId = nextState.StateId;
+        nextProjection.States.Clear(); nextProjection.States.Add(semanticState);
+        manifest.ProjectionProfile.SemanticSurfaces.Add(nextProjection);
+        manifest.Residency.Textures.Textures.Add(nextBinding);
+        manifest.Residency.Textures.TotalDecodedGpuBytes = 8;
+        manifest.Residency.Textures.GroupWindows.Add(new TextureResidencyWindow { GroupId = "group:next", AssetIds = { nextBinding.AssetId } });
+        var initial = snapshot.ConnectionSnapshot.Snapshot.RuntimeView;
+        initial.ActiveRuns.Clear(); initial.SurfaceStates.Clear();
+        initial.SurfaceStates.Add(new SurfaceRuntimeState { SurfaceId = surfaceId, StateId = artifact.States[0].StateId });
+        NodeRuntimeState nextHostState = null;
+        foreach (var node in initial.NodeStates) if (node.NodeId == semantic.HostNodeId) { nextHostState = node.Clone(); break; }
+        Assert.That(nextHostState, Is.Not.Null); nextHostState.NodeId = nextHost.NodeId;
+        var store = new PresentationRuntimeDataStore();
+        Assert.That(store.TryReceiveDelivery(manifest, out string error), Is.True, error);
+        Assert.That(store.TryReceiveControl(snapshot, out error), Is.True, error);
+        var root = new GameObject("PNG forward preload scene");
+        var hierarchy = new PresentationNodeHierarchy();
+        using (var renderer = new PresentationSceneRenderer())
+        {
+            try
+            {
+                Assert.That(hierarchy.TryReplace(store, root.transform, out error), Is.True, error);
+                Task load = renderer.LoadAsync(store, hierarchy, (asset, _) => Task.FromResult(asset.AssetId == nextBinding.AssetId ? nextPng : firstPng), CancellationToken.None);
+                while (!load.IsCompleted) yield return null;
+                load.GetAwaiter().GetResult();
+                Assert.That(renderer.TryRefresh(store, 0, out error), Is.True, error);
+                Assert.That(renderer.Textures.TryGet(manifest.Residency.Textures.Textures[0].Checksum, out Texture2D previous), Is.True);
+                var wait = System.Diagnostics.Stopwatch.StartNew();
+                while (wait.Elapsed.TotalSeconds < 5 && !renderer.Textures.TryGet(nextBinding.Checksum, out _)) yield return null;
+                Assert.That(renderer.Textures.TryGet(nextBinding.Checksum, out Texture2D prepared), Is.True);
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Sequence = 1,
+                        Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                        GroupExited = new GroupExited { GroupId = "group:local", GroupEntryEpoch = 1 },
+                    }
+                }, out error), Is.True, error);
+                Assert.That(store.TryReceiveControl(new ControlServerItem
+                {
+                    ReliableEvent = new ProjectedReliableEvent
+                    {
+                        Sequence = 2,
+                        Fence = snapshot.ConnectionSnapshot.Fence.Clone(),
+                        GroupEntered = new GroupEntered
+                        {
+                            GroupId = "group:next",
+                            GroupEntryEpoch = 2,
+                            Initialization = new GroupRuntimeInitialization
+                            {
+                                NodeStates = { nextHostState },
+                                SurfaceStates = { new SurfaceRuntimeState { SurfaceId = nextSemantic.SurfaceId, StateId = nextState.StateId } },
+                            },
+                        },
+                    }
+                }, out error), Is.True, error);
+                Assert.That(renderer.TryRefresh(store, 1, out error), Is.True, error);
+                Assert.That(renderer.Textures.TryGet(nextBinding.Checksum, out Texture2D current), Is.True);
+                Assert.That(current, Is.SameAs(prepared));
+                Assert.That(previous == null, Is.True);
+                Assert.That(renderer.Textures.ResidentGpuBytes, Is.EqualTo(4));
+            }
+            finally { hierarchy.Clear(); Object.DestroyImmediate(root); }
+        }
+    }
+
     private static void CreateAssetFreeFixture(out DeliveryManifest manifest, out ControlServerItem snapshot)
     {
         Assert.That(PresentationContractJsonFixtureLoader.TryParseDelivery(PresentationTestFixtures.Load("LocalDelivery").text,

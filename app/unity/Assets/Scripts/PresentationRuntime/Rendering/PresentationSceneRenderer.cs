@@ -19,6 +19,10 @@ namespace Unframe.Unity.PresentationRuntime
         private bool loaded;
         private ulong modelGpuBytes, modelTextureBindings;
         private bool interactionsEnabled;
+        private PresentationTexturePreloader preloader;
+        private string renderedGroup;
+        private int activatedFrame = -1;
+        private ulong preloadGpu, preloadBindings, preloadCpu;
         public PresentationTextureResidency Textures { get; private set; }
 
         public bool HasResidentAssets(PresentationRuntimeDataStore store)
@@ -32,6 +36,7 @@ namespace Unframe.Unity.PresentationRuntime
         public async Task LoadAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
             Func<AssetAccessBinding, CancellationToken, Task<byte[]>> readAsset, CancellationToken token)
         {
+            await StopPreloadingAsync();
             Dispose();
             if (store?.Delivery == null || hierarchy == null || readAsset == null)
                 throw new ArgumentException("A validated Delivery, hierarchy and asset reader are required.");
@@ -82,6 +87,27 @@ namespace Unframe.Unity.PresentationRuntime
                     return Task.FromResult(new PresentationPreviewAssetData(File.ReadAllBytes(path), access.MediaType));
                 }, token);
                 token.ThrowIfCancellationRequested();
+                native.GetTextureUsage(out ulong nativeGpu, out ulong nativeBindings);
+                preloadGpu = checked(modelGpuBytes + nativeGpu + store.Delivery.Residency.Video.MaximumDecodedFrameBytes);
+                preloadBindings = checked(modelTextureBindings + nativeBindings + store.Delivery.Residency.Video.MaximumConcurrentDecoders);
+                preloadCpu = checked(nativeGpu + store.Delivery.Residency.Models.TotalEncodedBytes + store.Delivery.Residency.Video.TotalEncodedBytes
+                    + store.Delivery.Residency.Video.MaximumDecodedFrameBytes);
+                foreach (var asset in store.Delivery.AssetAccess)
+                    if (asset.MediaType == "font/ttf" || asset.MediaType == "font/otf") preloadCpu = checked(preloadCpu + asset.EncodedSizeBytes);
+                preloader = new PresentationTexturePreloader(store.Delivery.Residency.Textures, Textures, (binding, cancellation) =>
+                {
+                    if (!store.TryGetAsset(binding.AssetId, out var access) || !files.Paths.TryGetValue(binding.AssetId, out string path))
+                        throw new InvalidOperationException("texture-asset-file-absent");
+                    var selected = binding.Clone(); var currentAccess = access.Clone();
+                    return Task.Run(() =>
+                    {
+                        cancellation.ThrowIfCancellationRequested();
+                        byte[] bytes = File.ReadAllBytes(path);
+                        if (!PresentationTextureResidency.TryPrepare(selected, currentAccess, bytes, out byte[] rgba, cancellation))
+                            throw new InvalidOperationException("asset-texture-residency-failed");
+                        return rgba;
+                    }, cancellation);
+                });
                 loaded = true;
                 if (!IsReady(store)) throw new InvalidOperationException("asset_residency_lost");
             }
@@ -98,8 +124,12 @@ namespace Unframe.Unity.PresentationRuntime
                 if (required == null) { interactionsEnabled = false; error = null; return true; }
                 if (baked.TryRefresh(store, Textures, time, out error) && native.TryRefresh(store, time, out error))
                 {
-                    Textures.RetainOnly(PresentationTextureWindow.Checksums(required));
+                    string groupId = store.Progression?.CurrentGroupId ?? store.Delivery.Residency.Textures.InitialGroupId;
+                    preloader.Activate(groupId);
+                    if (renderedGroup != groupId) { renderedGroup = groupId; activatedFrame = Time.frameCount; }
                     interactionsEnabled = true;
+                    if (!Application.isPlaying || Time.frameCount != activatedFrame)
+                        _ = preloader.WarmNextAsync(store.Delivery.CapabilityProfile.Limits.Texture, preloadGpu, preloadBindings, preloadCpu);
                     return true;
                 }
             }
@@ -114,8 +144,13 @@ namespace Unframe.Unity.PresentationRuntime
             // GroupExited arrives before GroupEntered; retain the current window until initialization completes.
             if (store.Progression?.CurrentGroupId == "") return null;
             var required = PresentationTextureWindow.Select(store.Delivery.Residency.Textures, store.Progression?.CurrentGroupId);
+            string groupId = store.Progression?.CurrentGroupId ?? store.Delivery.Residency.Textures.InitialGroupId;
+            ulong otherGpu = preloader == null ? modelGpuBytes : preloadGpu;
+            ulong otherBindings = preloader == null ? modelTextureBindings : preloadBindings;
+            if (preloader != null && !preloader.PrepareForeground(groupId, required, store.Delivery.CapabilityProfile.Limits.Texture,
+                otherGpu, otherBindings)) return null;
             bool ready = PresentationTextureWindow.Prepare(Textures, required, store.Delivery.CapabilityProfile.Limits.Texture,
-                modelGpuBytes, modelTextureBindings, () => baked.DetachTextures(), binding =>
+                otherGpu, otherBindings, () => baked.DetachTextures(), binding =>
                 {
                     if (!store.TryGetAsset(binding.AssetId, out var access) || !files.Paths.TryGetValue(binding.AssetId, out string path))
                         return false;
@@ -146,9 +181,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         public void Disable() { interactionsEnabled = false; baked?.Disable(); native?.Disable(); Spatial?.Disable(); Videos?.Pause(); }
 
+        public Task StopPreloadingAsync() => preloader?.StopAsync() ?? Task.CompletedTask;
+
         public void Dispose()
         {
             loaded = interactionsEnabled = false;
+            preloader?.Dispose(); preloader = null;
+            renderedGroup = null; activatedFrame = -1;
+            preloadGpu = preloadBindings = preloadCpu = 0;
             modelGpuBytes = modelTextureBindings = 0;
             Videos?.Dispose(); Videos = null;
             Models?.Dispose(); Models = null;
