@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { assert, expect, it } from "vite-plus/test";
-import { resolvePresentation } from "@unframe-dev/compiler";
+import { reactResourceId, resolvePresentation } from "@unframe-dev/compiler";
 import { modelGlb } from "../../../compiler/test/fixtures/model.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
@@ -13,6 +13,7 @@ import {
   computeFrozenComponentInputs,
 } from "../../src/source-preparation/index.js";
 import { checkAuthoringProject } from "@unframe-dev/source";
+import { prepareOpaquePrograms } from "../../src/source-preparation/opaque-programs.js";
 
 const libraryDirectory = dirname(createRequire(import.meta.url).resolve("typescript"));
 const typeLibraries = readdirSync(libraryDirectory)
@@ -171,6 +172,171 @@ const component = `
     render: ({texts}: {texts: {title: string}}) => decorate(label + texts.title),
   });
 `;
+
+const opaqueProject = () => {
+  const presentation = `
+    import {definePresentation} from "@unframe-dev/authoring";
+    import {Hero} from "./Hero.component";
+    import {Aside} from "./Aside.component";
+    export default definePresentation({
+      id: "deck", metadata: {title: "Deck"},
+      stage: {coordinateSystem: {unit: "meter", handedness: "right", upAxis: "+Y", forwardAxis: "-Z"}, size: [4, 3, 4]},
+      scene: [
+        {id: "opening", component: Hero, props: {title: "Opening"}, owner: {kind: "presentation"}, audience: {kind: "all"}, parent: {kind: "stage"}, physicalSizeMeters: [1, 1], fit: "contain", transform: {position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1]}},
+        {id: "closing", component: Hero, props: {title: "Closing"}, owner: {kind: "presentation"}, audience: {kind: "all"}, parent: {kind: "stage"}, physicalSizeMeters: [1, 1], fit: "contain", transform: {position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1]}},
+        {id: "aside", component: Aside, props: {title: "Aside"}, owner: {kind: "presentation"}, audience: {kind: "all"}, parent: {kind: "stage"}, physicalSizeMeters: [1, 1], fit: "contain", transform: {position: [0,0,0], rotation: [0,0,0,1], scale: [1,1,1]}}
+      ],
+      assets: [], flow: {initialGroupId: "group", groups: {group: {id: "group", initialStepId: "step", steps: {step: {id: "step", cues: []}}}}, variables: {}}, operations: []
+    });
+  `;
+  const input = analyze(component, presentation, undefined, [
+    {
+      fileName: "Aside.component.tsx",
+      sourceText: component
+        .replace('id: "hero"', 'id: "aside"')
+        .replace("const Hero", "const Aside")
+        .replace("Welcome ", "Aside "),
+    },
+  ]);
+  const domHash = `sha256:${"3".repeat(64)}`;
+  const source = {
+    ...input,
+    rootDependencies: [
+      ...input.rootDependencies,
+      { specifier: "react-dom", usage: "runtime", packageKey: domHash },
+    ],
+    packages: [
+      ...input.packages.map((pkg) =>
+        pkg.name === "react"
+          ? {
+              ...pkg,
+              files: [
+                {
+                  path: "index.ts",
+                  mediaType: "text/typescript",
+                  hash: reactHash,
+                  encoding: "utf8",
+                  data: "export const createElement = () => null;",
+                },
+                ...pkg.files,
+              ],
+              exports: [
+                {
+                  subpath: ".",
+                  runtimeImport: "index.ts",
+                  runtimeRequire: null,
+                  types: "index.ts",
+                },
+                ...pkg.exports,
+              ],
+            }
+          : pkg,
+      ),
+      {
+        key: domHash,
+        locator: "react-dom@1",
+        name: "react-dom",
+        version: "1",
+        contentIntegrity: domHash,
+        files: [
+          {
+            path: "client.ts",
+            mediaType: "text/typescript",
+            hash: domHash,
+            encoding: "utf8",
+            data: "export const createRoot = () => ({});",
+          },
+          {
+            path: "index.ts",
+            mediaType: "text/typescript",
+            hash: domHash,
+            encoding: "utf8",
+            data: "export const flushSync = () => {};",
+          },
+        ],
+        exports: [
+          { subpath: ".", runtimeImport: "index.ts", runtimeRequire: null, types: "index.ts" },
+          {
+            subpath: "./client",
+            runtimeImport: "client.ts",
+            runtimeRequire: null,
+            types: "client.ts",
+          },
+        ],
+        dependencies: [],
+      },
+    ],
+  };
+  const catalog = checkAuthoringProject(source);
+  assert(catalog.valid, JSON.stringify(catalog.diagnostics));
+  const frozen = computeFrozenComponentInputs(source, catalog.value);
+  assert(frozen.valid, JSON.stringify(frozen.diagnostics));
+  return {
+    source,
+    carrier: { themeHashes: [], componentLocks: frozen.value.componentLocks, assets: {} },
+  };
+};
+
+it("bundles each shared React component once while preserving each instance's render inputs", async () => {
+  const { source, carrier } = opaqueProject();
+  let bundles = 0;
+  const programs = await prepareOpaquePrograms(
+    source,
+    carrier,
+    {},
+    {
+      bundle: async ({ rendererInputHash }) => {
+        bundles++;
+        return {
+          ok: true,
+          javascript: rendererInputHash,
+          sourceMap: "map",
+          stylesheets: [],
+          assets: [],
+        };
+      },
+      mediaTypeFor: () => "application/octet-stream",
+    },
+  );
+  expect(bundles).toBe(2);
+  expect(programs).toHaveLength(3);
+  expect(programs.map((program) => program.props.title).sort()).toEqual([
+    "Aside",
+    "Closing",
+    "Opening",
+  ]);
+  expect(new Set(programs.map((program) => program.entryId)).size).toBe(3);
+  expect(new Set(programs.map((program) => program.moduleHash)).size).toBe(2);
+  expect(programs.map((program) => program.javascript)).toEqual(
+    programs.map((program) => program.moduleHash),
+  );
+  expect(programs.map((program) => program.stateKeysById)).toEqual(
+    expect.arrayContaining([
+      { [reactResourceId("state", "opening", "default")]: "default" },
+      { [reactResourceId("state", "closing", "default")]: "default" },
+      { [reactResourceId("state", "aside", "default")]: "default" },
+    ]),
+  );
+}, 20000);
+
+it("rejects stale component locks before bundling an opaque renderer", async () => {
+  const { source, carrier } = opaqueProject();
+  await expect(
+    prepareOpaquePrograms(
+      source,
+      { ...carrier, componentLocks: [] },
+      {},
+      {
+        bundle: async () => {
+          throw new Error("Unexpected bundle execution");
+        },
+        mediaTypeFor: () => "application/octet-stream",
+      },
+    ),
+  ).rejects.toMatchObject({
+    diagnostics: [{ code: "compiler-frozen-component-lock-mismatch" }],
+  });
+}, 20000);
 
 it("freezes a package component resolved by the Source public API", () => {
   const presentation = `

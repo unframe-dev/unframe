@@ -4,7 +4,7 @@ import { localCssDependency } from "./css-url-policy.js";
 import type { ValidationResult } from "@unframe-dev/presentation";
 import type { CompilerDeclarationProject } from "@unframe-dev/compiler";
 import { parseAuthoringProject } from "@unframe-dev/source";
-import type { ParsedLockedPackage } from "@unframe-dev/source";
+import type { ParsedAuthoringProjectValue, ParsedLockedPackage } from "@unframe-dev/source";
 
 type OpaqueComponent = Extract<
   CompilerDeclarationProject["components"][number],
@@ -141,8 +141,14 @@ export const prepareLockedOpaqueBundleInput = (
         path: [item.fileName],
       })),
     };
+  return prepareParsedLockedOpaqueBundleInput(parsed.value, component);
+};
+
+export const prepareParsedLockedOpaqueBundleInput = (
+  source: ParsedAuthoringProjectValue,
+  component: OpaqueComponent,
+): ValidationResult<LockedOpaqueBundleInput> => {
   try {
-    const source = parsed.value;
     const packages = new Map(source.packages.map((pkg) => [pkg.key, pkg]));
     const modules = new Map<string, LockedOpaqueBundleInput["modules"][number]>();
     const resolutions = new Map<string, LockedOpaqueBundleInput["resolutions"][number]>();

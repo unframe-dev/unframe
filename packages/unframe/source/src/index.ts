@@ -1,5 +1,6 @@
 export {
   checkAuthoringProject,
+  checkParsedAuthoringProject,
   createAuthoringProjectChecker,
   SourceInternalError,
   type AuthoringProjectDiagnostic,

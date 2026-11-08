@@ -178,14 +178,16 @@ const runtimeGraph = (
   };
 };
 
+type FrozenComponentInputs = {
+  componentLocks: readonly DeclarationProjectComponentLock[];
+  themeHashes: readonly { themeId: string; hash: string }[];
+};
+
 /** Recomputes local closures and render inputs from an already checked, non-executed catalog. */
 export const computeFrozenComponentInputs = (
   input: unknown,
   catalog: PairedAuthoringDeclarationCatalog,
-): ValidationResult<{
-  componentLocks: readonly DeclarationProjectComponentLock[];
-  themeHashes: readonly { themeId: string; hash: string }[];
-}> => {
+): ValidationResult<FrozenComponentInputs> => {
   try {
     const parsed = parseAuthoringProject(input);
     if (!parsed.ok)
@@ -197,7 +199,18 @@ export const computeFrozenComponentInputs = (
           path: [d.fileName],
         })),
       };
-    const source = parsed.value;
+    return computeParsedFrozenComponentInputs(parsed.value, catalog);
+  } catch (error) {
+    if (error instanceof CompilerInternalError) throw error;
+    throw new CompilerInternalError("frozen-input", error);
+  }
+};
+
+export const computeParsedFrozenComponentInputs = (
+  source: ParsedAuthoringProjectValue,
+  catalog: PairedAuthoringDeclarationCatalog,
+): ValidationResult<FrozenComponentInputs> => {
+  try {
     const componentLocks: DeclarationProjectComponentLock[] = catalog.components.map(
       (component) => {
         const manifest = component.manifest.value;

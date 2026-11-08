@@ -37,3 +37,28 @@ it("rejects an invalid opaque source before invoking the bundle port", async () 
   ).rejects.toBeInstanceOf(build.OpaquePreparationFailure);
   expect(invoked).toBe(false);
 });
+
+it("rejects malformed opaque source syntax before invoking the bundle port", async () => {
+  let invoked = false;
+  await expect(
+    build.prepareOpaquePrograms(
+      {
+        projectRoot: "/virtual",
+        entryFile: "presentation.ts",
+        files: [{ fileName: "presentation.ts", sourceText: "export default {" }],
+        rootDependencies: [],
+        packages: [],
+      },
+      {},
+      {},
+      {
+        bundle: async () => {
+          invoked = true;
+          return { ok: false, diagnostics: [] };
+        },
+        mediaTypeFor: () => "application/octet-stream",
+      },
+    ),
+  ).rejects.toBeInstanceOf(build.OpaquePreparationFailure);
+  expect(invoked).toBe(false);
+});

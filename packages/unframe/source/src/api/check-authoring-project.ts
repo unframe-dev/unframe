@@ -40,6 +40,7 @@ export type CheckAuthoringProjectResult =
     }
   | { readonly valid: false; readonly diagnostics: readonly AuthoringProjectDiagnostic[] };
 
+/** Checks a successful parseAuthoringProject snapshot without parsing its package graph again. */
 export const checkParsedAuthoringProject = (
   project: ParsedAuthoringProjectValue,
   observe?: (stage: string) => void,

@@ -1,8 +1,10 @@
-import { expect, it } from "vite-plus/test";
+import { assert, expect, it } from "vite-plus/test";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { parseAuthoringProject } from "@unframe-dev/source";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
 import { prepareLockedOpaqueBundleInput } from "../../src/source-preparation/index.js";
+import { prepareParsedLockedOpaqueBundleInput } from "../../src/source-preparation/semantic/prepare-locked-opaque-bundle-input.js";
 
 const digest = (text: string) => `sha256:${bytesToHex(sha256(new TextEncoder().encode(text)))}`;
 const key = (symbol: string) => `sha256:${symbol.repeat(64)}`;
@@ -77,6 +79,28 @@ const component = {
     'import {label} from "./helper"; export const render = ({texts}: {texts:{title:string}}) => <h1>{label}: {texts.title}</h1>;',
   lock: { rendererInputHash: key("c"), origin: { kind: "local", entryFile: "Hero.component.tsx" } },
 };
+
+it("prepares multiple renderers from one captured package graph", () => {
+  const captured = structuredClone(source);
+  const parsed = parseAuthoringProject(captured);
+  assert(parsed.ok, JSON.stringify(parsed.diagnostics));
+  const first = prepareParsedLockedOpaqueBundleInput(parsed.value, component as never);
+  captured.packages.length = 0;
+  const rendererSource = 'export const render = () => "Second";';
+  const second = prepareParsedLockedOpaqueBundleInput(parsed.value, {
+    ...component,
+    rendererSource,
+  } as never);
+  expect(first).toMatchObject({ valid: true });
+  expect(second).toMatchObject({
+    valid: true,
+    value: {
+      modules: expect.arrayContaining([
+        { path: "__unframe__/entry.tsx", moduleType: "tsx", source: rendererSource },
+      ]),
+    },
+  });
+});
 
 it("prepares only the reachable frozen render modules with import and require resolutions", () => {
   const result = prepareLockedOpaqueBundleInput(source, component as never);

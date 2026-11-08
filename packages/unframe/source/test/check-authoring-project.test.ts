@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vite-plus/test";
+import { assert, describe, expect, it } from "vite-plus/test";
 
 import {
   checkAuthoringProject,
+  checkParsedAuthoringProject,
   createAuthoringProjectChecker,
+  parseAuthoringProject,
   type PairedAuthoringDeclarationCatalog,
   type PairedComponentDeclaration,
 } from "../src/index.js";
@@ -69,6 +71,16 @@ const project = (files = [{ fileName: "entry.ts", sourceText: presentationSource
 });
 
 describe("checkAuthoringProject", () => {
+  it.each([presentationSource, presentationSource.replace('title: "Presentation"', "title: 42")])(
+    "checks a previously parsed snapshot with the same catalog and diagnostics",
+    (sourceText) => {
+      const input = project([{ fileName: "entry.ts", sourceText }]);
+      const parsed = parseAuthoringProject(input);
+      assert(parsed.ok, JSON.stringify(parsed.diagnostics));
+      expect(checkParsedAuthoringProject(parsed.value)).toEqual(checkAuthoringProject(input));
+    },
+  );
+
   it("rejects a malformed named style after static lowering without executing builders", () => {
     const result = checkAuthoringProject(
       project([
