@@ -7,6 +7,20 @@ using Unframe.Unity.PresentationRuntime;
 public sealed class QuestOnboardingFlowTests
 {
     [Test]
+    public void PreloadAfterReauthenticationReturnsToPreparationWithoutConnecting()
+    {
+        var flow = new QuestOnboardingFlow();
+        flow.SelectRole(QuestOnboardingRole.Presenter);
+        flow.RequireAuthentication();
+        flow.PreloadReady();
+        Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Preparation));
+        Assert.That(flow.IsReturningToRoom, Is.False);
+        Assert.That(flow.Role, Is.EqualTo(QuestOnboardingRole.Presenter));
+        flow.Back();
+        Assert.That(flow.Page, Is.EqualTo(QuestOnboardingPage.Presentations));
+    }
+
+    [Test]
     public void CanceledStartDoesNotSendAStartOrResumeRequest()
     {
         using (var cancellation = new CancellationTokenSource())

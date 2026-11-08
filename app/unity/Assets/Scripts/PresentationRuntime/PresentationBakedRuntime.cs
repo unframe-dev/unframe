@@ -119,13 +119,14 @@ namespace Unframe.Unity.PresentationRuntime
 
         public async Task RunAsync(DeliveryManifest manifest, Uri realtimeEndpoint, Func<CancellationToken, Task<string>> bearerProvider, CancellationToken cancellationToken,
             string certFingerprint = null, PresentationEncodedAssetCache encodedCache = null,
-            Func<HttpMessageHandler> httpHandlerFactory = null, Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, PresentationSessionDiagnostics diagnostics = null)
+            Func<HttpMessageHandler> httpHandlerFactory = null, Func<YetAnotherHttpHandler> realtimeHandlerFactory = null, PresentationSessionDiagnostics diagnostics = null, Func<CancellationToken, Task<string>> assetBearerProvider = null)
         {
             if (lifetime != null) throw new InvalidOperationException("A presentation is already running.");
             if (calibration == null || questTrackingOrigin == null) throw new InvalidOperationException("Presentation calibration must be configured before running.");
             LastError = null;
             DownloadReady = false;
             lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            PresentationEncodedAssetCache.Lease assetLease = null;
             try
             {
                 if (!store.TryReceiveDelivery(manifest, out string error)) throw new InvalidOperationException(error);
@@ -134,12 +135,14 @@ namespace Unframe.Unity.PresentationRuntime
                 refreshRenderer = (double time, out string renderError) => sceneRenderer.TryRefresh(store, time, out renderError);
                 var selectedAssets = new List<AssetAccessBinding>(store.Delivery.AssetAccess);
                 string consumerToken = PresentationRuntimeHost.ConsumerToken(store.Delivery.SessionId, store.Delivery.ProjectionInstance.ParticipantId);
-                if (!(encodedCache ?? PresentationEncodedAssetCache.Shared).TryReserveSession(consumerToken, selectedAssets, out PresentationEncodedAssetCache.Lease lease, out error))
+                if (!(encodedCache ?? PresentationEncodedAssetCache.Shared).TryReserveSession(consumerToken, selectedAssets, out assetLease, out error))
                     throw new InvalidOperationException(error);
-                using (lease)
                 using (HttpClient client = new HttpClient(httpHandlerFactory == null ? PresentationAssetDownloader.CreateHandler(realtimeEndpoint, certFingerprint) : httpHandlerFactory()) { Timeout = TimeSpan.FromSeconds(30) })
-                    await sceneRenderer.LoadAsync(store, hierarchy,
-                        (asset, token) => lease.GetAsync(asset, (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation, certFingerprint == null ? null : realtimeEndpoint, manifest.SessionId, bearerProvider), token), lifetime.Token);
+                {
+                    IReadOnlyDictionary<string, string> assetFiles = await PresentationAssetPreloader.PreloadAsync(selectedAssets, assetLease,
+                        (binding, cancellation) => PresentationAssetDownloader.DownloadAsync(client, binding, cancellation, certFingerprint == null ? null : realtimeEndpoint, manifest.SessionId, assetBearerProvider ?? bearerProvider), lifetime.Token);
+                    await sceneRenderer.LoadFilesAsync(store, hierarchy, assetFiles, lifetime.Token);
+                }
                 playback.Models = sceneRenderer.Models;
                 playback.Spatial = sceneRenderer.Spatial;
                 playback.Videos = sceneRenderer.Videos;
@@ -168,6 +171,7 @@ namespace Unframe.Unity.PresentationRuntime
                 if (sceneRenderer != null) await sceneRenderer.StopPreloadingAsync();
                 sceneRenderer?.Dispose();
                 sceneRenderer = null;
+                assetLease?.Dispose();
                 refreshRenderer = null;
                 hierarchy.Clear();
                 DownloadReady = false;

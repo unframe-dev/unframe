@@ -14,6 +14,7 @@ export const PNG_ABSOLUTE_LIMITS: Readonly<EncodeLimits> = Object.freeze({
 
 export const PNG_ENCODER_IDENTITY = Object.freeze({
   encoderId: "unframe-memory-png" as const,
-  version: "1" as const,
-  fingerprint: "png-rgba8-srgb-filter0-store-v1" as const,
+  version: "2" as const,
+  fingerprint:
+    `png-rgba8-srgb-filter0-deflate6-w15-m8-s0-v2-${process.versions.bun ? `bun-${process.versions.bun}` : `node-${process.version}`}-zlib-${process.versions.zlib}` as const,
 });

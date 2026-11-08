@@ -396,7 +396,13 @@ const compileUnchecked = async (
         const stateBytes = pixelCount * 4;
         const captureBytes = stateBytes * stateCount;
         const scanlineBytes = stateBytes + pixelTarget[1];
-        const maxEncodedStateBytes = scanlineBytes + Math.ceil(scanlineBytes / 65_535) * 5 + 80;
+        // zlib deflateBound for windowBits=15/memLevel=8, plus the fixed PNG chunks.
+        const maxEncodedStateBytes =
+          scanlineBytes +
+          Math.floor(scanlineBytes / 4096) +
+          Math.floor(scanlineBytes / 16384) +
+          Math.floor(scanlineBytes / 33554432) +
+          83;
         preflightOutputBytes += maxEncodedStateBytes * stateCount;
         if (
           !Number.isSafeInteger(preflightOutputBytes) ||

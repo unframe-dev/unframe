@@ -46,6 +46,14 @@ namespace Unframe.Unity.PresentationRuntime
                 return cache.GetAsync(consumerToken, asset, download, token);
             }
 
+            public Task<string> GetFileAsync(AssetAccessBinding asset, Func<AssetAccessBinding, CancellationToken, Task<byte[]>> download, CancellationToken token)
+            {
+                PresentationEncodedAssetCache owner = cache;
+                if (owner == null) throw new ObjectDisposedException(nameof(Lease));
+                // Cache verification, durable writes and metadata updates must not stall Unity's player loop.
+                return Task.Run(() => owner.GetFileAsync(consumerToken, asset, download, token), token);
+            }
+
             public void Dispose()
             {
                 PresentationEncodedAssetCache owner = Interlocked.Exchange(ref cache, null);
@@ -84,7 +92,7 @@ namespace Unframe.Unity.PresentationRuntime
         {
             public ReservationRecord Record;
             public CancellationTokenSource Cancellation = new CancellationTokenSource();
-            public Task<byte[]> Download;
+            public Task<string> Download;
             public double RenewedAtMonotonic;
         }
 
@@ -411,9 +419,16 @@ namespace Unframe.Unity.PresentationRuntime
         private async Task<byte[]> GetAsync(string consumerToken, AssetAccessBinding asset,
             Func<AssetAccessBinding, CancellationToken, Task<byte[]>> download, CancellationToken token)
         {
+            string path = await GetFileAsync(consumerToken, asset, download, token);
+            return File.ReadAllBytes(path);
+        }
+
+        private async Task<string> GetFileAsync(string consumerToken, AssetAccessBinding asset,
+            Func<AssetAccessBinding, CancellationToken, Task<byte[]>> download, CancellationToken token)
+        {
             if (asset == null || download == null) throw new ArgumentException("Asset and downloader are required.");
             if (token.IsCancellationRequested) { Release(consumerToken); token.ThrowIfCancellationRequested(); }
-            Task<byte[]> sharedDownload = null;
+            Task<string> sharedDownload = null;
             lock (gate)
             {
                 if (!IsReady) throw new InvalidOperationException("asset-cache-not-ready");
@@ -421,11 +436,9 @@ namespace Unframe.Unity.PresentationRuntime
                     throw new InvalidOperationException("asset-cache-not-ready");
                 if (verified.TryGetValue(asset.Checksum, out VerifiedEntry entry))
                 {
-                    byte[] bytes;
                     try
                     {
-                        bytes = File.ReadAllBytes(AssetPath(entry.Checksum));
-                        if (entry.Bytes != asset.EncodedSizeBytes || (ulong)bytes.LongLength != entry.Bytes || !MatchesHash(bytes, entry.Checksum))
+                        if (entry.Bytes != asset.EncodedSizeBytes || !VerifiedFile(entry.Checksum, entry.Bytes))
                             throw new InvalidOperationException("asset-download-verification-failed");
                     }
                     catch { faulted = true; throw; }
@@ -435,7 +448,7 @@ namespace Unframe.Unity.PresentationRuntime
                         Persist();
                     }
                     catch { faulted = true; throw; }
-                    return bytes;
+                    return AssetPath(entry.Checksum);
                 }
                 if (!reservations.TryGetValue(asset.Checksum, out Reservation pending)
                     || pending.Record.ExpectedBytes != asset.EncodedSizeBytes || !pending.Record.Consumers.Contains(consumerToken))
@@ -454,13 +467,13 @@ namespace Unframe.Unity.PresentationRuntime
             return await sharedDownload;
         }
 
-        private async Task<byte[]> DownloadAndStoreAsync(Reservation pending, AssetAccessBinding asset,
+        private async Task<string> DownloadAndStoreAsync(Reservation pending, AssetAccessBinding asset,
             Func<AssetAccessBinding, CancellationToken, Task<byte[]>> download)
         {
             VerifiedEntry committedEntry = null;
             try
             {
-                byte[] bytes = await download(asset, pending.Cancellation.Token);
+                byte[] bytes = await download(asset, pending.Cancellation.Token).ConfigureAwait(false);
                 if (bytes == null || (ulong)bytes.LongLength != pending.Record.ExpectedBytes || !MatchesHash(bytes, asset.Checksum))
                     throw new InvalidOperationException("asset-download-verification-failed");
                 lock (gate)
@@ -485,7 +498,7 @@ namespace Unframe.Unity.PresentationRuntime
                     reservations.Remove(asset.Checksum);
                     Persist();
                     pending.Cancellation.Dispose();
-                    return bytes;
+                    return AssetPath(entry.Checksum);
                 }
             }
             catch

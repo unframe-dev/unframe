@@ -17,15 +17,72 @@ using UnityEngine.TestTools;
 
 public sealed class PresentationVideoLifecycleEditModeTests
 {
+    [UnityTearDown]
+    public IEnumerator ExitPlayModeAfterTest()
+    {
+        if (Application.isPlaying) yield return new ExitPlayMode();
+    }
+
+    [UnityTest]
+    public IEnumerator NativeVideoDecoderPreparesVerifiedCacheSource()
+    {
+        yield return new EnterPlayMode();
+        byte[] bytes = PresentationTestFixtures.Load("Video").bytes;
+        string path = Path.Combine(Application.temporaryCachePath, "verified-video-" + Guid.NewGuid().ToString("N") + ".bin");
+        File.WriteAllBytes(path, bytes);
+        string checksum;
+        using (var sha = SHA256.Create()) checksum = "sha256:" + BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
+        var view = new View();
+        var owner = new ResourceOwner { Group = new GroupResourceOwner { GroupId = "group:0" } };
+        view.Catalog.Nodes.Add(new ProjectedNodeDefinition { NodeId = "node:0", Owner = owner, Parent = new SpatialParent { Stage = new StageParent() }, Surface = new SurfaceNode { SemanticSurfaceId = "surface:0" } });
+        view.Catalog.Surfaces.Add(new ProjectedSurfaceDefinition
+        {
+            SurfaceId = "surface:0",
+            HostNodeId = "node:0",
+            Owner = owner,
+            LogicalSize = new Unframe.Presentation.Vector2 { X = 1, Y = 1 },
+            PhysicalSizeMeters = new Unframe.Presentation.Vector2 { X = 1, Y = 1 },
+            Fit = SurfaceFit.Contain
+        });
+        view.Renders.Add(new DeliveredRenderSurface
+        {
+            RenderSurfaceId = "render:0",
+            SemanticSurfaceId = "surface:0",
+            RendererKind = RendererKind.Video,
+            LogicalBounds = new LogicalBounds { Width = 1, Height = 1 },
+            StateBindings = { new DeliveredStateBinding { StateId = "state:default", Artifact = new ArtifactStateBinding { ArtifactId = "artifact:0" } } },
+            Artifacts = { new DeliveredArtifact { Video = new VideoArtifact { ArtifactId = "artifact:0", VideoAssetId = "video:one", Checksum = checksum,
+                EncodedSizeBytes = (ulong)bytes.Length, Codec = VideoCodec.H264, PixelSize = new PixelSize { Width = 320, Height = 180 }, DurationMs = 6000, HasAudio = true, Fit = SurfaceFit.Contain } } }
+        });
+        var root = new GameObject("Native verified video");
+        var hierarchy = new PresentationNodeHierarchy();
+        using (var videos = new PresentationVideoResidency())
+        using (var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+        {
+            try
+            {
+                Assert.That(hierarchy.TryReplace(view, root.transform, out string error), Is.True, error);
+                Task prepare = videos.BuildFilesAsync(view, hierarchy, new Dictionary<string, string> { ["video:one"] = path }, cancellation.Token);
+                while (!prepare.IsCompleted) yield return null;
+                Assert.That(prepare.IsFaulted, Is.False, prepare.Exception?.ToString());
+                Assert.That(prepare.IsCanceled, Is.False);
+                Assert.That(videos.IsReady(view), Is.True);
+                videos.Dispose();
+                Assert.That(File.Exists(path), Is.True, "Renderer disposal must retain the cache-owned source.");
+            }
+            finally { hierarchy.Clear(); UnityEngine.Object.DestroyImmediate(root); File.Delete(path); }
+        }
+    }
+
     private sealed class Decoder : IPresentationVideoDecoder
     {
         internal readonly TaskCompletionSource<bool> Gate = new TaskCompletionSource<bool>();
         internal bool Disposed, Fail, Playing;
         internal double Seconds;
-        internal string ApplyError;
+        internal string ApplyError, Url;
         public Texture Texture => Texture2D.blackTexture;
         public bool IsPrepared => Gate.Task.IsCompleted && !Disposed;
-        public async Task PrepareAsync(VideoArtifact artifact, string url, CancellationToken token) { await Gate.Task; if (Fail) throw new InvalidOperationException("test-decoder-failed"); }
+        public async Task PrepareAsync(VideoArtifact artifact, string url, CancellationToken token) { Url = url; await Gate.Task; if (Fail) throw new InvalidOperationException("test-decoder-failed"); }
         public bool TryApply(bool playing, double seconds, out string error) { Playing = playing; Seconds = seconds; error = playing ? ApplyError : null; return !Disposed && error == null; }
         public void Pause() { Playing = false; }
         public void Dispose() { Disposed = true; }
@@ -211,7 +268,12 @@ public sealed class PresentationVideoLifecycleEditModeTests
         }
     }
     [UnityTest]
-    public IEnumerator SeparateGroupsUseOneDecoderAndLatePreparationCannotCommitAfterCancellation()
+    public IEnumerator SeparateGroupsUseOneDecoderAndLatePreparationCannotCommitAfterCancellation() => VideoFileLifecycle(false);
+
+    [UnityTest]
+    public IEnumerator VerifiedVideoSourceSurvivesRendererDisposalAndTemporaryFileIsRemoved() => VideoFileLifecycle(true);
+
+    private IEnumerator VideoFileLifecycle(bool borrowed)
     {
         byte[] bytes = PresentationTestFixtures.Load("Video").bytes;
         string checksum; using (var sha = SHA256.Create()) checksum = "sha256:" + BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
@@ -248,7 +310,11 @@ public sealed class PresentationVideoLifecycleEditModeTests
         var videos = new PresentationVideoResidency(() => { var decoder = new Decoder(); decoders.Add(decoder); return decoder; });
         videos.Limits.MaxConcurrentDecoders = 1;
         videos.Limits.MaxEncodedBytes = (ulong)bytes.Length;
-        Task build = videos.BuildAsync(view, hierarchy, (_, __) => Task.FromResult(new PresentationPreviewAssetData(bytes, "video/mp4")), CancellationToken.None);
+        string borrowedPath = borrowed ? Path.Combine(Application.temporaryCachePath, "verified-video-" + Guid.NewGuid().ToString("N") + ".bin") : null;
+        if (borrowed) File.WriteAllBytes(borrowedPath, bytes);
+        Task build = borrowed
+            ? videos.BuildFilesAsync(view, hierarchy, new Dictionary<string, string> { ["video:one"] = borrowedPath }, CancellationToken.None)
+            : videos.BuildAsync(view, hierarchy, (_, __) => Task.FromResult(new PresentationPreviewAssetData(bytes, "video/mp4")), CancellationToken.None);
         while (decoders.Count == 0) yield return null;
         Assert.That(decoders.Count, Is.EqualTo(1)); Assert.That(videos.IsReady(view), Is.False);
         view.Current = 1; Assert.That(videos.TryUpdate(view, 0, out error), Is.True, error);
@@ -324,6 +390,13 @@ public sealed class PresentationVideoLifecycleEditModeTests
         Assert.That(decoders.TrueForAll(decoder => decoder.Disposed), Is.True);
         Assert.That(root.GetComponentsInChildren<MeshRenderer>(true), Is.Empty);
         foreach (string file in Directory.GetFiles(Application.temporaryCachePath, "unframe-video-*.mp4")) Assert.That(before, Does.Contain(file), "owned temporary video files are removed");
+        if (borrowed)
+        {
+            Assert.That(File.Exists(borrowedPath), Is.True, "Renderer disposal must retain cache-owned video files.");
+            Assert.That(decoders[0].Url, Does.EndWith(".mp4"));
+            Assert.That(File.Exists(new Uri(decoders[0].Url).LocalPath), Is.False, "Decoder-owned .mp4 files must be removed.");
+            File.Delete(borrowedPath);
+        }
         hierarchy.Clear(); UnityEngine.Object.DestroyImmediate(root);
     }
 }

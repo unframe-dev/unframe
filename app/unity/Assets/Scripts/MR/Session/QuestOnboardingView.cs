@@ -26,7 +26,8 @@ namespace Unframe.Unity.PresentationRuntime
         private QuestOnboardingPresentation selected;
         private QuestOnboardingRoom room;
         private CancellationTokenSource cancellation = new CancellationTokenSource();
-        private bool busy, clearingAuthentication;
+        private bool busy, clearingAuthentication, returningToPreload;
+        private string preloadedSessionId;
         private int revision, listPage;
         private bool sessionStarted, ownsConnection, lastCalibrationValid, lastCanAdvance;
         private Task stopTask = Task.CompletedTask;
@@ -143,7 +144,7 @@ namespace Unframe.Unity.PresentationRuntime
         private void ResetFlowState()
         {
             CancelOperation(); flow.Reset(); SetComplete(false); authorization = null;
-            selected = null; room = null; sessionStarted = false; roomCode = ""; message = "";
+            selected = null; room = null; preloadedSessionId = null; returningToPreload = false; sessionStarted = false; roomCode = ""; message = "";
             presentations = Array.Empty<QuestOnboardingPresentation>(); ownedRooms = Array.Empty<QuestOnboardingRoom>();
             nextRoomCursor = null; roomListPage = listPage = 0;
         }
@@ -195,7 +196,7 @@ namespace Unframe.Unity.PresentationRuntime
             else PositionPanelAtHead();
             QuestUiBrand.Create(panel.transform, new Vector2(0, 365));
             DrawPage();
-            Label("Message", busy ? "処理しています…" : ConnectionFailed ? ConnectionFailure : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
+            Label("Message", busy ? (String.IsNullOrEmpty(message) ? "処理しています…" : message) : ConnectionFailed ? ConnectionFailure : message, new Vector2(0, -260), new Vector2(920, 80), 24, QuestUiTheme.Muted);
             if (flow.Page != QuestOnboardingPage.Role && flow.Page != QuestOnboardingPage.Ended)
                 Button("Back", "戻る", -350, -350, 220, Back, false);
             if (api != null && (flow.Page == QuestOnboardingPage.Role || flow.Role == QuestOnboardingRole.Presenter))
@@ -299,7 +300,8 @@ namespace Unframe.Unity.PresentationRuntime
                 case QuestOnboardingPage.Preparation:
                     Title("発表の準備", selected?.Title ?? room?.SessionId ?? "資料を選択してください");
                     Label("Room", room == null ? "準備ができたらルームを作成します" : "共有するルームコード\n" + SharedRoomCode, new Vector2(0, 70), new Vector2(920, 150), 32, QuestUiTheme.Primary);
-                    Button("Prepare", room == null ? "ルームを作成して接続" : "準備を再試行", 0, -110, 820, () => Run(Prepare));
+                    Button("Preload", room != null && preloadedSessionId == room.SessionId ? "ダウンロード済み・再確認" : "事前ダウンロード", 0, -55, 820, () => Run(Preload), false);
+                    Button("Prepare", room == null ? "ルームを作成して接続" : "ルームに接続", 0, -155, 820, () => Run(Prepare));
                     break;
                 case QuestOnboardingPage.Join:
                     Title("このルームに参加しますか？", FormatRoomCode());
@@ -371,7 +373,12 @@ namespace Unframe.Unity.PresentationRuntime
 
         private async Task AfterAuthentication(CancellationToken token)
         {
-            if (flow.IsReturningToRoom) { await Connect(token); token.ThrowIfCancellationRequested(); return; }
+            if (flow.IsReturningToRoom)
+            {
+                if (returningToPreload) { flow.GoTo(QuestOnboardingPage.Preparation); await Preload(token); }
+                else await Connect(token);
+                token.ThrowIfCancellationRequested(); return;
+            }
             if (flow.Role == QuestOnboardingRole.Presenter) { await LoadRooms(token); token.ThrowIfCancellationRequested(); flow.GoTo(QuestOnboardingPage.Rooms); }
             else flow.GoTo(QuestOnboardingPage.Join);
         }
@@ -395,8 +402,37 @@ namespace Unframe.Unity.PresentationRuntime
             if (api == null) return;
             var result = await api.ListPresentationsAsync(token); token.ThrowIfCancellationRequested(); presentations = result; listPage = 0;
         }
+        private async Task Preload(CancellationToken token)
+        {
+            if (api == null || session == null || selected == null && room == null) return;
+            returningToPreload = true;
+            await stopTask; token.ThrowIfCancellationRequested();
+            if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
+            await api.PrepareRuntimeAsync(room.SessionId, token);
+            token.ThrowIfCancellationRequested();
+            session.ConfigureConnection(api.Origin, room.SessionId, api.CredentialAsync, managedByOnboarding: true);
+            preloadedSessionId = null;
+            try
+            {
+                await session.PreloadAsync(token, (complete, total) =>
+                {
+                    if (token.IsCancellationRequested || this == null) return;
+                    message = "ダウンロード中 " + complete + " / " + total;
+                    if (panel != null) panel.transform.Find("Message").GetComponent<Text>().text = message;
+                });
+            }
+            catch (PresentationConnectionException exception)
+            { throw new QuestOnboardingApiException(exception.ErrorCode); }
+            token.ThrowIfCancellationRequested();
+            preloadedSessionId = room.SessionId;
+            returningToPreload = false;
+            message = "ダウンロード済み";
+            flow.PreloadReady();
+        }
+
         private async Task Prepare(CancellationToken token)
         {
+            returningToPreload = false;
             if (api == null || selected == null && room == null) return;
             if (room == null) { var created = await api.CreateSessionAsync(selected.Id, token); token.ThrowIfCancellationRequested(); room = created; }
             await api.PrepareRuntimeAsync(room.SessionId, token);

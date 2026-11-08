@@ -12,7 +12,9 @@ Authoring Source をビルドし、
 
 `Assets/Scripts/PresentationRuntime/` は `Delivery`（配信検証）、`State`（受信状態）、`Transport`（接続・HTTP素材取得）、`Persistence`（選択・cache）、`Rendering`（描画）、`Animation`、`Quest`、Editor専用の`EditorSupport` に分けています。`PresentationBakedRuntime` はこれらを接続する入口で、`Generated` は生成専用です。EditMode テストは `Assets/Tests/EditMode/Editor/` 内で同じ責務ごとに分け、Quest の build hook は `Assets/Editor/Quest/`、Animation の Inspector は `Assets/Editor/PresentationRuntime/` の対応するディレクトリに置きます。
 
-`PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `quest-presentation-v2` を指定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡し、再接続時はcredentialを更新します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
+`PresentationControlPlaneConnection` は、HTTPS Control Plane origin、Session ID、更新可能な認証 token provider を受け取り、POST Deliveryで `quest-presentation-v2` を指定します。POST bootstrapとpublication / assignment / projectionを照合して `PresentationBakedRuntime` へ渡します。素材取得用credentialは期限まで共有し、Realtime再接続では新しいbootstrapを取得します。publication / projectionの変更ではDeliveryを再取得します。credentialはSceneやassetへ保存しません。
+
+`PreloadAsync` は同じDeliveryとbootstrapを検証し、Realtime接続・描画を起動せず素材を永続cacheへ保存します。通常接続でも同じ取得処理を使い、最大4件・合計encoded bytes 32 MiBまでを並列取得します。32 MiBを超える素材は単独で取得します。cacheの検証・書き込みと初期PNGのデコードはバックグラウンドで行い、Runtimeは検証済みファイルを直接参照します。動画はdecoderが拡張子を必要とするため、検証済み素材から再生用の一時`.mp4`を作成します。通常接続を開始する際は新しいDeliveryを取得し、checksumが一致する保存済み素材を再利用します。
 
 `PresentationRuntimeHost` は起動時に保存済みの全 Session 選択を読み、encoded asset cache の durable pin を復元します。Delivery の検証後に選択情報と pin を更新し、その cache を Runtime へ渡します。保存するのは publication / assignment の識別情報と Asset の checksum・サイズ・MIME です。このcache metadataには署名付き URL と認証 credential を保存しません。アカウント認証の暗号化保存は[QuestアプリUI](docs/quest-app-ui.md)の接続設定を参照してください。保存データの破損や更新失敗では接続を停止します。
 

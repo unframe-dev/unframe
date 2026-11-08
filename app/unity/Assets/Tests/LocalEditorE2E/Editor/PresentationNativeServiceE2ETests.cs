@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,6 +36,28 @@ namespace Unframe.Tests.LocalEditorE2E
             public int texturedRenderers;
             public int coloredPixels;
             public string screenshot;
+            public double preloadMilliseconds;
+            public double readyMilliseconds;
+            public int preloadAssetRequests;
+            public int runtimeAssetRequests;
+            public ulong encodedBytes;
+        }
+
+        private sealed class AssetRequests
+        {
+            internal int Count;
+        }
+
+        private sealed class CountAssetRequests : DelegatingHandler
+        {
+            private readonly AssetRequests requests;
+            internal CountAssetRequests(HttpMessageHandler inner, AssetRequests requests) : base(inner) => this.requests = requests;
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+            {
+                if (request.Method == HttpMethod.Get && (request.RequestUri.AbsolutePath.StartsWith("/publication-assets/", StringComparison.Ordinal)
+                    || request.RequestUri.AbsolutePath.Contains("/assets/"))) Interlocked.Increment(ref requests.Count);
+                return base.SendAsync(request, token);
+            }
         }
 
         private Task activeRun;
@@ -63,6 +86,13 @@ namespace Unframe.Tests.LocalEditorE2E
 
         [UnityTest]
         public IEnumerator PublishedServiceDeliveryAndRealtimeSnapshotRenderInNativeEditor()
+            => StartServiceInPlayMode(false);
+
+        [UnityTest]
+        public IEnumerator PreloadedServiceSurvivesCacheReopenAndRendersWithoutAssetDownloads()
+            => StartServiceInPlayMode(true);
+
+        private IEnumerator StartServiceInPlayMode(bool preload)
         {
             if (String.IsNullOrEmpty(Environment.GetEnvironmentVariable("UNFRAME_E2E_RESULT_PATH")))
                 Assert.Ignore("Native service E2E requires the local service process environment.");
@@ -79,12 +109,13 @@ namespace Unframe.Tests.LocalEditorE2E
             QualitySettings.renderPipeline = pipeline;
             AssetDatabase.SaveAssets();
             yield return new EnterPlayMode();
-            yield return RunServiceInPlayMode();
+            yield return RunServiceInPlayMode(preload);
         }
 
-        private IEnumerator RunServiceInPlayMode()
+        private IEnumerator RunServiceInPlayMode(bool preload)
         {
             string resultPath = Required("UNFRAME_E2E_RESULT_PATH");
+            if (preload) resultPath = Path.Combine(Path.GetDirectoryName(resultPath), Path.GetFileNameWithoutExtension(resultPath) + "-preloaded.json");
             string ca = File.ReadAllText(Required("UNFRAME_E2E_CA_FILE"));
             string origin = Required("UNFRAME_E2E_CONTROL_PLANE_ORIGIN");
             string session = Required("UNFRAME_E2E_SESSION_ID");
@@ -101,25 +132,51 @@ namespace Unframe.Tests.LocalEditorE2E
             var runtimeObject = new GameObject("Native E2E Runtime");
             var runtime = runtimeObject.AddComponent<PresentationBakedRuntime>();
             Transform presentation = PresentationNativeRuntimeFixture.Configure(runtime);
-            var connection = new PresentationControlPlaneConnection(new Uri(origin), session,
+            var assetRequests = new AssetRequests();
+            PresentationControlPlaneConnection Connect() => new PresentationControlPlaneConnection(new Uri(origin), session,
                 _ => Task.FromResult(bearer), host,
-                () => new YetAnotherHttpHandler { RootCertificates = ca, Http2Only = false },
+                () => new CountAssetRequests(new YetAnotherHttpHandler { RootCertificates = ca, Http2Only = false }, assetRequests),
                 () => new YetAnotherHttpHandler { RootCertificates = ca, Http2Only = true });
-            Task running = activeRun = connection.RunAsync(runtime, lifetime.Token);
+            Task running = Task.CompletedTask;
             GameObject cameraObject = null;
             RenderTexture target = null;
             Texture2D pixels = null;
             try
             {
+                if (preload)
+                {
+                    result.stage = "preloading";
+                    var preloadTimer = System.Diagnostics.Stopwatch.StartNew();
+                    Task prepared = activeRun = Connect().PreloadAsync(lifetime.Token);
+                    float preloadDeadline = Time.realtimeSinceStartup + 90;
+                    while (!prepared.IsCompleted && Time.realtimeSinceStartup < preloadDeadline) yield return null;
+                    Assert.That(prepared.IsCompleted, Is.True, "Preload did not finish.");
+                    prepared.GetAwaiter().GetResult();
+                    result.preloadMilliseconds = preloadTimer.Elapsed.TotalMilliseconds;
+                    result.preloadAssetRequests = assetRequests.Count;
+                    Assert.That(result.preloadAssetRequests, Is.GreaterThan(0), "The cold preload did not download the published assets.");
+                    Assert.That(runtime.Delivery, Is.Null, "Preload must not start the rendering runtime.");
+                    host.Dispose();
+                    cache.Dispose();
+                    cache = activeCache = new PresentationEncodedAssetCache(Path.Combine(directory, "cache"));
+                    host = activeHost = new PresentationRuntimeHost(Path.Combine(directory, "sessions.json"), cache);
+                }
+                int requestsBeforeRuntime = assetRequests.Count;
+                var readyTimer = System.Diagnostics.Stopwatch.StartNew();
+                running = activeRun = Connect().RunAsync(runtime, lifetime.Token);
                 result.stage = "session-ready";
                 float deadline = Time.realtimeSinceStartup + 90;
                 while (!runtime.SessionReady && !running.IsCompleted && Time.realtimeSinceStartup < deadline)
                     yield return null;
                 Assert.That(runtime.SessionReady, Is.True, "Native runtime did not reach SessionReady.");
+                result.readyMilliseconds = readyTimer.Elapsed.TotalMilliseconds;
+                result.runtimeAssetRequests = assetRequests.Count - requestsBeforeRuntime;
+                if (preload) Assert.That(result.runtimeAssetRequests, Is.Zero, "A preloaded presentation downloaded its assets again.");
                 result.sessionReady = runtime.SessionReady;
                 yield return null;
                 var delivery = runtime.Delivery;
                 Assert.That(delivery, Is.Not.Null);
+                foreach (var asset in delivery.AssetAccess) result.encodedBytes += asset.EncodedSizeBytes;
                 Assert.That(delivery.Publication.PublicationManifestHash, Is.EqualTo(Required("UNFRAME_E2E_EXPECTED_PUBLICATION_HASH")));
                 Assert.That(delivery.DefinitionHash, Is.EqualTo(Required("UNFRAME_E2E_EXPECTED_DEFINITION_HASH")));
                 Assert.That(delivery.RenderBundleHash, Is.EqualTo(Required("UNFRAME_E2E_EXPECTED_RENDER_BUNDLE_HASH")));

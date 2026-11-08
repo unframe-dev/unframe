@@ -18,6 +18,7 @@ public sealed class QuestPresentationSession : MonoBehaviour
     [NonSerialized] private Func<CancellationToken, Task<string>> credentialProvider;
     [NonSerialized] private Func<CancellationToken, Task<PresentationCredentialLease>> credentialLeaseProvider;
     private bool externalConnection;
+    private CancellationTokenSource preloadLifetime;
     private int generation;
     private int pendingOperations;
     public bool HasConnectionSettings => origin != null && credentialProvider != null;
@@ -87,9 +88,39 @@ public sealed class QuestPresentationSession : MonoBehaviour
         finally { Interlocked.Decrement(ref pendingOperations); }
     }
 
+    public async Task PreloadAsync(CancellationToken token, Action<int, int> progress = null)
+    {
+        if (IsBusy) throw new InvalidOperationException("A session operation is already active.");
+        int requestedGeneration = generation;
+        Interlocked.Increment(ref pendingOperations);
+        try
+        {
+            await operationGate.WaitAsync(token);
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                if (requestedGeneration != generation || !isActiveAndEnabled) throw new OperationCanceledException(token);
+                if (!HasConnectionSettings) throw new InvalidOperationException("connection-settings-required");
+                if (entry != null && entry.IsRunning) throw new InvalidOperationException("Stop the active session before preloading.");
+                using (var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token))
+                {
+                    preloadLifetime = lifetime;
+                    var connection = new PresentationControlPlaneConnection(origin, sessionId, credentialProvider,
+                        diagnostics: Diagnostics, credentialLeaseProvider: credentialLeaseProvider);
+                    try { await connection.PreloadAsync(lifetime.Token, progress); }
+                    finally { preloadLifetime = null; }
+                }
+                LastErrorCode = String.Empty;
+            }
+            finally { operationGate.Release(); }
+        }
+        finally { Interlocked.Decrement(ref pendingOperations); }
+    }
+
     public async Task ExitAsync()
     {
         Diagnostics.ForSession(sessionId).Record("connection.closed", code: "local-exit");
+        preloadLifetime?.Cancel();
         ClearConnection();
         Interlocked.Increment(ref pendingOperations);
         try

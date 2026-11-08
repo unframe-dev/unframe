@@ -132,7 +132,7 @@ nix run .#unity-preview
 nix run .#presentation-sample
 ```
 
-`presentation-sample` は配布テンプレートから Project を作成し、ローカル Control Plane・Runtime Host と Session を準備する。`Sample ready for Unity Editor` の後、Unity の `Unframe > Presentation > Play Local Sample in Editor` から接続できる。停止は Ctrl+C。ローカル API の準備と終了は確認済みだが、Unity Editor での表示は未検証。
+`presentation-sample` は解析・Style workerをビルドし、配布テンプレートから作成したProjectの固定依存を導入して、ローカル Control Plane・Runtime Host と Session を準備する。`Sample ready for Unity Editor` の後、Unity の `Unframe > Presentation > Play Local Sample in Editor` から接続できる。停止は Ctrl+C。起動中の別terminalで `nix run .#presentation-sample -- test` を実行すると、Sessionを開始してUnity Editorの実HTTPS取得・Realtime同期・描画と、事前ダウンロード後のcache再open・素材再取得ゼロを検証する。結果・所要時間・描画画像は `.unframe/local-editor-e2e/logs/` の `e2e.xml`、`sample.json`、`sample-preloaded.json` と同名PNGに保存する。Quest実機とWebGLブラウザーの検証は含まない。
 
 `unity-editor` は Linux で `steam-run` を介し、macOS では native Editor を直接起動します。`UNITY_EDITOR` で実行ファイルを指定でき、未指定時は `app/unity/ProjectSettings/ProjectVersion.txt` の OS 別 Unity Hub 配置を使います。対応する Unity version のインストール、license と WebGL module は利用者が用意します。
 
