@@ -20,6 +20,106 @@ public sealed class PresentationControlPlaneConnectionEditModeTests
         }
     }
 
+    [Test]
+    public async Task PreloadPersistsAssetsAndRevalidatesDeliveryWithoutRedownloading()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "unframe-preload-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            DeliveryManifest delivery = PresentationTextureResidencyEditModeTests.BakedDelivery();
+            delivery.CapabilityProfile.CapabilityProfileId = "quest-presentation-v2";
+            delivery.ProjectionProfile.Key.CapabilityProfileId = "quest-presentation-v2";
+            byte[] png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAABBJREFUeAEBBQD6/wD/AAD/BQAB//pciNEAAAAASUVORK5CYII=");
+            foreach (var asset in delivery.AssetAccess)
+            {
+                if (asset.MediaType != "image/png")
+                    asset.Checksum = "sha256:4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a";
+                asset.Url = "https://runtime.example.com/sessions/" + Uri.EscapeDataString(delivery.SessionId) + "/assets/" + Uri.EscapeDataString(asset.AssetId);
+                asset.ExpiresAtUnixMs = (ulong)DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeMilliseconds();
+            }
+            int deliveries = 0, bootstraps = 0, downloads = 0;
+            Func<HttpRequestMessage, HttpResponseMessage> respond = request =>
+            {
+                if (request.RequestUri.AbsolutePath.EndsWith("/delivery"))
+                {
+                    deliveries++;
+                    var content = new ByteArrayContent(delivery.ToByteArray());
+                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-protobuf");
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+                }
+                if (request.RequestUri.AbsolutePath.EndsWith("/bootstrap"))
+                {
+                    bootstraps++;
+                    string json = "{\"endpoint\":\"https://runtime.example.com/\",\"runtimeId\":\"runtime\",\"runtimeKind\":\"VenueEdge\",\"fingerprint\":\"sha256:" + new string('b', 64) + "\",\"assignmentEpoch\":" + delivery.ProjectionInstance.AssignmentEpoch
+                        + ",\"projectionProfileId\":\"" + delivery.ProjectionProfile.ProjectionProfileId + "\",\"credential\":\"asset-bearer\",\"expiresAt\":\"2099-01-01T00:00:00Z\",\"publicationFence\":{\"presentationId\":\"" + delivery.Publication.PresentationId
+                        + "\",\"publicationEpoch\":" + delivery.Publication.PublicationEpoch + ",\"publicationManifestHash\":\"" + delivery.Publication.PublicationManifestHash + "\"}}";
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") };
+                }
+                downloads++;
+                Assert.That(request.Headers.Authorization.Parameter, Is.EqualTo("asset-bearer"));
+                var access = System.Linq.Enumerable.First(delivery.AssetAccess, asset => new Uri(asset.Url) == request.RequestUri);
+                var bytes = new ByteArrayContent(access.MediaType == "image/png" ? png : new byte[] { 1 });
+                bytes.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(access.MediaType);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = bytes };
+            };
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                using (var cache = new PresentationEncodedAssetCache(Path.Combine(directory, "cache"), 1024 * 1024, 0, () => 1024 * 1024))
+                using (var host = new PresentationRuntimeHost(Path.Combine(directory, "selections.json"), cache))
+                {
+                    var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), delivery.SessionId,
+                        _ => Task.FromResult("account-bearer"), host, () => new Worker { Respond = respond },
+                        realtimeHandlerFactory: () => throw new AssertionException("Preloading must not connect to Realtime."));
+                    int completed = 0;
+                    await connection.PreloadAsync(CancellationToken.None, (count, total) => completed = count);
+                    Assert.That(completed, Is.EqualTo(delivery.AssetAccess.Count));
+                    Assert.That(host.SelectionCount, Is.EqualTo(1));
+                }
+            }
+            Assert.That(deliveries, Is.EqualTo(2));
+            Assert.That(bootstraps, Is.EqualTo(2), "The initial credential must be reused by concurrent asset requests.");
+            Assert.That(downloads, Is.EqualTo(2), "Both unique checksums should survive process restart.");
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    public async Task PreloadPropagatesAuthenticationFailureWithoutStartingRealtime()
+    {
+        int requests = 0;
+        var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session",
+            _ => Task.FromResult("token"), httpHandlerFactory: () => new Worker
+            { Respond = _ => { requests++; return new HttpResponseMessage(HttpStatusCode.Unauthorized); } },
+            realtimeHandlerFactory: () => throw new AssertionException("Preloading must not connect to Realtime."));
+        var error = Assert.ThrowsAsync<PresentationConnectionException>(() => connection.PreloadAsync(CancellationToken.None));
+        Assert.That(error.ErrorCode, Is.EqualTo("authentication-required"));
+        Assert.That(requests, Is.EqualTo(1));
+        await Task.CompletedTask;
+    }
+
+    [Test]
+    public async Task PreloadRejectsConcurrentOperationsAndCanBeRetriedAfterCancellation()
+    {
+        var pending = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var connection = new PresentationControlPlaneConnection(new Uri("https://api.example.com/"), "session", token => pending.Task);
+        using (var cancellation = new CancellationTokenSource())
+        {
+            Task preload = connection.PreloadAsync(cancellation.Token);
+            Assert.ThrowsAsync<InvalidOperationException>(() => connection.PreloadAsync(CancellationToken.None));
+            cancellation.Cancel();
+            try { await preload; Assert.Fail("Cancellation must stop preload."); }
+            catch (OperationCanceledException) { }
+        }
+        using (var cancellation = new CancellationTokenSource())
+        {
+            Task retry = connection.PreloadAsync(cancellation.Token);
+            cancellation.Cancel();
+            try { await retry; Assert.Fail("Cancellation must stop retry."); }
+            catch (OperationCanceledException) { }
+        }
+        pending.TrySetResult("late-token");
+    }
+
     [TestCase(HttpStatusCode.Unauthorized, "authentication-required")]
     [TestCase(HttpStatusCode.Forbidden, "session-access-denied")]
     [TestCase(HttpStatusCode.NotFound, "session-not-found")]

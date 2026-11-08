@@ -24,6 +24,108 @@ public sealed class PresentationEncodedAssetCacheEditModeTests
         if (Directory.Exists(directory)) Directory.Delete(directory, true);
     }
 
+    [TestCase(1)]
+    [TestCase(4)]
+    public async Task PreloaderBoundsConcurrentBytesAndRunsOversizedAssetsAlone(int concurrency)
+    {
+        byte[][] data = { new byte[] { 1, 2, 3 }, new byte[] { 4, 5, 6 }, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }, new byte[] { 7, 8, 9 }, new byte[] { 10, 11, 12 } };
+        var assets = new AssetAccessBinding[data.Length];
+        for (int i = 0; i < data.Length; i++) { assets[i] = Asset(data[i]); assets[i].AssetId = i.ToString(); }
+        using (var cache = NewCache(100))
+        {
+            cache.RecoverSessions(Array.Empty<PresentationEncodedAssetCache.SessionSelection>());
+            Assert.That(cache.TryReserveSession("session:parallel", assets, out var lease, out var error), Is.True, error);
+            using (lease)
+            {
+                var gate = new object();
+                int active = 0, peak = 0, completed = 0;
+                ulong inFlight = 0;
+                int owner = Thread.CurrentThread.ManagedThreadId;
+                var elapsed = System.Diagnostics.Stopwatch.StartNew();
+                var paths = await PresentationAssetPreloader.PreloadAsync(assets, lease, async (asset, token) =>
+                {
+                    Assert.That(Thread.CurrentThread.ManagedThreadId, Is.Not.EqualTo(owner), "HTTP/cache work must leave the Unity thread.");
+                    lock (gate)
+                    {
+                        active++; peak = Math.Max(peak, active); inFlight += asset.EncodedSizeBytes;
+                        Assert.That(inFlight <= 6 || active == 1, Is.True, "Oversized assets must be alone.");
+                        Assert.That(active, Is.LessThanOrEqualTo(4));
+                    }
+                    await Task.Delay(250, token);
+                    lock (gate) { active--; inFlight -= asset.EncodedSizeBytes; }
+                    return data[int.Parse(asset.AssetId)];
+                }, CancellationToken.None, (count, total) => { completed = count; Assert.That(total, Is.EqualTo(data.Length)); }, concurrency, 6);
+                Assert.That(peak, Is.EqualTo(concurrency == 1 ? 1 : 2));
+                Assert.That(paths.Count, Is.EqualTo(data.Length));
+                Assert.That(completed, Is.EqualTo(data.Length));
+                TestContext.WriteLine("Bounded cold preload (concurrency " + concurrency + "): " + elapsed.ElapsedMilliseconds + " ms; simulated serial network floor: 1250 ms.");
+                elapsed.Restart();
+                var warm = await PresentationAssetPreloader.PreloadAsync(assets, lease,
+                    (_, _) => throw new AssertionException("Preloaded assets must not use HTTP"), CancellationToken.None);
+                Assert.That(warm, Is.EquivalentTo(paths));
+                TestContext.WriteLine("Warm verified preload: " + elapsed.ElapsedMilliseconds + " ms; HTTP requests: 0.");
+            }
+        }
+    }
+
+    [Test]
+    public async Task PreloaderFailureCancelsOtherDownloadsAndDoesNotStartLaterBatches()
+    {
+        var first = Asset(new byte[] { 1 }); first.AssetId = "first";
+        var second = Asset(new byte[] { 2 }); second.AssetId = "second";
+        var later = Asset(new byte[] { 3 }); later.AssetId = "later";
+        using (var cache = NewCache(10))
+        {
+            cache.RecoverSessions(Array.Empty<PresentationEncodedAssetCache.SessionSelection>());
+            Assert.That(cache.TryReserveSession("session:failure", new[] { first, second, later }, out var lease, out var error), Is.True, error);
+            using (lease)
+            {
+                var secondStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var secondCancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                try
+                {
+                    await PresentationAssetPreloader.PreloadAsync(new[] { first, second, later }, lease, async (asset, token) =>
+                    {
+                        if (asset.AssetId == "later") throw new AssertionException("Later batches must not start after failure.");
+                        if (asset.AssetId == "first") { await secondStarted.Task; throw new InvalidOperationException("download failed"); }
+                        secondStarted.TrySetResult(true);
+                        try { await Task.Delay(10000, token); }
+                        catch (OperationCanceledException) { secondCancelled.TrySetResult(true); throw; }
+                        return new byte[] { 2 };
+                    }, CancellationToken.None, maximumConcurrentDownloads: 2);
+                    Assert.Fail("The failed download must propagate.");
+                }
+                catch (InvalidOperationException exception) { Assert.That(exception.Message, Is.EqualTo("download failed")); }
+                Assert.That(await Task.WhenAny(secondCancelled.Task, Task.Delay(2000)), Is.SameAs(secondCancelled.Task));
+            }
+        }
+    }
+
+    [Test]
+    public async Task VerifiedFilesAreReusedWithoutDownloadAndCorruptionIsRejected()
+    {
+        byte[] bytes = { 1, 2, 3 };
+        var asset = Asset(bytes);
+        using (var cache = NewCache(10))
+        {
+            cache.RecoverSessions(Array.Empty<PresentationEncodedAssetCache.SessionSelection>());
+            Assert.That(cache.TryReserveSession("session:file", new[] { asset }, out var lease, out var error), Is.True, error);
+            using (lease)
+            {
+                string path = await lease.GetFileAsync(asset, (_, _) => Task.FromResult(bytes), CancellationToken.None);
+                Assert.That(File.ReadAllBytes(path), Is.EqualTo(bytes));
+                Assert.That(await lease.GetFileAsync(asset, (_, _) => throw new AssertionException("HTTP on cache hit"), CancellationToken.None), Is.EqualTo(path));
+                File.WriteAllBytes(path, new byte[] { 3, 2, 1 });
+                try
+                {
+                    await lease.GetFileAsync(asset, (_, _) => Task.FromResult(bytes), CancellationToken.None);
+                    Assert.Fail("Corrupted cache files must fail verification.");
+                }
+                catch (InvalidOperationException exception) { Assert.That(exception.Message, Is.EqualTo("asset-download-verification-failed")); }
+            }
+        }
+    }
+
     [Test]
     public void UnixFileSystemInfoMatchesThe64BitLibcAbi()
     {

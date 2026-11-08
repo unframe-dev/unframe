@@ -44,6 +44,7 @@ namespace Unframe.Unity.PresentationRuntime
         public QuestOnboardingPage Page { get; private set; }
         public bool IsReturningToRoom { get; private set; }
         public void RequireAuthentication() { IsReturningToRoom = true; Page = QuestOnboardingPage.Authentication; }
+        public void PreloadReady() { IsReturningToRoom = false; Page = QuestOnboardingPage.Preparation; }
         public void ConnectionReady() { IsReturningToRoom = false; Page = QuestOnboardingPage.Calibration; }
         public void SelectRole(QuestOnboardingRole role)
         {

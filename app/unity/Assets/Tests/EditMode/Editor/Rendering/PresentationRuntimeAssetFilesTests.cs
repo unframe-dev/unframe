@@ -72,6 +72,29 @@ public sealed class PresentationRuntimeAssetFilesTests
     }
 
     [Test]
+    public void BorrowedVerifiedFilesAreNotCopiedOrDeletedByTheRenderer()
+    {
+        byte[] bytes = { 1, 2, 3 };
+        string path = Path.GetTempFileName();
+        AssetAccessBinding asset = Asset(bytes); asset.MediaType = "image/png";
+        try
+        {
+            File.WriteAllBytes(path, bytes);
+            using (var files = new PresentationRuntimeAssetFiles())
+            {
+                Assert.That(files.AddVerifiedFile(asset, path), Is.EqualTo(path));
+                Assert.That(files.IsReady, Is.True);
+                File.Delete(path);
+                Assert.That(files.IsReady, Is.False);
+            }
+            File.WriteAllBytes(path, bytes);
+            using (var files = new PresentationRuntimeAssetFiles()) files.AddVerifiedFile(asset, path);
+            Assert.That(File.Exists(path), Is.True);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Test]
     public void VerifiedAssetUsesChecksumPathAndIsRemovedOnDispose()
     {
         byte[] bytes = { 1, 2, 3 };

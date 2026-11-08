@@ -79,8 +79,17 @@ namespace Unframe.Unity.PresentationRuntime
         [DllImport("__Internal")] private static extern string UnframeVideoCreateUrl(byte[] bytes, int length);
         [DllImport("__Internal")] private static extern void UnframeVideoRevokeUrl(string url);
 #endif
-        public async Task BuildAsync(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
-            Func<string, CancellationToken, Task<PresentationPreviewAssetData>> provider, CancellationToken token)
+        public Task BuildAsync(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
+            Func<string, CancellationToken, Task<PresentationPreviewAssetData>> provider, CancellationToken token) =>
+            BuildCoreAsync(view, hierarchy, provider, null, token);
+
+        public Task BuildFilesAsync(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
+            IReadOnlyDictionary<string, string> verifiedFiles, CancellationToken token) =>
+            BuildCoreAsync(view, hierarchy, null, verifiedFiles ?? throw new ArgumentNullException(nameof(verifiedFiles)), token);
+
+        private async Task BuildCoreAsync(IPresentationRenderView view, PresentationNodeHierarchy hierarchy,
+            Func<string, CancellationToken, Task<PresentationPreviewAssetData>> provider,
+            IReadOnlyDictionary<string, string> verifiedFiles, CancellationToken token)
         {
             var order = new PresentationSurfaceOrder(view);
             ulong encodedTotal = 0;
@@ -101,17 +110,43 @@ namespace Unframe.Unity.PresentationRuntime
                     {
                         encodedTotal = checked(encodedTotal + artifact.EncodedSizeBytes);
                         if (encodedTotal > Limits.MaxEncodedBytes) throw new InvalidOperationException("video-budget-exceeded");
-                        var downloaded = await provider(artifact.VideoAssetId, token); token.ThrowIfCancellationRequested();
-                        if (downloaded?.Bytes == null || downloaded.MediaType != "video/mp4" || (ulong)downloaded.Bytes.Length != artifact.EncodedSizeBytes) throw new InvalidOperationException("video-asset-invalid");
-                        byte[] bytes = (byte[])downloaded.Bytes.Clone();
-                        using (var hash = SHA256.Create()) if (artifact.Checksum != "sha256:" + BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant()) throw new InvalidOperationException("video-checksum-invalid");
-                        if (!PresentationVideoPreflight.TryValidate(bytes, artifact, out string error)) throw new InvalidOperationException(error);
+                        string verifiedPath = null;
+                        byte[] bytes;
+                        if (verifiedFiles != null)
+                        {
+                            if (!verifiedFiles.TryGetValue(artifact.VideoAssetId, out verifiedPath))
+                                throw new InvalidOperationException("video-asset-file-absent");
+                            bytes = await PresentationAssetWork.Run(() => File.ReadAllBytes(verifiedPath), token);
+                        }
+                        else
+                        {
+                            var downloaded = await provider(artifact.VideoAssetId, token);
+                            if (downloaded?.Bytes == null || downloaded.MediaType != "video/mp4")
+                                throw new InvalidOperationException("video-asset-invalid");
+                            bytes = downloaded.Bytes;
+                        }
+                        await PresentationAssetWork.Run(() =>
+                        {
+                            token.ThrowIfCancellationRequested();
+                            if ((ulong)bytes.LongLength != artifact.EncodedSizeBytes) throw new InvalidOperationException("video-asset-invalid");
+                            if (verifiedPath == null)
+                            {
+                                bytes = (byte[])bytes.Clone();
+                                using (var hash = SHA256.Create())
+                                    if (artifact.Checksum != "sha256:" + BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant())
+                                        throw new InvalidOperationException("video-checksum-invalid");
+                            }
+                            if (!PresentationVideoPreflight.TryValidate(bytes, artifact, out string error)) throw new InvalidOperationException(error);
+                        }, token);
+                        token.ThrowIfCancellationRequested();
                         resource = new Resource { Metadata = artifact.Clone() }; resources.Add(artifact.Checksum, resource);
 #if UNITY_WEBGL && !UNITY_EDITOR
                         resource.Bytes = bytes;
 #else
+                        // Native video decoders require .mp4 paths even when the verified cache uses .bin.
                         resource.File = Path.Combine(Application.temporaryCachePath, "unframe-video-" + Guid.NewGuid().ToString("N") + ".mp4");
-                        File.WriteAllBytes(resource.File, bytes); resource.Url = new Uri(resource.File).AbsoluteUri;
+                        await PresentationAssetWork.Run(() => File.WriteAllBytes(resource.File, bytes), token);
+                        resource.Url = new Uri(resource.File).AbsoluteUri;
 #endif
                     }
                     else if (resource.Metadata.EncodedSizeBytes != artifact.EncodedSizeBytes || !resource.Metadata.PixelSize.Equals(artifact.PixelSize)

@@ -33,12 +33,24 @@ namespace Unframe.Unity.PresentationRuntime
 
         public bool IsReady(PresentationRuntimeDataStore store) => HasResidentAssets(store) && Videos.IsReady(store);
 
-        public async Task LoadAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
-            Func<AssetAccessBinding, CancellationToken, Task<byte[]>> readAsset, CancellationToken token)
+        public Task LoadAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
+            Func<AssetAccessBinding, CancellationToken, Task<byte[]>> readAsset, CancellationToken token) =>
+            LoadCoreAsync(store, hierarchy, readAsset, null, token);
+
+        public Task LoadFilesAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
+            IReadOnlyDictionary<string, string> verifiedFiles, CancellationToken token)
+        {
+            if (verifiedFiles == null) throw new ArgumentNullException(nameof(verifiedFiles));
+            return LoadCoreAsync(store, hierarchy, null, verifiedFiles, token);
+        }
+
+        private async Task LoadCoreAsync(PresentationRuntimeDataStore store, PresentationNodeHierarchy hierarchy,
+            Func<AssetAccessBinding, CancellationToken, Task<byte[]>> readAsset,
+            IReadOnlyDictionary<string, string> verifiedFiles, CancellationToken token)
         {
             await StopPreloadingAsync();
             Dispose();
-            if (store?.Delivery == null || hierarchy == null || readAsset == null)
+            if (store?.Delivery == null || hierarchy == null || readAsset == null && verifiedFiles == null)
                 throw new ArgumentException("A validated Delivery, hierarchy and asset reader are required.");
             if (store.Delivery.ProjectionProfile.LocalOverlays.Count != 0)
                 throw new InvalidOperationException("local-overlays-unsupported");
@@ -56,13 +68,22 @@ namespace Unframe.Unity.PresentationRuntime
                 foreach (AssetAccessBinding asset in store.Delivery.AssetAccess)
                 {
                     token.ThrowIfCancellationRequested();
-                    byte[] bytes = await readAsset(asset, token);
-                    files.Add(asset, bytes);
+                    if (verifiedFiles != null)
+                    {
+                        if (!verifiedFiles.TryGetValue(asset.AssetId, out string path))
+                            throw new InvalidOperationException("asset-file-absent");
+                        files.AddVerifiedFile(asset, path);
+                    }
+                    else
+                    {
+                        byte[] bytes = await readAsset(asset, token);
+                        await PresentationAssetWork.Run(() => files.Add(asset, bytes), token);
+                    }
                 }
                 if (!Spatial.TryBuild(store, hierarchy, out string buildError)
                     || !baked.TryBuild(store, hierarchy, out buildError)
                     || !native.TryBuild(store, hierarchy, files.Paths, out buildError)) throw new InvalidOperationException(buildError);
-                while (PrepareTextures(store) == null) { token.ThrowIfCancellationRequested(); await Task.Yield(); }
+                await PrepareInitialTexturesAsync(store, token);
                 var modelBudget = new PresentationModelTextureBudget
                 {
                     Limits = store.Delivery.CapabilityProfile.Limits.Texture,
@@ -74,18 +95,12 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!store.TryGetAsset(binding.AssetId, out AssetAccessBinding access)
                         || !files.Paths.TryGetValue(binding.AssetId, out string path))
                         throw new InvalidOperationException("model-asset-file-absent");
-                    await Models.LoadAsync(binding, access, File.ReadAllBytes(path), token, modelBudget);
+                    await Models.LoadAsync(binding, access, await PresentationAssetWork.Run(() => File.ReadAllBytes(path), token), token, modelBudget);
                 }
                 modelGpuBytes = modelBudget.UsedGpuBytes - store.Delivery.Residency.Textures.MaximumResidentGpuBytes;
                 modelTextureBindings = modelBudget.UsedBindings - store.Delivery.Residency.Textures.MaximumResidentTextureBindings;
                 await Models.InstantiateAsync(store, hierarchy, token);
-                await Videos.BuildAsync(store, hierarchy, (id, cancellation) =>
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (!store.TryGetAsset(id, out AssetAccessBinding access) || !files.Paths.TryGetValue(id, out string path))
-                        throw new InvalidOperationException("video-asset-file-absent");
-                    return Task.FromResult(new PresentationPreviewAssetData(File.ReadAllBytes(path), access.MediaType));
-                }, token);
+                await Videos.BuildFilesAsync(store, hierarchy, files.Paths, token);
                 token.ThrowIfCancellationRequested();
                 native.GetTextureUsage(out ulong nativeGpu, out ulong nativeBindings);
                 // Video residency has its own limits, independent of the PNG/model texture budget.
@@ -100,7 +115,7 @@ namespace Unframe.Unity.PresentationRuntime
                     if (!store.TryGetAsset(binding.AssetId, out var access) || !files.Paths.TryGetValue(binding.AssetId, out string path))
                         throw new InvalidOperationException("texture-asset-file-absent");
                     var selected = binding.Clone(); var currentAccess = access.Clone();
-                    return Task.Run(() =>
+                    return PresentationAssetWork.Run(() =>
                     {
                         cancellation.ThrowIfCancellationRequested();
                         byte[] bytes = File.ReadAllBytes(path);
@@ -113,6 +128,31 @@ namespace Unframe.Unity.PresentationRuntime
                 if (!IsReady(store)) throw new InvalidOperationException("asset_residency_lost");
             }
             catch { Dispose(); throw; }
+        }
+
+        private async Task PrepareInitialTexturesAsync(PresentationRuntimeDataStore store, CancellationToken token)
+        {
+            var required = PresentationTextureWindow.Select(store.Delivery.Residency.Textures, store.Progression?.CurrentGroupId);
+            if (!PresentationTextureWindow.Fits(required, store.Delivery.CapabilityProfile.Limits.Texture, modelGpuBytes, modelTextureBindings))
+                throw new InvalidOperationException("asset-texture-budget-exceeded");
+            foreach (var binding in required)
+            {
+                token.ThrowIfCancellationRequested();
+                if (Textures.TryRetain(binding, out _)) continue;
+                if (!store.TryGetAsset(binding.AssetId, out var access) || !files.Paths.TryGetValue(binding.AssetId, out string path))
+                    throw new InvalidOperationException("texture-asset-file-absent");
+                byte[] rgba = await PresentationAssetWork.Run(() =>
+                {
+                    byte[] bytes = File.ReadAllBytes(path);
+                    if (!PresentationTextureResidency.TryPrepare(binding, access, bytes, out byte[] prepared, token))
+                        throw new InvalidOperationException("asset-texture-residency-failed");
+                    return prepared;
+                }, token);
+                token.ThrowIfCancellationRequested();
+                while (Application.isPlaying && PresentationTextureResidency.GpuReleaseFrame == Time.frameCount)
+                { token.ThrowIfCancellationRequested(); await Task.Yield(); }
+                if (!Textures.TryUpload(binding, rgba, out string error)) throw new InvalidOperationException(error);
+            }
         }
 
         public bool TryRefresh(PresentationRuntimeDataStore store, double time, out string error)

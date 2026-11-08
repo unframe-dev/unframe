@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using Cysharp.Net.Http;
@@ -114,7 +115,7 @@ namespace Unframe.Unity.PresentationRuntime
                                 string endpoint = initial.endpoint;
                                 string fingerprint = initial.fingerprint;
                                 string runtimeId = initial.runtimeId;
-                                initial.credential = null;
+                                Func<CancellationToken, Task<string>> assetCredential = CredentialProvider(client, delivery, initial);
                                 async Task<string> RefreshCredential(CancellationToken cancellation)
                                 {
                                     Bootstrap current = await LoadBootstrapAsync(client, delivery, cancellation);
@@ -124,7 +125,7 @@ namespace Unframe.Unity.PresentationRuntime
                                 }
                                 reportStage?.Invoke(PresentationConnectionStage.LoadingAssets);
                                 await runtime.RunAsync(delivery, new Uri(endpoint), RefreshCredential, lifetime.Token, fingerprint, host.EncodedCache, httpHandlerFactory, realtimeHandlerFactory,
-                                    diagnostics?.ForRuntime(runtimeId, initial.assignmentEpoch, initial.publicationFence.publicationEpoch));
+                                    diagnostics?.ForRuntime(runtimeId, initial.assignmentEpoch, initial.publicationFence.publicationEpoch), assetCredential);
                                 return;
                             }
                             catch (Exception exception) when (PresentationConnectionErrors.CanRetryControlPlane(exception) && !lifetime.IsCancellationRequested)
@@ -146,6 +147,82 @@ namespace Unframe.Unity.PresentationRuntime
                     finished.TrySetResult(true);
                 }
             }
+        }
+
+        public async Task PreloadAsync(CancellationToken token, Action<int, int> progress = null)
+        {
+            PresentationRuntimeHost host = runtimeHost ?? PresentationRuntimeHost.Shared;
+            using (var lifetime = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                lock (runGate)
+                {
+                    if (activeRun != null || localCancellation) throw new InvalidOperationException("A local presentation run is already active or cancelling.");
+                    activeRun = lifetime;
+                    runFinished = finished;
+                }
+                try
+                {
+                    using (var client = new HttpClient(httpHandlerFactory == null ? new HttpClientHandler { AllowAutoRedirect = false } : httpHandlerFactory()) { Timeout = requestTimeout })
+                    {
+                        for (int attempt = 0; ; attempt++)
+                        {
+                            try
+                            {
+                                reportStage?.Invoke(PresentationConnectionStage.Connecting);
+                                DeliveryManifest delivery = await LoadDeliveryAsync(client, lifetime.Token);
+                                Bootstrap bootstrap = await LoadBootstrapAsync(client, delivery, lifetime.Token);
+                                host.PrepareDelivery(delivery);
+                                lock (runGate) selectedParticipantId = delivery.ProjectionInstance.ParticipantId;
+                                var assets = new List<AssetAccessBinding>(delivery.AssetAccess);
+                                string consumer = PresentationRuntimeHost.ConsumerToken(delivery.SessionId, delivery.ProjectionInstance.ParticipantId);
+                                if (!host.EncodedCache.TryReserveSession(consumer, assets, out var lease, out string error))
+                                    throw new InvalidOperationException(error);
+                                var endpoint = new Uri(bootstrap.endpoint);
+                                Func<CancellationToken, Task<string>> bearer = CredentialProvider(client, delivery, bootstrap);
+                                reportStage?.Invoke(PresentationConnectionStage.LoadingAssets);
+                                using (lease)
+                                using (var assetClient = new HttpClient(httpHandlerFactory == null ? PresentationAssetDownloader.CreateHandler(endpoint, bootstrap.fingerprint) : httpHandlerFactory()) { Timeout = requestTimeout })
+                                    await PresentationAssetPreloader.PreloadAsync(assets, lease,
+                                        (asset, cancellation) => PresentationAssetDownloader.DownloadAsync(assetClient, asset, cancellation,
+                                            bootstrap.fingerprint == null ? null : endpoint, delivery.SessionId, bearer), lifetime.Token, progress);
+                                diagnostics?.Record("assets.preloaded", count: assets.Count);
+                                return;
+                            }
+                            catch (PresentationDeliveryReloadRequiredException) when (attempt < 5 && !lifetime.IsCancellationRequested)
+                            { await Task.Delay(Math.Min(5000, 250 * (1 << attempt)), lifetime.Token); }
+                        }
+                    }
+                }
+                finally
+                {
+                    lock (runGate) activeRun = null;
+                    finished.TrySetResult(true);
+                }
+            }
+        }
+
+        private Func<CancellationToken, Task<string>> CredentialProvider(HttpClient client, DeliveryManifest delivery, Bootstrap initial)
+        {
+            Bootstrap current = initial;
+            var gate = new SemaphoreSlim(1, 1);
+            return async cancellation =>
+            {
+                await gate.WaitAsync(cancellation);
+                try
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (DateTimeOffset.Parse(current.expiresAt, System.Globalization.CultureInfo.InvariantCulture) <= DateTimeOffset.UtcNow.AddSeconds(15))
+                    {
+                        Bootstrap refreshed = await LoadBootstrapAsync(client, delivery, cancellation);
+                        if (refreshed.endpoint != initial.endpoint || refreshed.fingerprint != initial.fingerprint || refreshed.runtimeId != initial.runtimeId)
+                            throw new PresentationDeliveryReloadRequiredException(ResyncReason.ProjectionChanged);
+                        current = refreshed;
+                    }
+                    return current.credential;
+                }
+                finally { gate.Release(); }
+            };
         }
 
         public async Task CancelLocalSelectionAsync()

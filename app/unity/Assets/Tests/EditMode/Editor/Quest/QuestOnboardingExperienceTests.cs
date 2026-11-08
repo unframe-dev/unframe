@@ -33,6 +33,19 @@ public sealed class QuestOnboardingExperienceTests
         return view;
     }
 
+    [Test]
+    public void PreparationOffersIndependentPreloadAndConnectionActions()
+    {
+        var view = CreateView();
+        view.Flow.GoTo(QuestOnboardingPage.Preparation);
+        view.Refresh();
+        Assert.That(view.FindButton("Preload"), Is.Not.Null);
+        Assert.That(view.FindButton("Preload").GetComponentInChildren<Text>().text, Does.Contain("事前ダウンロード"));
+        Assert.That(view.FindButton("Prepare"), Is.Not.Null);
+        Assert.That(view.Flow.Page, Is.EqualTo(QuestOnboardingPage.Preparation));
+        Assert.That(view.IsComplete, Is.False);
+    }
+
     [UnityTest]
     public IEnumerator AlignmentCannotAdvanceBeforeCalibrationAndConnectionAreReady()
     {

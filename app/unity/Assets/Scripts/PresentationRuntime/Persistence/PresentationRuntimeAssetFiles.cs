@@ -61,6 +61,24 @@ namespace Unframe.Unity.PresentationRuntime
             return path;
         }
 
+        // The caller keeps the cache lease alive until all renderers release these borrowed files.
+        public string AddVerifiedFile(AssetAccessBinding asset, string path)
+        {
+            if (disposed) throw new ObjectDisposedException(nameof(PresentationRuntimeAssetFiles));
+            if (asset == null || !PresentationDeliveryCatalog.IsContentHash(asset.Checksum)
+                || string.IsNullOrEmpty(asset.AssetId) || string.IsNullOrEmpty(path))
+                throw new InvalidOperationException("asset-file-metadata-invalid");
+            Extension(asset.MediaType);
+            var file = new FileInfo(path);
+            if (!file.Exists || checked((ulong)file.Length) != asset.EncodedSizeBytes)
+                throw new InvalidOperationException("asset-file-metadata-invalid");
+            if (paths.ContainsKey(asset.AssetId)) throw new InvalidOperationException("asset-file-id-duplicated");
+            paths.Add(asset.AssetId, path);
+            files[path] = (file, file.Length);
+            checkedFrame = -1;
+            return path;
+        }
+
         private static string Extension(string mediaType)
         {
             switch (mediaType)
