@@ -1,5 +1,6 @@
 <script lang="ts">
   import Header from "#lib/components/layout/Header.svelte";
+  import DemoVideo from "#lib/components/ui/DemoVideo.svelte";
 </script>
 
 <svelte:head>
@@ -9,12 +10,9 @@
 <Header />
 
 <main>
-  <!-- svelte-ignore a11y_media_has_caption (動画素材と字幕は未掲載) -->
-  <video
-    aria-label="Unframeのデモ動画"
-    controls
-    playsinline
-  ></video>
+  <div class="player">
+    <DemoVideo />
+  </div>
 </main>
 
 <style>
@@ -25,10 +23,11 @@
     padding: 6.5rem clamp(1rem, 4vw, 2.5rem) 0.75rem;
   }
 
-  video {
+  .player {
     inline-size: min(100%, 64rem, max(18rem, calc((100svh - 7.25rem) * 16 / 9)));
     aspect-ratio: 16 / 9;
     border-radius: 0.75rem;
+    overflow: hidden;
     background: var(--color-night);
   }
 </style>

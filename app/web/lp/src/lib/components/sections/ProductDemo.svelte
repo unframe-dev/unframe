@@ -1,6 +1,7 @@
 <script lang="ts">
   import GradientWave from "../brand/GradientWave.svelte";
   import SectionLabel from "../brand/SectionLabel.svelte";
+  import DemoVideo from "../ui/DemoVideo.svelte";
 </script>
 
 <section id="demo" class="relative overflow-hidden bg-[#ececf0] px-6 py-32 text-night sm:px-10 sm:py-44 lg:px-14">
@@ -17,13 +18,7 @@
     </div>
 
     <div class="relative mt-16 aspect-[16/9] overflow-hidden rounded-[1.25rem] border border-night/15 bg-white/65 shadow-xl sm:mt-24">
-      <!-- <iframe
-        class="absolute inset-0 h-full w-full"
-        src="https://www.youtube-nocookie.com/embed/Jj1_mfUzjOs?list=RDJj1_mfUzjOs&rel=0"
-        title="プレゼンテーションのデモ動画"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowfullscreen
-      ></iframe> -->
+      <DemoVideo />
     </div>
   </div>
 </section>

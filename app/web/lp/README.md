@@ -27,6 +27,15 @@ publishedAt: "2026-07-18"
 pnpm --filter @unframe-dev/site run dev
 ```
 
+## デモ動画
+
+トップページのデモ欄と `/demo` は、`src/lib/assets/demo/` の MP4 とプレビュー画像を共有します。
+動画は H.264 / AAC 形式で、再生操作時に読み込みます。素材を差し替えるときはプレビュー画像も更新してください。
+字幕は未掲載です。
+
+`/demo` の本番配信には、`infra` 側に LP Worker 向けのルート追加が必要です。
+トップページのデモ欄と動画アセットは既存の `/`・`/_app/*` で配信します。
+
 ## Cloudflare Workers
 
 Wrangler の設定は `app/web/lp/wrangler.toml` が正とします。初回のみCloudflareへログインします。
