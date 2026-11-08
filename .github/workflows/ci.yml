@@ -197,5 +197,6 @@ jobs:
   realtime-release:
     name: Realtime release
     needs: [changes, ci]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.realtime == 'true'
+    # Unaffected jobs may be skipped even when the aggregate CI gate succeeds.
+    if: ${{ !cancelled() && needs.ci.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.realtime == 'true' }}
     uses: ./.github/workflows/realtime-release.yml
