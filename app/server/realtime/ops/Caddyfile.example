@@ -1,3 +1,12 @@
+{
+	servers {
+		timeouts {
+			# Realtime gRPC streams can remain open without client messages.
+			read_body_idle -1s
+		}
+	}
+}
+
 realtime.un-fra.me {
 	handle /browser/* {
 		reverse_proxy http://127.0.0.1:9090
