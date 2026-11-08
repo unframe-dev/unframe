@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Threading;
 using Unframe.Delivery;
@@ -70,9 +72,10 @@ namespace Unframe.Unity.PresentationRuntime
             ulong height = binding.PixelSize.Height;
             ulong raw = width * height * 4;
             ulong scanlines = height * (4 * width + 1);
-            ulong encoded = 76 + scanlines + 5 * ((scanlines + 65534) / 65535);
-            if (binding.DecodedGpuBytes != raw || binding.PeakLoadCpuBytes != encoded + 2 * raw
-                || access.EncodedSizeBytes != encoded || !HasMatchingHeader(bytes, (uint)width, (uint)height)) return false;
+            // zlib deflateBound for the encoder's windowBits=15 and memLevel=8, plus PNG chunks.
+            ulong maximumEncoded = 83 + scanlines + (scanlines >> 12) + (scanlines >> 14) + (scanlines >> 25);
+            if (binding.DecodedGpuBytes != raw || binding.PeakLoadCpuBytes != access.EncodedSizeBytes + 2 * raw
+                || access.EncodedSizeBytes < 78 || access.EncodedSizeBytes > maximumEncoded || !HasMatchingHeader(bytes, (uint)width, (uint)height)) return false;
             using (SHA256 hash = SHA256.Create())
             {
                 string actual = "sha256:" + BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
@@ -158,52 +161,67 @@ namespace Unframe.Unity.PresentationRuntime
             }
         }
 
-        // The portable encoder emits one sRGB chunk and stored DEFLATE blocks with filter zero.
-        // Decode directly into the upload buffer to keep the declared two-RGBA-copy peak.
+        // Keep the last compressed byte out of bulk reads so inflater read-ahead cannot hide trailing data.
+        private sealed class DeflateInput : MemoryStream
+        {
+            private readonly CancellationToken token;
+            internal DeflateInput(byte[] bytes, int offset, int count, CancellationToken token) : base(bytes, offset, count, false) { this.token = token; }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                token.ThrowIfCancellationRequested();
+                long remaining = Length - Position;
+                if (count == 0) return 0;
+                if (remaining == 0) throw new InvalidDataException("Truncated DEFLATE stream.");
+                return base.Read(buffer, offset, (int)Math.Min(count, Math.Max(1, remaining - 1)));
+            }
+        }
+
+        // Decode rows directly into the upload buffer, without retaining a second scanline image.
         private static bool TryDecode(byte[] png, int width, int height, out byte[] rgba, CancellationToken token)
         {
             rgba = null;
-            if (ReadUInt32(png, 33) != 1 || png[37] != 115 || png[38] != 82 || png[39] != 71 || png[40] != 66 || png[41] != 0
+            if (png.Length < 78 || ReadUInt32(png, 33) != 1 || png[37] != 115 || png[38] != 82 || png[39] != 71 || png[40] != 66 || png[41] != 0
                 || png[50] != 73 || png[51] != 68 || png[52] != 65 || png[53] != 84) return false;
             int end = png.Length - 16;
-            if (ReadUInt32(png, 46) != end - 54 || png[54] != 0x78 || png[55] != 0x01
+            if (ReadUInt32(png, 46) != end - 54 || (png[54] & 15) != 8 || (png[54] >> 4) > 7
+                || ((png[54] << 8 | png[55]) % 31) != 0 || (png[55] & 32) != 0
                 || ReadUInt32(png, png.Length - 12) != 0 || png[png.Length - 8] != 73 || png[png.Length - 7] != 69
                 || png[png.Length - 6] != 78 || png[png.Length - 5] != 68) return false;
             if (!ValidChunkCrc(png, 8, token) || !ValidChunkCrc(png, 33, token) || !ValidChunkCrc(png, 46, token) || !ValidChunkCrc(png, png.Length - 12, token)) return false;
             byte[] output = new byte[width * height * 4];
-            int cursor = 56;
-            int scanline = 0;
-            int total = height * (4 * width + 1);
             uint a = 1, b = 0;
-            while (cursor < end - 4)
+            try
             {
-                token.ThrowIfCancellationRequested();
-                if (cursor + 5 > end - 4) return false;
-                int final = png[cursor++];
-                int length = png[cursor] | png[cursor + 1] << 8;
-                int complement = png[cursor + 2] | png[cursor + 3] << 8;
-                cursor += 4;
-                if ((final != 0 && final != 1) || (length ^ complement) != 65535 || length == 0
-                    || length != Math.Min(65535, total - scanline) || cursor + length > end - 4) return false;
-                for (int i = 0; i < length; i++, scanline++)
+                using (var input = new DeflateInput(png, 56, end - 60, token))
+                using (var inflater = new DeflateStream(input, CompressionMode.Decompress, true))
                 {
-                    byte value = png[cursor++];
-                    a = (a + value) % 65521;
-                    b = (b + a) % 65521;
-                    int row = scanline / (width * 4 + 1);
-                    int column = scanline % (width * 4 + 1);
-                    if (column == 0) { if (value != 0) return false; }
-                    else output[(height - row - 1) * width * 4 + column - 1] = value;
+                    for (int row = 0; row < height; row++)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (inflater.ReadByte() != 0) return false;
+                        b = (b + a) % 65521;
+                        int offset = (height - row - 1) * width * 4;
+                        int filled = 0;
+                        while (filled < width * 4)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            int read = inflater.Read(output, offset + filled, width * 4 - filled);
+                            if (read == 0) return false;
+                            for (int i = 0; i < read; i++)
+                            {
+                                a = (a + output[offset + filled + i]) % 65521;
+                                b = (b + a) % 65521;
+                            }
+                            filled += read;
+                        }
+                    }
+                    if (inflater.ReadByte() != -1 || input.Position != input.Length || ReadUInt32(png, end - 4) != (b << 16 | a)) return false;
                 }
-                if (final == 1)
-                {
-                    if (scanline != total || cursor != end - 4 || ReadUInt32(png, cursor) != (b << 16 | a)) return false;
-                    rgba = output;
-                    return true;
-                }
-                if (scanline >= total) return false;
+                rgba = output;
+                return true;
             }
-            return false;
+            catch (InvalidDataException) { return false; }
+            catch (IOException) { return false; }
         }
 
         private static uint[] CreateCrcTable()

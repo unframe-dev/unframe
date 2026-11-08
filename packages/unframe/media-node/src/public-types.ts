@@ -38,7 +38,7 @@ export type EncodedTextureArtifact = {
   readonly sourceId: string;
   readonly provenance: {
     readonly encoderId: "unframe-memory-png";
-    readonly version: "1";
-    readonly fingerprint: "png-rgba8-srgb-filter0-store-v1";
+    readonly version: "2";
+    readonly fingerprint: `png-rgba8-srgb-filter0-deflate6-w15-m8-s0-v2-${string}`;
   };
 };

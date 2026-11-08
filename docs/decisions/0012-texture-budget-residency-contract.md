@@ -68,18 +68,18 @@ type TextureArtifactV1 = {
 };
 ```
 
-PNGは現行encoder version 1の8-bit RGBA、sRGB chunk、filter 0、stored DEFLATEを使う。`premultiplied`はportable schemaでも拒否し、暗黙unpremultiplyを行わない。mipmap、runtime GPU compression、platform transcode、lossy compression、texture streamingはv1に含めない。Unityはmip chainなしの`RGBA32`としてloadし、upload後にCPU readback copyを破棄する。
+PNGはencoder version 2の8-bit RGBA、sRGB chunk、filter 0、lossless DEFLATEを使う。圧縮設定、Node/Bunとzlibのversionをencoder fingerprintへ含める。Unityは同じ展開経路で従来のstored DEFLATEも読み、CRC・Adler・寸法・展開長を検証する。既存の公開物は変わらず、容量削減には再build・再公開が必要である。`premultiplied`はportable schemaでも拒否し、暗黙unpremultiplyを行わない。mipmap、runtime GPU compression、platform transcode、lossy compression、texture streamingはv1に含めない。Unityはmip chainなしの`RGBA32`としてloadし、upload後にCPU readback copyを破棄する。
 
-widthを`w`、heightを`h`、`P = w * h`、`S = h * (4w + 1)`、`B = ceil(S / 65_535)`とすると、portable chargeは次である。
+widthを`w`、heightを`h`、`P = w * h`とすると、portable chargeは次である。
 
 ```text
 rawRgbaBytes      = 4 * P
-encodedSizeBytes  = 76 + S + 5 * B
+encodedSizeBytes  = 実際のPNGファイルのbytes length
 decodedGpuBytes   = rawRgbaBytes
 peakLoadCpuBytes  = encodedSizeBytes + 2 * rawRgbaBytes
 ```
 
-`encodedSizeBytes`はencoderがallocation前に予測した値と実bytes lengthの両方に一致しなければならない。`peakLoadCpuBytes`はmanaged encoded buffer、decoded RGBA、upload stagingを各一つ課金するportable admission chargeであり、Unity process全体の実測RSSを表さない。implementationは一textureずつserialにdecode / uploadし、追加copyを恒常保持しない。platform / driver overheadはQuest実機profileで別途観測し、このcanonical chargeを暗黙補正しない。
+`encodedSizeBytes`は実bytes lengthと一致し、寸法から求めるDEFLATEの保守的な上限と素材サイズ上限を超えてはならない。encoderは出力予算内に収まることを圧縮後にも確認する。`peakLoadCpuBytes`はmanaged encoded buffer、decoded RGBA、upload stagingを各一つ課金するportable admission chargeであり、Unity process全体の実測RSSを表さない。implementationは一textureずつserialにdecode / uploadし、追加copyを恒常保持しない。platform / driver overheadはQuest実機profileで別途観測し、このcanonical chargeを暗黙補正しない。
 
 Unity公式文書ではRGBA32は32 bits / pixel、mipmapはmemoryを約33%増やし、CPU readable copyはupload後に破棄できる。本ADRは近似の`4/3`を使わず、v1を`mipCount = 1`へ固定する。
 

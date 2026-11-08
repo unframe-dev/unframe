@@ -12,6 +12,76 @@ public sealed class PresentationTextureResidencyEditModeTests
 {
     private static readonly byte[] Png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAAXNSR0IArs4c6QAAABBJREFUeAEBBQD6/wD/AAD/BQAB//pciNEAAAAASUVORK5CYII=");
 
+    private static readonly byte[] CompressedPng = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABpJREFUeJxjYGRiZmFlY+dg4OTi5uHl4xcAAANmAIlt+SpRAAAAAElFTkSuQmCC");
+
+    [Test]
+    public void StandardDeflatePngPreservesStraightAlphaAndBottomUpPixelOrder()
+    {
+        byte[] png = CompressedPng;
+        var binding = new TextureResidencyBinding
+        {
+            AssetId = "asset:compressed",
+            Checksum = Hash(png),
+            PixelSize = new PixelSize { Width = 2, Height = 2 },
+            DecodedGpuBytes = 16,
+            PeakLoadCpuBytes = (ulong)png.Length + 32
+        };
+        var access = new AssetAccessBinding
+        {
+            AssetId = binding.AssetId,
+            Checksum = binding.Checksum,
+            MediaType = "image/png",
+            EncodedSizeBytes = (ulong)png.Length
+        };
+        Assert.That(PresentationTextureResidency.TryPrepare(binding, access, png, out byte[] rgba), Is.True);
+        CollectionAssert.AreEqual(new byte[] { 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8 }, rgba);
+    }
+
+    [TestCase("adler", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABpJREFUeJxjYGRiZmFlY+dg4OTi5uHl4xcAAANmAIga/hrHAAAAAElFTkSuQmCC")]
+    [TestCase("oversized", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABtJREFUeJxjYGRiZmFlY+dg4OTi5uHl4xdgAAAD7wCJ0nbJ2gAAAABJRU5ErkJggg==")]
+    [TestCase("short", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABlJREFUeJxjYGRiZmFlY+dg4OTi5uHl4wcAAt0AeR8SHSkAAAAASUVORK5CYII=")]
+    [TestCase("filter", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABpJREFUeJxjZGRiZmFlY+dg4OTi5uHl4xcAAAN4AIriFFQCAAAAAElFTkSuQmCC")]
+    [TestCase("trailing", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABtJREFUeJxjYGRiZmFlY+dg4OTi5uHl4xcAAAADZgCJtySlMAAAAABJRU5ErkJggg==")]
+    [TestCase("truncated", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABlJREFUeJxjYGRiZmFlY+dg4OTi5uHl4xcAA2YAidDOmzoAAAAASUVORK5CYII=")]
+    [TestCase("dictionary", "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAAXNSR0IArs4c6QAAABpJREFUeCBjYGRiZmFlY+dg4OTi5uHl4xcAAANmAIn/XKscAAAAAElFTkSuQmCC")]
+    public void MalformedCompressedPayloadIsRejectedWithValidPngCrcAndAssetHash(string failure, string encoded)
+    {
+        byte[] png = Convert.FromBase64String(encoded);
+        var binding = new TextureResidencyBinding
+        {
+            AssetId = "asset:compressed",
+            Checksum = Hash(png),
+            PixelSize = new PixelSize { Width = 2, Height = 2 },
+            DecodedGpuBytes = 16,
+            PeakLoadCpuBytes = (ulong)png.Length + 32
+        };
+        var access = new AssetAccessBinding
+        {
+            AssetId = binding.AssetId,
+            Checksum = binding.Checksum,
+            MediaType = "image/png",
+            EncodedSizeBytes = (ulong)png.Length
+        };
+        Assert.That(PresentationTextureResidency.TryPrepare(binding, access, png, out byte[] rgba), Is.False, failure);
+        Assert.That(rgba, Is.Null);
+    }
+
+    [Test]
+    public void CompressedTextureEncodedSizesAreAcceptedByDeliveryValidation()
+    {
+        DeliveryManifest manifest = BakedDelivery();
+        var texture = manifest.ProjectionProfile.RenderSurfaces[0].Artifacts[0].BakedWeb.States[0].Texture;
+        ulong previous = texture.EncodedSizeBytes;
+        foreach (var state in manifest.ProjectionProfile.RenderSurfaces[0].Artifacts[0].BakedWeb.States)
+            state.Texture.EncodedSizeBytes = 80;
+        foreach (var access in manifest.AssetAccess)
+            if (access.AssetId == "asset:texture") access.EncodedSizeBytes = 80;
+        manifest.Residency.Textures.Textures[0].PeakLoadCpuBytes = 88;
+        manifest.Residency.Textures.MaximumPeakLoadCpuBytes = 88;
+        manifest.Residency.TotalSelectedEncodedBytes -= previous - 80;
+        Assert.That(new PresentationRuntimeDataStore().TryReceiveDelivery(manifest, out string error), Is.True, error);
+    }
+
     [TestCase(29)]
     [TestCase(42)]
     [TestCase(70)]

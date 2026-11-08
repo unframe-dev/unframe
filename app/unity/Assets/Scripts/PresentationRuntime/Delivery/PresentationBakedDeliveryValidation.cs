@@ -157,7 +157,8 @@ namespace Unframe.Unity.PresentationRuntime
             if (w == 0 || w > 2048 || h == 0 || h > 2048 || w > limits.MaxTextureWidth || h > limits.MaxTextureHeight
                 || w * h > limits.MaxTexturePixels) return false;
             ulong scanlines = h * (4 * w + 1);
-            return texture.DecodedGpuBytes == w * h * 4 && texture.EncodedSizeBytes == 76 + scanlines + 5 * ((scanlines + 65534) / 65535);
+            return texture.DecodedGpuBytes == w * h * 4 && texture.EncodedSizeBytes >= 78
+                && texture.EncodedSizeBytes <= 83 + scanlines + (scanlines >> 12) + (scanlines >> 14) + (scanlines >> 25);
         }
     }
 }

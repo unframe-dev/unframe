@@ -60,27 +60,75 @@ const diagnosticCodes = (value: unknown) => {
   return result.valid ? [] : result.diagnostics.map(({ code }) => code);
 };
 
-const parseStoredBlocks = (idat: Uint8Array) => {
-  expect([...idat.subarray(0, 2)]).toEqual([0x78, 0x01]);
-  const blocks: { final: boolean; length: number }[] = [];
-  let offset = 2;
-  while (offset < idat.length - 4) {
-    const header = idat[offset++]!;
-    expect(header & 0b110).toBe(0);
-    const length = idat[offset]! | (idat[offset + 1]! << 8);
-    const inverseLength = idat[offset + 2]! | (idat[offset + 3]! << 8);
-    expect((length ^ inverseLength) & 0xffff).toBe(0xffff);
-    offset += 4 + length;
-    blocks.push({ final: (header & 1) === 1, length });
-    if ((header & 1) === 1) break;
-  }
-  expect(offset).toBe(idat.length - 4);
-  expect(blocks.slice(0, -1).every(({ final }) => !final)).toBe(true);
-  expect(blocks.at(-1)?.final).toBe(true);
-  return blocks;
-};
-
 describe("deterministic PNG encoding", () => {
+  it("compresses flat slide pixels within the actual encoded byte budget", () => {
+    const width = 1920,
+      height = 1080;
+    const rgba = new Uint8Array(width * height * 4).fill(255);
+    const result = encodeRgbaToPng({
+      ...request,
+      rgba,
+      pixelSize: [width, height],
+      limits: {
+        maxWidth: width,
+        maxHeight: height,
+        maxPixels: width * height,
+        maxInputBytes: rgba.length,
+        maxOutputBytes: 30_000,
+      },
+    });
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.byteLength).toBeLessThan(30_000);
+    const chunks = parseChunks(result.value.bytes);
+    const raw = inflateSync(chunks[2]!.data);
+    expect(raw).toHaveLength(height * (width * 4 + 1));
+    expect([...raw.subarray(0, 5)]).toEqual([0, 255, 255, 255, 255]);
+  });
+  it("preserves incompressible pixels within the compiler deflate bound", () => {
+    const width = 128,
+      height = 128;
+    const rgba = new Uint8Array(width * height * 4);
+    let state = 0x12345678;
+    for (let index = 0; index < rgba.length; index++) {
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      rgba[index] = state & 255;
+    }
+    const scanlineBytes = rgba.length + height;
+    const maxOutputBytes =
+      scanlineBytes +
+      Math.floor(scanlineBytes / 4096) +
+      Math.floor(scanlineBytes / 16384) +
+      Math.floor(scanlineBytes / 33554432) +
+      83;
+    const result = encodeRgbaToPng({
+      ...request,
+      rgba,
+      pixelSize: [width, height],
+      alphaMode: "straight",
+      limits: {
+        maxWidth: width,
+        maxHeight: height,
+        maxPixels: width * height,
+        maxInputBytes: rgba.length,
+        maxOutputBytes,
+      },
+    });
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.value.byteLength).toBeLessThanOrEqual(maxOutputBytes);
+    const scanlines = inflateSync(parseChunks(result.value.bytes)[2]!.data);
+    const restored = new Uint8Array(rgba.length);
+    for (let row = 0; row < height; row++)
+      restored.set(
+        scanlines.subarray(row * (width * 4 + 1) + 1, (row + 1) * (width * 4 + 1)),
+        row * width * 4,
+      );
+    expect(restored).toEqual(rgba);
+  });
+
   it("freezes the public encoder identity and uses it for each result", () => {
     expect(Object.isFrozen(PNG_ENCODER_IDENTITY)).toBe(true);
     expect(Reflect.set(PNG_ENCODER_IDENTITY, "version", "changed")).toBe(false);
@@ -106,18 +154,12 @@ describe("deterministic PNG encoding", () => {
       gpuBytes: 4,
     });
     expect(first.value.descriptor.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(first.value.descriptor.checksum).toBe(
-      "sha256:9708f867a1a68bb0c8f81e9d92374e50a63f78f5164e5222c27875fcf343c0cf",
-    );
-    expect(Buffer.from(first.value.bytes).toString("hex")).toBe(
-      "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489000000017352474200aece1ce900000010494441547801010500faff00ff0000ff050001fffa5c88d10000000049454e44ae426082",
-    );
     expect(first.value.byteLength).toBe(first.value.bytes.length);
     expect(first.value.sourceId).toBe(request.sourceId);
     expect(first.value.provenance).toEqual({
       encoderId: "unframe-memory-png",
-      version: "1",
-      fingerprint: "png-rgba8-srgb-filter0-store-v1",
+      version: "2",
+      fingerprint: `png-rgba8-srgb-filter0-deflate6-w15-m8-s0-v2-${process.versions.bun ? `bun-${process.versions.bun}` : `node-${process.version}`}-zlib-${process.versions.zlib}`,
     });
   });
 
@@ -163,7 +205,7 @@ describe("deterministic PNG encoding", () => {
     expect(crc32(new TextEncoder().encode("123456789"))).toBe(0xcbf43926);
   });
 
-  it("splits large scanline data into valid deterministic stored blocks", () => {
+  it("compresses large scanline data deterministically", () => {
     const width = 256;
     const height = 64;
     const rgba = new Uint8Array(width * height * 4).fill(255);
@@ -186,14 +228,11 @@ describe("deterministic PNG encoding", () => {
     if (!result.valid) return;
 
     const idat = parseChunks(result.value.bytes).find(({ type }) => type === "IDAT")!.data;
-    expect(parseStoredBlocks(idat)).toEqual([
-      { final: false, length: 65_535 },
-      { final: true, length: 65 },
-    ]);
+    expect(idat.byteLength).toBeLessThan(rgba.length / 100);
     expect(inflateSync(idat)).toHaveLength(height * (width * 4 + 1));
   });
 
-  it("uses exactly one final stored block below the 65,535-byte boundary", () => {
+  it("preserves scanlines below the former stored-block boundary", () => {
     const width = 256;
     const height = 63;
     const rgba = new Uint8Array(width * height * 4).fill(255);
@@ -213,7 +252,7 @@ describe("deterministic PNG encoding", () => {
     if (!result.valid) return;
 
     const idat = parseChunks(result.value.bytes).find(({ type }) => type === "IDAT")!.data;
-    expect(parseStoredBlocks(idat)).toEqual([{ final: true, length: 64_575 }]);
+    expect(inflateSync(idat)).toHaveLength(64_575);
   });
 
   it("preserves straight alpha and rejects ambiguous or false alpha metadata", () => {
@@ -311,12 +350,12 @@ describe("PNG trust boundary", () => {
     ).toContain("encode-limit-above-hard-cap");
   });
 
-  it("enforces caller input and predicted-output budgets", () => {
+  it("enforces caller input and actual encoded-output budgets", () => {
     expect(
       diagnosticCodes({ ...request, limits: { ...request.limits, maxInputBytes: 3 } }),
     ).toContain("encode-limit-exceeded");
     expect(
-      diagnosticCodes({ ...request, limits: { ...request.limits, maxOutputBytes: 85 } }),
+      diagnosticCodes({ ...request, limits: { ...request.limits, maxOutputBytes: 1 } }),
     ).toContain("encode-limit-exceeded");
     expect(
       diagnosticCodes({

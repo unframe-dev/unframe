@@ -1,3 +1,4 @@
+import { deflateSync } from "node:zlib";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { Diagnostic, ValidationResult } from "@unframe-dev/presentation";
@@ -13,22 +14,12 @@ type ValidatedRequest = {
   width: number;
   height: number;
   alphaMode: "opaque" | "straight";
-  outputBytes: number;
-};
-
-type PngPlan = {
-  rowBytes: number;
-  scanlineBytes: number;
-  blockCount: number;
-  zlibBytes: number;
-  outputBytes: number;
+  maxOutputBytes: number;
 };
 
 const PNG_SIGNATURE = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
 const SRGB_INTENT = Uint8Array.of(0);
 const EMPTY_BYTES = new Uint8Array();
-const ADLER_MODULUS = 65_521;
-const STORED_BLOCK_SIZE = 65_535;
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, value) => {
   let current = value;
@@ -82,20 +73,6 @@ const copyUint8Array = (
   } catch {
     return {};
   }
-};
-
-const createPngPlan = (width: number, height: number): PngPlan => {
-  const rowBytes = width * 4;
-  const scanlineBytes = height * (rowBytes + 1);
-  const blockCount = Math.ceil(scanlineBytes / STORED_BLOCK_SIZE);
-  const zlibBytes = 2 + blockCount * 5 + scanlineBytes + 4;
-  return {
-    rowBytes,
-    scanlineBytes,
-    blockCount,
-    zlibBytes,
-    outputBytes: 70 + zlibBytes,
-  };
 };
 
 const snapshotRecord = (value: unknown): Record<string, unknown> | undefined => {
@@ -262,24 +239,16 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
       "RGBA byte length must equal width multiplied by height multiplied by four.",
     );
 
-  const plan = createPngPlan(width, height);
-  if (plan.outputBytes > INTERNAL_PNG_HARD_CAPS.maxOutputBytes)
-    return invalid(
-      "png-hard-cap-exceeded",
-      ["limits", "maxOutputBytes"],
-      "Predicted PNG bytes exceed the package hard cap.",
-    );
   if (
     width > limits.value.maxWidth ||
     height > limits.value.maxHeight ||
     pixels > limits.value.maxPixels ||
-    inputBytes > limits.value.maxInputBytes ||
-    plan.outputBytes > limits.value.maxOutputBytes
+    inputBytes > limits.value.maxInputBytes
   )
     return invalid(
       "encode-limit-exceeded",
       ["limits"],
-      "Input or predicted output exceeds the caller-provided encode limits.",
+      "Input exceeds the caller-provided encode limits.",
     );
 
   if (alphaMode === "opaque") {
@@ -301,7 +270,7 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
       width,
       height,
       alphaMode,
-      outputBytes: plan.outputBytes,
+      maxOutputBytes: limits.value.maxOutputBytes,
     },
     diagnostics: [],
   };
@@ -309,11 +278,6 @@ const validateRequest = (value: unknown): ValidationResult<ValidatedRequest> => 
 
 const writeU32 = (bytes: Uint8Array, offset: number, value: number) => {
   new DataView(bytes.buffer, bytes.byteOffset + offset, 4).setUint32(0, value >>> 0);
-};
-
-const writeU16Le = (bytes: Uint8Array, offset: number, value: number) => {
-  bytes[offset] = value & 0xff;
-  bytes[offset + 1] = value >>> 8;
 };
 
 const writeAscii = (bytes: Uint8Array, offset: number, value: string) => {
@@ -339,47 +303,29 @@ const writeChunk = (output: Uint8Array, offset: number, type: string, data: Uint
   return offset + 12 + data.length;
 };
 
-const writeIdat = (output: Uint8Array, offset: number, rgba: Uint8Array, plan: PngPlan) => {
-  writeU32(output, offset, plan.zlibBytes);
-  writeAscii(output, offset + 4, "IDAT");
-  let cursor = offset + 8;
-  output[cursor++] = 0x78;
-  output[cursor++] = 0x01;
-
-  let scanlineOffset = 0;
-  let rowPosition = 0;
-  let rgbaOffset = 0;
-  let adlerA = 1;
-  let adlerB = 0;
-  for (let blockIndex = 0; blockIndex < plan.blockCount; blockIndex++) {
-    const blockLength = Math.min(STORED_BLOCK_SIZE, plan.scanlineBytes - scanlineOffset);
-    output[cursor++] = blockIndex === plan.blockCount - 1 ? 1 : 0;
-    writeU16Le(output, cursor, blockLength);
-    cursor += 2;
-    writeU16Le(output, cursor, ~blockLength & 0xffff);
-    cursor += 2;
-
-    for (let index = 0; index < blockLength; index++, scanlineOffset++) {
-      const byte = rowPosition === 0 ? 0 : rgba[rgbaOffset++]!;
-      output[cursor++] = byte;
-      adlerA = (adlerA + byte) % ADLER_MODULUS;
-      adlerB = (adlerB + adlerA) % ADLER_MODULUS;
-      rowPosition = rowPosition === plan.rowBytes ? 0 : rowPosition + 1;
-    }
-  }
-
-  writeU32(output, cursor, (adlerB << 16) | adlerA);
-  cursor += 4;
-  writeU32(output, cursor, crc32(output.subarray(offset + 4, cursor)));
-  return cursor + 4;
-};
-
 const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTextureArtifact> => {
-  const plan = createPngPlan(request.width, request.height);
-  if (plan.outputBytes !== request.outputBytes)
-    return invalid("png-encode-failed", [], "Validated PNG plan changed before encoding.");
-
-  const output = new Uint8Array(plan.outputBytes);
+  const rowBytes = request.width * 4;
+  const scanlines = new Uint8Array(request.height * (rowBytes + 1));
+  for (let row = 0; row < request.height; row++)
+    scanlines.set(
+      request.rgba.subarray(row * rowBytes, (row + 1) * rowBytes),
+      row * (rowBytes + 1) + 1,
+    );
+  const compressed = deflateSync(scanlines, { level: 6, windowBits: 15, memLevel: 8, strategy: 0 });
+  const outputBytes = 70 + compressed.length;
+  if (outputBytes > INTERNAL_PNG_HARD_CAPS.maxOutputBytes)
+    return invalid(
+      "png-hard-cap-exceeded",
+      ["limits", "maxOutputBytes"],
+      "Encoded PNG exceeds the package hard cap.",
+    );
+  if (outputBytes > request.maxOutputBytes)
+    return invalid(
+      "encode-limit-exceeded",
+      ["limits"],
+      "Encoded PNG exceeds the caller-provided encode limits.",
+    );
+  const output = new Uint8Array(outputBytes);
   output.set(PNG_SIGNATURE);
   const ihdr = new Uint8Array(13);
   writeU32(ihdr, 0, request.width);
@@ -388,7 +334,7 @@ const encodeValidated = (request: ValidatedRequest): ValidationResult<EncodedTex
 
   let cursor = writeChunk(output, PNG_SIGNATURE.length, "IHDR", ihdr);
   cursor = writeChunk(output, cursor, "sRGB", SRGB_INTENT);
-  cursor = writeIdat(output, cursor, request.rgba, plan);
+  cursor = writeChunk(output, cursor, "IDAT", compressed);
   cursor = writeChunk(output, cursor, "IEND", EMPTY_BYTES);
   if (cursor !== output.length)
     return invalid("png-encode-failed", [], "PNG encoder produced an unexpected byte length.");
