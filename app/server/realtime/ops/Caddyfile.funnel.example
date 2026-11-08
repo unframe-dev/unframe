@@ -1,6 +1,12 @@
 {
 	admin off
 	auto_https disable_redirects
+	servers {
+		timeouts {
+			# Realtime gRPC streams can remain open without client messages.
+			read_body_idle -1s
+		}
+	}
 }
 
 https://{$FUNNEL_HOSTNAME}:8443 {

@@ -70,6 +70,8 @@ nix shell nixpkgs#tailscale --command tailscale --socket="$TS_SOCKET" funnel --t
 
 別回線から公開 URL の証明書を確認し、Session を作成して割り当てが ready になることを確認します。割り当て前の 502 は Realtime が未起動の場合に発生するため、gRPC / WSS の成功を意味しません。Quest / Audience で制御、状態更新、再接続を確認してください。
 
+Caddy は `servers.timeouts.read_body_idle -1s` を設定します。双方向 gRPC はクライアントから送信しない時間も接続を維持するため、既定の60秒の受信待ち制限を無効にします。`0` は既定値に戻るため使用しません。既存配備の `Funnel/Caddyfile` にも反映が必要です。
+
 Funnel の帯域制限と `ts.net` ドメインの制約が適用されます。外部からの双方向 gRPC / WSS と実機接続は、実際の公開後に検証が必要です。
 
 ## Mac 起動時の自動起動
