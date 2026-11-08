@@ -763,6 +763,20 @@ const runProjectCommand = async (
           : undefined;
       const cancel =
         host.signal?.aborted || (error instanceof Error && error.name === "AbortError");
+      if (
+        !cancel &&
+        error instanceof AuthorError &&
+        (error.code === "cli-analysis-time-limit" || error.code === "cli-analysis-resource-limit")
+      )
+        return output(3, command, format, [
+          diagnostic(
+            "io",
+            error.code,
+            error.code === "cli-analysis-time-limit"
+              ? "Project analysis exceeded its time budget."
+              : "Project analysis exceeded its memory budget.",
+          ),
+        ]);
       const browserFailure =
         error instanceof BrowserProvisionFailure ||
         error instanceof BrowserCleanupFailure ||

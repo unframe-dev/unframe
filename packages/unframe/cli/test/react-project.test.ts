@@ -1,3 +1,4 @@
+import { AuthorError } from "@unframe-dev/author-service";
 import {
   OpaquePreparationFailure,
   checkAuthoringProjectAssembly,
@@ -156,6 +157,30 @@ describe("React installed CLI path", () => {
     expect(opened).toBe(false);
     await expect(readFile(join(directory, "unframe.lock"))).rejects.toThrow();
   }, 60_000);
+  it.each([
+    ["cli-analysis-time-limit", "Project analysis exceeded its time budget."],
+    ["cli-analysis-resource-limit", "Project analysis exceeded its memory budget."],
+  ])(
+    "reports %s during opaque preparation",
+    async (code, message) => {
+      const directory = await createProject();
+      vi.spyOn(opaquePreparation, "prepareOpaqueRenderer").mockRejectedValueOnce(
+        new AuthorError(503, code, message),
+      );
+      const result = await runPresentationCli({ args: ["build", directory, "--format", "json"] });
+      expect(result.exitCode).toBe(3);
+      expect(JSON.parse(result.stderr)).toMatchObject({
+        diagnostics: [
+          {
+            family: "io",
+            code,
+            message,
+          },
+        ],
+      });
+    },
+    30_000,
+  );
   it("retains bundle preparation diagnostics and existing dist", async () => {
     const directory = await createProject();
     await mkdir(join(directory, "dist"));
