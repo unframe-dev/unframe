@@ -5,16 +5,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 
+type Command = "dev" | "presentation" | "tui";
 const { scripts } = JSON.parse(
   readFileSync(new URL("../../packages/unframe/cli/package.json", import.meta.url), "utf8"),
-) as { scripts: { predev: string; dev: string } };
+) as { scripts: Record<Command | `pre${Command}`, string> };
 const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0))
     rmSync(directory, { recursive: true, force: true });
 });
 
-const fixture = (failStylesBuild = false) => {
+const fixture = (failStylesBuild = false, command: Command = "dev") => {
   const root = mkdtempSync(join(tmpdir(), "unframe-editor-preparation-"));
   directories.push(root);
   const bin = join(root, "bin");
@@ -69,7 +70,7 @@ fs.writeFileSync(path.join(root, "host-started"), "");
   return {
     root,
     run: () =>
-      spawnSync("bash", ["-c", `${scripts.predev} && ${scripts.dev}`], {
+      spawnSync("bash", ["-c", `${scripts[`pre${command}`]} && ${scripts[command]}`], {
         cwd: cli,
         env: {
           ...process.env,
@@ -91,6 +92,34 @@ test("dev prepares all required generated artifacts before starting the Editor h
 
 test("dev does not start the Editor host when the style compiler build fails", () => {
   const current = fixture(true);
+  const result = current.run();
+  assert.equal(result.status, 23, result.stderr);
+  assert.equal(existsSync(join(current.root, "host-started")), false);
+});
+
+test("presentation prepares all required generated artifacts before starting the CLI", () => {
+  const current = fixture(false, "presentation");
+  const result = current.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(existsSync(join(current.root, "host-started")));
+});
+
+test("presentation does not start the CLI when the style compiler build fails", () => {
+  const current = fixture(true, "presentation");
+  const result = current.run();
+  assert.equal(result.status, 23, result.stderr);
+  assert.equal(existsSync(join(current.root, "host-started")), false);
+});
+
+test("tui prepares all required generated artifacts before starting the TUI", () => {
+  const current = fixture(false, "tui");
+  const result = current.run();
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(existsSync(join(current.root, "host-started")));
+});
+
+test("tui does not start when the style compiler build fails", () => {
+  const current = fixture(true, "tui");
   const result = current.run();
   assert.equal(result.status, 23, result.stderr);
   assert.equal(existsSync(join(current.root, "host-started")), false);

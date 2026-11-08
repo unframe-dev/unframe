@@ -83,6 +83,12 @@ nix develop --command scripts/dev/install-presentation-browser.sh
 ```
 
 browser binary は repository の `.cache/playwright` にのみ配置し、`playwright-core install chromium --only-shell` で provision します。
+CLI を直接実行するときも `PLAYWRIGHT_BROWSERS_PATH` にこのディレクトリの絶対パスを指定します。リポジトリルートでの `example/` のビルド例:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/playwright" nix develop --command pnpm --filter @unframe-dev/cli run presentation build "$PWD/example"
+```
+
 Nix devShell は両 OS に固定 Noto Sans CJK JP Regular の単独 OTF と runtime closure を提供します。OTF は上流の Sans2.004 配布物を SHA-256 で固定して取得し、SIL OFL ライセンスを同梱します。Linux では共有ライブラリと fontconfig も提供します。font probe は明示 font bytes で描画し、font / Browser / OS / runtime の識別を fingerprint に含めます。生成物の一致を保証する単位は同じ実行環境であり、異なる OS の PNG bytes を一致させる契約ではありません。
 通常の render-browser test は `*.integration.test.ts` を明示的に除外し、provision済み環境でだけ実 Browser capture の integration test を次で実行できます。binary がない場合は skip せず失敗します。`nix run .#presentation` の check mode も同じく provision を必須とし、fix mode と package 単体 check は Browser を起動しません。
 
@@ -111,6 +117,8 @@ PostCSS / Tailwind を使う project は、その実行環境で依存を導入�
 ## Native helper と worker の準備
 
 CLI の path 検査、成果物公開、build cache、Source 保存 transaction は Go 製 native filesystem helper を使用します。repository root で `bash scripts/build-cli-filesystem.sh` を実行すると `packages/unframe/workspace-node/native-bin/` に Linux x86_64 と macOS arm64 向け helper を生成します。native 専用 Go module の依存は `packages/unframe/workspace-node/native/go.mod` と `go.sum` で固定します。CLI の pnpm `presentation` / `dev` / `tui` / `test` / `test:tui` は hook で生成します。`vp test` の直接実行や headless API の直接利用など hook を通らない consumer は、先に同 script を実行してください。Author 分析を使う場合は、`pnpm --filter @unframe-dev/cli run build:analysis` も必要です。
+
+CLI の pnpm `presentation` / `dev` / `tui` は、起動前に `styles-node` の compiler と依存スナップショットもビルドします。
 
 Style / capture 共通の OS 別隔離・資源制限・終了確認は `@unframe-dev/worker-host` が所有し、Browser の配置と起動は Renderer、固定 Node graph の配置と Style 変換の準備は `@unframe-dev/styles-node` が所有します。Linux / macOS の保証差と実機検証範囲は ADR-0026 を参照してください。
 
