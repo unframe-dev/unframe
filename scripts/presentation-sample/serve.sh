@@ -2,7 +2,12 @@
 set -euo pipefail
 umask 077
 root="${REPO_ROOT:-$(git rev-parse --show-toplevel)}"
+if [[ "${1:-}" == test ]]; then
+  exec pnpm --dir "$root" --filter @unframe-dev/contracts exec tsx ../../scripts/presentation-sample/test.ts
+fi
 bash "$root/scripts/build-cli-filesystem.sh"
+pnpm --dir "$root" --filter @unframe-dev/cli run build:analysis
+pnpm --dir "$root" --filter @unframe-dev/styles-node run build
 state="$root/.unframe/presentation-sample/runs/$(date +%Y%m%dT%H%M%S)-$$"
 mkdir -p "$state"
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -keyout "$state/ca-key.pem" \

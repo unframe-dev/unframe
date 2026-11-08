@@ -256,6 +256,7 @@ ${runtimeEndpoint} {
   });
   if (initialized.exitCode !== 0)
     throw new Error("Sample initialization failed; inspect the private compiler log.");
+  await execute("pnpm", ["install", "--frozen-lockfile"], project);
   console.log("Compiling the local sample with the production compiler.");
   const built = await runPresentationCli({
     args: ["build", project],
