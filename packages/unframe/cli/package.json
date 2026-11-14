@@ -43,9 +43,9 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "@opentui/core": "0.8.1",
-    "@opentui/keymap": "0.8.1",
-    "@opentui/solid": "0.8.1",
+    "@opentui/core": "0.8.4",
+    "@opentui/keymap": "0.8.4",
+    "@opentui/solid": "0.8.4",
     "@unframe-dev/artifacts": "workspace:*",
     "@unframe-dev/author-service": "workspace:*",
     "@unframe-dev/authoring": "workspace:*",
@@ -62,7 +62,7 @@
     "@unframe-dev/workspace": "workspace:*",
     "@unframe-dev/workspace-node": "workspace:*",
     "css-tree": "3.2.1",
-    "solid-js": "1.9.18",
+    "solid-js": "1.9.19",
     "typescript": "6.0.3",
     "ws": "^8.22.1",
     "zod": "4.4.3"
