@@ -29,8 +29,8 @@ packages:
     resolution: {integrity: sha512-8YXvVIyb9VmpOQTbLQtP9cb5mmI5FrgKw/I5U/WBsWrZS3bRhqP7drj1ZA5qmzGQM7AIyXlOYwGnWSEyJmZv+A==, tarball: file:vendor/unframe-dev-presentation-0.0.1.tgz}
     version: 0.0.1
 
-  csstype@3.2.3:
-    resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+  csstype@3.2.4:
+    resolution: {integrity: sha512-PoKaoPzQapnEoqUSnHx1u6W6ku8CVEgKsnpmmzU3m1nwkidpPBQ8V/Zq2+bWNrsOKoKLwTGdbx6xF7BXP1zLVQ==}
 
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
@@ -39,7 +39,7 @@ snapshots:
 
   '@types/react@19.3.0':
     dependencies:
-      csstype: 3.2.3
+      csstype: 3.2.4
 
   '@unframe-dev/authoring@file:vendor/unframe-dev-authoring-0.0.1.tgz':
     dependencies:
@@ -51,6 +51,6 @@ snapshots:
     dependencies:
       zod: 4.4.3
 
-  csstype@3.2.3: {}
+  csstype@3.2.4: {}
 
   zod@4.4.3: {}
