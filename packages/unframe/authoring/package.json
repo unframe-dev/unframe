@@ -40,7 +40,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@types/react": "19.3.0",
+    "@types/react": "19.3.3",
     "@unframe-dev/presentation": "workspace:*",
     "zod": "4.4.3"
   },

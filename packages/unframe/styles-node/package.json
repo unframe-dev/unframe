@@ -40,7 +40,7 @@
     "jsonc-parser": "3.3.1",
     "path-is-inside": "1.0.2",
     "postcss-load-config": "6.0.1",
-    "semver": "7.8.5",
+    "semver": "7.8.6",
     "typescript": "6.0.3",
     "yaml": "2.9.1",
     "zod": "4.4.3"
