@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@types/css-tree": "^3.2.0",
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.11",
     "@unframe-dev/contracts": "workspace:*",
     "vite-plus": "catalog:"
   }

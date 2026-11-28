@@ -22,7 +22,7 @@
     "@unframe-dev/media-node": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.11",
     "tsx": "^4.22.1",
     "typescript": "7.0.2"
   }
