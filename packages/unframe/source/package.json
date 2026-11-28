@@ -33,7 +33,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.11",
     "@unframe-dev/artifacts": "workspace:*",
     "vite-plus": "catalog:"
   }
